@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import asyncHandler from '@/utils/asyncHandler.js';
 import { ApiResponse } from '@/utils/ApiResponse.js';
+import {
+  assertFormStatusChangeAllowed,
+  assertPendingFormEditAllowed,
+} from '@/utils/publicFormAccess.util.js';
 import { RegistrationFormClass9Service } from './registrationFormClass9.service.js';
 
 export class RegistrationFormClass9Controller {
@@ -22,6 +26,10 @@ export class RegistrationFormClass9Controller {
   });
 
   static updateRegistration = asyncHandler(async (req: Request, res: Response) => {
+    const existing = await RegistrationFormClass9Service.getRegistrationById(
+      req.params.id as string,
+    );
+    assertPendingFormEditAllowed(req, existing.status);
     const updated = await RegistrationFormClass9Service.updateRegistration(
       req.params.id as string,
       req.body,
@@ -30,6 +38,10 @@ export class RegistrationFormClass9Controller {
   });
 
   static updateRegistrationStatus = asyncHandler(async (req: Request, res: Response) => {
+    const existing = await RegistrationFormClass9Service.getRegistrationById(
+      req.params.id as string,
+    );
+    assertFormStatusChangeAllowed(req, existing.status, req.body.status);
     const updated = await RegistrationFormClass9Service.updateRegistrationStatus(
       req.params.id as string,
       req.body.status,

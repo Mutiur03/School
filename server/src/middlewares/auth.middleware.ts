@@ -84,6 +84,16 @@ class AuthMiddleware {
       }
     };
   }
+
+  /** Attach req.user when a valid token is present; continue anonymously otherwise. */
+  static authenticateOptional(roles: string[] = []) {
+    return async (req: Request, _res: Response, next: NextFunction) => {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) return next();
+
+      return AuthMiddleware.authenticate(roles)(req, _res, next);
+    };
+  }
 }
 
 export default AuthMiddleware;

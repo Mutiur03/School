@@ -26,8 +26,13 @@ export const sanitizeStudent = (student: any) => {
 
 export class StudentService {
   static async getAlumni() {
+    const currentYear = String(new Date().getFullYear());
     const students = await prisma.students.findMany({
+      where: {
+        batch: { lt: currentYear },
+      },
       omit: { password: true },
+      orderBy: [{ batch: 'desc' }, { name: 'asc' }],
     });
     return students.map(sanitizeStudent);
   }

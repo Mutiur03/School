@@ -33,6 +33,7 @@ const getClosestExam = (exams: Exam[]) => {
 export default async function ExamRoutinePage() {
   let exams: Exam[] = [];
   let selectedExamId: number | null = null;
+  let loadError: string | null = null;
 
   try {
     const examsRes = await api.get<Exam[] | { data: Exam[] }>('/api/exams/getExams', {
@@ -47,9 +48,10 @@ export default async function ExamRoutinePage() {
     exams = getCurrentYearExams(allExams);
     selectedExamId = getClosestExam(exams)?.id ?? null;
   } catch {
-    exams = [];
-    selectedExamId = null;
+    loadError = 'Unable to load exam routines right now. Please try again later.';
   }
 
-  return <ExamRoutineClient exams={exams} initialSelectedId={selectedExamId} />;
+  return (
+    <ExamRoutineClient exams={exams} initialSelectedId={selectedExamId} loadError={loadError} />
+  );
 }

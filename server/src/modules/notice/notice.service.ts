@@ -3,6 +3,7 @@ import { redis } from '@/config/redis.js';
 
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 const noticesKey = (schoolId?: number) => `notices:${schoolId ?? 'none'}`;
 
@@ -23,7 +24,7 @@ export class NoticeService {
   }
 
   async getPresignedUploadUrl(filename: string, contentType: string) {
-    const key = `notices/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`notices/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

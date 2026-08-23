@@ -1,5 +1,6 @@
 import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
+import { getRlsContext } from '@/config/rlsContextStore.js';
 import { prisma } from '@/config/prisma.js';
 import { deleteFromR2 } from '@/config/r2.js';
 import * as XLSX from 'xlsx';
@@ -10,6 +11,9 @@ import { env } from '@/config/env.js';
 import { redis } from '@/config/redis.js';
 import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
 import type { Prisma } from '@prisma/client';
+
+const headMsgCacheKey = (schoolId?: number | null) =>
+  `head_msg_cache_${schoolId ?? getRlsContext()?.schoolId ?? 'global'}`;
 
 export const sanitizeTeacher = (teacher: any) => {
   const { password: _password, ...rest } = teacher;
@@ -228,9 +232,7 @@ export class TeacherService {
       data: parsed.data,
     });
 
-    // Clear head message cache
-    const key = 'head_msg_cache';
-    await redis.del(key);
+    await redis.del(headMsgCacheKey(result.school_id));
 
     if (existingTeacher && existingTeacher.name !== parsed.data.name) {
       await invalidateMarksheetsForTeacher(id);
@@ -253,9 +255,7 @@ export class TeacherService {
       data: { available: false },
     });
 
-    // Clear head message cache
-    const key = 'head_msg_cache';
-    await redis.del(key);
+    await redis.del(headMsgCacheKey(teacher.school_id));
 
     return { message: 'Teacher deleted successfully' };
   }
@@ -275,9 +275,7 @@ export class TeacherService {
       data: { image: key || null },
     });
 
-    // Clear head message cache
-    const cacheKey = 'head_msg_cache';
-    await redis.del(cacheKey);
+    await redis.del(headMsgCacheKey(result.school_id));
 
     return result;
   }

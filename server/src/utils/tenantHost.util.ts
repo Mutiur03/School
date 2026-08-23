@@ -56,6 +56,10 @@ export const resolveTenantHostname = (req: express.Request, fallbackHostname?: s
     fallbackHostname ??
     (typeof req.hostname === 'string' ? req.hostname.toLowerCase() : 'localhost');
 
+  if (process.env.NODE_ENV === 'production') {
+    return requestHostname(req.headers['x-tenant-host']) ?? fallback;
+  }
+
   return (
     requestHostname(req.headers.origin) ??
     requestHostname(req.headers['x-tenant-host']) ??

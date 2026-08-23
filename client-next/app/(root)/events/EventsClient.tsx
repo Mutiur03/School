@@ -44,9 +44,10 @@ function resolvePdfUrl(ev: EventItem): string {
 
 interface Props {
   events: EventItem[];
+  loadError?: string | null;
 }
 
-export default function EventsClient({ events }: Props) {
+export default function EventsClient({ events, loadError }: Props) {
   const [query, setQuery] = useState('');
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
@@ -103,6 +104,12 @@ export default function EventsClient({ events }: Props) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <h1 className="mb-4 text-2xl font-semibold text-gray-900">Events</h1>
+
+      {loadError ? (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </p>
+      ) : null}
 
       {/* Toolbar */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

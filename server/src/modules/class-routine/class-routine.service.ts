@@ -1,18 +1,23 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
+import { getRlsContext } from '@/config/rlsContextStore.js';
 import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { ApiError } from '@/utils/ApiError.js';
 
-const CACHE_KEY = 'class_routine_pdfs';
+const cacheKey = () => {
+  const schoolId = getRlsContext()?.schoolId;
+  return schoolId ? `class_routine_pdfs:${schoolId}` : 'class_routine_pdfs';
+};
 
 const invalidateCache = () => {
-  redis.del(CACHE_KEY).catch(() => {});
+  redis.del(cacheKey()).catch(() => {});
 };
 
 export class ClassRoutineService {
   static async getPresignedUploadUrl(filename: string, contentType: string) {
-    const key = `class_routines/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`class_routines/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }
@@ -31,7 +36,7 @@ export class ClassRoutineService {
   }
 
   static async listPdfs() {
-    const cached = await redis.get(CACHE_KEY).catch(() => null);
+    const cached = await redis.get(cacheKey()).catch(() => null);
     if (cached) {
       return JSON.parse(cached);
     }
@@ -40,7 +45,7 @@ export class ClassRoutineService {
       orderBy: [{ id: 'desc' }],
     });
 
-    await redis.set(CACHE_KEY, JSON.stringify(pdfs), 'EX', LONG_TERM_CACHE_TTL).catch(() => {});
+    await redis.set(cacheKey(), JSON.stringify(pdfs), 'EX', LONG_TERM_CACHE_TTL).catch(() => {});
     return pdfs;
   }
 

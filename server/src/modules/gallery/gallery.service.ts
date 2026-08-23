@@ -1,6 +1,7 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 const buildImageData = (image: any) => ({
   id: image.id,
@@ -44,7 +45,7 @@ const galleryInclude = {
 export class GalleryService {
   static async getPresignedUploadUrl(filename: string, contentType: string, schoolId?: number) {
     const folder = schoolId ? `gallery/${schoolId}` : 'gallery';
-    const key = `${folder}/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`${folder}/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

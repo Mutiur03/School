@@ -35,11 +35,13 @@ router.get('/:id', RegistrationFormClass6Controller.getRegistrationById);
 router.get('/:id/pdf', RegistrationFormClass6Controller.downloadRegistrationPDF);
 router.put(
   '/:id/status',
+  AuthMiddleware.authenticateOptional(),
   validate(class6RegistrationStatusSchema),
   RegistrationFormClass6Controller.updateRegistrationStatus,
 );
 router.put(
   '/:id',
+  AuthMiddleware.authenticateOptional(),
   validate(registrationSchema),
   RegistrationFormClass6Controller.updateRegistration,
 );

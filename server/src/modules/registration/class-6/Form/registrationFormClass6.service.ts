@@ -9,6 +9,7 @@ import axios from 'axios';
 import QRCode from 'qrcode';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 const checkDuplicates = async (data: any, excludeId: string | null = null) => {
   const duplicates = [];
@@ -271,7 +272,9 @@ export class RegistrationFormClass6Service {
     const randomId = Date.now();
     const ext = path.extname(filename);
 
-    const key = `registrations/class6/${academicYear}/${safeSection}-${safeRoll}-${randomId}${ext}`;
+    const key = tenantR2Key(
+      `registrations/class6/${academicYear}/${safeSection}-${safeRoll}-${randomId}${ext}`,
+    );
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };

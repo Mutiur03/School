@@ -1,5 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import asyncHandler from '@/utils/asyncHandler.js';
+import {
+  assertFormStatusChangeAllowed,
+  assertPendingFormEditAllowed,
+} from '@/utils/publicFormAccess.util.js';
 import { AdmissionFormService, DuplicateAdmissionFormError } from './admission-form.service.js';
 
 export class AdmissionFormController {
@@ -44,6 +48,8 @@ export class AdmissionFormController {
   static updateForm = asyncHandler(
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
+        const existing = await AdmissionFormService.getFormById(req.params.id as string);
+        assertPendingFormEditAllowed(req, existing.status);
         const updated = await AdmissionFormService.updateForm(req.params.id as string, req.body);
         res.status(200).json({ success: true, message: 'Form updated', data: updated });
       } catch (error) {
@@ -66,6 +72,8 @@ export class AdmissionFormController {
   });
 
   static approveForm = asyncHandler(async (req: Request, res: Response) => {
+    const existing = await AdmissionFormService.getFormById(req.params.id as string);
+    assertFormStatusChangeAllowed(req, existing.status, 'approved');
     const updated = await AdmissionFormService.approveForm(req.params.id as string);
     res.status(200).json({ success: true, message: 'Form approved', data: updated });
   });

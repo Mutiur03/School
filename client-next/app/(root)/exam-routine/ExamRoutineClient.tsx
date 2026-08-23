@@ -16,9 +16,14 @@ interface Exam {
 interface ExamRoutineClientProps {
   exams: Exam[];
   initialSelectedId: number | null;
+  loadError?: string | null;
 }
 
-export default function ExamRoutineClient({ exams, initialSelectedId }: ExamRoutineClientProps) {
+export default function ExamRoutineClient({
+  exams,
+  initialSelectedId,
+  loadError,
+}: ExamRoutineClientProps) {
   const initialSelectedExam = useMemo(() => {
     if (!initialSelectedId) {
       return exams[0] ?? null;
@@ -32,6 +37,11 @@ export default function ExamRoutineClient({ exams, initialSelectedId }: ExamRout
     <div className="py-12">
       <div className="container-custom">
         <h1 className="section-title">Exam Routine</h1>
+        {loadError ? (
+          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {loadError}
+          </p>
+        ) : null}
         {/* Exam selection */}
         <div className="mb-6">
           <select

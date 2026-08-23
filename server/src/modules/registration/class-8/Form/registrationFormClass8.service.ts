@@ -8,6 +8,7 @@ import puppeteer from 'puppeteer';
 import axios from 'axios';
 import QRCode from 'qrcode';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
 
@@ -62,7 +63,7 @@ export class RegistrationFormClass8Service {
     }
 
     const ext = path.extname(filename);
-    const key = `registrations/class8/photo-${Date.now()}${ext}`;
+    const key = tenantR2Key(`registrations/class8/photo-${Date.now()}${ext}`);
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };

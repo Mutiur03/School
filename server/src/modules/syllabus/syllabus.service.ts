@@ -3,6 +3,7 @@ import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
 import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 const cacheKey = (schoolId?: number, classNum?: string, year?: string) =>
   `syllabus_${schoolId ?? 'global'}_${classNum ?? 'all'}_${year ?? 'all'}`;
@@ -13,7 +14,7 @@ const invalidateCache = (schoolId?: number) => {
 
 export class SyllabusService {
   static async getPresignedUploadUrl(filename: string, contentType: string) {
-    const key = `syllabus/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`syllabus/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

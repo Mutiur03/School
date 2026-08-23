@@ -1,4 +1,5 @@
 import express from 'express';
+import AuthMiddleware from '@/middlewares/auth.middleware.js';
 import { validate } from '@/middlewares/validate.middleware.js';
 import { admissionPhotoUploadSchema } from '@school/shared-schemas';
 import { AdmissionFormController } from './admission-form.controller.js';
@@ -11,16 +12,38 @@ router.post(
   AdmissionFormController.getAdmissionUploadUrl,
 );
 router.post('/', AdmissionFormController.createForm);
-router.get('/', AdmissionFormController.getForms);
-router.get('/excel', AdmissionFormController.exportAllAdmissionsExcel);
-router.get('/download', AdmissionFormController.exportAllAdmissionsExcel);
-router.get('/images-export', AdmissionFormController.exportAdmissionImagesZip);
+
+router.get('/', AuthMiddleware.authenticate(['admin']), AdmissionFormController.getForms);
+router.get(
+  '/excel',
+  AuthMiddleware.authenticate(['admin']),
+  AdmissionFormController.exportAllAdmissionsExcel,
+);
+router.get(
+  '/download',
+  AuthMiddleware.authenticate(['admin']),
+  AdmissionFormController.exportAllAdmissionsExcel,
+);
+router.get(
+  '/images-export',
+  AuthMiddleware.authenticate(['admin']),
+  AdmissionFormController.exportAdmissionImagesZip,
+);
+
 router.get('/:id', AdmissionFormController.getFormById);
-router.put('/:id', AdmissionFormController.updateForm);
-router.put('/:id/pending', AdmissionFormController.pendingForm);
-router.put('/:id/approve', AdmissionFormController.approveForm);
 router.get('/:id/pdf', AdmissionFormController.downloadPDF);
-router.delete('/:id', AdmissionFormController.deleteForm);
+router.put('/:id', AuthMiddleware.authenticateOptional(), AdmissionFormController.updateForm);
+router.put(
+  '/:id/pending',
+  AuthMiddleware.authenticate(['admin']),
+  AdmissionFormController.pendingForm,
+);
+router.put(
+  '/:id/approve',
+  AuthMiddleware.authenticateOptional(),
+  AdmissionFormController.approveForm,
+);
+router.delete('/:id', AuthMiddleware.authenticate(['admin']), AdmissionFormController.deleteForm);
 
 const admissionFormRouter = express.Router();
 admissionFormRouter.use('/api/admission/form', router);

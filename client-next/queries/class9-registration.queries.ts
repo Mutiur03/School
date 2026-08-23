@@ -29,12 +29,8 @@ export const getClass9RegistrationSettings = async (): Promise<Class9Registratio
 export const getClass9RegistrationRecord = async (
   id: string,
 ): Promise<Class9RegistrationRecord | null> => {
-  try {
-    const response = await api.get<Class9RegistrationRecord>(`/api/reg/class-9/form/${id}`, {
-      cache: 'no-store',
-    });
-    return response.data ?? null;
-  } catch {
-    return null;
-  }
+  const response = await api.get<Class9RegistrationRecord>(`/api/reg/class-9/form/${id}`, {
+    cache: 'no-store',
+  });
+  return response.data ?? null;
 };

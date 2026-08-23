@@ -2,6 +2,7 @@ import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { MarksheetService } from '@/modules/marks/marksheet.service.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import logger from '@/utils/logger.js';
 
 export interface ExamInput {
@@ -141,7 +142,7 @@ export class ExamService {
   }
 
   static async getRoutinePresignedUrl(filename: string, contentType: string) {
-    const key = `exam_routines/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`exam_routines/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

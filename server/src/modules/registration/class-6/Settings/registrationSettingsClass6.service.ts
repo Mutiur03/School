@@ -3,6 +3,8 @@ import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import path from 'path';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 export class RegistrationSettingsClass6Service {
   static async createOrUpdateClass6Reg(data: any) {
@@ -33,25 +35,25 @@ export class RegistrationSettingsClass6Service {
     };
 
     if (notice_key) {
-      const existingRecord = await prisma.class6_reg.findFirst();
+      const schoolId = requireSchoolId();
+      const existingRecord = await prisma.class6_reg.findUnique({ where: { school_id: schoolId } });
       if (existingRecord && existingRecord.notice && existingRecord.notice !== notice_key) {
         await deleteFromR2(existingRecord.notice);
       }
       updateData.notice = notice_key;
     }
 
+    const schoolId = requireSchoolId();
     return await prisma.class6_reg.upsert({
-      where: { id: 1 },
+      where: { school_id: schoolId },
       update: updateData,
-      create: {
-        id: 1,
-        ...updateData,
-      },
+      create: updateData,
     });
   }
 
   static async getClass6Reg() {
-    const class6Reg = await prisma.class6_reg.findFirst();
+    const schoolId = requireSchoolId();
+    const class6Reg = await prisma.class6_reg.findUnique({ where: { school_id: schoolId } });
 
     if (!class6Reg) {
       return {
@@ -110,7 +112,8 @@ export class RegistrationSettingsClass6Service {
   }
 
   static async deleteClass6RegNotice() {
-    const class6Reg = await prisma.class6_reg.findFirst();
+    const schoolId = requireSchoolId();
+    const class6Reg = await prisma.class6_reg.findUnique({ where: { school_id: schoolId } });
 
     if (!class6Reg || !class6Reg.notice) {
       throw new ApiError(404, 'No notice found to delete');
@@ -133,7 +136,7 @@ export class RegistrationSettingsClass6Service {
     }
 
     const ext = path.extname(filename);
-    const key = `notices/registrations/notice-${Date.now()}${ext}`;
+    const key = tenantR2Key(`notices/registrations/notice-${Date.now()}${ext}`);
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };

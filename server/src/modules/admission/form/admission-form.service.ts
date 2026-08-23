@@ -5,6 +5,8 @@ import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2, r2Client } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import type { AdmissionPhotoUploadData } from '@school/shared-schemas';
 import { formatQuota, generateAdmissionPDF } from './admission-form-pdf.js';
 
@@ -86,14 +88,17 @@ export class AdmissionFormService {
       .trim()
       .replace(/[^a-zA-Z0-9-_]+/g, '_');
     const safeFilename = `${safeSerialNo}_${safeName}`;
-    const key = `admission/${safeYear}/${admissionClassSafe}/${safeListType}/${safeFilename}-${Date.now()}${ext}`;
+    const key = tenantR2Key(
+      `admission/${safeYear}/${admissionClassSafe}/${safeListType}/${safeFilename}-${Date.now()}${ext}`,
+    );
     const url = await getUploadUrl(key, filetype);
 
     return { url, key };
   }
 
   static async createForm(body: Record<string, any>) {
-    const settings = await prisma.admission.findFirst();
+    const schoolId = requireSchoolId();
+    const settings = await prisma.admission.findUnique({ where: { school_id: schoolId } });
     const payload = { ...body };
     console.log(payload);
     delete payload.guardian_is_not_father;

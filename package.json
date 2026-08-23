@@ -37,6 +37,8 @@
     "check:dashboard": "node scripts/ci-check.mjs dashboard",
     "check:auth-bff": "node scripts/ci-check.mjs auth-bff",
     "check:tenant-router": "node scripts/ci-check.mjs tenant-router",
+    "db:generate": "pnpm --filter server exec prisma generate",
+    "db:migrate:create": "pnpm --filter server exec prisma migrate dev --create-only",
     "db:migrate": "pnpm --filter server exec prisma migrate dev",
     "db:migrate:prod": "pnpm --filter server exec prisma migrate deploy",
     "db:seed": "pnpm --filter server run db:seed"

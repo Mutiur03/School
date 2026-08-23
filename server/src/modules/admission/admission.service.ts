@@ -5,6 +5,8 @@ import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
 import { SHORT_TERM_CACHE_TTL } from '@/utils/globalVars.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import type { AdmissionNoticeUploadData, AdmissionSettingsData } from '@school/shared-schemas';
 
 const defaultAdmission = {
@@ -38,8 +40,8 @@ const defaultAdmission = {
 
 export class AdmissionService {
   private static getCacheKey() {
-    const schoolId = getRlsContext()?.schoolId;
-    return schoolId ? `admission:${schoolId}` : 'admission';
+    const schoolId = getRlsContext()?.schoolId ?? requireSchoolId();
+    return `admission:${schoolId}`;
   }
 
   private static async clearCache() {
@@ -100,7 +102,8 @@ export class AdmissionService {
     }
 
     if (data.notice_key) {
-      const existing = await prisma.admission.findFirst();
+      const schoolId = requireSchoolId();
+      const existing = await prisma.admission.findUnique({ where: { school_id: schoolId } });
       const existingKey = existing?.preview_url;
 
       if (existingKey && existingKey !== data.notice_key) {
@@ -112,11 +115,11 @@ export class AdmissionService {
       updateData.download_url = data.notice_key;
     }
 
+    const schoolId = requireSchoolId();
     const notice = await prisma.admission.upsert({
-      where: { id: 1 },
+      where: { school_id: schoolId },
       update: updateData,
       create: {
-        id: 1,
         preview_url: (updateData.preview_url as string | null | undefined) ?? null,
         download_url: (updateData.download_url as string | null | undefined) ?? null,
         public_id: (updateData.public_id as string | null | undefined) ?? null,
@@ -159,7 +162,8 @@ export class AdmissionService {
       return JSON.parse(cached);
     }
 
-    const data = await prisma.admission.findFirst();
+    const schoolId = requireSchoolId();
+    const data = await prisma.admission.findUnique({ where: { school_id: schoolId } });
     const formatted = this.formatAdmission((data as Record<string, unknown> | null) ?? null);
 
     await redis.set(cacheKey, JSON.stringify(formatted), 'EX', SHORT_TERM_CACHE_TTL);
@@ -167,7 +171,8 @@ export class AdmissionService {
   }
 
   static async deleteAdmissionNotice() {
-    const existing = await prisma.admission.findFirst();
+    const schoolId = requireSchoolId();
+    const existing = await prisma.admission.findUnique({ where: { school_id: schoolId } });
     if (!existing) {
       throw new ApiError(404, 'Admission not found');
     }
@@ -197,7 +202,7 @@ export class AdmissionService {
     }
 
     const ext = path.extname(filename) || '.pdf';
-    const key = `notices/admission-notice-${Date.now()}${ext}`;
+    const key = tenantR2Key(`notices/admission-notice-${Date.now()}${ext}`);
     const uploadUrl = await getUploadUrl(key, filetype);
 
     return { uploadUrl, key };

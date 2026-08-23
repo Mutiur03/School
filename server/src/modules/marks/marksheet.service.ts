@@ -101,6 +101,19 @@ function isoStamp(value: Date | string | null | undefined): string | null {
   return Number.isNaN(d.getTime()) ? String(value) : d.toISOString();
 }
 
+const marksheetStudentWhere = (schoolId: number, studentId: number, examId: number) => ({
+  student_id_exam_id_school: { school_id: schoolId, student_id: studentId, exam_id: examId },
+});
+
+const marksheetBundleWhere = (schoolId: number, examId: number, cls: number, section: string) => ({
+  exam_id_class_section_school: {
+    school_id: schoolId,
+    exam_id: examId,
+    class: cls,
+    section,
+  },
+});
+
 /** Design field for input hashes. Frozen + no snapshot → omit (legacy compat). */
 function designFingerprint(
   frozen: boolean,
@@ -822,7 +835,7 @@ export class MarksheetService {
    * Includes head assignment and class-teacher (levels) for the student's section.
    */
   static async computeInputHash(studentId: number, examId: number, year: number): Promise<string> {
-    const [enrollment, exam, snapRow] = await Promise.all([
+    const [enrollment, exam] = await Promise.all([
       prisma.student_enrollments.findFirst({
         where: { student_id: studentId, year },
         select: {
@@ -844,17 +857,21 @@ export class MarksheetService {
           visible: true,
         },
       }),
-      prisma.marksheet_files.findUnique({
-        where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
-        select: {
-          snapshot_head_id: true,
-          snapshot_head_role: true,
-          snapshot_teacher_id: true,
-          snapshot_signatory_detail: true,
-          snapshot_design_version: true,
-        },
-      }),
     ]);
+
+    const schoolId = enrollment?.school_id ?? exam?.school_id ?? getRlsContext()?.schoolId;
+    const snapRow = schoolId
+      ? await prisma.marksheet_files.findUnique({
+          where: marksheetStudentWhere(schoolId, studentId, examId),
+          select: {
+            snapshot_head_id: true,
+            snapshot_head_role: true,
+            snapshot_teacher_id: true,
+            snapshot_signatory_detail: true,
+            snapshot_design_version: true,
+          },
+        })
+      : null;
 
     // Frozen exams pin who signed + name/signature/phone (snapshot_signatory_detail).
     // Legacy rows without detail still resolve live-by-id until the next generate.
@@ -976,9 +993,7 @@ export class MarksheetService {
     t0: number,
   ): Promise<{ buffer: Buffer; studentName: string }> {
     const { studentId, examId, examName, year, schoolId } = job;
-    const whereStudent = {
-      student_id_exam_id: { student_id: studentId, exam_id: examId },
-    };
+    const whereStudent = marksheetStudentWhere(schoolId, studentId, examId);
 
     const tryServeFresh = async () => {
       const row = await prisma.marksheet_files.findUnique({
@@ -1022,7 +1037,7 @@ export class MarksheetService {
       },
       update: { status: 'pending', error: null, exam_name: examName },
     });
-    await enqueueUserPriority(job, jobId(examId, studentId)).catch(() => {});
+    await enqueueUserPriority(job, jobId(schoolId, examId, studentId)).catch(() => {});
 
     logger.info('[marksheet] serve: waiting for worker', { studentId, examId });
 
@@ -1062,13 +1077,7 @@ export class MarksheetService {
   ): Promise<BundleServeResult> {
     const { examId, examName, year, class: cls, schoolId } = job;
     const bundleSection = this.bundleSectionKey(job.bundleSection);
-    const whereKey = {
-      exam_id_class_section: {
-        exam_id: examId,
-        class: cls,
-        section: bundleSection,
-      },
-    };
+    const whereKey = marksheetBundleWhere(schoolId, examId, cls, bundleSection);
 
     const tryServeFresh = async (): Promise<BundleServeResult | null> => {
       const row = await prisma.marksheet_bundles.findUnique({
@@ -1116,7 +1125,7 @@ export class MarksheetService {
     });
     await enqueueUserPriority(
       { ...job, kind: 'bundle', bundleSection },
-      bundleJobId(examId, cls, bundleSection),
+      bundleJobId(schoolId, examId, cls, bundleSection),
     ).catch(() => {});
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
@@ -1210,7 +1219,7 @@ export class MarksheetService {
     const jobs: { data: MarksheetJob; opts: any }[] = [...targets].map(([studentId, yr]) => ({
       data: { studentId, examId, examName, year: yr, schoolId },
       opts: {
-        jobId: jobId(examId, studentId),
+        jobId: jobId(schoolId, examId, studentId),
         ...defaultJobOpts(PRIORITY_BACKFILL),
       },
     }));
@@ -1266,7 +1275,7 @@ export class MarksheetService {
           year: r.year,
           schoolId: r.school_id,
         },
-        jobId(r.exam_id, r.student_id),
+        jobId(r.school_id, r.exam_id, r.student_id),
       );
       if (didAdd) queued++;
     }
@@ -1350,7 +1359,7 @@ export class MarksheetService {
           year: r.year,
           schoolId: r.school_id,
         },
-        jobId(r.exam_id, r.student_id),
+        jobId(r.school_id, r.exam_id, r.student_id),
       );
       if (didAdd) queued++;
     }
@@ -1377,7 +1386,7 @@ export class MarksheetService {
       },
     });
     for (const row of generating) {
-      const id = bundleJobId(row.exam_id, row.class, row.section);
+      const id = bundleJobId(row.school_id, row.exam_id, row.class, row.section);
       const job = await marksheetQueue.getJob(id);
       const state = job ? await job.getState() : null;
       if (state === 'active') continue;
@@ -1420,7 +1429,7 @@ export class MarksheetService {
           schoolId: r.school_id,
           bundleSection: r.section,
         },
-        bundleJobId(r.exam_id, r.class, r.section),
+        bundleJobId(r.school_id, r.exam_id, r.class, r.section),
       );
       if (didAdd) added++;
     }
@@ -1499,13 +1508,7 @@ export class MarksheetService {
 
       for (const bundleSection of keys) {
         await prisma.marksheet_bundles.upsert({
-          where: {
-            exam_id_class_section: {
-              exam_id: examId,
-              class: className,
-              section: bundleSection,
-            },
-          },
+          where: marksheetBundleWhere(schoolId, examId, className, bundleSection),
           create: {
             exam_id: examId,
             exam_name: examName,
@@ -1533,7 +1536,7 @@ export class MarksheetService {
             bundleSection,
           },
           opts: {
-            jobId: bundleJobId(examId, className, bundleSection),
+            jobId: bundleJobId(schoolId, examId, className, bundleSection),
             ...defaultJobOpts(priority),
           },
         });
@@ -1592,7 +1595,7 @@ export class MarksheetService {
           schoolId,
         },
         opts: {
-          jobId: sessionYearJobId(year),
+          jobId: sessionYearJobId(schoolId, year),
           ...defaultJobOpts(priority),
         },
       },
@@ -1604,7 +1607,7 @@ export class MarksheetService {
           schoolId,
         },
         opts: {
-          jobId: sessionStudentJobId(year, studentId),
+          jobId: sessionStudentJobId(schoolId, year, studentId),
           ...defaultJobOpts(priority),
         },
       })),
@@ -1712,7 +1715,7 @@ export class MarksheetService {
           year: exam.exam_year,
           schoolId: exam.school_id!,
         },
-        opts: { jobId: jobId(examId, id), ...defaultJobOpts(priority) },
+        opts: { jobId: jobId(exam.school_id!, examId, id), ...defaultJobOpts(priority) },
       })),
     );
   }
@@ -1973,7 +1976,7 @@ export class MarksheetService {
             schoolId,
           },
           opts: {
-            jobId: jobId(r.exam_id, r.student_id),
+            jobId: jobId(schoolId, r.exam_id, r.student_id),
             ...defaultJobOpts(PRIORITY_BACKFILL),
           },
         })),
@@ -2005,7 +2008,7 @@ export class MarksheetService {
             bundleSection: r.section,
           },
           opts: {
-            jobId: bundleJobId(r.exam_id, r.class, r.section),
+            jobId: bundleJobId(schoolId, r.exam_id, r.class, r.section),
             ...defaultJobOpts(PRIORITY_BACKFILL),
           },
         })),
@@ -2077,7 +2080,7 @@ export class MarksheetService {
             schoolId,
           },
           opts: {
-            jobId: jobId(r.exam_id, r.student_id),
+            jobId: jobId(schoolId, r.exam_id, r.student_id),
             ...defaultJobOpts(PRIORITY_BACKFILL),
           },
         })),
@@ -2121,7 +2124,7 @@ export class MarksheetService {
             bundleSection: r.section,
           },
           opts: {
-            jobId: bundleJobId(r.exam_id, r.class, r.section),
+            jobId: bundleJobId(schoolId, r.exam_id, r.class, r.section),
             ...defaultJobOpts(PRIORITY_BACKFILL),
           },
         })),
@@ -2193,13 +2196,7 @@ export class MarksheetService {
 
     for (const bundleSection of bundleSections) {
       await prisma.marksheet_bundles.upsert({
-        where: {
-          exam_id_class_section: {
-            exam_id: examId,
-            class: className,
-            section: bundleSection,
-          },
-        },
+        where: marksheetBundleWhere(schoolId, examId, className, bundleSection),
         create: {
           exam_id: examId,
           exam_name: examName,
@@ -2225,7 +2222,7 @@ export class MarksheetService {
           bundleSection,
         },
         opts: {
-          jobId: bundleJobId(examId, className, bundleSection),
+          jobId: bundleJobId(schoolId, examId, className, bundleSection),
           ...defaultJobOpts(PRIORITY_BACKFILL),
         },
       })),
@@ -2345,7 +2342,7 @@ export class MarksheetService {
    * pending with nothing in Redis.
    */
   private static deferStudentRequeue(job: StudentJob): void {
-    const id = jobId(job.examId, job.studentId);
+    const id = jobId(job.schoolId, job.examId, job.studentId);
     setImmediate(() => {
       ensureJobQueuedAfterDefer(job, id, PRIORITY_BACKFILL).then((ok) => {
         if (!ok) {
@@ -2360,7 +2357,7 @@ export class MarksheetService {
 
   private static deferBundleRequeue(job: BundleJob, delayMs = 0): void {
     const bundleSection = this.bundleSectionKey(job.bundleSection);
-    const id = bundleJobId(job.examId, job.class, bundleSection);
+    const id = bundleJobId(job.schoolId, job.examId, job.class, bundleSection);
     const run = () => {
       ensureJobQueuedAfterDefer(
         { ...job, kind: 'bundle', bundleSection },
@@ -2385,6 +2382,7 @@ export class MarksheetService {
    * while we were rendering — do not promote to ready.
    */
   private static async studentJobStale(
+    schoolId: number,
     studentId: number,
     examId: number,
     year: number,
@@ -2393,7 +2391,7 @@ export class MarksheetService {
     const [hashAtEnd, row] = await Promise.all([
       this.computeInputHash(studentId, examId, year),
       prisma.marksheet_files.findUnique({
-        where: { student_id_exam_id: { student_id: studentId, exam_id: examId } },
+        where: marksheetStudentWhere(schoolId, studentId, examId),
         select: { status: true },
       }),
     ]);
@@ -2401,6 +2399,7 @@ export class MarksheetService {
   }
 
   private static async bundleJobStale(
+    schoolId: number,
     examId: number,
     cls: number,
     year: number,
@@ -2410,13 +2409,7 @@ export class MarksheetService {
     const [hashAtEnd, row] = await Promise.all([
       this.computeBundleHash(examId, cls, year, bundleSection),
       prisma.marksheet_bundles.findUnique({
-        where: {
-          exam_id_class_section: {
-            exam_id: examId,
-            class: cls,
-            section: bundleSection,
-          },
-        },
+        where: marksheetBundleWhere(schoolId, examId, cls, bundleSection),
         select: { status: true },
       }),
     ]);
@@ -2467,9 +2460,7 @@ export class MarksheetService {
         }
         logger.info('[marksheet] job(student): claimed', { studentId, examId });
 
-        const whereStudent = {
-          student_id_exam_id: { student_id: studentId, exam_id: examId },
-        };
+        const whereStudent = marksheetStudentWhere(schoolId, studentId, examId);
         try {
           const [row, exam] = await Promise.all([
             prisma.marksheet_files.findUnique({
@@ -2557,7 +2548,7 @@ export class MarksheetService {
               : undefined;
           // Nothing changed and the object is still there — no render needed.
           if (row?.input_hash === hashAtStart && row.r2_key && (await headObject(row.r2_key))) {
-            if (await this.studentJobStale(studentId, examId, year, hashAtStart)) {
+            if (await this.studentJobStale(schoolId, studentId, examId, year, hashAtStart)) {
               await prisma.marksheet_files.update({
                 where: whereStudent,
                 data: { status: 'pending', error: null },
@@ -2686,9 +2677,7 @@ export class MarksheetService {
           if (isNoMarks) {
             await prisma.marksheet_files
               .delete({
-                where: {
-                  student_id_exam_id: { student_id: studentId, exam_id: examId },
-                },
+                where: marksheetStudentWhere(schoolId, studentId, examId),
               })
               .catch(() => {});
             logger.info('[marksheet] job(student): SKIPPED (no marks)', {
@@ -2699,9 +2688,7 @@ export class MarksheetService {
           }
           await prisma.marksheet_files
             .update({
-              where: {
-                student_id_exam_id: { student_id: studentId, exam_id: examId },
-              },
+              where: marksheetStudentWhere(schoolId, studentId, examId),
               data: {
                 status: 'failed',
                 error: message,
@@ -2743,35 +2730,33 @@ export class MarksheetService {
     const enrollmentWhere = this.enrollmentWhereForBundleSection(cls, year, bundleSection);
     const bundleSections = this.parseBundleSections(bundleSection);
 
-    const [exam, snapRow] = await Promise.all([
-      prisma.exams.findUnique({
-        where: { id: examId },
-        select: {
-          exam_name: true,
-          result_date: true,
-          return_date: true,
-          school_id: true,
-          visible: true,
-        },
-      }),
-      prisma.marksheet_bundles.findUnique({
-        where: {
-          exam_id_class_section: {
-            exam_id: examId,
-            class: cls,
-            section: bundleSection,
-          },
-        },
-        select: {
-          snapshot_head_id: true,
-          snapshot_head_role: true,
-          snapshot_teachers: true,
-          snapshot_signatory_detail: true,
-          snapshot_design_version: true,
-          school_id: true,
-        },
-      }),
-    ]);
+    const ctxSchoolId = getRlsContext()?.schoolId;
+    const exam = await prisma.exams.findUnique({
+      where: { id: examId },
+      select: {
+        exam_name: true,
+        result_date: true,
+        return_date: true,
+        school_id: true,
+        visible: true,
+      },
+    });
+    const schoolId = exam?.school_id ?? ctxSchoolId;
+    if (!schoolId) {
+      throw new Error('School context missing for bundle hash');
+    }
+
+    const snapRow = await prisma.marksheet_bundles.findUnique({
+      where: marksheetBundleWhere(schoolId, examId, cls, bundleSection),
+      select: {
+        snapshot_head_id: true,
+        snapshot_head_role: true,
+        snapshot_teachers: true,
+        snapshot_signatory_detail: true,
+        snapshot_design_version: true,
+        school_id: true,
+      },
+    });
     const snapTeachers = (snapRow?.snapshot_teachers ?? null) as unknown as Record<
       string,
       number
@@ -3016,7 +3001,7 @@ export class MarksheetService {
       year,
       schoolId,
     };
-    await enqueueUserPriority(job, sessionStudentJobId(year, studentId)).catch(() => {});
+    await enqueueUserPriority(job, sessionStudentJobId(schoolId, year, studentId)).catch(() => {});
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {
@@ -3076,7 +3061,7 @@ export class MarksheetService {
     });
 
     const job: SessionYearJob = { kind: 'session-year', year, schoolId };
-    await enqueueUserPriority(job, sessionYearJobId(year)).catch(() => {});
+    await enqueueUserPriority(job, sessionYearJobId(schoolId, year)).catch(() => {});
 
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {
@@ -3155,7 +3140,9 @@ export class MarksheetService {
               data: { status: 'pending', error: null },
             });
             setImmediate(() => {
-              enqueueUserPriority(job, sessionStudentJobId(year, studentId)).catch(() => {});
+              enqueueUserPriority(job, sessionStudentJobId(schoolId, year, studentId)).catch(
+                () => {},
+              );
             });
             logger.info('[marksheet] job(session-student): DEFER after render (concurrent edit)', {
               studentId,
@@ -3252,7 +3239,7 @@ export class MarksheetService {
               data: { status: 'pending', error: null },
             });
             setImmediate(() => {
-              enqueueUserPriority(job, sessionYearJobId(year)).catch(() => {});
+              enqueueUserPriority(job, sessionYearJobId(schoolId, year)).catch(() => {});
             });
             logger.info('[marksheet] job(session-year): DEFER after render (concurrent edit)', {
               year,
@@ -3372,7 +3359,7 @@ export class MarksheetService {
       staleStudentIds.map((studentId) =>
         enqueueUserPriority(
           { studentId, examId, examName, year, schoolId },
-          jobId(examId, studentId),
+          jobId(schoolId, examId, studentId),
         ).catch(() => {}),
       ),
     );
@@ -3408,13 +3395,7 @@ export class MarksheetService {
           section: bundleSection,
         });
 
-        const whereKey = {
-          exam_id_class_section: {
-            exam_id: examId,
-            class: cls,
-            section: bundleSection,
-          },
-        };
+        const whereKey = marksheetBundleWhere(schoolId, examId, cls, bundleSection);
         try {
           const examRow = await prisma.exams.findUnique({
             where: { id: examId },
@@ -3503,7 +3484,9 @@ export class MarksheetService {
             },
           });
           if (row?.input_hash === hashAtStart && row.r2_key && (await headObject(row.r2_key))) {
-            if (await this.bundleJobStale(examId, cls, year, bundleSection, hashAtStart)) {
+            if (
+              await this.bundleJobStale(schoolId, examId, cls, year, bundleSection, hashAtStart)
+            ) {
               await prisma.marksheet_bundles.update({
                 where: whereKey,
                 data: { status: 'pending', error: null },
@@ -3612,7 +3595,7 @@ export class MarksheetService {
                     year,
                     schoolId,
                   },
-                  jobId(examId, studentId),
+                  jobId(schoolId, examId, studentId),
                   PRIORITY_USER,
                 ).catch(() => {});
               }),
@@ -3818,101 +3801,132 @@ export class MarksheetService {
    * Safe to run on every boot.
    */
   static async recover(): Promise<void> {
-    // Bundles recorded `failed` for a class that has nothing to render. The
-    // outcome is already known, so settle them terminal rather than leaving
-    // them for the poll-driven re-queue to retry.
-    await prisma.marksheet_bundles.updateMany({
-      where: {
-        status: 'failed',
-        OR: EMPTY_BUNDLE_MESSAGES.map((m) => ({ error: { contains: m } })),
-      },
-      data: { status: 'skipped', error: null, attempts: 0 },
-    });
-
-    // Mark-edit pins: ready + cleared hash. Cheap pre-warm on boot so they
-    // do not wait for the next download.
-    const pinnedStaleBundles = await prisma.marksheet_bundles.updateMany({
-      where: { status: 'ready', input_hash: null },
-      data: { status: 'pending', error: null },
-    });
-
-    await Promise.all([
-      prisma.marksheet_files.updateMany({
-        where: { status: { in: ['generating', 'failed'] } },
-        data: { status: 'pending', error: null },
-      }),
-      prisma.marksheet_bundles.updateMany({
-        where: { status: { in: ['generating', 'failed'] } },
-        data: { status: 'pending', error: null },
-      }),
-    ]);
-
-    const [pending, pendingBundles] = await Promise.all([
-      prisma.marksheet_files.findMany({
-        where: { status: 'pending' },
-        select: {
-          student_id: true,
-          exam_id: true,
-          exam_name: true,
-          year: true,
-          school_id: true,
-        },
-      }),
-      prisma.marksheet_bundles.findMany({
-        where: { status: 'pending' },
-        select: {
-          exam_id: true,
-          exam_name: true,
-          year: true,
-          class: true,
-          section: true,
-          school_id: true,
-        },
-      }),
-    ]);
-
-    // ensureJobQueued clears Redis failed/completed orphans before re-add
-    // (addBulk alone would collide on existing failed jobIds).
+    const schools = await prisma.school.findMany({ select: { id: true } });
+    let totalStudents = 0;
+    let totalBundles = 0;
     let queuedStudents = 0;
-    for (const r of pending) {
-      const ok = await ensureJobQueued(
-        {
-          studentId: r.student_id,
-          examId: r.exam_id,
-          examName: r.exam_name,
-          year: r.year,
-          schoolId: r.school_id,
+    let queuedBundles = 0;
+    let pinnedStaleBundles = 0;
+
+    for (const { id: schoolId } of schools) {
+      const counts = await runWithRlsContext(
+        { schoolId, isSuperAdmin: false, inRlsTransaction: false },
+        async () => {
+          await prisma.marksheet_bundles.updateMany({
+            where: {
+              school_id: schoolId,
+              status: 'failed',
+              OR: EMPTY_BUNDLE_MESSAGES.map((m) => ({ error: { contains: m } })),
+            },
+            data: { status: 'skipped', error: null, attempts: 0 },
+          });
+
+          const pinned = await prisma.marksheet_bundles.updateMany({
+            where: { school_id: schoolId, status: 'ready', input_hash: null },
+            data: { status: 'pending', error: null },
+          });
+
+          await Promise.all([
+            prisma.marksheet_files.updateMany({
+              where: {
+                school_id: schoolId,
+                status: { in: ['generating', 'failed'] },
+              },
+              data: { status: 'pending', error: null },
+            }),
+            prisma.marksheet_bundles.updateMany({
+              where: {
+                school_id: schoolId,
+                status: { in: ['generating', 'failed'] },
+              },
+              data: { status: 'pending', error: null },
+            }),
+          ]);
+
+          const [pending, pendingBundles] = await Promise.all([
+            prisma.marksheet_files.findMany({
+              where: { school_id: schoolId, status: 'pending' },
+              select: {
+                student_id: true,
+                exam_id: true,
+                exam_name: true,
+                year: true,
+                school_id: true,
+              },
+            }),
+            prisma.marksheet_bundles.findMany({
+              where: { school_id: schoolId, status: 'pending' },
+              select: {
+                exam_id: true,
+                exam_name: true,
+                year: true,
+                class: true,
+                section: true,
+                school_id: true,
+              },
+            }),
+          ]);
+
+          let schoolQueuedStudents = 0;
+          for (const r of pending) {
+            const ok = await ensureJobQueued(
+              {
+                studentId: r.student_id,
+                examId: r.exam_id,
+                examName: r.exam_name,
+                year: r.year,
+                schoolId: r.school_id,
+              },
+              jobId(r.school_id, r.exam_id, r.student_id),
+              PRIORITY_BACKFILL,
+            );
+            if (ok) schoolQueuedStudents++;
+          }
+
+          let schoolQueuedBundles = 0;
+          for (const r of pendingBundles) {
+            const ok = await ensureJobQueued(
+              {
+                kind: 'bundle' as const,
+                examId: r.exam_id,
+                examName: r.exam_name,
+                year: r.year,
+                class: r.class,
+                schoolId: r.school_id,
+                bundleSection: r.section,
+              },
+              bundleJobId(r.school_id, r.exam_id, r.class, r.section),
+              PRIORITY_BACKFILL,
+            );
+            if (ok) schoolQueuedBundles++;
+          }
+
+          return {
+            students: pending.length,
+            bundles: pendingBundles.length,
+            pinned: pinned.count,
+            queuedStudents: schoolQueuedStudents,
+            queuedBundles: schoolQueuedBundles,
+          };
         },
-        jobId(r.exam_id, r.student_id),
-        PRIORITY_BACKFILL,
       );
-      if (ok) queuedStudents++;
+
+      totalStudents += counts.students;
+      totalBundles += counts.bundles;
+      pinnedStaleBundles += counts.pinned;
+      queuedStudents += counts.queuedStudents;
+      queuedBundles += counts.queuedBundles;
     }
 
-    let queuedBundles = 0;
-    for (const r of pendingBundles) {
-      const ok = await ensureJobQueued(
-        {
-          kind: 'bundle' as const,
-          examId: r.exam_id,
-          examName: r.exam_name,
-          year: r.year,
-          class: r.class,
-          schoolId: r.school_id,
-          bundleSection: r.section,
-        },
-        bundleJobId(r.exam_id, r.class, r.section),
-        PRIORITY_BACKFILL,
-      );
-      if (ok) queuedBundles++;
-    }
+    if (totalStudents === 0 && totalBundles === 0) return;
 
     logger.info('[marksheet] recover: re-enqueued pending/failed on startup', {
-      students: pending.length,
-      bundles: pendingBundles.length,
-      pinnedStaleBundles: pinnedStaleBundles.count,
+      students: totalStudents,
+      bundles: totalBundles,
+      pinnedStaleBundles,
       queuedStudents,
       queuedBundles,
+      schools: schools.length,
     });
   }
 

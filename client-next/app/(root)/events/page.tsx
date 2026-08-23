@@ -19,6 +19,7 @@ type EventItem = {
 
 export default async function EventsPage() {
   let events: EventItem[] = [];
+  let loadError: string | null = null;
 
   try {
     const res = await api.get<EventItem[]>('/api/events/getEvents', {
@@ -27,8 +28,8 @@ export default async function EventsPage() {
     const payload = res.data;
     events = Array.isArray(payload) ? payload : [];
   } catch {
-    events = [];
+    loadError = 'Unable to load events right now. Please try again later.';
   }
 
-  return <EventsClient events={events} />;
+  return <EventsClient events={events} loadError={loadError} />;
 }

@@ -7,12 +7,8 @@ export const useRoutinePDF = () => {
     queryKey: ['routinePDF'],
     enabled: false,
     queryFn: async () => {
-      try {
-        const res = await axios.get('/api/class-routine/pdf');
-        return res.data.data?.[0]?.pdf_url || null;
-      } catch {
-        return null;
-      }
+      const res = await axios.get('/api/class-routine/pdf');
+      return res.data.data?.[0]?.pdf_url || null;
     },
   });
 };
@@ -22,12 +18,8 @@ export const useSyllabuses = () => {
     queryKey: ['syllabuses'],
     enabled: false,
     queryFn: async () => {
-      try {
-        const res = await axios.get('/api/syllabus');
-        return res.data.data;
-      } catch {
-        return [];
-      }
+      const res = await axios.get('/api/syllabus');
+      return res.data.data ?? [];
     },
   });
 };
@@ -37,12 +29,8 @@ export const useCitizenCharter = () => {
     queryKey: ['citizenCharter'],
     enabled: false,
     queryFn: async () => {
-      try {
-        const response = await axios.get('/api/citizen-charter');
-        return response.data.file || null;
-      } catch {
-        return null;
-      }
+      const response = await axios.get('/api/citizen-charter');
+      return response.data.file || null;
     },
   });
 };

@@ -51,13 +51,16 @@ export async function getRequestSiteUrl() {
   }
 }
 
+const siteUrlFallback = () =>
+  process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:3000';
+
 export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string) {
   return (
     normalizeUrl(requestUrl) ||
     normalizeUrl(school.seo?.canonicalUrl) ||
     normalizeUrl(school.contact.website) ||
     normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    'http://localhost:3000'
+    siteUrlFallback()
   );
 }
 
@@ -72,7 +75,7 @@ export function getCanonicalSiteUrl(school: SchoolConfig, requestUrl?: string) {
     normalizeUrl(school.contact.website) ||
     normalizeUrl(requestUrl) ||
     normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    'http://localhost:3000'
+    siteUrlFallback()
   );
 }
 
@@ -124,9 +127,11 @@ function getSeoKeywords(school: SchoolConfig) {
 
 export async function buildSchoolMetadata(school: SchoolConfig): Promise<Metadata> {
   const requestUrl = await getRequestSiteUrl();
-  // Tenant data always comes from Host via fetchSchoolConfig(); canonical URL
-  // prefers the school's public website so Google indexes one identity per school.
-  const siteUrl = getCanonicalSiteUrl(school, requestUrl);
+  const siteUrl =
+    getCanonicalSiteUrl(school, requestUrl) ??
+    requestUrl ??
+    siteUrlFallback() ??
+    'http://localhost:3000';
   const title = clean(school.seo?.title) || school.name.en || 'School Website';
   const description = getSeoDescription(school);
   const iconUrl = getSchoolIconUrl(school, siteUrl) || '/favicon';

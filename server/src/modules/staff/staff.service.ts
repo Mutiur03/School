@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/config/prisma.js';
 import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import type { StaffFormData } from '@school/shared-schemas';
 
 export class StaffService {
@@ -124,7 +125,7 @@ export class StaffService {
 
   static async getPresignedUploadUrl(id: number, filename: string, contentType: string) {
     await StaffService.requireStaff(id);
-    const key = `staff/${id}-${Date.now()}-${filename}`;
+    const key = tenantR2Key(`staff/${id}-${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

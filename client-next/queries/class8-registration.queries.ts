@@ -27,12 +27,8 @@ export const getClass8RegistrationSettings = async (): Promise<Class8Registratio
 export const getClass8RegistrationRecord = async (
   id: string,
 ): Promise<Class8RegistrationRecord | null> => {
-  try {
-    const response = await api.get<Class8RegistrationRecord>(`/api/reg/class-8/form/${id}`, {
-      cache: 'no-store',
-    });
-    return response.data ?? null;
-  } catch {
-    return null;
-  }
+  const response = await api.get<Class8RegistrationRecord>(`/api/reg/class-8/form/${id}`, {
+    cache: 'no-store',
+  });
+  return response.data ?? null;
 };

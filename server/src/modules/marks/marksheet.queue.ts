@@ -167,11 +167,13 @@ export async function ensureJobQueuedAfterDefer(
   return false;
 }
 
-export const jobId = (examId: number, studentId: number) => `ms:${examId}:${studentId}`;
+export const jobId = (schoolId: number, examId: number, studentId: number) =>
+  `ms:${schoolId}:${examId}:${studentId}`;
 
-export const bundleJobId = (examId: number, cls: number, bundleSection = 'ALL') =>
-  `msb:${examId}:${cls}:${bundleSection}`;
+export const bundleJobId = (schoolId: number, examId: number, cls: number, bundleSection = 'ALL') =>
+  `msb:${schoolId}:${examId}:${cls}:${bundleSection}`;
 
-export const sessionStudentJobId = (year: number, studentId: number) => `mss:${year}:${studentId}`;
+export const sessionStudentJobId = (schoolId: number, year: number, studentId: number) =>
+  `mss:${schoolId}:${year}:${studentId}`;
 
-export const sessionYearJobId = (year: number) => `msy:${year}`;
+export const sessionYearJobId = (schoolId: number, year: number) => `msy:${schoolId}:${year}`;

@@ -38,11 +38,13 @@ router.get(
 router.get('/:id', RegistrationFormClass9Controller.getRegistrationById);
 router.put(
   '/:id/status',
+  AuthMiddleware.authenticateOptional(),
   validate(class9RegistrationStatusSchema),
   RegistrationFormClass9Controller.updateRegistrationStatus,
 );
 router.put(
   '/:id',
+  AuthMiddleware.authenticateOptional(),
   validate(registrationSchemaClass9),
   RegistrationFormClass9Controller.updateRegistration,
 );

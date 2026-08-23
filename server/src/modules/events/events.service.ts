@@ -1,6 +1,7 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 export class EventService {
   static async getPresignedUploadUrl(
@@ -9,7 +10,7 @@ export class EventService {
     type: 'image' | 'file',
   ) {
     const folder = type === 'image' ? 'events/images' : 'events/files';
-    const key = `${folder}/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`${folder}/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

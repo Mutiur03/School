@@ -1,6 +1,7 @@
 import { prisma } from '@/config/prisma.js';
 import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 export class CitizenCharterService {
   async getPresignedUploadUrl(filename: string, contentType: string) {
@@ -8,7 +9,7 @@ export class CitizenCharterService {
       throw new ApiError(400, 'Only PDF files are allowed');
     }
 
-    const key = `citizen-charter/${Date.now()}-${filename}`;
+    const key = tenantR2Key(`citizen-charter/${Date.now()}-${filename}`);
     const uploadUrl = await getUploadUrl(key, contentType);
     return { uploadUrl, key };
   }

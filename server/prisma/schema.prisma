@@ -236,7 +236,7 @@ model exams {
   school_id     Int @default(dbgenerated("app.current_school_id()"))
   school        School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@unique([exam_name, exam_year, levels])
+  @@unique([exam_name, exam_year, levels, school_id])
   @@index([school_id])
 }
 
@@ -259,9 +259,8 @@ model exam_class_stats {
   @@index([school_id])
 }
 
-// Pre-generated student marksheet PDFs cached in R2. NOT a tenant model:
-// school_id is set explicitly in code (no RLS trigger/policy). The Postgres
-// rows are pure cache — source of truth is marks; a lost R2 object regenerates.
+// Pre-generated student marksheet PDFs cached in R2. Rows are pure cache —
+// source of truth is marks; a lost R2 object regenerates.
 model marksheet_files {
   id           Int       @id @default(autoincrement())
   student_id   Int
@@ -293,7 +292,7 @@ model marksheet_files {
   school_id    Int @default(dbgenerated("app.current_school_id()"))
   school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@unique([student_id, exam_id], name: "student_id_exam_id")
+  @@unique([student_id, exam_id, school_id], name: "student_id_exam_id_school")
   @@index([exam_id, status])
   @@index([school_id])
   @@index([status])
@@ -329,7 +328,7 @@ model marksheet_bundles {
   school_id    Int @default(dbgenerated("app.current_school_id()"))
   school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@unique([exam_id, class, section], name: "exam_id_class_section")
+  @@unique([exam_id, class, section, school_id], name: "exam_id_class_section_school")
   @@index([exam_id, status])
   @@index([school_id])
 }
@@ -612,6 +611,7 @@ model admission {
   school_id                     Int @default(dbgenerated("app.current_school_id()"))
   school                        School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
+  @@unique([school_id])
   @@index([school_id])
 }
 
@@ -683,6 +683,7 @@ model ssc_reg {
   classmates             String?
   classmates_source      String   @default("default")
 
+  @@unique([school_id])
   @@index([school_id])
 }
 
@@ -892,6 +893,7 @@ model class6_reg {
   school_id              Int @default(dbgenerated("app.current_school_id()"))
   school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
+  @@unique([school_id])
   @@index([school_id])
 }
 
@@ -975,6 +977,7 @@ model class8_reg {
   school_id              Int @default(dbgenerated("app.current_school_id()"))
   school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
+  @@unique([school_id])
   @@index([school_id])
 }
 
