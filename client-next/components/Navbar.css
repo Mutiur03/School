@@ -60,7 +60,7 @@ header#masthead {
   overflow: visible;
 }
 
-/* Mobile-first: hamburger until 1400px. Prevents Login wrapping on mid widths. */
+/* Mobile-first: hamburger until 1200px. Tighter font/padding at 1200-1599px keeps items from wrapping; eases up at 1600px+. */
 .navbar-header {
   display: flex;
   align-items: center;
@@ -290,6 +290,7 @@ header#masthead {
   left: 0;
   z-index: 1000;
   min-width: 210px;
+  max-width: calc(100vw - 20px);
   padding: 0;
   margin: 0;
   background-color: rgba(104, 104, 104, 0.9);
@@ -348,7 +349,7 @@ header#masthead {
   z-index: 1;
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 1200px) {
   #TF-Navbar > ul > li.show > .dropdown-menu,
   #TF-Navbar > ul > li:focus-within > .dropdown-menu,
   #TF-Navbar > ul > li:hover > .dropdown-menu {
@@ -422,12 +423,12 @@ header#masthead {
   }
 
   #TF-Navbar > ul > li > a {
-    padding: 10px 6px;
-    font-size: 13px;
+    padding: 8px 4px;
+    font-size: 12px;
   }
 }
 
-@media (max-width: 1399px) {
+@media (max-width: 1199px) {
   .header-branding {
     display: block;
   }
@@ -695,7 +696,7 @@ header#masthead {
   }
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 1200px) {
   #site-navigation {
     max-width: 1360px;
     width: 100%;
@@ -764,7 +765,7 @@ header#masthead {
   text-align: center;
 }
 
-@media (max-width: 1399px) {
+@media (max-width: 1199px) {
   .col-md-3,
   .col-md-12 {
     flex: 0 0 100%;

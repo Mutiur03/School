@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import './Navbar.css';
 import Link from '@/components/Link';
@@ -25,6 +25,17 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(null);
   const routineQuery = useRoutinePDF();
+
+  useEffect(() => {
+    if (!isNavOpen) return;
+    const { body } = document;
+    const prevOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = prevOverflow;
+    };
+  }, [isNavOpen]);
+
   const handleRoutineClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     const cachedUrl = routineQuery.data ?? null;
@@ -64,7 +75,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
 
   const closeNavbarIfMobile = (href?: string | null) => {
     const isRealHref = !!href && href.trim() !== '' && href.trim() !== '#';
-    if (typeof window !== 'undefined' && window.innerWidth <= 1399 && isRealHref) {
+    if (typeof window !== 'undefined' && window.innerWidth <= 1199 && isRealHref) {
       setIsNavOpen(false);
       setActiveDropdown(null);
       setActiveSubDropdown(null);
