@@ -81,6 +81,7 @@ header#masthead {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   margin: 0;
   width: 100%;
   clear: both;
@@ -153,6 +154,11 @@ header#masthead {
   margin-left: 4px;
   line-height: 1;
   vertical-align: middle;
+}
+
+/* Home label: icon-only on desktop, labeled in the mobile drawer (re-shown in the max-width:1199 block) */
+.home-label {
+  display: none;
 }
 
 #TF-Navbar .fa.fa-home {
@@ -452,7 +458,27 @@ header#masthead {
     min-height: 50px;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
+  }
+
+  .toggler-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    letter-spacing: 0.5px;
+  }
+
+  /* Home icon gets a text label in the mobile drawer.
+     .menu-text must be inline-flex so the (display:block, from the CSS reset)
+     svg sits on the same line as the label instead of stacking above it. */
+  #TF-Navbar > ul > li.nav_home .menu-text {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  #TF-Navbar > ul > li.nav_home .home-label {
+    display: inline;
+    margin-left: 10px;
   }
 
   .navbar-toggler {
@@ -506,21 +532,18 @@ header#masthead {
     display: none;
   }
 
+  /* Push-down drawer: in normal flow, full height. The whole PAGE scrolls to
+     reveal all items — no nested/overlay scroll container, which some touch
+     setups (and lower banners) leave unscrollable. */
   #TF-Navbar {
     background-color: #ffffff !important;
-    max-height: min(70vh, 560px);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    max-height: none;
+    overflow: visible;
     margin: 0;
     display: none !important;
     width: 100%;
     clear: both;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
+    position: static;
     z-index: 1000;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border-radius: 4px;
