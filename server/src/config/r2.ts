@@ -175,7 +175,10 @@ export const listKeys = async (prefix: string): Promise<string[]> => {
   return keys;
 };
 
-export const getFileBuffer = async (key: string) => {
+export const getFileBuffer = async (
+  key: string,
+  options?: { quiet?: boolean },
+): Promise<Buffer | null> => {
   if (!key) return null;
   try {
     const command = new GetObjectCommand({
@@ -188,12 +191,65 @@ export const getFileBuffer = async (key: string) => {
     return Buffer.from(bodyContents);
   } catch (error: any) {
     if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
-      console.warn(`File not found in R2: ${key}`);
+      if (!options?.quiet) {
+        console.warn(`File not found in R2: ${key}`);
+      }
     } else {
       console.error(`Error fetching file from R2 (${key}):`, error);
     }
     return null;
   }
+};
+
+/**
+ * Load an R2 object, trying the stored key and a school-prefixed variant
+ * (legacy rows sometimes omit / include the tenant prefix).
+ * Also tries class6/class8 ↔ class-6/class-8 path aliases for registration media.
+ */
+export const resolveR2FileBuffer = async (
+  key: string,
+  schoolId?: number | null,
+): Promise<Buffer | null> => {
+  if (!key) return null;
+  const normalized = key.replace(/^\/+/, '');
+  const withClassAlias = (value: string) => {
+    const aliases = [value];
+    if (value.includes('/registrations/class6/') || value.startsWith('registrations/class6/')) {
+      aliases.push(value.replace(/registrations\/class6\//g, 'registrations/class-6/'));
+    }
+    if (value.includes('/registrations/class8/') || value.startsWith('registrations/class8/')) {
+      aliases.push(value.replace(/registrations\/class8\//g, 'registrations/class-8/'));
+    }
+    if (value.includes('/registrations/class-6/') || value.startsWith('registrations/class-6/')) {
+      aliases.push(value.replace(/registrations\/class-6\//g, 'registrations/class6/'));
+    }
+    if (value.includes('/registrations/class-8/') || value.startsWith('registrations/class-8/')) {
+      aliases.push(value.replace(/registrations\/class-8\//g, 'registrations/class8/'));
+    }
+    return aliases;
+  };
+
+  const candidates = [...withClassAlias(normalized)];
+
+  if (Number.isInteger(schoolId)) {
+    const prefix = `${schoolId}/`;
+    if (normalized.startsWith(prefix)) {
+      candidates.push(...withClassAlias(normalized.slice(prefix.length)));
+    } else {
+      candidates.push(...withClassAlias(`${prefix}${normalized}`));
+    }
+  }
+
+  const tried = new Set<string>();
+  for (const candidate of candidates) {
+    if (!candidate || tried.has(candidate)) continue;
+    tried.add(candidate);
+    const buffer = await getFileBuffer(candidate, { quiet: true });
+    if (buffer?.length) return buffer;
+  }
+
+  console.warn(`File not found in R2: ${normalized}`);
+  return null;
 };
 
 export { r2Client };

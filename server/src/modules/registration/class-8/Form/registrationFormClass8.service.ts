@@ -1,23 +1,35 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2, getDownloadUrl } from '@/config/r2.js';
+import {
+  getUploadUrl,
+  deleteFromR2,
+  uploadToR2,
+  getFileBuffer,
+  resolveR2FileBuffer,
+} from '@/config/r2.js';
 import path from 'path';
 import * as XLSX from 'xlsx';
 import archiver from 'archiver';
 import fs from 'fs';
 import puppeteer from 'puppeteer';
-import axios from 'axios';
 import QRCode from 'qrcode';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
+import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
 
-const checkDuplicates = async (data: any, excludeId: string | null = null) => {
+const checkDuplicates = async (
+  data: any,
+  excludeId: string | null = null,
+  schoolId: number = requireSchoolId(),
+) => {
   const duplicates = [];
   try {
     if (data && data.birth_reg_no && data.class8_year) {
       const existing = await prisma.student_registration_class8.findFirst({
         where: {
+          school_id: schoolId,
           birth_reg_no: data.birth_reg_no,
           class8_year: parseInt(data.class8_year),
           ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -35,6 +47,7 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
     if (data && data.section && data.roll && data.class8_year) {
       const existing = await prisma.student_registration_class8.findFirst({
         where: {
+          school_id: schoolId,
           section: data.section,
           roll: data.roll,
           class8_year: parseInt(data.class8_year),
@@ -56,29 +69,87 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
 };
 
 export class RegistrationFormClass8Service {
+  private static readonly PDF_SETTINGS_SELECT = {
+    id: true,
+    a_sec_roll: true,
+    b_sec_roll: true,
+    notice: true,
+    class8_year: true,
+    reg_open: true,
+    instruction_for_a: true,
+    instruction_for_b: true,
+    attachment_instruction: true,
+    school_id: true,
+    classmates: true,
+    classmates_source: true,
+  };
+
+  private static async getSettingsSnapshot(schoolId?: number | null) {
+    const resolvedSchoolId = Number.isInteger(schoolId) ? (schoolId as number) : requireSchoolId();
+    return await prisma.class8_reg.findUnique({
+      where: { school_id: resolvedSchoolId },
+      select: RegistrationFormClass8Service.PDF_SETTINGS_SELECT,
+    });
+  }
+
+  private static async findOwnedRegistration(id: string) {
+    const registration = await prisma.student_registration_class8.findFirst({
+      where: { id, school_id: requireSchoolId() },
+    });
+    if (!registration) {
+      throw new ApiError(404, 'Registration not found');
+    }
+    return registration;
+  }
+
+  private static assertSettingsMatchRegistrationYear(registration: any, settings: any) {
+    const registrationYear =
+      registration.class8_year !== null && registration.class8_year !== undefined
+        ? String(registration.class8_year).trim()
+        : '';
+    const settingsYear =
+      settings && settings.class8_year !== null && settings.class8_year !== undefined
+        ? String(settings.class8_year).trim()
+        : '';
+
+    if (!registrationYear) {
+      throw new ApiError(400, 'Registration year is missing; cannot attach PDF settings');
+    }
+
+    if (!settingsYear) {
+      throw new ApiError(400, 'Class 8 registration settings year is missing');
+    }
+
+    if (registrationYear !== settingsYear) {
+      throw new ApiError(
+        400,
+        `Class 8 settings year (${settingsYear}) does not match registration year (${registrationYear})`,
+      );
+    }
+  }
+
   static async getRegistrationPhotoUploadUrl(data: any) {
     const { filename, filetype, class8_year } = data;
     if (!filename || !filetype) {
       throw new ApiError(400, 'Filename and filetype are required');
     }
 
-    const settings = await prisma.class8_reg.findFirst({
-      orderBy: [{ id: 'desc' }],
-    });
+    const settings = await RegistrationFormClass8Service.getSettingsSnapshot(requireSchoolId());
     const year =
       String(class8_year || settings?.class8_year || 'unknown')
         .trim()
         .replace(/[^\w.-]/g, '') || 'unknown';
 
     const ext = path.extname(filename);
-    const key = tenantR2Key(`registrations/class8/photos/${year}/photo-${Date.now()}${ext}`);
+    const key = tenantR2Key(`registrations/class-8/photos/${year}/photo-${Date.now()}${ext}`);
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };
   }
 
   static async createRegistration(data: any) {
-    const duplicates = await checkDuplicates(data);
+    const schoolId = requireSchoolId();
+    const duplicates = await checkDuplicates(data, null, schoolId);
     if (duplicates.length > 0) {
       throw new ApiError(400, 'Duplicate information found', duplicates as any);
     }
@@ -102,6 +173,7 @@ export class RegistrationFormClass8Service {
     return await prisma.student_registration_class8.create({
       data: {
         ...dbData,
+        school_id: schoolId,
         class8_year: parseInt(class8_year, 10),
         status: 'pending',
       },
@@ -109,10 +181,11 @@ export class RegistrationFormClass8Service {
   }
 
   static async getAllRegistrations(filters: any) {
+    const schoolId = requireSchoolId();
     const { page = 1, limit = 50, section, status, class8_year, search } = filters;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: any = { school_id: schoolId };
     if (section) where.section = section;
     if (status && status !== 'all') where.status = status;
     if (class8_year) where.class8_year = parseInt(class8_year, 10);
@@ -124,7 +197,7 @@ export class RegistrationFormClass8Service {
         { birth_reg_no: { contains: search } },
       ];
     }
-    const statsWhere: any = {};
+    const statsWhere: any = { school_id: schoolId };
     if (class8_year) statsWhere.class8_year = parseInt(class8_year, 10);
     if (section) statsWhere.section = section;
     if (search) {
@@ -139,7 +212,10 @@ export class RegistrationFormClass8Service {
         orderBy: { created_at: 'desc' },
       }),
       prisma.student_registration_class8.count({
-        where: { class8_year: Number(class8_year) },
+        where: {
+          school_id: schoolId,
+          ...(class8_year ? { class8_year: Number(class8_year) } : {}),
+        },
       }),
       prisma.student_registration_class8.count({
         where: { ...statsWhere, status: 'pending' },
@@ -163,34 +239,35 @@ export class RegistrationFormClass8Service {
   }
 
   static async getRegistrationById(id: string) {
-    const registration = await prisma.student_registration_class8.findUnique({
-      where: { id },
-    });
-
-    if (!registration) {
-      throw new ApiError(404, 'Registration not found');
-    }
-
-    return registration;
+    return await RegistrationFormClass8Service.findOwnedRegistration(id);
   }
 
   static async updateRegistrationStatus(id: string, status: string) {
+    const registration = await RegistrationFormClass8Service.findOwnedRegistration(id);
+    const data: any = { status };
+    if (status === 'approved') {
+      if (!registration.pdf_settings_snapshot) {
+        const settingsSnapshot = await RegistrationFormClass8Service.getSettingsSnapshot(
+          registration.school_id,
+        );
+        RegistrationFormClass8Service.assertSettingsMatchRegistrationYear(
+          registration,
+          settingsSnapshot,
+        );
+        data.pdf_settings_snapshot = settingsSnapshot;
+      }
+    }
+
     return await prisma.student_registration_class8.update({
       where: { id },
-      data: { status },
+      data,
     });
   }
 
   static async updateRegistration(id: string, data: any) {
-    const existing = await prisma.student_registration_class8.findUnique({
-      where: { id },
-    });
+    const existing = await RegistrationFormClass8Service.findOwnedRegistration(id);
 
-    if (!existing) {
-      throw new ApiError(404, 'Registration not found');
-    }
-
-    const duplicates = await checkDuplicates(data, id);
+    const duplicates = await checkDuplicates(data, id, existing.school_id);
     if (duplicates.length > 0) {
       throw new ApiError(400, 'Duplicate information found', duplicates as any);
     }
@@ -219,19 +296,28 @@ export class RegistrationFormClass8Service {
       ...dbData
     } = data;
 
+    if (existing.pdf_path) {
+      await deleteFromR2(existing.pdf_path);
+    }
+
     return await prisma.student_registration_class8.update({
       where: { id },
       data: {
         ...dbData,
         ...(class8_year ? { class8_year: parseInt(class8_year, 10) } : {}),
+        pdf_path: null,
+        pdf_generated_at: null,
       },
     });
   }
 
   static async deleteRegistration(id: string) {
-    const registration = await this.getRegistrationById(id);
+    const registration = await RegistrationFormClass8Service.findOwnedRegistration(id);
     if (registration.photo) {
       await deleteFromR2(registration.photo);
+    }
+    if (registration.pdf_path) {
+      await deleteFromR2(registration.pdf_path);
     }
     return await prisma.student_registration_class8.delete({
       where: { id },
@@ -241,7 +327,7 @@ export class RegistrationFormClass8Service {
   static async exportRegistrations(query: any) {
     const { class8_year, section, status } = query;
 
-    const where: any = {};
+    const where: any = { school_id: requireSchoolId() };
     if (class8_year) where.class8_year = parseInt(class8_year);
     if (section) where.section = section;
     if (status && status !== 'all') where.status = status;
@@ -294,7 +380,7 @@ export class RegistrationFormClass8Service {
   static async exportRegistrationPhotos(query: any) {
     const { class8_year, section, status } = query;
 
-    const where: any = { photo: { not: '' } };
+    const where: any = { school_id: requireSchoolId(), photo: { not: '' } };
     if (class8_year) where.class8_year = parseInt(class8_year);
     if (section) where.section = section;
     if (status && status !== 'all') where.status = status;
@@ -321,19 +407,37 @@ export class RegistrationFormClass8Service {
       previewParam === '1' || previewParam === 'true' || previewParam === 'inline';
     const isHtmlPreview = previewParam === 'html';
 
-    const registration = await prisma.student_registration_class8.findUnique({
-      where: { id },
-    });
+    const registration = await RegistrationFormClass8Service.findOwnedRegistration(id);
 
-    if (!registration) {
-      throw new ApiError(404, 'Registration not found');
+    const shouldUseFrozenPdf =
+      !isInlinePreview &&
+      !isHtmlPreview &&
+      Boolean(registration.pdf_settings_snapshot) &&
+      String(registration.status || '')
+        .trim()
+        .toLowerCase() === 'approved';
+
+    if (shouldUseFrozenPdf && registration.pdf_path) {
+      const existingPdf = await getFileBuffer(registration.pdf_path);
+      if (existingPdf) {
+        return {
+          pdfBuffer: existingPdf,
+          studentName: registration.student_name_en,
+          isInlinePreview,
+        };
+      }
     }
 
-    let settings = null;
+    let settings: any = null;
     try {
-      settings = await prisma.class8_reg.findFirst();
+      settings =
+        shouldUseFrozenPdf && registration.pdf_settings_snapshot
+          ? registration.pdf_settings_snapshot
+          : await RegistrationFormClass8Service.getSettingsSnapshot(registration.school_id);
+      RegistrationFormClass8Service.assertSettingsMatchRegistrationYear(registration, settings);
     } catch (error) {
       console.warn('Failed to fetch Class 8 settings:', error);
+      throw error;
     }
 
     const getInstructionsForSection = (section: string) => {
@@ -351,10 +455,47 @@ export class RegistrationFormClass8Service {
     const sectionInstructions = getInstructionsForSection(registration.section);
     const attachmentInstructions = settings?.attachment_instruction || null;
 
-    const logoPath = path.join('public', 'icon.jpg');
-    const logoBase64 = fs.existsSync(logoPath)
-      ? `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`
-      : '';
+    const school = await prisma.school.findUnique({
+      where: { id: registration.school_id },
+      select: {
+        name: true,
+        address: true,
+        upazila: true,
+        district: true,
+        website: true,
+        customDomain: true,
+        subdomain: true,
+        logo: true,
+        headerLogo: true,
+      },
+    });
+    if (!school) {
+      throw new ApiError(404, 'School not found for this registration');
+    }
+
+    const schoolName = school.name?.trim() || 'School';
+    const schoolAddr =
+      school.address?.trim() ||
+      [school.upazila, school.district]
+        .map((s) => s?.trim())
+        .filter(Boolean)
+        .join(', ');
+    const schoolWeb = schoolWebsiteHost(school.customDomain || school.website);
+
+    let logoBase64 = '';
+    const logoKey = school.headerLogo || school.logo;
+    if (logoKey) {
+      try {
+        const logoBuffer = await resolveR2FileBuffer(logoKey, registration.school_id);
+        if (logoBuffer?.length) {
+          const ext = path.extname(logoKey).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          logoBase64 = `data:${mime};base64,${logoBuffer.toString('base64')}`;
+        }
+      } catch (logoError) {
+        console.warn('Failed to load school logo for Class 8 PDF:', logoError);
+      }
+    }
 
     const solaimanLipiPath = path.join('public', 'fonts', 'SolaimanLipi.woff2');
     const timesNewRomanPath = path.join('public', 'fonts', 'times.ttf');
@@ -368,23 +509,15 @@ export class RegistrationFormClass8Service {
     let _studentPhotoBase64 = '';
 
     if (registration.photo) {
-      try {
-        const photoUrl = await getDownloadUrl(registration.photo);
-        const response = await axios.get(photoUrl, {
-          responseType: 'arraybuffer',
-        });
-        const contentType = response.headers['content-type'];
-        const buffer = Buffer.from(response.data, 'binary');
-        _studentPhotoBase64 = `data:${contentType};base64,${buffer.toString('base64')}`;
-      } catch (photoError) {
-        console.warn('Failed to fetch student photo for PDF:', photoError);
+      const photoBuffer = await resolveR2FileBuffer(registration.photo, registration.school_id);
+      if (photoBuffer?.length) {
+        const ext = path.extname(registration.photo).toLowerCase();
+        const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        _studentPhotoBase64 = `data:${mime};base64,${photoBuffer.toString('base64')}`;
       }
     }
 
-    if (!process.env.PUBLIC_FRONTEND_URL) {
-      throw new ApiError(500, 'Frontend URL not configured');
-    }
-    const frontendDomain = String(process.env.PUBLIC_FRONTEND_URL).trim().replace(/\/$/, '');
+    const frontendDomain = schoolPublicOrigin(school);
 
     let qrCodeBase64 = '';
     try {
@@ -450,7 +583,7 @@ export class RegistrationFormClass8Service {
     const studentDetails = [
       ['ছাত্রের নাম (বাংলায়):', wrapBnEn(registration.student_name_bn || '')],
       ["Student's Name:", wrapBnEn(registration.student_name_en.toUpperCase() || '')],
-      ['Registration Number:', wrapBnEn((registration as any).registration_no || '')],
+      ['Registration Number:', wrapBnEn(registration.registration_no || '')],
       ['Birth Registration Number:', wrapBnEn(registration.birth_reg_no || '')],
       [
         'Date of Birth:',
@@ -546,9 +679,6 @@ export class RegistrationFormClass8Service {
       tableRows += row(label, value, idx);
     });
 
-    const schoolName = 'Panchbibi Lal Bihari Pilot Govt. High School';
-    const schoolAddr = 'Panchbibi, Joypurhat';
-    const schoolWeb = 'www.lbphs.gov.bd';
     const class8Year = registration.class8_year || '';
     const section = registration.section || '';
     const roll = registration.roll || '';
@@ -737,6 +867,20 @@ export class RegistrationFormClass8Service {
     });
 
     await browser.close();
+
+    if (shouldUseFrozenPdf) {
+      const pdfKey = tenantR2Key(
+        `registrations/class-8/pdfs/${registration.class8_year || 'unknown'}/${id}-${Date.now()}.pdf`,
+      );
+      await uploadToR2(pdfKey, Buffer.from(pdfBuffer), 'application/pdf');
+      await prisma.student_registration_class8.update({
+        where: { id },
+        data: {
+          pdf_path: pdfKey,
+          pdf_generated_at: new Date(),
+        },
+      });
+    }
 
     return {
       pdfBuffer,

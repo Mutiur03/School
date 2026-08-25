@@ -15,6 +15,7 @@
     "build:docker": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "backfill:class68-reg-pdfs": "tsx src/scripts/backfill-class68-reg-pdfs.ts",
     "dev": "nodemon",
     "start": "node --import ./dist/instrument.js dist/server.js"
   },

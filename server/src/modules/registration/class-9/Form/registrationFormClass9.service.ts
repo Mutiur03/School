@@ -2,66 +2,22 @@ import { prisma } from '@/config/prisma.js';
 import {
   getUploadUrl,
   deleteFromR2,
-  getDownloadUrl,
   uploadToR2,
   getFileBuffer,
+  resolveR2FileBuffer,
 } from '@/config/r2.js';
 import path from 'path';
 import * as XLSX from 'xlsx';
 import archiver from 'archiver';
 import fs from 'fs';
 import puppeteer from 'puppeteer';
-import axios from 'axios';
 import QRCode from 'qrcode';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
-import { env } from '@/config/env.js';
-
-function schoolWebsiteHost(raw?: string | null): string {
-  const value = raw?.trim();
-  if (!value) return '';
-  try {
-    if (/^https?:\/\//i.test(value)) return new URL(value).hostname || '';
-    return value.replace(/\/+$/, '').replace(/:\d+$/, '').split('/')[0] || '';
-  } catch {
-    return value.replace(/^https?:\/\//i, '').split('/')[0] || '';
-  }
-}
-
-/** Public site origin for QR links — per-tenant, not a global frontend URL. */
-function schoolPublicOrigin(school: {
-  customDomain?: string | null;
-  subdomain?: string | null;
-  website?: string | null;
-}): string {
-  const custom = school.customDomain?.trim();
-  if (custom) {
-    return /^https?:\/\//i.test(custom)
-      ? custom.replace(/\/+$/, '')
-      : `https://${custom.replace(/\/+$/, '')}`;
-  }
-
-  const subdomain = school.subdomain?.trim();
-  const domain = (env.DOMAIN || '').trim();
-  if (subdomain && domain) {
-    // Tenant public site is `{subdomain}-school{DOMAIN}` (e.g. foo-school.mutiurrahman.com)
-    const suffix = domain.startsWith('.') ? domain : `.${domain}`;
-    const protocol = env.NODE_ENV === 'production' ? 'https' : 'http';
-    return `${protocol}://${subdomain}-school${suffix}`;
-  }
-
-  const website = school.website?.trim();
-  if (website) {
-    return /^https?:\/\//i.test(website)
-      ? website.replace(/\/+$/, '')
-      : `https://${website.replace(/\/+$/, '')}`;
-  }
-
-  throw new ApiError(500, 'School public URL not configured');
-}
+import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -559,7 +515,7 @@ export class RegistrationFormClass9Service {
     const logoKey = school.headerLogo || school.logo;
     if (logoKey) {
       try {
-        const logoBuffer = await getFileBuffer(logoKey);
+        const logoBuffer = await resolveR2FileBuffer(logoKey, registration.school_id);
         if (logoBuffer?.length) {
           const ext = path.extname(logoKey).toLowerCase();
           const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
@@ -582,16 +538,14 @@ export class RegistrationFormClass9Service {
     let _studentPhotoBase64 = '';
 
     if (registration.photo_path) {
-      try {
-        const photoUrl = await getDownloadUrl(registration.photo_path);
-        const response = await axios.get(photoUrl, {
-          responseType: 'arraybuffer',
-        });
-        const contentType = response.headers['content-type'];
-        const buffer = Buffer.from(response.data, 'binary');
-        _studentPhotoBase64 = `data:${contentType};base64,${buffer.toString('base64')}`;
-      } catch (photoError) {
-        console.warn('Failed to fetch student photo for PDF:', photoError);
+      const photoBuffer = await resolveR2FileBuffer(
+        registration.photo_path,
+        registration.school_id,
+      );
+      if (photoBuffer?.length) {
+        const ext = path.extname(registration.photo_path).toLowerCase();
+        const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        _studentPhotoBase64 = `data:${mime};base64,${photoBuffer.toString('base64')}`;
       }
     }
 

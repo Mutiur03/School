@@ -953,9 +953,12 @@ model student_registration_class6 {
   photo                    String   @db.VarChar(255)
   class6_year              Int
   nearby_student_info      String?  @db.VarChar(200)
-  scout_status             String?  @db.VarChar(10)
-  school_id                Int      @default(dbgenerated("app.current_school_id()"))
-  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  scout_status             String?   @db.VarChar(10)
+  school_id                Int       @default(dbgenerated("app.current_school_id()"))
+  school                   School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  pdf_path                 String?   @db.VarChar(255)
+  pdf_settings_snapshot    Json?
+  pdf_generated_at         DateTime?
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -1036,9 +1039,12 @@ model student_registration_class8 {
   nearby_student_info     String?  @db.VarChar(200)
   registration_no         String   @db.VarChar(50)
   class6_academic_session String   @db.VarChar(50)
-  scout_status            String?  @db.VarChar(10)
-  school_id               Int      @default(dbgenerated("app.current_school_id()"))
-  school                  School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  scout_status            String?   @db.VarChar(10)
+  school_id               Int       @default(dbgenerated("app.current_school_id()"))
+  school                  School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  pdf_path                String?   @db.VarChar(255)
+  pdf_settings_snapshot   Json?
+  pdf_generated_at        DateTime?
 
   @@index([birth_reg_no])
   @@index([father_nid])
