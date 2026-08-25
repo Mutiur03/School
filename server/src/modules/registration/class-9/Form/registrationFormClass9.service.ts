@@ -14,6 +14,7 @@ import puppeteer from 'puppeteer';
 import axios from 'axios';
 import QRCode from 'qrcode';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
@@ -62,12 +63,17 @@ function schoolPublicOrigin(school: {
   throw new ApiError(500, 'School public URL not configured');
 }
 
-const checkDuplicates = async (data: any, excludeId: string | null = null) => {
+const checkDuplicates = async (
+  data: any,
+  excludeId: string | null = null,
+  schoolId: number = requireSchoolId(),
+) => {
   const duplicates = [];
   try {
     if (data && data.birth_reg_no && data.ssc_batch) {
       const existing = await prisma.student_registration_ssc.findFirst({
         where: {
+          school_id: schoolId,
           birth_reg_no: data.birth_reg_no,
           ssc_batch: String(data.ssc_batch),
           ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -85,6 +91,7 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
     if (data && data.section && data.roll && data.ssc_batch) {
       const existing = await prisma.student_registration_ssc.findFirst({
         where: {
+          school_id: schoolId,
           section: data.section,
           roll: data.roll,
           ssc_batch: String(data.ssc_batch),
@@ -125,6 +132,7 @@ export class RegistrationFormClass9Service {
     schoolId?: number | null,
     sscYear?: string | number | null,
   ) {
+    const resolvedSchoolId = Number.isInteger(schoolId) ? (schoolId as number) : requireSchoolId();
     const parsedYear =
       sscYear !== null && sscYear !== undefined && String(sscYear).trim()
         ? parseInt(String(sscYear), 10)
@@ -132,12 +140,22 @@ export class RegistrationFormClass9Service {
 
     return await prisma.ssc_reg.findFirst({
       where: {
-        ...(schoolId ? { school_id: schoolId } : {}),
+        school_id: resolvedSchoolId,
         ...(Number.isInteger(parsedYear) ? { ssc_year: parsedYear } : {}),
       },
       orderBy: [{ ssc_year: 'desc' }, { id: 'desc' }],
       select: RegistrationFormClass9Service.PDF_SETTINGS_SELECT,
     });
+  }
+
+  private static async findOwnedRegistration(id: string) {
+    const registration = await prisma.student_registration_ssc.findFirst({
+      where: { id, school_id: requireSchoolId() },
+    });
+    if (!registration) {
+      throw new ApiError(404, 'Registration not found');
+    }
+    return registration;
   }
 
   private static assertSettingsMatchRegistrationYear(registration: any, settings: any) {
@@ -171,7 +189,7 @@ export class RegistrationFormClass9Service {
 
     const requestedYear = ssc_batch || ssc_year;
     const settings = await RegistrationFormClass9Service.getSettingsSnapshot(
-      undefined,
+      requireSchoolId(),
       requestedYear,
     );
     const year =
@@ -187,7 +205,8 @@ export class RegistrationFormClass9Service {
   }
 
   static async createRegistration(data: any) {
-    const duplicates = await checkDuplicates(data);
+    const schoolId = requireSchoolId();
+    const duplicates = await checkDuplicates(data, null, schoolId);
     if (duplicates.length > 0) {
       throw new ApiError(400, 'Duplicate information found', duplicates as any);
     }
@@ -213,6 +232,7 @@ export class RegistrationFormClass9Service {
     return await prisma.student_registration_ssc.create({
       data: {
         ...dbData,
+        school_id: schoolId,
         photo_path: photo || '',
         ssc_batch: ssc_batch || (ssc_year ? String(ssc_year) : ''),
         status: 'pending',
@@ -221,10 +241,11 @@ export class RegistrationFormClass9Service {
   }
 
   static async getAllRegistrations(filters: any) {
+    const schoolId = requireSchoolId();
     const { page = 1, limit = 50, section, status, ssc_batch, search } = filters;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: any = { school_id: schoolId };
     if (section) where.section = section;
     if (status && status !== 'all') where.status = status;
     if (ssc_batch) where.ssc_batch = String(ssc_batch);
@@ -237,7 +258,7 @@ export class RegistrationFormClass9Service {
       ];
     }
 
-    const statsWhere: any = {};
+    const statsWhere: any = { school_id: schoolId };
     if (ssc_batch) statsWhere.ssc_batch = String(ssc_batch);
     if (section) statsWhere.section = section;
     if (search) {
@@ -252,7 +273,10 @@ export class RegistrationFormClass9Service {
         orderBy: { created_at: 'desc' },
       }),
       prisma.student_registration_ssc.count({
-        where: { ssc_batch: ssc_batch ? String(ssc_batch) : undefined },
+        where: {
+          school_id: schoolId,
+          ssc_batch: ssc_batch ? String(ssc_batch) : undefined,
+        },
       }),
       prisma.student_registration_ssc.count({
         where: { ...statsWhere, status: 'pending' },
@@ -281,13 +305,7 @@ export class RegistrationFormClass9Service {
   }
 
   static async getRegistrationById(id: string) {
-    const registration = await prisma.student_registration_ssc.findUnique({
-      where: { id },
-    });
-
-    if (!registration) {
-      throw new ApiError(404, 'Registration not found');
-    }
+    const registration = await RegistrationFormClass9Service.findOwnedRegistration(id);
 
     return {
       ...registration,
@@ -296,13 +314,9 @@ export class RegistrationFormClass9Service {
   }
 
   static async updateRegistrationStatus(id: string, status: string) {
+    const registration = await RegistrationFormClass9Service.findOwnedRegistration(id);
     const data: any = { status };
     if (status === 'approved') {
-      const registration = await prisma.student_registration_ssc.findUnique({ where: { id } });
-      if (!registration) {
-        throw new ApiError(404, 'Registration not found');
-      }
-
       if (!registration.pdf_settings_snapshot) {
         const settingsSnapshot = await RegistrationFormClass9Service.getSettingsSnapshot(
           registration.school_id,
@@ -323,15 +337,9 @@ export class RegistrationFormClass9Service {
   }
 
   static async updateRegistration(id: string, data: any) {
-    const existing = await prisma.student_registration_ssc.findUnique({
-      where: { id },
-    });
+    const existing = await RegistrationFormClass9Service.findOwnedRegistration(id);
 
-    if (!existing) {
-      throw new ApiError(404, 'Registration not found');
-    }
-
-    const duplicates = await checkDuplicates(data, id);
+    const duplicates = await checkDuplicates(data, id, existing.school_id);
     if (duplicates.length > 0) {
       throw new ApiError(400, 'Duplicate information found', duplicates as any);
     }
@@ -389,7 +397,7 @@ export class RegistrationFormClass9Service {
   static async exportRegistrations(query: any) {
     const { ssc_batch, section, status } = query;
 
-    const where: any = {};
+    const where: any = { school_id: requireSchoolId() };
     if (ssc_batch) where.ssc_batch = String(ssc_batch);
     if (section) where.section = section;
     if (status && status !== 'all') where.status = status;
@@ -442,7 +450,7 @@ export class RegistrationFormClass9Service {
   static async exportRegistrationPhotos(query: any) {
     const { ssc_batch, section, status } = query;
 
-    const where: any = { photo_path: { not: '' } };
+    const where: any = { school_id: requireSchoolId(), photo_path: { not: '' } };
     if (ssc_batch) where.ssc_batch = String(ssc_batch);
     if (section) where.section = section;
     if (status && status !== 'all') where.status = status;
@@ -469,13 +477,7 @@ export class RegistrationFormClass9Service {
       previewParam === '1' || previewParam === 'true' || previewParam === 'inline';
     const isHtmlPreview = previewParam === 'html';
 
-    const registration = await prisma.student_registration_ssc.findUnique({
-      where: { id },
-    });
-
-    if (!registration) {
-      throw new ApiError(404, 'Registration not found');
-    }
+    const registration = await RegistrationFormClass9Service.findOwnedRegistration(id);
 
     const shouldUseFrozenPdf =
       !isInlinePreview &&
