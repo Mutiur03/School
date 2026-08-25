@@ -1245,7 +1245,7 @@ const Class9RegForm = () => {
                                 <strong>Year:</strong> {selectedReg.jsc_passing_year || '-'}
                               </p>
                               <p>
-                                <strong>JSC/JDC/Class 8 ID:</strong>{' '}
+                                <strong>JSC/JDC/Class 8 ID/Roll:</strong>{' '}
                                 <span className="font-mono">{selectedReg.jsc_roll_no || '-'}</span>
                               </p>
                               <p>

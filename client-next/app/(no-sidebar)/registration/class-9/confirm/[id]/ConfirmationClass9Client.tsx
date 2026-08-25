@@ -50,11 +50,11 @@ export default function ConfirmationClass9Client({
     <tr className="border-b border-gray-100 align-top last:border-b-0">
       <td
         className="bg-gray-50 px-4 py-2 align-top font-medium text-gray-700"
-        style={{ width: '35%', minWidth: '200px' }}
+        style={{ width: '38%', minWidth: '240px' }}
       >
         <div className="wrap-break-word whitespace-normal">{label}</div>
       </td>
-      <td className="px-4 py-2 align-top" style={{ width: '65%' }}>
+      <td className="px-4 py-2 align-top" style={{ width: '62%' }}>
         <div className="wrap-break-word whitespace-normal">
           {value === null || value === undefined || value === '' ? (
             <span className="text-gray-400">Not provided</span>
@@ -160,8 +160,8 @@ export default function ConfirmationClass9Client({
         registration.jsc_board ? `Board: ${registration.jsc_board}` : '',
         registration.jsc_passing_year ? `Passing Year: ${registration.jsc_passing_year}` : '',
         registration.jsc_roll_no
-          ? `JSC/JDC/Class 8 ID No- ${registration.jsc_roll_no}`
-          : 'JSC/JDC/Class 8 ID No- N/A',
+          ? `JSC/JDC/Class 8 ID/Roll No- ${registration.jsc_roll_no}`
+          : 'JSC/JDC/Class 8 ID/Roll No- N/A',
       ]
         .filter(Boolean)
         .join(', ') || null

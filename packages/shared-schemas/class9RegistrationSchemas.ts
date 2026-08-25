@@ -34,8 +34,8 @@ export const registrationSchemaClass9 = registrationObjectShape
       .default(''),
     jsc_roll_no: z
       .string()
-      .min(1, 'JSC/JDC/Class 8 ID Number is required')
-      .refine((val) => val.length === 6, 'JSC/JDC/Class 8 ID Number must be exactly 6 digits')
+      .min(1, 'JSC/JDC/Class 8 ID/Roll Number is required')
+      .refine((val) => val.length === 6, 'JSC/JDC/Class 8 ID/Roll Number must be exactly 6 digits')
       .default(''),
     group_class_nine: z.string().min(1, 'Group is required').default(''),
     main_subject: z.string().min(1, 'Main Subject is required').default(''),

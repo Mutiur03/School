@@ -676,10 +676,16 @@ export class RegistrationFormClass9Service {
             .join(', ') || 'No',
         ),
       ],
-      ['পিতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):', wrapBnEn(registration.father_name_bn || '')],
+      [
+        'পিতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):',
+        wrapBnEn(registration.father_name_bn || ''),
+      ],
       ["Father's Name:", wrapBnEn(registration.father_name_en || '')],
       ["Father's National ID Number:", wrapBnEn(registration.father_nid || '')],
-      ['মাতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):', wrapBnEn(registration.mother_name_bn || '')],
+      [
+        'মাতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):',
+        wrapBnEn(registration.mother_name_bn || ''),
+      ],
       ["Mother's Name:", wrapBnEn(registration.mother_name_en || '')],
       ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || '')],
       [
@@ -749,8 +755,8 @@ export class RegistrationFormClass9Service {
             registration.jsc_board ? `Board: ${registration.jsc_board}` : '',
             registration.jsc_passing_year ? `Passing Year: ${registration.jsc_passing_year}` : '',
             registration.jsc_roll_no
-              ? `JSC/JDC/Class 8 ID No- ${registration.jsc_roll_no}`
-              : 'JSC/JDC/Class 8 ID No- N/A',
+              ? `JSC/JDC/Class 8 ID/Roll No- ${registration.jsc_roll_no}`
+              : 'JSC/JDC/Class 8 ID/Roll No- N/A',
           ]
             .filter(Boolean)
             .join(', '),

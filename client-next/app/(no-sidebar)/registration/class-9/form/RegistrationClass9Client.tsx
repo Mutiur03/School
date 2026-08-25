@@ -43,7 +43,8 @@ const registrationMetadata = {
   },
   student_name_en: {
     tooltip: "Write student's name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
-    instruction: "Write Student's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
+    instruction:
+      "Write Student's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
   },
   birth_reg_no: {
     tooltip: 'Write 17-digit Birth Registration Number',
@@ -55,7 +56,8 @@ const registrationMetadata = {
   },
   father_name_en: {
     tooltip: "Write father's name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
-    instruction: "Write Father's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
+    instruction:
+      "Write Father's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
   },
   father_nid: {
     tooltip: 'Write 10, 13 or 17 digit NID number',
@@ -67,7 +69,8 @@ const registrationMetadata = {
   },
   mother_name_en: {
     tooltip: "Write mother's name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
-    instruction: "Write Mother's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
+    instruction:
+      "Write Mother's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
   },
   mother_nid: {
     tooltip: 'Write 10, 13 or 17 digit NID number',
@@ -78,8 +81,8 @@ const registrationMetadata = {
     instruction: 'জেএসসি/জেডিসি রেজিস্ট্রেশন নম্বর লিখুন',
   },
   jsc_roll_no: {
-    tooltip: 'Write your JSC/JDC/Class 8 ID Number',
-    instruction: 'জেএসসি/জেডিসি আইডি নম্বর লিখুন',
+    tooltip: 'Write your JSC/JDC/Class 8 ID/Roll Number',
+    instruction: 'জেএসসি/জেডিসি আইডি/রোল নম্বর লিখুন',
   },
   photo: {
     tooltip: 'Upload a recent passport size photo in school uniform',
@@ -1136,7 +1139,11 @@ export default function RegistrationClass9Client({
 
         <SectionHeader title="JSC/JDC/Class 8 Information">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldRow label="JSC/JDC/Class 8 Passing Year:" isRequired error={errors.jsc_passing_year}>
+            <FieldRow
+              label="JSC/JDC/Class 8 Passing Year:"
+              isRequired
+              error={errors.jsc_passing_year}
+            >
               <select
                 {...register('jsc_passing_year')}
                 className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
@@ -1182,7 +1189,7 @@ export default function RegistrationClass9Client({
               instruction={metadata.jsc_reg_no.instruction}
             />
             <FormInput
-              label="JSC/JDC/Class 8 ID Number"
+              label="JSC/JDC/Class 8 ID/Roll Number"
               name="jsc_roll_no"
               register={register}
               errors={errors}
