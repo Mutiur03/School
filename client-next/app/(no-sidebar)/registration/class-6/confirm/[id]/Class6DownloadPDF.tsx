@@ -93,20 +93,25 @@ export default function Class6DownloadPDF({
               <button
                 onClick={handleDownloadPDF}
                 disabled={downloadingPDF}
-                className={`rounded px-8 py-4 text-lg font-semibold shadow transition-all duration-300 ${
+                className={`inline-flex items-center justify-center gap-3 rounded px-8 py-4 text-lg leading-none font-semibold shadow transition-all duration-300 ${
                   downloadingPDF
                     ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                     : 'bg-gray-700 text-white hover:bg-gray-800'
                 }`}
               >
                 {downloadingPDF ? (
-                  <div className="flex items-center space-x-3">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"></div>
+                  <>
+                    <div className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"></div>
                     <span>Generating PDF...</span>
-                  </div>
+                  </>
                 ) : (
-                  <div className="flex items-center space-x-3">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <>
+                    <svg
+                      className="h-6 w-6 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -115,7 +120,7 @@ export default function Class6DownloadPDF({
                       />
                     </svg>
                     <span>Download PDF</span>
-                  </div>
+                  </>
                 )}
               </button>
             </div>

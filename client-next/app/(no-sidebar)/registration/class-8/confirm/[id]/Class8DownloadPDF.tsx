@@ -93,29 +93,34 @@ export default function Class8DownloadPDF({
               <button
                 onClick={handleDownloadPDF}
                 disabled={downloadingPDF}
-                className={`rounded px-8 py-4 text-lg font-semibold shadow transition-all duration-300 ${
+                className={`inline-flex items-center justify-center gap-3 rounded px-8 py-4 text-lg leading-none font-semibold shadow transition-all duration-300 ${
                   downloadingPDF
                     ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                     : 'bg-gray-700 text-white hover:bg-gray-800'
                 }`}
               >
                 {downloadingPDF ? (
-                  <div className="flex items-center space-x-3">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"></div>
+                  <>
+                    <div className="h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"></div>
                     <span>Generating PDF...</span>
-                  </div>
+                  </>
                 ) : (
-                  <div className="flex items-center space-x-3">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <>
+                    <svg
+                      className="h-6 w-6 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
-                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
                     <span>Download PDF</span>
-                  </div>
+                  </>
                 )}
               </button>
             </div>
