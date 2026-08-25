@@ -11,15 +11,15 @@ export class RegistrationSettingsClass9Controller {
       .json(new ApiResponse(200, class9Reg, 'Class 9 Registration updated successfully'));
   });
 
-  static getClass9Reg = asyncHandler(async (_req: Request, res: Response) => {
-    const class9Reg = await RegistrationSettingsClass9Service.getClass9Reg();
+  static getClass9Reg = asyncHandler(async (req: Request, res: Response) => {
+    const class9Reg = await RegistrationSettingsClass9Service.getClass9Reg(req.query);
     res
       .status(200)
       .json(new ApiResponse(200, class9Reg, 'Class 9 Registration fetched successfully'));
   });
 
-  static deleteClass9RegNotice = asyncHandler(async (_req: Request, res: Response) => {
-    await RegistrationSettingsClass9Service.deleteClass9RegNotice();
+  static deleteClass9RegNotice = asyncHandler(async (req: Request, res: Response) => {
+    await RegistrationSettingsClass9Service.deleteClass9RegNotice(req.query);
     res.status(200).json(new ApiResponse(200, null, 'Notice deleted successfully'));
   });
 

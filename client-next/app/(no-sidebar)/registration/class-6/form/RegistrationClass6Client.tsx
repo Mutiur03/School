@@ -13,7 +13,13 @@ import {
 import axios from 'axios';
 import { useRouter, useParams } from 'next/navigation';
 import { getFileUrl } from '@/lib/cdn';
+import { checkRegistrationPhoto, REG_PHOTO_SIZE_LABEL } from '@/lib/registrationPhoto';
 import DuplicateWarning, { Duplicate } from '@/components/Form/DuplicateWarning';
+import FormErrorSummary, {
+  extractApiErrorItems,
+  scrollToFormErrorSummary,
+  type FormErrorItem,
+} from '@/components/Form/FormErrorSummary';
 import SectionHeader from '@/components/Form/SectionHeader';
 import FieldRow, { Instruction } from '@/components/Form/FieldRow';
 import AddressFields from '@/components/Form/AddressFields';
@@ -51,6 +57,7 @@ export default function RegistrationClass6Client({
   const [initialPrevSchoolUpazila, setInitialPrevSchoolUpazila] = useState<string | null>(null);
   const [initialUpazilasApplied, setInitialUpazilasApplied] = useState(false);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
+  const [apiErrors, setApiErrors] = useState<FormErrorItem[] | null>(null);
   const {
     register,
     handleSubmit,
@@ -331,40 +338,23 @@ export default function RegistrationClass6Client({
     const upazilas = getUpazilasByDistrict(selectedDistrictId);
     setPrevSchoolUpazilas(upazilas);
   }, [prev_school_district]);
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Check file size (2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('File is too large! Maximum allowed size is 2MB.');
-        e.target.value = '';
-        return;
-      }
+    if (!file) return;
 
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        const width = img.width;
-        const height = img.height;
-        const ratio = width / height;
-        const targetRatio = 15 / 19;
-
-        // Allow a small tolerance (5%)
-        const tolerance = 0.05;
-        if (Math.abs(ratio - targetRatio) > tolerance) {
-          alert('Image aspect ratio MUST be 15:19 (Portrait). Please resize your image.');
-          e.target.value = '';
-          return;
-        }
-
-        setValue('photo', file, { shouldValidate: true });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPhotoPreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      };
+    const result = await checkRegistrationPhoto(file);
+    if (!result.ok) {
+      alert(result.message);
+      e.target.value = '';
+      return;
     }
+
+    setValue('photo', file, { shouldValidate: true });
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
   const currentYear = new Date().getFullYear();
   const earliestYear = 1900;
@@ -425,6 +415,7 @@ export default function RegistrationClass6Client({
   const onSubmit = async (data: Class6Registration) => {
     // setLoading(true);
     setDuplicates([]);
+    setApiErrors(null);
     try {
       let photo = '';
       if (data.photo instanceof File) {
@@ -434,7 +425,7 @@ export default function RegistrationClass6Client({
           name: data.student_name_en,
           roll: data.roll,
           section: data.section,
-          year: data.birth_year,
+          class6_year: settings?.class6_year,
         });
         if (uploadData.success) {
           await axios.put(uploadData.data.uploadUrl, data.photo, {
@@ -458,31 +449,24 @@ export default function RegistrationClass6Client({
       }
     } catch (error: any) {
       console.error('Submission error', error);
-      if (error.response && error.response.status === 400 && error.response.data.duplicates) {
-        setDuplicates(error.response.data.duplicates);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      const data = error.response?.data;
+      const duplicateList = data?.duplicates?.length
+        ? data.duplicates
+        : data?.message === 'Duplicate information found' && Array.isArray(data?.errors)
+          ? data.errors
+          : null;
+      if (duplicateList) {
+        setDuplicates(duplicateList);
+        setApiErrors(null);
       } else {
-        alert(error.response?.data?.message || 'Failed to submit registration. Please try again.');
+        const items = extractApiErrorItems(data);
+        setApiErrors(
+          items.length
+            ? items
+            : [{ id: 'api', message: 'Failed to submit registration. Please try again.' }],
+        );
       }
-    }
-  };
-
-  const scrollToFirstError = (errors: any) => {
-    if (!errors) return;
-    const firstKey = Object.keys(errors)[0];
-    if (!firstKey) return;
-    let el = document.querySelector(`[name="${firstKey}"]`) as HTMLElement | null;
-    if (!el) el = document.getElementById(firstKey) as HTMLElement | null;
-    if (!el) {
-      el = document.querySelector(`[data-field="${firstKey}"]`) as HTMLElement | null;
-    }
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      try {
-        (el as HTMLElement).focus();
-      } catch {}
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollToFormErrorSummary();
     }
   };
   const REQUIRED_FIELDS: ReadonlyArray<keyof Class6Registration> = [
@@ -566,17 +550,12 @@ export default function RegistrationClass6Client({
       </div>
 
       {duplicates.length > 0 && <DuplicateWarning duplicates={duplicates} />}
+      <FormErrorSummary errors={errors} apiErrors={apiErrors} />
 
       <form
-        onSubmit={handleSubmit(onSubmit, (errors) => {
-          console.log('=== FORM VALIDATION ERRORS ===');
-          console.log(errors);
-          console.log('Total errors:', Object.keys(errors).length);
-          Object.entries(errors).forEach(([field, error]) => {
-            console.log(`${field}:`, error?.message);
-          });
-          console.log('==============================');
-          scrollToFirstError(errors);
+        onSubmit={handleSubmit(onSubmit, () => {
+          setApiErrors(null);
+          scrollToFormErrorSummary();
         })}
         className="space-y-10"
       >
@@ -1054,12 +1033,12 @@ export default function RegistrationClass6Client({
                     {photoPreview ? 'Change Photo' : 'Choose Photo'}
                   </label>
                   <a
-                    href="https://imageresizer.com/crop-image"
+                    href="https://imageresizer.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center rounded bg-green-600 px-4 py-2 text-sm font-medium text-white! shadow hover:bg-green-700 sm:text-base"
                   >
-                    Resize Now (15:19)
+                    Resize Now (300×330)
                   </a>
                   {(photoPreview || photo) && (
                     <button
@@ -1079,7 +1058,7 @@ export default function RegistrationClass6Client({
                   )}
                 </div>
                 <Instruction>
-                  JPG only. Max 2MB. <strong>Requirement: 15:19 Ratio.</strong>
+                  JPG only. Max 2MB. <strong>Requirement: exactly {REG_PHOTO_SIZE_LABEL}.</strong>
                 </Instruction>
               </div>
             </div>

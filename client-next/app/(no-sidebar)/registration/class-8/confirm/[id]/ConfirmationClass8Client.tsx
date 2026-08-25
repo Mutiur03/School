@@ -158,7 +158,7 @@ export default function ConfirmationClass8Client({
               alt="Student Photo"
               width={112}
               height={142}
-              className="aspect-15/19 w-28 rounded border-2 border-gray-300 object-cover shadow-sm"
+              className="aspect-[300/330] w-28 rounded border-2 border-gray-300 object-cover shadow-sm"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}

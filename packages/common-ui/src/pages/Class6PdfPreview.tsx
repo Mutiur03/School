@@ -1,11 +1,12 @@
-import { Navigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import backend from '../lib/backend';
 
-function Class6PdfPreview() {
-  const { id } = useParams();
+type Class6PdfPreviewProps = {
+  id: string;
+};
+
+function Class6PdfPreview({ id }: Class6PdfPreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
-  if (!id) return <Navigate to="/" replace />;
 
   const base = String(backend || '')
     .trim()

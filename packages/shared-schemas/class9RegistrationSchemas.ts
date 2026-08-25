@@ -29,18 +29,13 @@ export const registrationSchemaClass9 = registrationObjectShape
     jsc_board: z.string().min(1, 'JSC Board is required').default(''),
     jsc_reg_no: z
       .string()
-      .optional()
-      .or(z.literal(''))
-      .refine(
-        (val) => !val || String(val).length === 10,
-        'Registration Number must be exactly 10 digits',
-      )
+      .min(1, 'Registration Number is required')
+      .refine((val) => val.length === 10, 'Registration Number must be exactly 10 digits')
       .default(''),
     jsc_roll_no: z
       .string()
-      .optional()
-      .or(z.literal(''))
-      .refine((val) => !val || String(val).length === 6, 'Roll Number must be exactly 6 digits')
+      .min(1, 'JSC/JDC/Class 8 ID Number is required')
+      .refine((val) => val.length === 6, 'JSC/JDC/Class 8 ID Number must be exactly 6 digits')
       .default(''),
     group_class_nine: z.string().min(1, 'Group is required').default(''),
     main_subject: z.string().min(1, 'Main Subject is required').default(''),
@@ -49,10 +44,12 @@ export const registrationSchemaClass9 = registrationObjectShape
       .string()
       .min(1, 'Nearby student information is required')
       .default(''),
-    sorkari_brirti: z.enum(['Yes', 'No']).or(z.literal('')).default('No'),
-    upobritti: z.enum(['Yes', 'No']).or(z.literal('')).default('No'),
-    roll_in_class_8: z.string().min(1, 'Roll in Class 8 is required').default(''),
-    section_in_class_8: z.string().min(1, 'Section in Class 8 is required').default(''),
+    sorkari_brirti: z.enum(['No', 'Talentpool', 'General'], {
+      message: 'Govt scholarship status is required',
+    }),
+    upobritti: z.enum(['Yes', 'No'], {
+      message: 'Stipend status is required',
+    }),
   })
   .superRefine(registrationSuperRefine);
 
@@ -131,10 +128,8 @@ export const registrationDefaultValuesClass9: Class9Registration = {
   main_subject: '',
   fourth_subject: '',
   nearby_nine_student_info: '',
-  sorkari_brirti: '',
-  upobritti: '',
-  roll_in_class_8: '',
-  section_in_class_8: '',
+  sorkari_brirti: 'No',
+  upobritti: 'No',
   scout_status: '',
   photo: '',
 };

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
 import axios from 'axios';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import { useForm } from 'react-hook-form';
@@ -15,6 +16,9 @@ import {
   Users,
   Loader2,
   CheckCircle2,
+  AlertCircle,
+  CalendarDays,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getFileUrl } from '@/lib/backend';
@@ -82,11 +86,14 @@ const Class9RegForm = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const currentYear = new Date().getFullYear().toString();
   const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
+  const [settingsYear, setSettingsYear] = useState(currentYear);
+  const [settingsYearTouched, setSettingsYearTouched] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     section: '',
-    year: new Date().getFullYear().toString(),
+    year: currentYear,
     search: '',
   });
   const [page, setPage] = useState(1);
@@ -109,7 +116,7 @@ const Class9RegForm = () => {
     defaultValues: {
       a_sec_roll: '',
       b_sec_roll: '',
-      ssc_year: new Date().getFullYear().toString(),
+      ssc_year: currentYear,
       reg_open: false,
       instruction_for_a: '',
       instruction_for_b: '',
@@ -121,25 +128,80 @@ const Class9RegForm = () => {
   });
 
   const settingsForm = watch();
+  const normalizedSettingsYear = settingsYear.trim();
+  const settingsYearIsValid = /^\d{4}$/.test(normalizedSettingsYear);
 
-  const { data: settingsData, isLoading: settingsLoading } = useQuery({
-    queryKey: ['class9RegSettings'],
+  const {
+    data: latestSettingsData,
+    isLoading: latestSettingsLoading,
+    isFetched: latestSettingsFetched,
+  } = useQuery({
+    queryKey: ['class9RegSettings', 'latest'],
     queryFn: async () => {
       const res = await axios.get(`/api/reg/class-9`);
       return res.data.success ? res.data.data : null;
     },
   });
 
+  const {
+    data: settingsData,
+    isLoading: settingsLoading,
+    isFetching: settingsFetching,
+  } = useQuery({
+    queryKey: ['class9RegSettings', normalizedSettingsYear],
+    queryFn: async () => {
+      const res = await axios.get(`/api/reg/class-9`, {
+        params: { ssc_year: normalizedSettingsYear },
+      });
+      return res.data.success ? res.data.data : null;
+    },
+    enabled: settingsYearIsValid && (settingsYearTouched || latestSettingsFetched),
+  });
+
+  const defaultSettingsYear = String(latestSettingsData?.ssc_year || currentYear);
+
+  const settingsYearOptions = useMemo(() => {
+    const baseYear = Number(defaultSettingsYear);
+    const years = Number.isInteger(baseYear)
+      ? Array.from({ length: 6 }, (_, i) => baseYear - i)
+      : [];
+
+    for (const value of [settingsYear, settingsForm.ssc_year, filters.year]) {
+      const parsed = Number(value);
+      if (value && Number.isInteger(parsed) && !years.includes(parsed)) {
+        years.push(parsed);
+      }
+    }
+
+    return years.sort((a, b) => b - a);
+  }, [defaultSettingsYear, filters.year, settingsForm.ssc_year, settingsYear]);
+
+  useEffect(() => {
+    if (!settingsYearTouched && latestSettingsData?.ssc_year) {
+      setSettingsYear(String(latestSettingsData.ssc_year));
+    }
+  }, [latestSettingsData?.ssc_year, settingsYearTouched]);
+
+  const handleSettingsYearChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    setSettingsYearTouched(true);
+    setSettingsYear(event.target.value);
+  }, []);
+
+  const handleLatestSettingsYear = useCallback(() => {
+    setSettingsYearTouched(false);
+    setSettingsYear(defaultSettingsYear);
+  }, [defaultSettingsYear]);
+
   useEffect(() => {
     if (settingsData) {
       const formData = {
         ...settingsData,
-        ssc_year: settingsData.ssc_year || '',
+        ssc_year: settingsData.ssc_year || normalizedSettingsYear,
         notice_key: settingsData.notice,
       };
       reset(formData);
     }
-  }, [settingsData, reset]);
+  }, [normalizedSettingsYear, settingsData, reset]);
 
   const {
     data: registrationsResponse,
@@ -188,10 +250,10 @@ const Class9RegForm = () => {
   );
 
   useEffect(() => {
-    if (settingsData?.ssc_year) {
-      setFilters((prev) => ({ ...prev, year: settingsData.ssc_year.toString() }));
+    if (latestSettingsData?.ssc_year) {
+      setFilters((prev) => ({ ...prev, year: latestSettingsData.ssc_year.toString() }));
     }
-  }, [settingsData?.ssc_year]);
+  }, [latestSettingsData?.ssc_year]);
 
   const settingsMutation = useMutation({
     mutationFn: async (updatedSettings: Class9RegistrationSettingsData) => {
@@ -211,6 +273,7 @@ const Class9RegForm = () => {
 
       const payload = {
         ...updatedSettings,
+        ssc_year: updatedSettings.ssc_year || normalizedSettingsYear,
         notice_key,
         reg_open:
           typeof updatedSettings.reg_open === 'boolean'
@@ -339,13 +402,64 @@ const Class9RegForm = () => {
       <TabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} className="mb-6" />
 
       {activeTab === 'settings' ? (
-        <SectionCard title="Registration Settings" icon={<Settings size={20} />}>
-          {settingsLoading ? (
+        <SectionCard
+          title="Registration Settings"
+          description="Settings are saved separately for each SSC batch."
+          icon={<Settings size={20} />}
+          headerAction={
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+              <div className="min-w-0 sm:w-44">
+                <label
+                  htmlFor="class9-settings-year"
+                  className="text-muted-foreground mb-1 flex items-center gap-1.5 text-xs font-medium"
+                >
+                  <CalendarDays size={13} aria-hidden="true" />
+                  SSC Batch
+                </label>
+                <select
+                  id="class9-settings-year"
+                  name="class9-settings-year"
+                  value={settingsYear}
+                  onChange={handleSettingsYearChange}
+                  className={`${filterSelectClassName} h-10 min-w-32 tabular-nums`}
+                  aria-describedby="class9-settings-year-status"
+                >
+                  {settingsYearOptions.map((year) => (
+                    <option key={year} value={String(year)}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLatestSettingsYear}
+                disabled={settingsYear === defaultSettingsYear && !settingsYearTouched}
+                className="h-10 gap-2"
+              >
+                <RotateCcw size={15} aria-hidden="true" />
+                Use Latest
+              </Button>
+            </div>
+          }
+        >
+          {latestSettingsLoading || settingsLoading ? (
             <div className="flex justify-center py-20">
               <Loader2 size={40} className="text-primary animate-spin" />
             </div>
           ) : (
             <form onSubmit={handleSettingsSubmit} className="space-y-6">
+              {settingsFetching && (
+                <div
+                  id="class9-settings-year-status"
+                  aria-live="polite"
+                  className="text-muted-foreground -mt-2 flex items-center gap-2 text-sm"
+                >
+                  <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                  Loading selected batch settings…
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label className="text-foreground mb-1 block text-sm font-medium">
@@ -369,7 +483,7 @@ const Class9RegForm = () => {
                   <label className="text-foreground mb-1 block text-sm font-medium">
                     SSC Batch
                   </label>
-                  <Input type="text" {...register('ssc_year')} />
+                  <Input type="text" {...register('ssc_year')} readOnly />
                   {errors.ssc_year && (
                     <p className="mt-1 text-xs text-red-500">{errors.ssc_year.message}</p>
                   )}
@@ -487,7 +601,11 @@ const Class9RegForm = () => {
               <div className="flex justify-end pt-4">
                 <button
                   type="submit"
-                  disabled={settingsMutation.isPending || (!isDirty && !selectedNotice)}
+                  disabled={
+                    !settingsYearIsValid ||
+                    settingsMutation.isPending ||
+                    (!isDirty && !selectedNotice)
+                  }
                   className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-6 py-2 text-white transition-colors disabled:opacity-50"
                 >
                   {settingsMutation.isPending ? (
@@ -1127,7 +1245,7 @@ const Class9RegForm = () => {
                                 <strong>Year:</strong> {selectedReg.jsc_passing_year || '-'}
                               </p>
                               <p>
-                                <strong>Roll:</strong>{' '}
+                                <strong>JSC/JDC/Class 8 ID:</strong>{' '}
                                 <span className="font-mono">{selectedReg.jsc_roll_no || '-'}</span>
                               </p>
                               <p>
@@ -1289,35 +1407,83 @@ const Class9RegForm = () => {
       )}
 
       {showEditModal && editFormData && (
-        <Popup open onOpenChange={(o) => !o && setShowEditModal(false)}>
-          <div className="p-6">
-            <h3 className="mb-4 text-lg font-bold">Edit Registration Status</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Status</label>
-                <select
-                  value={editFormData.status}
-                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                  className="bg-card border-border text-foreground w-full rounded-md border px-3 py-2"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+        <Popup open onOpenChange={(o) => !o && setShowEditModal(false)} size="sm">
+          <div className="border-border flex items-center justify-between border-b px-5 py-4 dark:border-gray-700">
+            <h3 className="text-lg font-bold">Update Status</h3>
+            <button
+              type="button"
+              onClick={() => setShowEditModal(false)}
+              className="hover:bg-muted rounded-full p-1 transition-colors dark:hover:bg-gray-700"
+              aria-label="Close"
+            >
+              <XCircle size={22} className="text-muted-foreground" />
+            </button>
+          </div>
+          <div className="space-y-4 p-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Select Status
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {(['pending', 'approved', 'rejected'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setEditFormData({ ...editFormData, status: s })}
+                    className={`flex items-center justify-between rounded-xl border-2 px-3 py-3 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
+                      editFormData.status === s
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'hover:border-border border-gray-100 dark:border-gray-700 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`rounded-full p-2 ${
+                          s === 'approved'
+                            ? 'bg-emerald-100 text-emerald-600'
+                            : s === 'rejected'
+                              ? 'bg-red-100 text-red-600'
+                              : 'bg-amber-100 text-amber-600'
+                        }`}
+                      >
+                        {s === 'approved' ? (
+                          <CheckCircle2 size={18} />
+                        ) : s === 'rejected' ? (
+                          <XCircle size={18} />
+                        ) : (
+                          <AlertCircle size={18} />
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 capitalize dark:text-white">
+                        {s}
+                      </span>
+                    </div>
+                    {editFormData.status === s && (
+                      <div className="bg-primary h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(59,130,246,0.2)]" />
+                    )}
+                  </button>
+                ))}
               </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    handleStatusUpdate(editFormData.id, editFormData.status);
-                    setShowEditModal(false);
-                  }}
-                >
-                  Save Changes
-                </Button>
-              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="hover:bg-muted rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleStatusUpdate(editFormData.id, editFormData.status);
+                  setShowEditModal(false);
+                }}
+                className="bg-primary hover:bg-primary/90 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors"
+              >
+                Update Status
+              </button>
             </div>
           </div>
         </Popup>

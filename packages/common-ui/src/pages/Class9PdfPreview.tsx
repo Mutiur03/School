@@ -1,16 +1,16 @@
-import { Navigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import backend from '../lib/backend';
 
-function Class9PdfPreview() {
-  const { id } = useParams();
+type Class9PdfPreviewProps = {
+  id: string;
+};
+
+function Class9PdfPreview({ id }: Class9PdfPreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
-  if (!id) return <Navigate to="/" replace />;
 
   const base = String(backend || '')
     .trim()
     .replace(/\/$/, '');
-  // Using the Class 9 form API for registration PDF
   const previewUrl = `${base}/api/reg/class-9/form/${id}/pdf?preview=1&t=${Date.now()}`;
 
   return (

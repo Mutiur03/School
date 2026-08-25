@@ -159,7 +159,9 @@ export default function ConfirmationClass9Client({
       [
         registration.jsc_board ? `Board: ${registration.jsc_board}` : '',
         registration.jsc_passing_year ? `Passing Year: ${registration.jsc_passing_year}` : '',
-        registration.jsc_roll_no ? `Roll No- ${registration.jsc_roll_no}` : 'Roll No- N/A',
+        registration.jsc_roll_no
+          ? `JSC/JDC/Class 8 ID No- ${registration.jsc_roll_no}`
+          : 'JSC/JDC/Class 8 ID No- N/A',
       ]
         .filter(Boolean)
         .join(', ') || null
@@ -167,10 +169,11 @@ export default function ConfirmationClass9Client({
   };
 
   const formatScholarshipInfo = () => {
-    const stipend = registration.upobritti
-      ? `উপবৃত্তি: ${registration.upobritti === 'Yes' ? 'হ্যাঁ' : 'না'}`
-      : '';
-    const brirti = String(registration.sorkari_brirti ?? '');
+    const stipend =
+      registration.upobritti === 'Yes' || registration.upobritti === 'No'
+        ? `উপবৃত্তি: ${registration.upobritti === 'Yes' ? 'হ্যাঁ' : 'না'}`
+        : '';
+    const brirti = String(registration.sorkari_brirti ?? '').trim();
     const govScholarship = brirti
       ? `সরকারি বৃত্তি: ${
           brirti === 'No'
@@ -179,7 +182,9 @@ export default function ConfirmationClass9Client({
               ? 'মেধাবৃত্তি'
               : brirti === 'General'
                 ? 'সাধারণ বৃত্তি'
-                : brirti
+                : brirti === 'Yes'
+                  ? 'হ্যাঁ'
+                  : brirti
         }`
       : '';
 
@@ -238,7 +243,7 @@ export default function ConfirmationClass9Client({
               alt="Student Photo"
               width={112}
               height={142}
-              className="aspect-15/19 w-28 rounded border-2 border-gray-300 object-cover shadow-sm"
+              className="aspect-[300/330] w-28 rounded border-2 border-gray-300 object-cover shadow-sm"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -252,7 +257,7 @@ export default function ConfirmationClass9Client({
             <span>Section: {registration.section || '-'}</span>
             <span>Roll No: {registration.roll || '-'}</span>
             <span>Religion: {registration.religion || '-'}</span>
-            <span>JSC/JDC Regi. No: {registration.jsc_reg_no || '-'}</span>
+            <span>JSC/JDC/Class 8 Regi. No: {registration.jsc_reg_no || '-'}</span>
           </div>
 
           <div className="overflow-x-auto rounded border border-gray-200 bg-white">
@@ -262,25 +267,25 @@ export default function ConfirmationClass9Client({
             >
               <tbody>
                 {renderTableRow(
-                  'ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):',
+                  'ছাত্রের নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):',
                   registration.student_name_bn,
                 )}
                 {renderTableRow("Student's Name:", registration.student_name_en?.toUpperCase())}
                 {renderTableRow('Birth Registration Number:', registration.birth_reg_no)}
                 {renderTableRow(
-                  'Date of Birth (According to JSC/JDC):',
+                  'Date of Birth (According to JSC/JDC/Class 8):',
                   formatDateLong(registration.birth_date),
                 )}
                 {renderTableRow('Email Address:', registration.email || 'No')}
                 {renderTableRow('Mobile Numbers:', formatMobileNumbers())}
                 {renderTableRow(
-                  'পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):',
+                  'পিতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):',
                   registration.father_name_bn,
                 )}
                 {renderTableRow("Father's Name:", registration.father_name_en?.toUpperCase())}
                 {renderTableRow("Father's National ID Number:", registration.father_nid)}
                 {renderTableRow(
-                  'মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):',
+                  'মাতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):',
                   registration.mother_name_bn,
                 )}
                 {renderTableRow("Mother's Name:", registration.mother_name_en?.toUpperCase())}
@@ -308,7 +313,7 @@ export default function ConfirmationClass9Client({
                 {renderTableRow("Guardian's Name:", formatGuardianInfo())}
                 {renderTableRow("Guardian's Address:", formatGuardianAddress())}
                 {renderTableRow('Previous School Name & Address:', formatPreviousSchool())}
-                {renderTableRow('Information of JSC/JDC:', formatJSCInfo())}
+                {renderTableRow('Information of JSC/JDC/Class 8:', formatJSCInfo())}
                 {renderTableRow('Main and 4th Subject:', formatMainAndFourthSubject())}
                 {renderTableRow('Scholarship Information:', formatScholarshipInfo())}
                 {renderTableRow(
@@ -316,10 +321,6 @@ export default function ConfirmationClass9Client({
                   registration.nearby_nine_student_info,
                 )}
                 {renderTableRow('ছাত্রের ডাকনাম (বাংলায়):', registration.student_nick_name_bn)}
-                {renderTableRow(
-                  '৮ম শ্রেণির তথ্য:',
-                  `Section: ${registration.section_in_class_8}, Roll: ${registration.roll_in_class_8}`,
-                )}
               </tbody>
             </table>
           </div>

@@ -1,11 +1,12 @@
-import { Navigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import backend from '../lib/backend';
 
-function Class8PdfPreview() {
-  const { id } = useParams();
+type Class8PdfPreviewProps = {
+  id: string;
+};
+
+function Class8PdfPreview({ id }: Class8PdfPreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
-  if (!id) return <Navigate to="/" replace />;
 
   const base = String(backend || '')
     .trim()
@@ -32,14 +33,14 @@ function Class8PdfPreview() {
               width: '35%',
               height: '100%',
               background: '#2563eb',
-              animation: 'class6-pdf-loading 1.1s linear infinite',
+              animation: 'class8-pdf-loading 1.1s linear infinite',
             }}
           />
         </div>
       )}
 
       <style>{`
-        @keyframes class6-pdf-loading {
+        @keyframes class8-pdf-loading {
           0% { transform: translateX(-120%); }
           100% { transform: translateX(320%); }
         }

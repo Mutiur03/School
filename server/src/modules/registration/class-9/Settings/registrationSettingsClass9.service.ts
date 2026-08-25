@@ -1,5 +1,5 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import path from 'path';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
@@ -7,6 +7,15 @@ import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 
 export class RegistrationSettingsClass9Service {
+  private static resolveYear(data: any) {
+    const rawYear = data?.ssc_year ?? data?.class9_year ?? data?.year;
+    const year = rawYear ? parseInt(String(rawYear), 10) : NaN;
+    if (!Number.isInteger(year)) {
+      throw new ApiError(400, 'SSC year is required for Class 9 registration settings');
+    }
+    return year;
+  }
+
   static async createOrUpdateClass9Reg(data: any) {
     const {
       a_sec_roll,
@@ -22,14 +31,15 @@ export class RegistrationSettingsClass9Service {
       classmates_source,
     } = data;
 
+    const resolvedYear = RegistrationSettingsClass9Service.resolveYear({
+      ssc_year,
+      class9_year,
+    });
+
     const updateData: any = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
-      ssc_year: ssc_year
-        ? parseInt(String(ssc_year), 10)
-        : class9_year
-          ? parseInt(String(class9_year), 10)
-          : null,
+      ssc_year: resolvedYear,
       reg_open: reg_open === 'true' || reg_open === true,
       instruction_for_a: instruction_for_a || 'Please follow the instructions carefully',
       instruction_for_b: instruction_for_b || 'Please follow the instructions carefully',
@@ -40,32 +50,49 @@ export class RegistrationSettingsClass9Service {
     };
 
     if (notice_key) {
-      const schoolId = requireSchoolId();
-      const existingRecord = await prisma.ssc_reg.findUnique({ where: { school_id: schoolId } });
-      if (existingRecord && existingRecord.notice && existingRecord.notice !== notice_key) {
-        await deleteFromR2(existingRecord.notice);
-      }
       updateData.notice = notice_key;
     }
 
     const schoolId = requireSchoolId();
-    return await prisma.ssc_reg.upsert({
-      where: { school_id: schoolId },
-      update: updateData,
-      create: updateData,
+    const existing = await prisma.ssc_reg.findFirst({
+      where: { school_id: schoolId, ssc_year: resolvedYear },
+    });
+
+    if (existing) {
+      return await prisma.ssc_reg.update({
+        where: { id: existing.id },
+        data: updateData,
+      });
+    }
+
+    return await prisma.ssc_reg.create({
+      data: { ...updateData, school_id: schoolId },
     });
   }
 
-  static async getClass9Reg() {
+  static async getClass9Reg(query: any = {}) {
     const schoolId = requireSchoolId();
-    const class9Reg = await prisma.ssc_reg.findUnique({ where: { school_id: schoolId } });
+    const requestedYear = query?.ssc_year ?? query?.class9_year ?? query?.year;
+    const class9Reg = requestedYear
+      ? await prisma.ssc_reg.findFirst({
+          where: { school_id: schoolId, ssc_year: parseInt(String(requestedYear), 10) },
+        })
+      : await prisma.ssc_reg.findFirst({
+          where: { school_id: schoolId },
+          orderBy: [{ reg_open: 'desc' }, { ssc_year: 'desc' }, { id: 'desc' }],
+        });
 
     if (!class9Reg) {
+      const fallbackYear = requestedYear
+        ? parseInt(String(requestedYear), 10)
+        : new Date().getFullYear();
+
       return {
         id: 0,
         a_sec_roll: null,
         b_sec_roll: null,
-        class9_year: new Date().getFullYear(),
+        ssc_year: fallbackYear,
+        class9_year: fallbackYear,
         reg_open: false,
         instruction_for_a: 'Please follow the instructions carefully',
         instruction_for_b: 'Please follow the instructions carefully',
@@ -116,15 +143,12 @@ export class RegistrationSettingsClass9Service {
     };
   }
 
-  static async deleteClass9RegNotice() {
-    const schoolId = requireSchoolId();
-    const class9Reg = await prisma.ssc_reg.findUnique({ where: { school_id: schoolId } });
+  static async deleteClass9RegNotice(query: any = {}) {
+    const class9Reg = await RegistrationSettingsClass9Service.getClass9Reg(query);
 
     if (!class9Reg || !class9Reg.notice) {
       throw new ApiError(404, 'No notice found to delete');
     }
-
-    await deleteFromR2(class9Reg.notice);
 
     await prisma.ssc_reg.update({
       where: { id: class9Reg.id },

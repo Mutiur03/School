@@ -57,13 +57,21 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
 
 export class RegistrationFormClass8Service {
   static async getRegistrationPhotoUploadUrl(data: any) {
-    const { filename, filetype } = data;
+    const { filename, filetype, class8_year } = data;
     if (!filename || !filetype) {
       throw new ApiError(400, 'Filename and filetype are required');
     }
 
+    const settings = await prisma.class8_reg.findFirst({
+      orderBy: [{ id: 'desc' }],
+    });
+    const year =
+      String(class8_year || settings?.class8_year || 'unknown')
+        .trim()
+        .replace(/[^\w.-]/g, '') || 'unknown';
+
     const ext = path.extname(filename);
-    const key = tenantR2Key(`registrations/class8/photo-${Date.now()}${ext}`);
+    const key = tenantR2Key(`registrations/class8/photos/${year}/photo-${Date.now()}${ext}`);
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };

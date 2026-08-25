@@ -12,7 +12,13 @@ import {
   registrationDefaultValuesClass9,
 } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/cdn';
+import { checkRegistrationPhoto, REG_PHOTO_SIZE_LABEL } from '@/lib/registrationPhoto';
 import DuplicateWarning, { Duplicate } from '@/components/Form/DuplicateWarning';
+import FormErrorSummary, {
+  extractApiErrorItems,
+  scrollToFormErrorSummary,
+  type FormErrorItem,
+} from '@/components/Form/FormErrorSummary';
 import SectionHeader from '@/components/Form/SectionHeader';
 import FieldRow from '@/components/Form/FieldRow';
 import AddressFields from '@/components/Form/AddressFields';
@@ -24,60 +30,60 @@ import type { SchoolConfig } from '@/types';
 
 const registrationMetadata = {
   section: {
-    tooltip: 'Select your বর্তমান Class 9 section',
-    instruction: 'ভর্তিকৃত শাখা নির্বাচন করুন',
+    tooltip: 'Select your current Class 9 section',
+    instruction: 'নবম শ্রেণির শাখা নির্বাচন করুন',
   },
   roll: {
     tooltip: 'Select your current Class 9 roll number',
-    instruction: 'ভর্তিকৃত রোল নম্বর নির্বাচন করুন',
+    instruction: 'নবম শ্রেণির রোল নম্বর নির্বাচন করুন',
   },
   student_name_bn: {
-    tooltip: "Write student's name in Bangla as per JSC/JDC certificate",
+    tooltip: "Write student's name in Bangla as per JSC/JDC/Class 8 certificate",
     instruction: 'জেএসসি/জেডিসি সনদ অনুযায়ী ছাত্রের নাম বাংলায় লিখুন',
   },
   student_name_en: {
-    tooltip: "Write student's name in English (Capital Letters) as per JSC/JDC certificate",
-    instruction: "Write Student's Name in English (Capital Letters) as per JSC/JDC certificate",
+    tooltip: "Write student's name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
+    instruction: "Write Student's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
   },
   birth_reg_no: {
     tooltip: 'Write 17-digit Birth Registration Number',
     instruction: '১৭ ডিজিটের জন্ম নিবন্ধন নম্বর লিখুন',
   },
   father_name_bn: {
-    tooltip: "Write father's name in Bangla as per JSC/JDC certificate",
+    tooltip: "Write father's name in Bangla as per JSC/JDC/Class 8 certificate",
     instruction: 'জেএসসি/জেডিসি সনদ অনুযায়ী পিতার নাম বাংলায় লিখুন',
   },
   father_name_en: {
-    tooltip: "Write father's name in English (Capital Letters) as per JSC/JDC certificate",
-    instruction: "Write Father's Name in English (Capital Letters) as per JSC/JDC certificate",
+    tooltip: "Write father's name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
+    instruction: "Write Father's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
   },
   father_nid: {
     tooltip: 'Write 10, 13 or 17 digit NID number',
     instruction: 'পিতার এনআইডি নম্বর লিখুন',
   },
   mother_name_bn: {
-    tooltip: "Write mother's name in Bangla as per JSC/JDC certificate",
+    tooltip: "Write mother's name in Bangla as per JSC/JDC/Class 8 certificate",
     instruction: 'জেএসসি/জেডিসি সনদ অনুযায়ী মাতার নাম বাংলায় লিখুন',
   },
   mother_name_en: {
-    tooltip: "Write mother's name in English (Capital Letters) as per JSC/JDC certificate",
-    instruction: "Write Mother's Name in English (Capital Letters) as per JSC/JDC certificate",
+    tooltip: "Write mother's name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
+    instruction: "Write Mother's Name in English (Capital Letters) as per JSC/JDC/Class 8 certificate",
   },
   mother_nid: {
     tooltip: 'Write 10, 13 or 17 digit NID number',
     instruction: 'মাতার এনআইডি নম্বর লিখুন',
   },
   jsc_reg_no: {
-    tooltip: 'Write your JSC/JDC Registration Number',
+    tooltip: 'Write your JSC/JDC/Class 8 Registration Number',
     instruction: 'জেএসসি/জেডিসি রেজিস্ট্রেশন নম্বর লিখুন',
   },
   jsc_roll_no: {
-    tooltip: 'Write your JSC/JDC Roll Number',
-    instruction: 'জেএসসি/জেডিসি রোল নম্বর লিখুন',
+    tooltip: 'Write your JSC/JDC/Class 8 ID Number',
+    instruction: 'জেএসসি/জেডিসি আইডি নম্বর লিখুন',
   },
   photo: {
     tooltip: 'Upload a recent passport size photo in school uniform',
-    instruction: 'বিদ্যালয় ইউনিফর্ম পরিহিত রঙ্গিন ছবি আপলোড করুন (Portrait 15:19 ratio)',
+    instruction: `বিদ্যালয় ইউনিফর্ম পরিহিত রঙ্গিন ছবি আপলোড করুন (${REG_PHOTO_SIZE_LABEL})`,
   },
 };
 
@@ -158,6 +164,7 @@ export default function RegistrationClass9Client({
   const isEditMode = Boolean(id);
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [permanentUpazilas, setPermanentUpazilas] = useState<any[]>([]);
   const [presentUpazilas, setPresentUpazilas] = useState<any[]>([]);
   const [prevSchoolUpazilas, setPrevSchoolUpazilas] = useState<any[]>([]);
@@ -170,6 +177,7 @@ export default function RegistrationClass9Client({
   const [initialPrevSchoolUpazila, setInitialPrevSchoolUpazila] = useState<string | null>(null);
   const [initialUpazilasApplied, setInitialUpazilasApplied] = useState(false);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
+  const [apiErrors, setApiErrors] = useState<FormErrorItem[] | null>(null);
   const [prevSchoolOption, setPrevSchoolOption] = useState(schoolConfig.name.en);
   const [nearbyOption, setNearbyOption] = useState('');
 
@@ -268,6 +276,7 @@ export default function RegistrationClass9Client({
               formData[key] = '';
             }
           });
+          formData.ssc_batch = formData.ssc_batch || settingsProp?.ssc_year?.toString() || '';
           if (settingsProp && data.section) {
             const rollRange =
               data.section === 'A' ? settingsProp.a_sec_roll : settingsProp.b_sec_roll;
@@ -322,6 +331,9 @@ export default function RegistrationClass9Client({
             setPhotoPreview(getFileUrl(data.photo));
           }
         } else {
+          setValue('ssc_batch', settingsProp?.ssc_year?.toString() || '', {
+            shouldValidate: false,
+          });
           setValue('prev_school_name', schoolConfig.name.en, {
             shouldValidate: true,
           });
@@ -548,41 +560,49 @@ export default function RegistrationClass9Client({
     getValues,
   ]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Check file size (2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('File is too large! Maximum allowed size is 2MB.');
-        e.target.value = '';
-        return;
-      }
+    if (!file) return;
 
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        const width = img.width;
-        const height = img.height;
-        const ratio = width / height;
-        const targetRatio = 15 / 19;
-
-        // Allow a small tolerance (5%)
-        const tolerance = 0.05;
-        if (Math.abs(ratio - targetRatio) > tolerance) {
-          alert('Image aspect ratio MUST be 15:19 (Portrait). Please resize your image.');
-          e.target.value = '';
-          return;
-        }
-
-        setValue('photo', file, { shouldValidate: true });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPhotoPreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      };
+    const result = await checkRegistrationPhoto(file);
+    if (!result.ok) {
+      alert(result.message);
+      e.target.value = '';
+      setValue('photo', '', { shouldValidate: true });
+      return;
     }
+
+    setValue('photo', file, { shouldValidate: true });
+    clearErrors('photo');
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
+
+  // const syncDomValuesBeforeSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  //   const formData = new FormData(event.currentTarget);
+  //   const fieldNames: Array<keyof Class9Registration> = [
+  //     'father_phone',
+  //     'mother_phone',
+  //     'email',
+  //     'birth_month',
+  //     'birth_day',
+  //     'nearby_nine_student_info',
+  //   ];
+
+  //   fieldNames.forEach((name) => {
+  //     const value = formData.get(name);
+  //     if (typeof value === 'string') {
+  //       setValue(name, value, { shouldValidate: false, shouldDirty: true });
+  //     }
+  //   });
+
+  //   if (selectedPhoto) {
+  //     setValue('photo', selectedPhoto, { shouldValidate: false, shouldDirty: true });
+  //   }
+  // };
 
   const currentYear = new Date().getFullYear();
   const earliestYear = 1900;
@@ -629,21 +649,34 @@ export default function RegistrationClass9Client({
   }
 
   useEffect(() => {
-    if (birth_reg_no && birth_reg_no.length >= 4) {
-      const year = birth_reg_no.slice(0, 4);
-      const yearNum = Number(year);
-      if (/^\d{4}$/.test(year) && yearNum >= earliestYear && yearNum <= currentYear) {
-        setValue('birth_year', year, { shouldValidate: true });
-      } else {
-        setValue('birth_year', '', { shouldValidate: true });
-      }
-    } else if (birth_year !== '') {
+    const clearBirthDate = () => {
       setValue('birth_year', '', { shouldValidate: true });
+      setValue('birth_month', '', { shouldValidate: true });
+      setValue('birth_day', '', { shouldValidate: true });
+    };
+
+    if (!birth_reg_no || birth_reg_no.length < 4) {
+      if (birth_year !== '' || birth_month !== '') {
+        clearBirthDate();
+      }
+      return;
     }
+
+    const year = birth_reg_no.slice(0, 4);
+    const yearNum = Number(year);
+    const hasValidYear = /^\d{4}$/.test(year) && yearNum >= earliestYear && yearNum <= currentYear;
+
+    if (!hasValidYear) {
+      clearBirthDate();
+      return;
+    }
+
+    setValue('birth_year', year, { shouldValidate: true });
   }, [birth_reg_no, birth_year, setValue]);
 
   const onSubmit = async (data: Class9Registration) => {
     setDuplicates([]);
+    setApiErrors(null);
     try {
       let photo = '';
       if (data.photo instanceof File) {
@@ -653,7 +686,7 @@ export default function RegistrationClass9Client({
           name: data.student_name_en,
           roll: data.roll,
           section: data.section,
-          year: data.birth_year,
+          ssc_batch: data.ssc_batch || settings?.ssc_year?.toString() || '',
         });
         if (uploadData.success) {
           await axios.put(uploadData.data.uploadUrl, data.photo, {
@@ -678,31 +711,24 @@ export default function RegistrationClass9Client({
       }
     } catch (error: any) {
       console.error('Submission error', error);
-      if (error.response && error.response.status === 400 && error.response.data.duplicates) {
-        setDuplicates(error.response.data.duplicates);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      const data = error.response?.data;
+      const duplicateList = data?.duplicates?.length
+        ? data.duplicates
+        : data?.message === 'Duplicate information found' && Array.isArray(data?.errors)
+          ? data.errors
+          : null;
+      if (duplicateList) {
+        setDuplicates(duplicateList);
+        setApiErrors(null);
       } else {
-        alert(error.response?.data?.message || 'Failed to submit registration. Please try again.');
+        const items = extractApiErrorItems(data);
+        setApiErrors(
+          items.length
+            ? items
+            : [{ id: 'api', message: 'Failed to submit registration. Please try again.' }],
+        );
       }
-    }
-  };
-
-  const scrollToFirstError = (errors: any) => {
-    if (!errors) return;
-    const firstKey = Object.keys(errors)[0];
-    if (!firstKey) return;
-    let el = document.querySelector(`[name="${firstKey}"]`) as HTMLElement | null;
-    if (!el) el = document.getElementById(firstKey) as HTMLElement | null;
-    if (!el) {
-      el = document.querySelector(`[data-field="${firstKey}"]`) as HTMLElement | null;
-    }
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      try {
-        (el as HTMLElement).focus();
-      } catch {}
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollToFormErrorSummary();
     }
   };
 
@@ -739,10 +765,22 @@ export default function RegistrationClass9Client({
       </div>
 
       {duplicates.length > 0 && <DuplicateWarning duplicates={duplicates} />}
+      <FormErrorSummary errors={errors} apiErrors={apiErrors} />
 
       <form
-        onSubmit={handleSubmit(onSubmit, (errors) => {
-          scrollToFirstError(errors);
+        // onSubmitCapture={syncDomValuesBeforeSubmit}
+        onSubmit={handleSubmit(onSubmit, (validationErrors) => {
+          setApiErrors(
+            Object.keys(validationErrors).length
+              ? [
+                  {
+                    id: 'validation',
+                    message: 'Please fix the highlighted fields and submit again.',
+                  },
+                ]
+              : null,
+          );
+          scrollToFormErrorSummary();
         })}
         className="space-y-10"
       >
@@ -1096,29 +1134,9 @@ export default function RegistrationClass9Client({
           />
         </SectionHeader>
 
-        <SectionHeader title="JSC/JDC Information">
+        <SectionHeader title="JSC/JDC/Class 8 Information">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldRow label="Section in Class Eight:" isRequired error={errors.section_in_class_8}>
-              <select
-                {...register('section_in_class_8')}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              >
-                <option value="">Select Section</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="No Section">No Section</option>
-              </select>
-            </FieldRow>
-            <FormInput
-              label="Roll in Class Eight"
-              name="roll_in_class_8"
-              register={register}
-              errors={errors}
-              isRequired
-              filterType="numeric"
-              placeholder="Roll in Class 8"
-            />
-            <FieldRow label="JSC/JDC Passing Year:" isRequired error={errors.jsc_passing_year}>
+            <FieldRow label="JSC/JDC/Class 8 Passing Year:" isRequired error={errors.jsc_passing_year}>
               <select
                 {...register('jsc_passing_year')}
                 className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
@@ -1133,7 +1151,7 @@ export default function RegistrationClass9Client({
                 )}
               </select>
             </FieldRow>
-            <FieldRow label="JSC/JDC Board:" isRequired error={errors.jsc_board}>
+            <FieldRow label="JSC/JDC/Class 8 Board:" isRequired error={errors.jsc_board}>
               <select
                 {...register('jsc_board')}
                 className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
@@ -1152,11 +1170,11 @@ export default function RegistrationClass9Client({
               </select>
             </FieldRow>
             <FormInput
-              label="JSC/JDC Registration Number"
+              label="JSC/JDC/Class 8 Registration Number"
               name="jsc_reg_no"
               register={register}
               errors={errors}
-              isRequired={false}
+              isRequired
               filterType="numeric"
               maxLength={10}
               placeholder="10 Digits"
@@ -1164,11 +1182,11 @@ export default function RegistrationClass9Client({
               instruction={metadata.jsc_reg_no.instruction}
             />
             <FormInput
-              label="JSC/JDC Roll Number"
+              label="JSC/JDC/Class 8 ID Number"
               name="jsc_roll_no"
               register={register}
               errors={errors}
-              isRequired={false}
+              isRequired
               filterType="numeric"
               maxLength={6}
               placeholder="6 Digits"
@@ -1219,7 +1237,7 @@ export default function RegistrationClass9Client({
               </select>
             </FieldRow>
             <FieldRow
-              label="4th Subject:"
+              label="4th Subject (Optional):"
               isRequired
               error={errors.fourth_subject}
               tooltip="Select your 4th subject. Options will appear based on your group and exclude your main subject"
@@ -1353,12 +1371,12 @@ export default function RegistrationClass9Client({
                     {photoPreview ? 'Change Photo' : 'Choose Photo'}
                   </label>
                   <a
-                    href="https://imageresizer.com/crop-image"
+                    href="https://imageresizer.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center rounded bg-green-600 px-4 py-2 text-sm font-medium text-white! shadow hover:bg-green-700 sm:text-base"
                   >
-                    Resize Now (15:19)
+                    Resize Now (300×330)
                   </a>
                   {(photoPreview || photo) && (
                     <button
@@ -1378,7 +1396,7 @@ export default function RegistrationClass9Client({
                   )}
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  JPG only. Max 2MB. <strong>Requirement: 15:19 Ratio.</strong>
+                  JPG only. Max 2MB. <strong>Requirement: exactly {REG_PHOTO_SIZE_LABEL}.</strong>
                 </p>
               </div>
             </div>

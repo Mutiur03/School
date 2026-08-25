@@ -8,79 +8,79 @@ datasource db {
 }
 
 model School {
-  id               Int                           @id @default(autoincrement())
-  name             String                        @db.VarChar(200)
-  shortName        String?                       @db.VarChar(50)
-  eiin             String?                       @unique @db.VarChar(20)
-  logo             String?
-  favicon          String?
-  district         String?                       @db.VarChar(100)
-  upazila          String?                       @db.VarChar(100)
-  phone            String?                       @db.VarChar(20)
-  email            String?                       @db.VarChar(100)
-  website          String?
-  slogan           String?
-  establishedIn    Int?
-  nameBn           String?                       @map("name_bn") @db.VarChar(300)
-  centerCode       String?                       @map("center_code") @db.VarChar(50)
-  mapEmbedUrl      String?                       @map("map_embed_url") @db.Text
-  governmentLogo   String?                       @map("government_logo")
-  headerLogo       String?                       @map("header_logo")
-  bannerUrls       Json?                         @map("banner_urls")
-  resultsUrl       String?                       @map("results_url")
-  teacherLoginUrl  String?                       @map("teacher_login_url")
-  studentLoginUrl  String?                       @map("student_login_url")
-  address          String?                       @db.VarChar(500)
-  location         String?                       @db.VarChar(200)
-  nationalizedYear String?                       @map("nationalized_year") @db.VarChar(20)
-  subdomain        String?                       @unique @db.VarChar(100)
-  customDomain     String?                       @unique @db.VarChar(255)
-  gaMeasurementId  String?                       @map("ga_measurement_id") @db.VarChar(50)
-  descriptions     Json?
-  academicProfile  Json?                         @map("academic_profile")
-  identifiersExtra Json?                         @map("identifiers_extra")
-  sidebarConfig    Json?                         @map("sidebar_config")
-  menuItems        Json?                         @map("menu_items")
-  homeCharts       Json?                         @map("home_charts")
-  seo              Json?
-  theme            Json?
-  createdAt        DateTime                      @default(now())
-  updatedAt        DateTime                      @updatedAt
-  students         students[]
-  teachers         teachers[]
-  exams            exams[]
-  notices          notices[]
-  admins           admin[]
-  holidays         holidays[]
-  staffs           staffs[]
-  subjects         subjects[]
-  categories       categories[]
-  events           events[]
-  admission        admission[]
-  syllabus         syllabus[]
-  charters         CitizenCharter[]
-  routines_pdf     class_routine_pdf[]
-  ssc_reg          ssc_reg[]
-  ssc_forms        student_registration_ssc[]
-  adm_forms        admission_form[]
-  adm_results      admission_result[]
-  class6_reg       class6_reg[]
-  class6_forms     student_registration_class6[]
-  class8_reg       class8_reg[]
-  class8_forms     student_registration_class8[]
-  enrollments      student_enrollments[]
-  attendances      attendence[]
-  levels           levels[]
-  marks            marks[]
-  galleries        gallery[]
-  head_msgs        head_msg[]
-  sms_logs         sms_logs[]
-  sms_settings     sms_settings?
-  exam_class_stats exam_class_stats[]
-  marksheet_files  marksheet_files[]
-  marksheet_bundles marksheet_bundles[]
+  id                 Int                           @id @default(autoincrement())
+  name               String                        @db.VarChar(200)
+  shortName          String?                       @db.VarChar(50)
+  eiin               String?                       @unique @db.VarChar(20)
+  logo               String?
+  favicon            String?
+  district           String?                       @db.VarChar(100)
+  upazila            String?                       @db.VarChar(100)
+  phone              String?                       @db.VarChar(20)
+  email              String?                       @db.VarChar(100)
+  website            String?
+  slogan             String?
+  establishedIn      Int?
+  nameBn             String?                       @map("name_bn") @db.VarChar(300)
+  centerCode         String?                       @map("center_code") @db.VarChar(50)
+  mapEmbedUrl        String?                       @map("map_embed_url") @db.Text
+  governmentLogo     String?                       @map("government_logo")
+  headerLogo         String?                       @map("header_logo")
+  bannerUrls         Json?                         @map("banner_urls")
+  resultsUrl         String?                       @map("results_url")
+  teacherLoginUrl    String?                       @map("teacher_login_url")
+  studentLoginUrl    String?                       @map("student_login_url")
+  address            String?                       @db.VarChar(500)
+  location           String?                       @db.VarChar(200)
+  nationalizedYear   String?                       @map("nationalized_year") @db.VarChar(20)
+  subdomain          String?                       @unique @db.VarChar(100)
+  customDomain       String?                       @unique @db.VarChar(255)
+  gaMeasurementId    String?                       @map("ga_measurement_id") @db.VarChar(50)
+  descriptions       Json?
+  academicProfile    Json?                         @map("academic_profile")
+  identifiersExtra   Json?                         @map("identifiers_extra")
+  sidebarConfig      Json?                         @map("sidebar_config")
+  menuItems          Json?                         @map("menu_items")
+  homeCharts         Json?                         @map("home_charts")
+  seo                Json?
+  theme              Json?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  students           students[]
+  teachers           teachers[]
+  exams              exams[]
+  notices            notices[]
+  admins             admin[]
+  holidays           holidays[]
+  staffs             staffs[]
+  subjects           subjects[]
+  categories         categories[]
+  events             events[]
+  admission          admission[]
+  syllabus           syllabus[]
+  charters           CitizenCharter[]
+  routines_pdf       class_routine_pdf[]
+  ssc_reg            ssc_reg[]
+  ssc_forms          student_registration_ssc[]
+  adm_forms          admission_form[]
+  adm_results        admission_result[]
+  class6_reg         class6_reg[]
+  class6_forms       student_registration_class6[]
+  class8_reg         class8_reg[]
+  class8_forms       student_registration_class8[]
+  enrollments        student_enrollments[]
+  attendances        attendence[]
+  levels             levels[]
+  marks              marks[]
+  galleries          gallery[]
+  head_msgs          head_msg[]
+  sms_logs           sms_logs[]
+  sms_settings       sms_settings?
+  exam_class_stats   exam_class_stats[]
+  marksheet_files    marksheet_files[]
+  marksheet_bundles  marksheet_bundles[]
   marksheet_sessions marksheet_sessions[]
-  attendance_sheets attendance_sheets[]
+  attendance_sheets  attendance_sheets[]
 
   @@index([name])
   @@index([subdomain])
@@ -114,12 +114,12 @@ model SuperAdmin {
 }
 
 model admin {
-  id           Int     @id @default(autoincrement())
-  username     String  @unique
+  id           Int    @id @default(autoincrement())
+  username     String @unique
   password     String
-  role         String  @default("admin")
-  tokenVersion Int     @default(0)
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  role         String @default("admin")
+  tokenVersion Int    @default(0)
+  school_id    Int    @default(dbgenerated("app.current_school_id()"))
   school       School @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([username])
@@ -153,8 +153,8 @@ model students {
   galleries       gallery[]             @relation("StudentGalleryUploader")
   sms_logs        sms_logs[]
   enrollments     student_enrollments[]
-  school_id       Int @default(dbgenerated("app.current_school_id()"))
-  school          School               @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id       Int                   @default(dbgenerated("app.current_school_id()"))
+  school          School                @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([login_id])
   @@index([batch])
@@ -183,8 +183,8 @@ model student_enrollments {
   fourth_subject_id Int?
   marks             marks[]
   student           students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id         Int @default(dbgenerated("app.current_school_id()"))
-  school            School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id         Int       @default(dbgenerated("app.current_school_id()"))
+  school            School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
   fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
 
   @@unique([student_id, class, year])
@@ -206,8 +206,8 @@ model attendence {
   send_msg   Boolean  @default(false)
   created_at DateTime @default(now())
   student    students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id  Int @default(dbgenerated("app.current_school_id()"))
-  school     School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id  Int      @default(dbgenerated("app.current_school_id()"))
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([student_id])
   @@index([date])
@@ -218,41 +218,41 @@ model attendence {
 }
 
 model exams {
-  id            Int             @id @default(autoincrement())
-  exam_name     String          @db.VarChar(100)
-  exam_year     Int
-  levels        Int[]
-  start_date    String          @db.VarChar(10)
-  end_date      String          @db.VarChar(10)
-  result_date   String          @db.VarChar(10)
-  return_date   String?         @db.VarChar(10)
-  visible       Boolean         @default(false)
-  created_at    DateTime        @default(now())
-  routine       String?
-  download_url  String?
-  public_id     String?
-  marks         marks[]
-  class_stats   exam_class_stats[]
-  school_id     Int @default(dbgenerated("app.current_school_id()"))
-  school        School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  id           Int                @id @default(autoincrement())
+  exam_name    String             @db.VarChar(100)
+  exam_year    Int
+  levels       Int[]
+  start_date   String             @db.VarChar(10)
+  end_date     String             @db.VarChar(10)
+  result_date  String             @db.VarChar(10)
+  return_date  String?            @db.VarChar(10)
+  visible      Boolean            @default(false)
+  created_at   DateTime           @default(now())
+  routine      String?
+  download_url String?
+  public_id    String?
+  marks        marks[]
+  class_stats  exam_class_stats[]
+  school_id    Int                @default(dbgenerated("app.current_school_id()"))
+  school       School             @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_name, exam_year, levels, school_id])
   @@index([school_id])
 }
 
 model exam_class_stats {
-  id                  Int      @id @default(autoincrement())
-  exam_id             Int
-  class               Int
-  year                Int
-  highest_by_subject  Json     // { "<subject_id>": <maxMarks>, ... } across all assessment types
-  class_highest_total Int      @default(0) // max per-student total, exam-type subjects only
-  class_highest_grand_total Int @default(0) // max per-student total across ALL subjects (incl. continuous)
-  stats_by_group      Json?    // class 9/10 only: { "<group>": { highestBySubject, classHighestTotal, classHighestGrandTotal } }
-  updated_at          DateTime @default(now()) @updatedAt
-  exam                exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  school_id           Int @default(dbgenerated("app.current_school_id()"))
-  school              School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  id                        Int      @id @default(autoincrement())
+  exam_id                   Int
+  class                     Int
+  year                      Int
+  highest_by_subject        Json // { "<subject_id>": <maxMarks>, ... } across all assessment types
+  class_highest_total       Int      @default(0) // max per-student total, exam-type subjects only
+  class_highest_grand_total Int      @default(0) // max per-student total across ALL subjects (incl. continuous)
+  stats_by_group            Json? // class 9/10 only: { "<group>": { highestBySubject, classHighestTotal, classHighestGrandTotal } }
+  updated_at                DateTime @default(now()) @updatedAt
+  exam                      exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  school_id                 Int      @default(dbgenerated("app.current_school_id()"))
+  school                    School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_id, class, year, school_id], name: "unique_exam_class_stats")
   @@index([exam_id])
@@ -262,35 +262,35 @@ model exam_class_stats {
 // Pre-generated student marksheet PDFs cached in R2. Rows are pure cache —
 // source of truth is marks; a lost R2 object regenerates.
 model marksheet_files {
-  id           Int       @id @default(autoincrement())
-  student_id   Int
-  exam_id      Int
-  exam_name    String    @db.VarChar(100) // denormalized so the worker/recovery need no tenant query
-  year         Int
-  status       String    @default("pending") // pending | generating | ready | failed
-  r2_key       String?
-  input_hash   String?   // fingerprint of render inputs; skip regen when unchanged
-  student_name String?   // for Content-Disposition filename when serving from cache
-  attempts     Int       @default(0)
-  error        String?
-  generated_at DateTime?
+  id                        Int       @id @default(autoincrement())
+  student_id                Int
+  exam_id                   Int
+  exam_name                 String    @db.VarChar(100) // denormalized so the worker/recovery need no tenant query
+  year                      Int
+  status                    String    @default("pending") // pending | generating | ready | failed
+  r2_key                    String?
+  input_hash                String? // fingerprint of render inputs; skip regen when unchanged
+  student_name              String? // for Content-Disposition filename when serving from cache
+  attempts                  Int       @default(0)
+  error                     String?
+  generated_at              DateTime?
   // Signatories captured at generation time. Once an exam's result_date has
   // passed the sheet is "frozen": these pin WHO signed it so a later staff
   // reassignment no longer re-stamps a finalized marksheet. Name/signature/phone
   // are also pinned in snapshot_signatory_detail (frozen R2 copies) so a later
   // upload or rename does not rewrite history.
-  snapshot_head_id    Int?
-  snapshot_head_role  String?   @db.VarChar(50)
-  snapshot_teacher_id Int?
+  snapshot_head_id          Int?
+  snapshot_head_role        String?   @db.VarChar(50)
+  snapshot_teacher_id       Int?
   // { head?: { name, signature }, teacher?: { name, signature, phone } }
   snapshot_signatory_detail Json?
   // Layout version captured at generation. Frozen exams pin this so a later
   // MARKSHEET_DESIGN_VERSION bump does not regenerate finalized PDFs.
-  snapshot_design_version String? @db.VarChar(32)
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  snapshot_design_version   String?   @db.VarChar(32)
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
+  school_id                 Int       @default(dbgenerated("app.current_school_id()"))
+  school                    School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, exam_id, school_id], name: "student_id_exam_id_school")
   @@index([exam_id, status])
@@ -302,31 +302,31 @@ model marksheet_files {
 // Same cache semantics as marksheet_files. Only the admin full-class view is
 // cached; teachers get a section-filtered subset generated inline.
 model marksheet_bundles {
-  id           Int       @id @default(autoincrement())
-  exam_id      Int
-  exam_name    String    @db.VarChar(100)
-  year         Int
-  class        Int
-  section      String    @default("ALL") @db.VarChar(20) // "ALL" = whole class
-  status       String    @default("pending") // pending | generating | ready | failed
-  r2_key       String?
-  input_hash   String?
-  attempts     Int       @default(0)
-  error        String?
-  generated_at DateTime?
+  id                        Int       @id @default(autoincrement())
+  exam_id                   Int
+  exam_name                 String    @db.VarChar(100)
+  year                      Int
+  class                     Int
+  section                   String    @default("ALL") @db.VarChar(20) // "ALL" = whole class
+  status                    String    @default("pending") // pending | generating | ready | failed
+  r2_key                    String?
+  input_hash                String?
+  attempts                  Int       @default(0)
+  error                     String?
+  generated_at              DateTime?
   // Signatories captured at generation time (see marksheet_files). Bundles span
   // multiple sections, so the class teachers are stored as { "<section>": <teacher_id> }.
-  snapshot_head_id   Int?
-  snapshot_head_role String?  @db.VarChar(50)
-  snapshot_teachers  Json?
+  snapshot_head_id          Int?
+  snapshot_head_role        String?   @db.VarChar(50)
+  snapshot_teachers         Json?
   // { head?: { name, signature }, teachers?: { "<section>": { name, signature, phone } } }
   snapshot_signatory_detail Json?
   // See marksheet_files.snapshot_design_version.
-  snapshot_design_version String? @db.VarChar(32)
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  snapshot_design_version   String?   @db.VarChar(32)
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
+  school_id                 Int       @default(dbgenerated("app.current_school_id()"))
+  school                    School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_id, class, section, school_id], name: "exam_id_class_section_school")
   @@index([exam_id, status])
@@ -348,7 +348,7 @@ model marksheet_sessions {
   generated_at DateTime?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
+  school_id    Int       @default(dbgenerated("app.current_school_id()"))
   school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id, year, student_id], name: "marksheet_session_scope")
@@ -360,26 +360,26 @@ model marksheet_sessions {
 // semantics as marksheet_bundles). Keyed by class+section+year+month.
 // Source of truth is attendence rows; a lost R2 object regenerates.
 model attendance_sheets {
-  id           Int       @id @default(autoincrement())
-  year         Int
-  month        Int // 1–12
-  class        Int
-  section      String    @db.VarChar(20)
-  status       String    @default("pending") // pending | generating | ready | failed
-  r2_key       String?
-  input_hash   String?
-  attempts     Int       @default(0)
-  error        String?
-  generated_at DateTime?
-  design_version String? @db.VarChar(32)
+  id                    Int       @id @default(autoincrement())
+  year                  Int
+  month                 Int // 1–12
+  class                 Int
+  section               String    @db.VarChar(20)
+  status                String    @default("pending") // pending | generating | ready | failed
+  r2_key                String?
+  input_hash            String?
+  attempts              Int       @default(0)
+  error                 String?
+  generated_at          DateTime?
+  design_version        String?   @db.VarChar(32)
   // Class teacher pinned at generation; after the month ends, reassignment
   // must not change the sheet (same rule as marksheet signatories post-publish).
   snapshot_teacher_id   Int?
-  snapshot_teacher_name String? @db.VarChar(200)
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  snapshot_teacher_name String?   @db.VarChar(200)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  school_id             Int       @default(dbgenerated("app.current_school_id()"))
+  school                School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id, year, month, class, section], name: "attendance_sheet_scope")
   @@index([school_id, status])
@@ -393,8 +393,8 @@ model holidays {
   end_date    String?  @db.VarChar(10)
   description String?
   is_optional Boolean?
-  school_id   Int @default(dbgenerated("app.current_school_id()"))
-  school      School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id   Int      @default(dbgenerated("app.current_school_id()"))
+  school      School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -414,8 +414,8 @@ model teachers {
   signature    String?
   head_msgs    head_msg[]
   levels       levels[]
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int        @default(dbgenerated("app.current_school_id()"))
+  school       School     @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([phone])
@@ -434,8 +434,8 @@ model staffs {
   image       String?
   address     String?
   created_at  DateTime @default(now())
-  school_id   Int @default(dbgenerated("app.current_school_id()"))
-  school      School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id   Int      @default(dbgenerated("app.current_school_id()"))
+  school      School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -447,8 +447,8 @@ model levels {
   year       Int
   teacher_id Int
   teacher    teachers @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
-  school_id  Int @default(dbgenerated("app.current_school_id()"))
-  school     School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id  Int      @default(dbgenerated("app.current_school_id()"))
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([teacher_id])
   @@index([class_name, year])
@@ -480,8 +480,8 @@ model subjects {
   enrollments_as_fourth student_enrollments[] @relation("FourthSubject")
   parent                subjects?             @relation("SubjectHierarchy", fields: [parent_id], references: [id])
   children              subjects[]            @relation("SubjectHierarchy")
-  school_id             Int @default(dbgenerated("app.current_school_id()"))
-  school                School               @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id             Int                   @default(dbgenerated("app.current_school_id()"))
+  school                School                @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([name, class, group, year, school_id])
   @@index([class, year])
@@ -506,8 +506,8 @@ model marks {
   enrollment      student_enrollments @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
   exam            exams               @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   subject         subjects            @relation(fields: [subject_id], references: [id], onDelete: Cascade)
-  school_id       Int @default(dbgenerated("app.current_school_id()"))
-  school          School             @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id       Int                 @default(dbgenerated("app.current_school_id()"))
+  school          School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([enrollment_id, subject_id, exam_id], name: "unique_marks_entry")
   @@index([enrollment_id])
@@ -522,8 +522,8 @@ model categories {
   category  String
   thumbnail String?
   galleries gallery[]
-  school_id Int @default(dbgenerated("app.current_school_id()"))
-  school    School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id Int       @default(dbgenerated("app.current_school_id()"))
+  school    School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id, category])
   @@index([school_id])
@@ -543,8 +543,8 @@ model events {
   created_at   DateTime  @default(now())
   download_url String?
   galleries    gallery[]
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int       @default(dbgenerated("app.current_school_id()"))
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -562,8 +562,8 @@ model gallery {
   category      categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
   event         events?     @relation(fields: [event_id], references: [id], onDelete: Cascade)
   uploader      students?   @relation("StudentGalleryUploader", fields: [uploader_id], references: [id], onDelete: Cascade)
-  school_id     Int @default(dbgenerated("app.current_school_id()"))
-  school        School     @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id     Int         @default(dbgenerated("app.current_school_id()"))
+  school        School      @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -575,8 +575,8 @@ model notices {
   download_url String?
   public_id    String?
   created_at   DateTime @default(now())
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int      @default(dbgenerated("app.current_school_id()"))
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -608,8 +608,8 @@ model admission {
   serial_no_class7              String?
   serial_no_class8              String?
   serial_no_class9              String?
-  school_id                     Int @default(dbgenerated("app.current_school_id()"))
-  school                        School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id                     Int      @default(dbgenerated("app.current_school_id()"))
+  school                        School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id])
   @@index([school_id])
@@ -623,8 +623,8 @@ model syllabus {
   download_url String
   public_id    String
   created_at   DateTime @default(now())
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int      @default(dbgenerated("app.current_school_id()"))
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -635,8 +635,8 @@ model class_routine_pdf {
   download_url String
   public_id    String
   created_at   DateTime @default(now())
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int      @default(dbgenerated("app.current_school_id()"))
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -648,8 +648,8 @@ model CitizenCharter {
   public_id    String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int      @default(dbgenerated("app.current_school_id()"))
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -662,8 +662,8 @@ model head_msg {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   teacher      teachers @relation(fields: [head_id], references: [id], onDelete: Cascade)
-  school_id    Int @default(dbgenerated("app.current_school_id()"))
-  school       School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id    Int      @default(dbgenerated("app.current_school_id()"))
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([school_id])
 }
@@ -678,12 +678,12 @@ model ssc_reg {
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
-  school_id              Int @default(dbgenerated("app.current_school_id()"))
-  school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id              Int      @default(dbgenerated("app.current_school_id()"))
+  school                 School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
   classmates             String?
   classmates_source      String   @default("default")
 
-  @@unique([school_id])
+  @@unique([school_id, ssc_year])
   @@index([school_id])
 }
 
@@ -750,9 +750,12 @@ model student_registration_ssc {
   upobritti                String?   @db.VarChar(10)
   roll_in_class_8          String?   @db.VarChar(20)
   section_in_class_8       String?   @db.VarChar(10)
-  school_id                Int @default(dbgenerated("app.current_school_id()"))
-  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id                Int       @default(dbgenerated("app.current_school_id()"))
+  school                   School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
   scout_status             String?   @db.VarChar(10)
+  pdf_path                 String?   @db.VarChar(255)
+  pdf_settings_snapshot    Json?
+  pdf_generated_at         DateTime?
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -824,8 +827,8 @@ model admission_form {
   admission_year           Int?
   registration_no          String?   @db.VarChar(50)
   whatsapp_number          String?   @db.VarChar(11)
-  school_id                Int @default(dbgenerated("app.current_school_id()"))
-  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id                Int       @default(dbgenerated("app.current_school_id()"))
+  school                   School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -846,8 +849,8 @@ model admission_result {
   waiting_list_2_public_id String?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
-  school_id                Int @default(dbgenerated("app.current_school_id()"))
-  school                   School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id                Int      @default(dbgenerated("app.current_school_id()"))
+  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([class_name])
   @@index([admission_year])
@@ -869,8 +872,8 @@ model sms_logs {
   message_id      String?  @db.VarChar(100)
   sms_count       Int?
   student         students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id       Int @default(dbgenerated("app.current_school_id()"))
-  school          School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id       Int      @default(dbgenerated("app.current_school_id()"))
+  school          School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([attendance_date])
@@ -890,8 +893,8 @@ model class6_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
   classmates_source      String   @default("default") // 'default' or 'manual'
-  school_id              Int @default(dbgenerated("app.current_school_id()"))
-  school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id              Int      @default(dbgenerated("app.current_school_id()"))
+  school                 School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id])
   @@index([school_id])
@@ -951,8 +954,8 @@ model student_registration_class6 {
   class6_year              Int
   nearby_student_info      String?  @db.VarChar(200)
   scout_status             String?  @db.VarChar(10)
-  school_id                Int @default(dbgenerated("app.current_school_id()"))
-  school                   School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id                Int      @default(dbgenerated("app.current_school_id()"))
+  school                   School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([birth_reg_no])
   @@index([father_nid])
@@ -974,8 +977,8 @@ model class8_reg {
   attachment_instruction String?  @default("Please attach all required documents")
   classmates             String?
   classmates_source      String   @default("default") // 'default' or 'manual'
-  school_id              Int @default(dbgenerated("app.current_school_id()"))
-  school                 School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id              Int      @default(dbgenerated("app.current_school_id()"))
+  school                 School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@unique([school_id])
   @@index([school_id])
@@ -1034,8 +1037,8 @@ model student_registration_class8 {
   registration_no         String   @db.VarChar(50)
   class6_academic_session String   @db.VarChar(50)
   scout_status            String?  @db.VarChar(10)
-  school_id               Int @default(dbgenerated("app.current_school_id()"))
-  school                  School  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  school_id               Int      @default(dbgenerated("app.current_school_id()"))
+  school                  School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([birth_reg_no])
   @@index([father_nid])

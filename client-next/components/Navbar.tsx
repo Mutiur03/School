@@ -345,17 +345,17 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                     {item.isHome ? (
                       // <Home size={16} aria-hidden="true" className="hover:text-white!" />
                       <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 576 512"
-                        width="16"
-                        height="16"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path d="M280.4 148.3L96 300.1V464a16 16 0 0 0 16 16l112.1-.3a16 16 0 0 0 15.9-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.6a16 16 0 0 0 16 16.1L464 480a16 16 0 0 0 16-16V300L295.7 148.3a12.5 12.5 0 0 0-15.3 0zM571.6 251.5L488 182.6V44.7a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.7L318.5 43.4a48 48 0 0 0-61 0L4.4 251.5a12 12 0 0 0-1.6 16.9l25.5 31a12 12 0 0 0 16.9 1.6L288 105.9l242.7 194.1a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.5-16.9z" />
-                      </svg>
-                      <span className="home-label">Home</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 576 512"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path d="M280.4 148.3L96 300.1V464a16 16 0 0 0 16 16l112.1-.3a16 16 0 0 0 15.9-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.6a16 16 0 0 0 16 16.1L464 480a16 16 0 0 0 16-16V300L295.7 148.3a12.5 12.5 0 0 0-15.3 0zM571.6 251.5L488 182.6V44.7a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.7L318.5 43.4a48 48 0 0 0-61 0L4.4 251.5a12 12 0 0 0-1.6 16.9l25.5 31a12 12 0 0 0 16.9 1.6L288 105.9l242.7 194.1a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.5-16.9z" />
+                        </svg>
+                        <span className="home-label">Home</span>
                       </>
                     ) : (
                       // <i className="fa fa-home hover:text-white!" aria-hidden="true"></i>
@@ -386,17 +386,17 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                     {item.isHome ? (
                       // <Home size={16} aria-hidden="true" className="hover:text-white!" />
                       <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 576 512"
-                        width="16"
-                        height="16"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path d="M280.4 148.3L96 300.1V464a16 16 0 0 0 16 16l112.1-.3a16 16 0 0 0 15.9-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.6a16 16 0 0 0 16 16.1L464 480a16 16 0 0 0 16-16V300L295.7 148.3a12.5 12.5 0 0 0-15.3 0zM571.6 251.5L488 182.6V44.7a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.7L318.5 43.4a48 48 0 0 0-61 0L4.4 251.5a12 12 0 0 0-1.6 16.9l25.5 31a12 12 0 0 0 16.9 1.6L288 105.9l242.7 194.1a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.5-16.9z" />
-                      </svg>
-                      <span className="home-label">Home</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 576 512"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path d="M280.4 148.3L96 300.1V464a16 16 0 0 0 16 16l112.1-.3a16 16 0 0 0 15.9-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.6a16 16 0 0 0 16 16.1L464 480a16 16 0 0 0 16-16V300L295.7 148.3a12.5 12.5 0 0 0-15.3 0zM571.6 251.5L488 182.6V44.7a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.7L318.5 43.4a48 48 0 0 0-61 0L4.4 251.5a12 12 0 0 0-1.6 16.9l25.5 31a12 12 0 0 0 16.9 1.6L288 105.9l242.7 194.1a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.5-16.9z" />
+                        </svg>
+                        <span className="home-label">Home</span>
                       </>
                     ) : (
                       item.text

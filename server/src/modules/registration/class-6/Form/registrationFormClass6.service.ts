@@ -270,13 +270,16 @@ export class RegistrationFormClass6Service {
   }
 
   static async getRegistrationPhotoUploadUrl(data: any) {
-    const { filename, filetype, roll, section } = data;
+    const { filename, filetype, roll, section, class6_year } = data;
     if (!filename || !filetype) {
       throw new ApiError(400, 'Filename and filetype are required');
     }
 
     const settings = await prisma.class6_reg.findFirst();
-    const academicYear = settings?.class6_year || new Date().getFullYear().toString();
+    const academicYear =
+      String(class6_year || settings?.class6_year || new Date().getFullYear())
+        .trim()
+        .replace(/[^\w.-]/g, '') || String(new Date().getFullYear());
 
     const safeSection = String(section || 'X')
       .trim()
@@ -288,7 +291,7 @@ export class RegistrationFormClass6Service {
     const ext = path.extname(filename);
 
     const key = tenantR2Key(
-      `registrations/class6/${academicYear}/${safeSection}-${safeRoll}-${randomId}${ext}`,
+      `registrations/class6/photos/${academicYear}/${safeSection}-${safeRoll}-${randomId}${ext}`,
     );
     const url = await getUploadUrl(key, filetype);
 

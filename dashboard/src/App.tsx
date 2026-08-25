@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import { Toaster } from 'react-hot-toast';
@@ -8,6 +8,24 @@ import SuperAdminRoute from './components/SuperAdminRoute.tsx';
 import TeacherRoute from './components/TeacherRoute.tsx';
 import StudentRoute from './components/StudentRoute.tsx';
 import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from '@school/common-ui';
+
+function Class6PdfPreviewPage() {
+  const { id } = useParams();
+  if (!id) return <Navigate to="/" replace />;
+  return <Class6PdfPreview id={id} />;
+}
+
+function Class8PdfPreviewPage() {
+  const { id } = useParams();
+  if (!id) return <Navigate to="/" replace />;
+  return <Class8PdfPreview id={id} />;
+}
+
+function Class9PdfPreviewPage() {
+  const { id } = useParams();
+  if (!id) return <Navigate to="/" replace />;
+  return <Class9PdfPreview id={id} />;
+}
 
 import { useAuth } from './context/useAuth.tsx';
 import envPreferredRole from './lib/role.ts';
@@ -186,9 +204,9 @@ function App() {
           }
         >
           <SentryRoutes>
-            <Route path="/preview/class6/:id" element={<Class6PdfPreview />} />
-            <Route path="/preview/class8/:id" element={<Class8PdfPreview />} />
-            <Route path="/preview/class9/:id" element={<Class9PdfPreview />} />
+            <Route path="/preview/class6/:id" element={<Class6PdfPreviewPage />} />
+            <Route path="/preview/class8/:id" element={<Class8PdfPreviewPage />} />
+            <Route path="/preview/class9/:id" element={<Class9PdfPreviewPage />} />
 
             {/* CASE 1: envPreferredRole IS PRESENT */}
             {envPreferredRole && (

@@ -1,5 +1,11 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2, getDownloadUrl } from '@/config/r2.js';
+import {
+  getUploadUrl,
+  deleteFromR2,
+  getDownloadUrl,
+  uploadToR2,
+  getFileBuffer,
+} from '@/config/r2.js';
 import path from 'path';
 import * as XLSX from 'xlsx';
 import archiver from 'archiver';
@@ -11,6 +17,50 @@ import { ApiError } from '@/utils/ApiError.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
+import { env } from '@/config/env.js';
+
+function schoolWebsiteHost(raw?: string | null): string {
+  const value = raw?.trim();
+  if (!value) return '';
+  try {
+    if (/^https?:\/\//i.test(value)) return new URL(value).hostname || '';
+    return value.replace(/\/+$/, '').replace(/:\d+$/, '').split('/')[0] || '';
+  } catch {
+    return value.replace(/^https?:\/\//i, '').split('/')[0] || '';
+  }
+}
+
+/** Public site origin for QR links — per-tenant, not a global frontend URL. */
+function schoolPublicOrigin(school: {
+  customDomain?: string | null;
+  subdomain?: string | null;
+  website?: string | null;
+}): string {
+  const custom = school.customDomain?.trim();
+  if (custom) {
+    return /^https?:\/\//i.test(custom)
+      ? custom.replace(/\/+$/, '')
+      : `https://${custom.replace(/\/+$/, '')}`;
+  }
+
+  const subdomain = school.subdomain?.trim();
+  const domain = (env.DOMAIN || '').trim();
+  if (subdomain && domain) {
+    // Tenant public site is `{subdomain}-school{DOMAIN}` (e.g. foo-school.mutiurrahman.com)
+    const suffix = domain.startsWith('.') ? domain : `.${domain}`;
+    const protocol = env.NODE_ENV === 'production' ? 'https' : 'http';
+    return `${protocol}://${subdomain}-school${suffix}`;
+  }
+
+  const website = school.website?.trim();
+  if (website) {
+    return /^https?:\/\//i.test(website)
+      ? website.replace(/\/+$/, '')
+      : `https://${website.replace(/\/+$/, '')}`;
+  }
+
+  throw new ApiError(500, 'School public URL not configured');
+}
 
 const checkDuplicates = async (data: any, excludeId: string | null = null) => {
   const duplicates = [];
@@ -56,14 +106,81 @@ const checkDuplicates = async (data: any, excludeId: string | null = null) => {
 };
 
 export class RegistrationFormClass9Service {
+  private static readonly PDF_SETTINGS_SELECT = {
+    id: true,
+    a_sec_roll: true,
+    b_sec_roll: true,
+    notice: true,
+    ssc_year: true,
+    reg_open: true,
+    instruction_for_a: true,
+    instruction_for_b: true,
+    attachment_instruction: true,
+    school_id: true,
+    classmates: true,
+    classmates_source: true,
+  };
+
+  private static async getSettingsSnapshot(
+    schoolId?: number | null,
+    sscYear?: string | number | null,
+  ) {
+    const parsedYear =
+      sscYear !== null && sscYear !== undefined && String(sscYear).trim()
+        ? parseInt(String(sscYear), 10)
+        : NaN;
+
+    return await prisma.ssc_reg.findFirst({
+      where: {
+        ...(schoolId ? { school_id: schoolId } : {}),
+        ...(Number.isInteger(parsedYear) ? { ssc_year: parsedYear } : {}),
+      },
+      orderBy: [{ ssc_year: 'desc' }, { id: 'desc' }],
+      select: RegistrationFormClass9Service.PDF_SETTINGS_SELECT,
+    });
+  }
+
+  private static assertSettingsMatchRegistrationYear(registration: any, settings: any) {
+    const registrationYear = registration.ssc_batch ? String(registration.ssc_batch).trim() : '';
+    const settingsYear =
+      settings && settings.ssc_year !== null && settings.ssc_year !== undefined
+        ? String(settings.ssc_year).trim()
+        : '';
+
+    if (!registrationYear) {
+      throw new ApiError(400, 'Registration year is missing; cannot attach PDF settings');
+    }
+
+    if (!settingsYear) {
+      throw new ApiError(400, 'Class 9 registration settings year is missing');
+    }
+
+    if (registrationYear !== settingsYear) {
+      throw new ApiError(
+        400,
+        `Class 9 settings year (${settingsYear}) does not match registration year (${registrationYear})`,
+      );
+    }
+  }
+
   static async getRegistrationPhotoUploadUrl(data: any) {
-    const { filename, filetype } = data;
+    const { filename, filetype, ssc_batch, ssc_year } = data;
     if (!filename || !filetype) {
       throw new ApiError(400, 'Filename and filetype are required');
     }
 
+    const requestedYear = ssc_batch || ssc_year;
+    const settings = await RegistrationFormClass9Service.getSettingsSnapshot(
+      undefined,
+      requestedYear,
+    );
+    const year =
+      String(requestedYear || settings?.ssc_year || 'unknown')
+        .trim()
+        .replace(/[^\w.-]/g, '') || 'unknown';
+
     const ext = path.extname(filename);
-    const key = tenantR2Key(`registrations/class-9/photo-${Date.now()}${ext}`);
+    const key = tenantR2Key(`registrations/class-9/photos/${year}/photo-${Date.now()}${ext}`);
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };
@@ -179,9 +296,29 @@ export class RegistrationFormClass9Service {
   }
 
   static async updateRegistrationStatus(id: string, status: string) {
+    const data: any = { status };
+    if (status === 'approved') {
+      const registration = await prisma.student_registration_ssc.findUnique({ where: { id } });
+      if (!registration) {
+        throw new ApiError(404, 'Registration not found');
+      }
+
+      if (!registration.pdf_settings_snapshot) {
+        const settingsSnapshot = await RegistrationFormClass9Service.getSettingsSnapshot(
+          registration.school_id,
+          registration.ssc_batch,
+        );
+        RegistrationFormClass9Service.assertSettingsMatchRegistrationYear(
+          registration,
+          settingsSnapshot,
+        );
+        data.pdf_settings_snapshot = settingsSnapshot;
+      }
+    }
+
     return await prisma.student_registration_ssc.update({
       where: { id },
-      data: { status },
+      data,
     });
   }
 
@@ -230,6 +367,8 @@ export class RegistrationFormClass9Service {
       data: {
         ...dbData,
         photo_path: photo || '',
+        pdf_path: null,
+        pdf_generated_at: null,
       },
     });
   }
@@ -238,6 +377,9 @@ export class RegistrationFormClass9Service {
     const registration = await this.getRegistrationById(id);
     if (registration.photo_path) {
       await deleteFromR2(registration.photo_path);
+    }
+    if (registration.pdf_path) {
+      await deleteFromR2(registration.pdf_path);
     }
     return await prisma.student_registration_ssc.delete({
       where: { id },
@@ -335,11 +477,38 @@ export class RegistrationFormClass9Service {
       throw new ApiError(404, 'Registration not found');
     }
 
-    let settings = null;
+    const shouldUseFrozenPdf =
+      !isInlinePreview &&
+      !isHtmlPreview &&
+      Boolean(registration.pdf_settings_snapshot) &&
+      String(registration.status || '')
+        .trim()
+        .toLowerCase() === 'approved';
+
+    if (shouldUseFrozenPdf && registration.pdf_path) {
+      const existingPdf = await getFileBuffer(registration.pdf_path);
+      if (existingPdf) {
+        return {
+          pdfBuffer: existingPdf,
+          studentName: registration.student_name_en,
+          isInlinePreview,
+        };
+      }
+    }
+
+    let settings: any = null;
     try {
-      settings = await prisma.ssc_reg.findFirst();
+      settings =
+        shouldUseFrozenPdf && registration.pdf_settings_snapshot
+          ? registration.pdf_settings_snapshot
+          : await RegistrationFormClass9Service.getSettingsSnapshot(
+              registration.school_id,
+              registration.ssc_batch,
+            );
+      RegistrationFormClass9Service.assertSettingsMatchRegistrationYear(registration, settings);
     } catch (error) {
       console.warn('Failed to fetch Class 9 settings:', error);
+      throw error;
     }
 
     const getInstructionsForSection = (section: string) => {
@@ -357,10 +526,47 @@ export class RegistrationFormClass9Service {
     const sectionInstructions = getInstructionsForSection(registration.section || '');
     const attachmentInstructions = settings?.attachment_instruction || null;
 
-    const logoPath = path.join('public', 'icon.jpg');
-    const logoBase64 = fs.existsSync(logoPath)
-      ? `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`
-      : '';
+    const school = await prisma.school.findUnique({
+      where: { id: registration.school_id },
+      select: {
+        name: true,
+        address: true,
+        upazila: true,
+        district: true,
+        website: true,
+        customDomain: true,
+        subdomain: true,
+        logo: true,
+        headerLogo: true,
+      },
+    });
+    if (!school) {
+      throw new ApiError(404, 'School not found for this registration');
+    }
+
+    const schoolName = school.name?.trim() || 'School';
+    const schoolAddr =
+      school.address?.trim() ||
+      [school.upazila, school.district]
+        .map((s) => s?.trim())
+        .filter(Boolean)
+        .join(', ');
+    const schoolWeb = schoolWebsiteHost(school.customDomain || school.website);
+
+    let logoBase64 = '';
+    const logoKey = school.headerLogo || school.logo;
+    if (logoKey) {
+      try {
+        const logoBuffer = await getFileBuffer(logoKey);
+        if (logoBuffer?.length) {
+          const ext = path.extname(logoKey).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          logoBase64 = `data:${mime};base64,${logoBuffer.toString('base64')}`;
+        }
+      } catch (logoError) {
+        console.warn('Failed to load school logo for Class 9 PDF:', logoError);
+      }
+    }
 
     const solaimanLipiPath = path.join('public', 'fonts', 'SolaimanLipi.woff2');
     const timesNewRomanPath = path.join('public', 'fonts', 'times.ttf');
@@ -387,10 +593,7 @@ export class RegistrationFormClass9Service {
       }
     }
 
-    if (!process.env.PUBLIC_FRONTEND_URL) {
-      throw new ApiError(500, 'Frontend URL not configured');
-    }
-    const frontendDomain = String(process.env.PUBLIC_FRONTEND_URL).trim().replace(/\/$/, '');
+    const frontendDomain = schoolPublicOrigin(school);
 
     let qrCodeBase64 = '';
     try {
@@ -455,13 +658,13 @@ export class RegistrationFormClass9Service {
 
     const studentDetails = [
       [
-        'ছাত্রের নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):',
+        'ছাত্রের নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):',
         wrapBnEn(registration.student_name_bn || ''),
       ],
       ["Student's Name:", wrapBnEn(registration.student_name_en || '')],
       ['Birth Registration Number:', wrapBnEn(registration.birth_reg_no || '')],
       [
-        'Date of Birth (According to JSC/JDC):',
+        'Date of Birth (According to JSC/JDC/Class 8):',
         wrapBnEn(formatDateLong(registration.birth_date || '')),
       ],
       ['Email Address:', wrapBnEn(registration.email || 'No')],
@@ -473,10 +676,10 @@ export class RegistrationFormClass9Service {
             .join(', ') || 'No',
         ),
       ],
-      ['পিতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):', wrapBnEn(registration.father_name_bn || '')],
+      ['পিতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):', wrapBnEn(registration.father_name_bn || '')],
       ["Father's Name:", wrapBnEn(registration.father_name_en || '')],
       ["Father's National ID Number:", wrapBnEn(registration.father_nid || '')],
-      ['মাতার নাম (JSC/JDC রেজিস্ট্রেশন অনুযায়ী):', wrapBnEn(registration.mother_name_bn || '')],
+      ['মাতার নাম (JSC/JDC/Class 8 রেজিস্ট্রেশন অনুযায়ী):', wrapBnEn(registration.mother_name_bn || '')],
       ["Mother's Name:", wrapBnEn(registration.mother_name_en || '')],
       ["Mother's National ID Number:", wrapBnEn(registration.mother_nid || '')],
       [
@@ -540,12 +743,14 @@ export class RegistrationFormClass9Service {
         ),
       ],
       [
-        'Information of JSC/JDC:',
+        'Information of JSC/JDC/Class 8:',
         wrapBnEn(
           [
             registration.jsc_board ? `Board: ${registration.jsc_board}` : '',
             registration.jsc_passing_year ? `Passing Year: ${registration.jsc_passing_year}` : '',
-            registration.jsc_roll_no ? `Roll No- ${registration.jsc_roll_no}` : 'Roll No- N/A',
+            registration.jsc_roll_no
+              ? `JSC/JDC/Class 8 ID No- ${registration.jsc_roll_no}`
+              : 'JSC/JDC/Class 8 ID No- N/A',
           ]
             .filter(Boolean)
             .join(', '),
@@ -568,14 +773,6 @@ export class RegistrationFormClass9Service {
         'বাসার নিকটবর্তী নবম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:',
         wrapBnEn(registration.nearby_nine_student_info || ''),
       ],
-      [
-        'Class Eight Information:',
-        wrapBnEn(
-          `Section: ${registration.section_in_class_8 || 'N/A'}, Roll: ${
-            registration.roll_in_class_8 || 'N/A'
-          }`,
-        ),
-      ],
     ];
 
     let tableRows = '';
@@ -583,9 +780,6 @@ export class RegistrationFormClass9Service {
       tableRows += row(label, value, idx);
     });
 
-    const schoolName = 'Panchbibi Lal Bihari Pilot Govt. High School';
-    const schoolAddr = 'Panchbibi, Joypurhat';
-    const schoolWeb = 'www.lbphs.gov.bd';
     const class9Year = registration.ssc_batch || '';
     const section = registration.section || '';
     const roll = registration.roll || '';
@@ -774,6 +968,20 @@ export class RegistrationFormClass9Service {
     });
 
     await browser.close();
+
+    if (shouldUseFrozenPdf) {
+      const pdfKey = tenantR2Key(
+        `registrations/class-9/pdfs/${registration.ssc_batch || 'unknown'}/${id}-${Date.now()}.pdf`,
+      );
+      await uploadToR2(pdfKey, Buffer.from(pdfBuffer), 'application/pdf');
+      await prisma.student_registration_ssc.update({
+        where: { id },
+        data: {
+          pdf_path: pdfKey,
+          pdf_generated_at: new Date(),
+        },
+      });
+    }
 
     return {
       pdfBuffer,

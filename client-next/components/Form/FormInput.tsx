@@ -28,8 +28,6 @@ interface FormInputProps {
 }
 
 function inferAutoComplete(name: string, type: string): string | undefined {
-  if (type === 'email' || /email/i.test(name)) return 'email';
-  if (/phone|mobile|whatsapp|tel/i.test(name)) return 'tel';
   if (/father.*name|mother.*name|student_name|name_en|name_bn/i.test(name)) return 'name';
   return 'off';
 }
@@ -59,6 +57,14 @@ const FormInput: React.FC<FormInputProps> = ({
     address: filterAddressInput,
   };
 
+  const registration = register(name, {
+    setValueAs: (value) => {
+      const raw = typeof value === 'string' ? value : '';
+      if (!filterType || !filterMap[filterType]) return raw;
+      const filtered = filterMap[filterType](raw);
+      return maxLength ? filtered.slice(0, maxLength) : filtered;
+    },
+  });
   const resolvedAutoComplete = autoComplete ?? inferAutoComplete(name, type);
   const disableSpellcheck =
     type === 'email' || filterType === 'numeric' || /nid|birth_reg|email|phone|code|id/i.test(name);
@@ -74,7 +80,7 @@ const FormInput: React.FC<FormInputProps> = ({
     >
       <input
         id={name}
-        {...register(name)}
+        {...registration}
         type={type}
         placeholder={placeholder}
         disabled={disabled}

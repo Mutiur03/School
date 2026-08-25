@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { getFileUrl } from '@/lib/cdn';
 import { AdmissionFormRecord } from '@/queries/admission-form.queries';
 import Image from 'next/image';
+import FormErrorSummary, { scrollToFormErrorSummary } from '@/components/Form/FormErrorSummary';
 
 const padBirthPart = (value: string | number | null | undefined) => {
   if (value === null || value === undefined) return '';
@@ -1190,12 +1191,15 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
   }
 
   const onSubmit = async (data: AdmissionFormData) => {
+    setErrorMessage(null);
+    setDuplicates([]);
     if (listTypeOptions.length > 0 && data.list_type && !listTypeOptions.includes(data.list_type)) {
       setError('list_type', {
         type: 'manual',
         message: 'Invalid list type for the selected class',
       });
       setFocus('list_type');
+      scrollToFormErrorSummary();
       return;
     }
 
@@ -1205,6 +1209,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         message: 'Invalid serial number for the selected class',
       });
       setFocus('serial_no');
+      scrollToFormErrorSummary();
       return;
     }
 
@@ -1218,6 +1223,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         message: 'Invalid User ID for the selected class',
       });
       setFocus('admission_user_id');
+      scrollToFormErrorSummary();
       return;
     }
 
@@ -1230,6 +1236,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         type: 'manual',
         message: 'Student photo is required',
       });
+      scrollToFormErrorSummary();
       return;
     }
 
@@ -1258,6 +1265,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
       } catch (err) {
         console.error('Photo upload failed:', err);
         setErrorMessage('Failed to upload photo. Please try again or check your connection.');
+        scrollToFormErrorSummary();
         return;
       }
     }
@@ -1320,9 +1328,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             : 'Admission failed. Please try again.';
           setErrorMessage(result.message || errorMessage);
         }
-        if (result.duplicates && result.duplicates.length > 0) {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        scrollToFormErrorSummary();
       }
     } catch (error: any) {
       console.error('Admission submission error:', error);
@@ -1332,7 +1338,6 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
 
         if (errorData.duplicates && errorData.duplicates.length > 0) {
           setDuplicates(errorData.duplicates);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         if (errorData.error) {
@@ -1354,6 +1359,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
       } else {
         setErrorMessage('An unexpected error occurred. Please try again.');
       }
+      scrollToFormErrorSummary();
     }
   };
   const currentYear = new Date().getFullYear();
@@ -1507,41 +1513,15 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
 
       {duplicates.length > 0 && <DuplicateWarning duplicates={duplicates} />}
 
-      {errorMessage && (
-        <div className="animate-fade-in mb-4 rounded bg-red-100 p-3 text-sm text-red-800 shadow sm:p-4 sm:text-base">
-          {errorMessage}
-        </div>
-      )}
+      <FormErrorSummary errors={errors} apiErrors={errorMessage} />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
-        {/* {Object.keys(errors).length > 0 && (
-          <div
-            style={{
-              background: "#fff3cd",
-              color: "#856404",
-              border: "1px solid #ffeeba",
-              borderRadius: "4px",
-              padding: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <strong>Validation Errors:</strong>
-            <ul style={{ fontSize: "12px", margin: 0, paddingLeft: "18px" }}>
-              {Object.entries(errors).map(([field, error]) => {
-                let message = error?.message;
-                if (!message && Array.isArray(error?.types)) {
-                  message = (error as any).types[0]?.message;
-                }
-                return (
-                  <li key={field} style={{ marginBottom: 2 }}>
-                    <strong>{field}:</strong> {message || "Invalid value"}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )} */}
-
+      <form
+        onSubmit={handleSubmit(onSubmit, () => {
+          setErrorMessage(null);
+          scrollToFormErrorSummary();
+        })}
+        className="space-y-4 sm:space-y-6"
+      >
         <fieldset className="rounded-sm border border-gray-300 p-4 sm:p-6">
           <legend>
             <strong>Personal Information</strong>
