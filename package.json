@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.62.1",
     "@typescript/typescript6": "6.0.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.6",

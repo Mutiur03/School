@@ -623,7 +623,8 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
         .map((s) => s?.trim())
         .filter(Boolean)
         .join(', ');
-    const schoolWeb = schoolWebsiteHost(school.customDomain || school.website);
+    const schoolWebHost = schoolWebsiteHost(school.customDomain || school.website);
+    const schoolWeb = schoolWebHost ? `https://${schoolWebHost}` : '';
 
     let logoBase64 = '';
     const logoKey = school.headerLogo || school.logo;
@@ -773,6 +774,8 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
           * { unicode-bidi: bidi-override; direction: ltr; font-size: 1rem; }
           .header { position: relative; text-align: center; margin-bottom: 12px; padding: 12px 0 8px 0; font-size: 1rem; }
           .header-top { display: grid; grid-template-columns: 100px 1fr 95px; align-items: start; gap: 12px; width: 100%; }
+          .monogram { width: 90px; height: 90px; margin-top: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: transparent; }
+          .monogram img { width: 100%; height: 100%; object-fit: contain; }
           .passport-photo { width: 90px; height: 110px; border: 1px solid #bbb; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, 0.92); display: flex; align-items: center; justify-content: center; margin-top: 2px; }
           .passport-photo img { width: 100%; height: 100%; object-fit: cover; }
           .header-center { text-align: center; padding-top: 2px; }
@@ -806,7 +809,9 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
           <div class="content-area">
             <div class="header">
               <div class="header-top">
-                <div style="width: 90px;"></div>
+                <div class="monogram">
+                  ${logoBase64 ? `<img src="${logoBase64}" alt="School Logo" />` : ''}
+                </div>
                 <div class="header-center">
                   <div class="school en">${schoolName}</div>
                   <div class="addr en">${schoolAddr}</div>
@@ -1274,11 +1279,12 @@ export const class9FormConfig: RegistrationFormConfig = {
       'Information of JSC/JDC/Class 8:',
       h.wrapBnEn(
         [
-          registration.jsc_board ? `Board: ${registration.jsc_board}` : '',
-          registration.jsc_passing_year ? `Passing Year: ${registration.jsc_passing_year}` : '',
-          registration.jsc_roll_no
-            ? `JSC/JDC/Class 8 ID/Roll No- ${registration.jsc_roll_no}`
-            : 'JSC/JDC/Class 8 ID/Roll No- N/A',
+          registration.jsc_reg_no ? `Reg No: ${registration.jsc_reg_no}` : '',
+          registration.jsc_roll_no ? `Roll No: ${registration.jsc_roll_no}` : '',
+          registration.jsc_passing_year
+            ? `${registration.jsc_passing_year}`
+            : '',
+          registration.jsc_board ? `${registration.jsc_board}` : '',
         ]
           .filter(Boolean)
           .join(', '),
