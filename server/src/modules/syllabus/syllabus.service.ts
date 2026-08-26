@@ -1,9 +1,13 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
 import { env } from '@/config/env.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  deleteFromR2IfPresent,
+  pdfDocFields,
+  presignTenantUpload,
+  swapR2Key,
+} from '@/utils/r2Key.util.js';
 
 const cacheKey = (schoolId?: number, classNum?: string, year?: string) =>
   `syllabus_${schoolId ?? 'global'}_${classNum ?? 'all'}_${year ?? 'all'}`;
@@ -13,10 +17,8 @@ const invalidateCache = (schoolId?: number) => {
 };
 
 export class SyllabusService {
-  static async getPresignedUploadUrl(filename: string, contentType: string) {
-    const key = tenantR2Key(`syllabus/${Date.now()}-${filename}`);
-    const uploadUrl = await getUploadUrl(key, contentType);
-    return { uploadUrl, key };
+  static getPresignedUploadUrl(filename: string, contentType: string) {
+    return presignTenantUpload('syllabus', filename, contentType);
   }
 
   static async createSyllabus(
@@ -27,9 +29,7 @@ export class SyllabusService {
       data: {
         class: data.class,
         year: data.year,
-        pdf_url: data.key,
-        download_url: data.key,
-        public_id: data.key,
+        ...pdfDocFields(data.key),
         ...(schoolId ? { school_id: schoolId } : {}),
       },
     });
@@ -66,7 +66,7 @@ export class SyllabusService {
       throw new ApiError(404, 'Syllabus not found');
     }
 
-    await deleteFromR2(syllabus.public_id);
+    await deleteFromR2IfPresent(syllabus.public_id);
     await prisma.syllabus.delete({ where: { id } });
     invalidateCache(schoolId);
   }
@@ -84,15 +84,15 @@ export class SyllabusService {
       throw new ApiError(404, 'Syllabus not found');
     }
 
-    let pdf_url = syllabus.pdf_url;
-    let public_id = syllabus.public_id;
-    let download_url = syllabus.download_url;
+    let urls = {
+      pdf_url: syllabus.pdf_url,
+      public_id: syllabus.public_id,
+      download_url: syllabus.download_url,
+    };
 
     if (data.key) {
-      await deleteFromR2(syllabus.public_id);
-      pdf_url = data.key;
-      download_url = data.key;
-      public_id = data.key;
+      await swapR2Key(syllabus.public_id, data.key);
+      urls = pdfDocFields(data.key);
     }
 
     const updated = await prisma.syllabus.update({
@@ -100,9 +100,7 @@ export class SyllabusService {
       data: {
         class: data.class,
         year: data.year,
-        pdf_url,
-        download_url,
-        public_id,
+        ...urls,
         ...(schoolId ? { school_id: schoolId } : {}),
       },
     });

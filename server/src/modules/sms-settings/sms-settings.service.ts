@@ -1,6 +1,5 @@
 import { prisma } from '@/config/prisma.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
-import { SMSService } from '@/utils/sms.service.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
 
@@ -147,13 +146,5 @@ export class SmsSettingsService {
     return {
       balance: settings.sms_balance,
     };
-  }
-
-  static async sendTestSMS(phoneNumber: string, message: string) {
-    return await SMSService.sendTestSMS(phoneNumber, message);
-  }
-
-  static calculateSMSCount(text: string) {
-    return SMSService.calculateSMSCount(text);
   }
 }

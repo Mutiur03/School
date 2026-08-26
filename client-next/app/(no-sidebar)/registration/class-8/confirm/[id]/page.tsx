@@ -4,7 +4,7 @@ import {
   getClass8RegistrationRecord,
   getClass8RegistrationSettings,
 } from '@/queries/registration.queries';
-import ConfirmationClass8Client from './ConfirmationClass8Client';
+import ConfirmationClient from '../../../_shared/ConfirmationClient';
 import ConfirmDownloadPDF from '@/components/ConfirmDownloadPDF';
 
 interface Class8RegistrationConfirmPageProps {
@@ -48,7 +48,8 @@ export default async function Class8RegistrationConfirmPage({
   }
 
   return (
-    <ConfirmationClass8Client
+    <ConfirmationClient
+      kind="class-8"
       registration={registration}
       schoolConfig={schoolConfig}
       pdfUrl={pdfUrl}

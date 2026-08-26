@@ -1,9 +1,12 @@
 import { prisma } from '@/config/prisma.js';
 import { redis } from '@/config/redis.js';
-
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  deleteFromR2IfPresent,
+  fileDocFields,
+  presignTenantUpload,
+  swapR2Key,
+} from '@/utils/r2Key.util.js';
 
 const noticesKey = (schoolId?: number) => `notices:${schoolId ?? 'none'}`;
 
@@ -23,10 +26,8 @@ export class NoticeService {
     return limit ? notices.slice(0, limit) : notices;
   }
 
-  async getPresignedUploadUrl(filename: string, contentType: string) {
-    const key = tenantR2Key(`notices/${Date.now()}-${filename}`);
-    const uploadUrl = await getUploadUrl(key, contentType);
-    return { uploadUrl, key };
+  getPresignedUploadUrl(filename: string, contentType: string) {
+    return presignTenantUpload('notices', filename, contentType);
   }
 
   async createNotice(
@@ -40,9 +41,7 @@ export class NoticeService {
     const notice = await prisma.notices.create({
       data: {
         title: data.title,
-        file: data.key,
-        download_url: data.key,
-        public_id: data.key,
+        ...fileDocFields(data.key),
         ...(schoolId ? { school_id: schoolId } : {}),
         ...(data.created_at && { created_at: new Date(data.created_at) }),
       },
@@ -62,16 +61,12 @@ export class NoticeService {
     });
     if (!existing) throw new ApiError(404, 'Notice not found');
 
-    const updateData: any = { ...data };
-    delete updateData.key;
+    const updateData: Record<string, unknown> = {};
+    if (data.title !== undefined) updateData.title = data.title;
 
     if (data.key) {
-      updateData.file = data.key;
-      updateData.download_url = data.key;
-      updateData.public_id = data.key;
-      if (existing.public_id) {
-        await deleteFromR2(existing.public_id);
-      }
+      await swapR2Key(existing.public_id, data.key);
+      Object.assign(updateData, fileDocFields(data.key));
     }
 
     if (data.created_at) {
@@ -95,9 +90,6 @@ export class NoticeService {
 
     await prisma.notices.delete({ where: { id } });
     redis.del(noticesKey(schoolId)).catch(() => {});
-
-    if (existing.public_id) {
-      await deleteFromR2(existing.public_id);
-    }
+    await deleteFromR2IfPresent(existing.public_id);
   }
 }

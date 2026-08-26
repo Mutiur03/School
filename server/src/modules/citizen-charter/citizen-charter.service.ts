@@ -1,17 +1,13 @@
 import { prisma } from '@/config/prisma.js';
-import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { fileDocFields, presignTenantUpload, swapR2Key } from '@/utils/r2Key.util.js';
 
 export class CitizenCharterService {
   async getPresignedUploadUrl(filename: string, contentType: string) {
     if (contentType !== 'application/pdf') {
       throw new ApiError(400, 'Only PDF files are allowed');
     }
-
-    const key = tenantR2Key(`citizen-charter/${Date.now()}-${filename}`);
-    const uploadUrl = await getUploadUrl(key, contentType);
-    return { uploadUrl, key };
+    return presignTenantUpload('citizen-charter', filename, contentType);
   }
 
   async upsertCharter(key: string, schoolId?: number) {
@@ -20,26 +16,17 @@ export class CitizenCharterService {
       orderBy: { updated_at: 'desc' },
     });
 
-    if (existing?.public_id && existing.public_id != key) {
-      await deleteFromR2(existing.public_id);
-    }
+    if (existing) await swapR2Key(existing.public_id, key);
 
     const data = {
-      file: key,
-      download_url: key,
-      public_id: key,
+      ...fileDocFields(key),
       ...(schoolId ? { school_id: schoolId } : {}),
       updated_at: new Date(),
     };
 
-    const result = existing
-      ? await prisma.citizenCharter.update({
-          where: { id: existing.id },
-          data,
-        })
+    return existing
+      ? await prisma.citizenCharter.update({ where: { id: existing.id }, data })
       : await prisma.citizenCharter.create({ data });
-
-    return result;
   }
 
   async getCharter(schoolId?: number) {

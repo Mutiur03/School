@@ -1,18 +1,35 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { useSyncExternalStore } from 'react';
 
-interface NavigationState {
-  isDirty: boolean;
-  setDirty: (isDirty: boolean) => void;
-  resetDirty: () => void;
+let dirty = false;
+const listeners = new Set<() => void>();
+
+function emit() {
+  listeners.forEach((l) => l());
 }
 
-const useNavigationStore = create<NavigationState>()(
-  devtools((set) => ({
-    isDirty: false,
-    setDirty: (isDirty) => set({ isDirty }),
-    resetDirty: () => set({ isDirty: false }),
-  })),
-);
+function setDirty(isDirty: boolean) {
+  if (dirty === isDirty) return;
+  dirty = isDirty;
+  emit();
+}
 
-export default useNavigationStore;
+function resetDirty() {
+  setDirty(false);
+}
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+  };
+}
+
+/** Cross-page unsaved-guard flag (Attendence / StayCheck ↔ Navbar / Sidebar). */
+export default function useNavigationStore() {
+  const isDirty = useSyncExternalStore(
+    subscribe,
+    () => dirty,
+    () => false,
+  );
+  return { isDirty, setDirty, resetDirty };
+}

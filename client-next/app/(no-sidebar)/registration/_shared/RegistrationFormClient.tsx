@@ -3,13 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useForm, useWatch, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  getUpazilasByDistrict,
-  Class6Registration,
-  registrationSchema,
-  registrationDefaultValues,
-  filterNumericInput,
-} from '@school/shared-schemas';
+import { getUpazilasByDistrict } from '@school/shared-schemas';
 import axios from 'axios';
 import { useRouter, useParams } from 'next/navigation';
 import { getFileUrl } from '@/lib/cdn';
@@ -25,18 +19,47 @@ import FieldRow, { Instruction } from '@/components/Form/FieldRow';
 import AddressFields from '@/components/Form/AddressFields';
 import GuardianSection from '@/components/Form/GuardianSection';
 import FormInput from '@/components/Form/FormInput';
-import type { Class6RegistrationSettings } from '@/queries/registration.queries';
-import type { Class6RegistrationRecord } from '@school/shared-schemas';
+import type { SchoolConfig } from '@/types';
+import { FORM_CONFIGS, type FormKind } from './formConfigs';
 
-type RegistrationClass6ClientProps = {
-  settings: Class6RegistrationSettings;
-  initialRecord?: Class6RegistrationRecord | null;
+type Props = {
+  kind: FormKind;
+  settings: any;
+  initialRecord?: any;
+  schoolConfig?: SchoolConfig;
 };
 
-export default function RegistrationClass6Client({
+function parseRollRange(rollRange: string | null): string[] {
+  if (!rollRange) return [];
+  const rolls: Set<number> = new Set();
+  const parts = rollRange.split(',').map((p) => p.trim());
+  for (const part of parts) {
+    const rangeMatch = part.match(/^(\d+)-(\d+)$/);
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1]);
+      const end = parseInt(rangeMatch[2]);
+      for (let i = start; i <= end; i++) {
+        rolls.add(i);
+      }
+    } else {
+      const num = parseInt(part);
+      if (!isNaN(num)) {
+        rolls.add(num);
+      }
+    }
+  }
+  return Array.from(rolls)
+    .sort((a, b) => a - b)
+    .map((num) => String(num).padStart(2, '0'));
+}
+
+export default function RegistrationFormClient({
+  kind,
   settings: settingsProp,
   initialRecord,
-}: RegistrationClass6ClientProps) {
+  schoolConfig,
+}: Props) {
+  const config = FORM_CONFIGS[kind];
   const router = useRouter();
   const { id } = useParams<{ id?: string }>();
   const isEditMode = Boolean(id);
@@ -55,6 +78,16 @@ export default function RegistrationClass6Client({
   const [initialUpazilasApplied, setInitialUpazilasApplied] = useState(false);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [apiErrors, setApiErrors] = useState<FormErrorItem[] | null>(null);
+  const [prevSchoolOption, setPrevSchoolOption] = useState(schoolConfig?.name.en ?? '');
+  const [nearbyOption, setNearbyOption] = useState('');
+
+  const nearbyOptions = useMemo(() => {
+    if (!settings?.classmates) return [];
+    return settings.classmates
+      .split('\n')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+  }, [settings?.classmates]);
 
   const {
     register,
@@ -63,49 +96,33 @@ export default function RegistrationClass6Client({
     control,
     clearErrors,
     reset,
+    getValues,
     formState: { errors, isSubmitting },
-  } = useForm<Class6Registration>({
-    resolver: zodResolver(registrationSchema) as any,
+  } = useForm<any>({
+    resolver: zodResolver(config.schema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     shouldUnregister: false,
-    defaultValues: registrationDefaultValues,
+    defaultValues: config.defaultValues,
   });
 
   const permanent_district = useWatch({ control, name: 'permanent_district' });
   const permanent_upazila = useWatch({ control, name: 'permanent_upazila' });
-  const permanent_post_office = useWatch({
-    control,
-    name: 'permanent_post_office',
-  });
-  const permanent_post_code = useWatch({
-    control,
-    name: 'permanent_post_code',
-  });
-  const permanent_village_road = useWatch({
-    control,
-    name: 'permanent_village_road',
-  });
+  const permanent_post_office = useWatch({ control, name: 'permanent_post_office' });
+  const permanent_post_code = useWatch({ control, name: 'permanent_post_code' });
+  const permanent_village_road = useWatch({ control, name: 'permanent_village_road' });
   const present_district = useWatch({ control, name: 'present_district' });
-  const prev_school_district = useWatch({
-    control,
-    name: 'prev_school_district',
-  });
+  const prev_school_district = useWatch({ control, name: 'prev_school_district' });
   const birth_year = useWatch({ control, name: 'birth_year' });
   const birth_month = useWatch({ control, name: 'birth_month' });
   const birth_reg_no = useWatch({ control, name: 'birth_reg_no' });
-  const sameAsPermanent = useWatch({
-    control,
-    name: 'same_as_permanent',
-  });
-  const photo = useWatch({
-    control,
-    name: 'photo',
-  });
-  const selectedSection = useWatch({
-    control,
-    name: 'section',
-  });
+  const sameAsPermanent = useWatch({ control, name: 'same_as_permanent' });
+  const photo = useWatch({ control, name: 'photo' });
+  const selectedSection = useWatch({ control, name: 'section' });
+  const prev_school_name = useWatch({ control, name: 'prev_school_name' });
+  const group_class_nine = useWatch({ control, name: 'group_class_nine' });
+  const main_subject = useWatch({ control, name: 'main_subject' });
+  const nearby_nine_student_info = useWatch({ control, name: 'nearby_nine_student_info' });
 
   const permanentAddress = useMemo(
     () => ({
@@ -124,6 +141,10 @@ export default function RegistrationClass6Client({
     ],
   );
 
+  const metadata = config.metadata;
+  const ExtraFields = config.ExtraFields;
+  const isRequired = config.isRequired;
+
   useEffect(() => {
     const initializeData = () => {
       try {
@@ -133,21 +154,21 @@ export default function RegistrationClass6Client({
         if (isEditMode && id) {
           const data = initialRecord;
           if (!data) {
-            router.replace('/registration/class-6/form');
+            router.replace(`/registration/${kind}/form`);
             return;
           }
           const formData: any = { ...data };
-
           Object.keys(formData).forEach((key) => {
             if (formData[key] === null) {
               formData[key] = '';
             }
           });
+          config.hydrateEditExtras?.(formData, settingsProp);
+
           if (settingsProp && data.section) {
             const rollRange =
               data.section === 'A' ? settingsProp.a_sec_roll : settingsProp.b_sec_roll;
-            const rolls = parseRollRange(rollRange ?? null);
-            setAvailableRolls(rolls);
+            setAvailableRolls(parseRollRange(rollRange ?? null));
           }
           if (data.roll) {
             setInitialRoll(data.roll);
@@ -193,12 +214,16 @@ export default function RegistrationClass6Client({
           } else {
             setValue('guardian_is_not_father', false);
           }
-          if (typeof data.photo === 'string' && data.photo) {
-            setPhotoPreview(getFileUrl(data.photo));
+          const previewPath = config.getPhotoPreview(data);
+          if (previewPath) {
+            setPhotoPreview(getFileUrl(previewPath));
           }
         } else {
           setInitialRollApplied(true);
           setInitialUpazilasApplied(true);
+          if (config.sameSchoolAutofill && schoolConfig) {
+            config.applyCreateDefaults(setValue, settingsProp, schoolConfig);
+          }
         }
       } catch (error) {
         console.error('Failed to initialize data:', error);
@@ -209,31 +234,50 @@ export default function RegistrationClass6Client({
     };
 
     initializeData();
-  }, [isEditMode, id, initialRecord, settingsProp, router, reset, setValue]);
+    // ponytail: mirror prior per-class dep lists; schoolConfig only when autofill needs it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, id, initialRecord, settingsProp, router, reset, setValue, kind]);
 
-  const parseRollRange = (rollRange: string | null): string[] => {
-    if (!rollRange) return [];
-    const rolls: Set<number> = new Set();
-    const parts = rollRange.split(',').map((p) => p.trim());
-    for (const part of parts) {
-      const rangeMatch = part.match(/^(\d+)-(\d+)$/);
-      if (rangeMatch) {
-        const start = parseInt(rangeMatch[1]);
-        const end = parseInt(rangeMatch[2]);
-        for (let i = start; i <= end; i++) {
-          rolls.add(i);
-        }
-      } else {
-        const num = parseInt(part);
-        if (!isNaN(num)) {
-          rolls.add(num);
-        }
-      }
+  useEffect(() => {
+    if (!config.sameSchoolAutofill || !schoolConfig) return;
+    if (prev_school_name === schoolConfig.name.en) {
+      setPrevSchoolOption(schoolConfig.name.en);
+    } else if (prev_school_name && prev_school_name !== '') {
+      setPrevSchoolOption('Others');
     }
-    return Array.from(rolls)
-      .sort((a, b) => a - b)
-      .map((num) => String(num).padStart(2, '0'));
+  }, [prev_school_name, schoolConfig, config.sameSchoolAutofill]);
+
+  useEffect(() => {
+    if (kind !== 'class-9') return;
+    if (nearby_nine_student_info && nearbyOptions.includes(nearby_nine_student_info)) {
+      setNearbyOption(nearby_nine_student_info);
+    } else if (nearby_nine_student_info && nearby_nine_student_info !== '') {
+      setNearbyOption(nearby_nine_student_info);
+    }
+  }, [nearby_nine_student_info, nearbyOptions, kind]);
+
+  const handlePrevSchoolOptionChange = (value: string) => {
+    if (!schoolConfig) return;
+    setPrevSchoolOption(value);
+    if (value === schoolConfig.name.en) {
+      setValue('prev_school_name', schoolConfig.name.en, { shouldValidate: true });
+      setValue('prev_school_district', schoolConfig.contact.district, { shouldValidate: true });
+    } else if (value === 'Others') {
+      setValue('prev_school_name', '');
+      setValue('prev_school_district', '');
+      setValue('prev_school_upazila', '');
+    }
   };
+
+  const handleNearbyOptionChange = (value: string) => {
+    setNearbyOption(value);
+    if (value !== 'Others') {
+      setValue('nearby_nine_student_info', value, { shouldValidate: true });
+    } else {
+      setValue('nearby_nine_student_info', '');
+    }
+  };
+
   useEffect(() => {
     if (!settings || !selectedSection) {
       setAvailableRolls([]);
@@ -253,6 +297,7 @@ export default function RegistrationClass6Client({
     const num = parseInt(initialRoll);
     return isNaN(num) ? initialRoll : String(num).padStart(2, '0');
   }, [initialRoll]);
+
   useEffect(() => {
     if (availableRolls.length > 0 && paddedInitialRoll && !initialRollApplied) {
       const timer = setTimeout(() => {
@@ -292,23 +337,22 @@ export default function RegistrationClass6Client({
   ]);
 
   useEffect(() => {
-    const selectedDistrictId = permanent_district;
-    if (!selectedDistrictId) {
+    if (!permanent_district) {
       setPermanentUpazilas([]);
       return;
     }
-    const upazilas = getUpazilasByDistrict(selectedDistrictId);
-    setPermanentUpazilas(upazilas);
+    setPermanentUpazilas(getUpazilasByDistrict(permanent_district));
+    // class-6 historically also listed permanent_upazila; harmless for 8/9
   }, [permanent_district, permanent_upazila]);
+
   useEffect(() => {
-    const selectedDistrictId = present_district;
-    if (!selectedDistrictId) {
+    if (!present_district) {
       setPresentUpazilas([]);
       return;
     }
-    const upazilas = getUpazilasByDistrict(selectedDistrictId);
-    setPresentUpazilas(upazilas);
+    setPresentUpazilas(getUpazilasByDistrict(present_district));
   }, [present_district]);
+
   useEffect(() => {
     if (sameAsPermanent) {
       setValue('present_district', permanent_district);
@@ -328,14 +372,39 @@ export default function RegistrationClass6Client({
   ]);
 
   useEffect(() => {
-    const selectedDistrictId = prev_school_district;
-    if (!selectedDistrictId) {
+    if (!prev_school_district) {
       setPrevSchoolUpazilas([]);
       return;
     }
-    const upazilas = getUpazilasByDistrict(selectedDistrictId);
-    setPrevSchoolUpazilas(upazilas);
+    setPrevSchoolUpazilas(getUpazilasByDistrict(prev_school_district));
   }, [prev_school_district]);
+
+  useEffect(() => {
+    if (!config.sameSchoolAutofill || !schoolConfig) return;
+    if (
+      prevSchoolOption === schoolConfig.name.en &&
+      prev_school_district === schoolConfig.contact.district &&
+      prevSchoolUpazilas.length > 0
+    ) {
+      const currentUpazila = getValues('prev_school_upazila');
+      if (!currentUpazila || currentUpazila === '') {
+        const targetUpazila = schoolConfig.contact.upazila;
+        const exists = prevSchoolUpazilas.some((u) => u.id === targetUpazila);
+        if (exists) {
+          setValue('prev_school_upazila', targetUpazila, { shouldValidate: true });
+        }
+      }
+    }
+  }, [
+    prevSchoolUpazilas,
+    prev_school_district,
+    prevSchoolOption,
+    schoolConfig,
+    setValue,
+    getValues,
+    config.sameSchoolAutofill,
+  ]);
+
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -344,16 +413,23 @@ export default function RegistrationClass6Client({
     if (!result.ok) {
       alert(result.message);
       e.target.value = '';
+      if (config.clearPhotoOnFail) {
+        setValue('photo', '', { shouldValidate: true });
+      }
       return;
     }
 
     setValue('photo', file, { shouldValidate: true });
+    if (config.clearPhotoOnFail) {
+      clearErrors('photo');
+    }
     const reader = new FileReader();
     reader.onloadend = () => {
       setPhotoPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
   };
+
   const currentYear = new Date().getFullYear();
   const earliestYear = 1900;
   const years = Array.from({ length: currentYear - earliestYear + 1 }, (_, i) =>
@@ -397,7 +473,36 @@ export default function RegistrationClass6Client({
     disableMonth = true;
     disableDay = true;
   }
+
   useEffect(() => {
+    if (config.clearBirthMonthDay) {
+      const clearBirthDate = () => {
+        setValue('birth_year', '', { shouldValidate: true });
+        setValue('birth_month', '', { shouldValidate: true });
+        setValue('birth_day', '', { shouldValidate: true });
+      };
+
+      if (!birth_reg_no || birth_reg_no.length < 4) {
+        if (birth_year !== '' || birth_month !== '') {
+          clearBirthDate();
+        }
+        return;
+      }
+
+      const year = birth_reg_no.slice(0, 4);
+      const yearNum = Number(year);
+      const hasValidYear =
+        /^\d{4}$/.test(year) && yearNum >= earliestYear && yearNum <= currentYear;
+
+      if (!hasValidYear) {
+        clearBirthDate();
+        return;
+      }
+
+      setValue('birth_year', year, { shouldValidate: true });
+      return;
+    }
+
     if (birth_reg_no && birth_reg_no.length >= 4) {
       const year = birth_reg_no.slice(0, 4);
       const yearNum = Number(year);
@@ -409,56 +514,57 @@ export default function RegistrationClass6Client({
     } else if (birth_year !== '') {
       setValue('birth_year', '', { shouldValidate: true });
     }
-  }, [birth_reg_no]);
-  const onSubmit = async (data: Class6Registration) => {
-    // setLoading(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [birth_reg_no, birth_year, birth_month, setValue, config.clearBirthMonthDay]);
+
+  const onSubmit = async (data: any) => {
     setDuplicates([]);
     setApiErrors(null);
     try {
-      let photo = '';
+      let photoKey = '';
       if (data.photo instanceof File) {
-        const { data: uploadData } = await axios.post('/api/reg/class-6/form/upload-url', {
+        const { data: uploadData } = await axios.post(`/api/reg/${kind}/form/upload-url`, {
           filename: data.photo.name,
           filetype: data.photo.type,
           name: data.student_name_en,
           roll: data.roll,
           section: data.section,
-          class6_year: settings?.class6_year,
+          ...config.yearForUpload(settings, data),
         });
         if (uploadData.success) {
           await axios.put(uploadData.data.uploadUrl, data.photo, {
             headers: { 'Content-Type': data.photo.type },
             withCredentials: false,
           });
-          photo = uploadData.data.key;
+          photoKey = uploadData.data.key;
         }
       } else if (typeof data.photo === 'string') {
-        photo = data.photo;
+        photoKey = data.photo;
       }
       const submissionData = {
         ...data,
-        photo,
-        class6_year: data.class6_year || settings?.class6_year,
+        photo: photoKey,
+        ...config.yearForSubmit(settings, data),
       };
-      const endpoint = isEditMode ? `/api/reg/class-6/form/${id}` : '/api/reg/class-6/form';
+      const endpoint = isEditMode ? `/api/reg/${kind}/form/${id}` : `/api/reg/${kind}/form`;
       const method = isEditMode ? 'put' : 'post';
       const response = await axios[method](endpoint, submissionData);
       if (response.data.success) {
-        router.push(`/registration/class-6/confirm/${response.data.data.id}`);
+        router.push(`/registration/${kind}/confirm/${response.data.data.id}`);
       }
     } catch (error: any) {
       console.error('Submission error', error);
-      const data = error.response?.data;
-      const duplicateList = data?.duplicates?.length
-        ? data.duplicates
-        : data?.message === 'Duplicate information found' && Array.isArray(data?.errors)
-          ? data.errors
+      const errData = error.response?.data;
+      const duplicateList = errData?.duplicates?.length
+        ? errData.duplicates
+        : errData?.message === 'Duplicate information found' && Array.isArray(errData?.errors)
+          ? errData.errors
           : null;
       if (duplicateList) {
         setDuplicates(duplicateList);
         setApiErrors(null);
       } else {
-        const items = extractApiErrorItems(data);
+        const items = extractApiErrorItems(errData);
         setApiErrors(
           items.length
             ? items
@@ -468,55 +574,6 @@ export default function RegistrationClass6Client({
       scrollToFormErrorSummary();
     }
   };
-  const REQUIRED_FIELDS: ReadonlyArray<keyof Class6Registration> = [
-    'student_name_bn',
-    'student_name_en',
-    'birth_reg_no',
-    'birth_year',
-    'birth_month',
-    'birth_day',
-    'religion',
-    'father_name_bn',
-    'father_name_en',
-    'father_nid',
-    'father_phone',
-    'mother_name_bn',
-    'mother_name_en',
-    'mother_nid',
-    'mother_phone',
-    'permanent_district',
-    'permanent_upazila',
-    'permanent_post_office',
-    'permanent_post_code',
-    'permanent_village_road',
-    'present_district',
-    'present_upazila',
-    'present_post_office',
-    'present_post_code',
-    'present_village_road',
-    'guardian_name',
-    'guardian_relation',
-    'guardian_phone',
-    'guardian_nid',
-    'guardian_district',
-    'guardian_upazila',
-    'guardian_post_office',
-    'guardian_post_code',
-    'guardian_village_road',
-    'section',
-    'roll',
-    'prev_school_name',
-    'prev_school_passing_year',
-    'section_in_prev_school',
-    'roll_in_prev_school',
-    'prev_school_district',
-    'prev_school_upazila',
-    'nearby_student_info',
-    'scout_status',
-    'photo',
-  ] as const;
-
-  const isRequired = (name: string) => REQUIRED_FIELDS.includes(name as any);
 
   if (loading || !settings || (isEditMode && (!initialRollApplied || !initialUpazilasApplied))) {
     return (
@@ -527,7 +584,7 @@ export default function RegistrationClass6Client({
             <div className="absolute top-0 left-0 h-full w-full animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
           </div>
           <div className="mt-6 text-xl font-bold tracking-tight text-gray-800">
-            Preparing Form Data
+            {config.loadingText}
           </div>
         </div>
       </div>
@@ -538,9 +595,7 @@ export default function RegistrationClass6Client({
     <div className="mx-auto max-w-full px-3 py-3 sm:max-w-2xl sm:px-4 sm:py-4 md:max-w-3xl lg:max-w-4xl lg:px-6 lg:py-6 xl:max-w-5xl">
       <div className="sticky top-0 z-20 mb-4 flex flex-col items-center rounded-t border-b border-blue-100 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-4 sm:py-3">
         <h2 className="mb-1 text-center text-xl font-bold tracking-tight text-blue-700 underline underline-offset-4 sm:mb-2 sm:text-2xl lg:text-3xl">
-          {isEditMode
-            ? `Edit Your Information for Class Six Registration ${settings?.class6_year}`
-            : `Student's Information for Registration of Class Six ${settings?.class6_year}`}
+          {config.title(isEditMode, settings)}
         </h2>
         <span className="px-2 text-center text-xs text-gray-600 sm:text-sm">
           Please fill all required fields. Fields marked <span className="text-red-600">*</span> are
@@ -552,19 +607,32 @@ export default function RegistrationClass6Client({
       <FormErrorSummary errors={errors} apiErrors={apiErrors} />
 
       <form
-        onSubmit={handleSubmit(onSubmit, () => {
-          setApiErrors(null);
+        onSubmit={handleSubmit(onSubmit, (validationErrors) => {
+          if (config.validationErrorMessage) {
+            setApiErrors(
+              Object.keys(validationErrors).length
+                ? [
+                    {
+                      id: 'validation',
+                      message: 'Please fix the highlighted fields and submit again.',
+                    },
+                  ]
+                : null,
+            );
+          } else {
+            setApiErrors(null);
+          }
           scrollToFormErrorSummary();
         })}
         className="space-y-10"
       >
-        {}
         <SectionHeader title="Personal Information">
           <FieldRow
             label="Section"
             isRequired={isRequired('section')}
             error={errors.section}
-            tooltip="Select your section (A or B). Available rolls will be shown based on your selection"
+            tooltip={metadata.section?.tooltip}
+            instruction={metadata.section?.instruction}
           >
             <select
               {...register('section')}
@@ -579,7 +647,8 @@ export default function RegistrationClass6Client({
             label="Roll"
             isRequired={isRequired('roll')}
             error={errors.roll}
-            tooltip="Select your roll number from the available options for your section"
+            tooltip={metadata.roll?.tooltip}
+            instruction={metadata.roll?.instruction}
           >
             <select
               {...register('roll')}
@@ -604,12 +673,12 @@ export default function RegistrationClass6Client({
             label="Religion:"
             isRequired={isRequired('religion')}
             error={errors.religion}
-            tooltip="Select your religion"
+            tooltip={kind === 'class-6' ? 'Select your religion' : undefined}
           >
             <select
               {...register('religion')}
               className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              aria-invalid={!!errors.religion}
+              aria-invalid={kind === 'class-6' ? !!errors.religion : undefined}
             >
               <option value="">Select Religion</option>
               <option value="Islam">Islam</option>
@@ -618,42 +687,55 @@ export default function RegistrationClass6Client({
               <option value="Buddhism">Buddhism</option>
             </select>
           </FieldRow>
-          <FieldRow
-            label="Cub scout/Scout:"
-            isRequired={isRequired('scout_status')}
-            error={errors.scout_status}
-          >
-            <select
-              {...register('scout_status')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              aria-invalid={!!errors.scout_status}
+          {config.showScoutInPersonal ? (
+            <FieldRow
+              label={config.scoutLabel}
+              isRequired={isRequired('scout_status')}
+              error={errors.scout_status}
             >
-              <option value="">Select Option</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-            </select>
-          </FieldRow>
+              <select
+                {...register('scout_status')}
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                aria-invalid={kind === 'class-6' ? !!errors.scout_status : undefined}
+              >
+                <option value="">Select Option</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </FieldRow>
+          ) : null}
           <FormInput
             label="ছাত্রের নাম (বাংলায়)"
             name="student_name_bn"
             register={register}
             errors={errors}
             isRequired={isRequired('student_name_bn')}
-            instruction="(প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-            tooltip="Enter your name exactly as it appears in Student's Primary/Birth Registration Certificate in Bengali"
             filterType="bangla"
             placeholder="ছাত্রের নাম (বাংলায়)"
+            tooltip={metadata.student_name_bn?.tooltip}
+            instruction={metadata.student_name_bn?.instruction}
           />
+          {config.showNickName ? (
+            <FormInput
+              label="ডাকনাম (এক শব্দে/বাংলায়)"
+              name="student_nick_name_bn"
+              register={register}
+              errors={errors}
+              isRequired
+              filterType="bangla"
+              placeholder="ডাকনাম (বাংলায়)"
+            />
+          ) : null}
           <FormInput
-            label="Student's Name (in English)"
+            label={config.studentNameEnLabel}
             name="student_name_en"
             register={register}
             errors={errors}
             isRequired={isRequired('student_name_en')}
-            instruction="(According to Primary/Birth Registration Certificate)"
-            tooltip="Enter your name exactly as it appears in Student's Primary/Birth Registration Certificate in English"
             filterType="english"
             placeholder="Student Name (in English)"
+            tooltip={metadata.student_name_en?.tooltip}
+            instruction={metadata.student_name_en?.instruction}
           />
           <FormInput
             label="Birth Registration No"
@@ -661,38 +743,41 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('birth_reg_no')}
-            tooltip="Enter your 17-digit birth registration number. The year will be automatically extracted from this number"
             filterType="numeric"
             maxLength={17}
             placeholder="17 Digits"
+            tooltip={metadata.birth_reg_no?.tooltip}
+            instruction={metadata.birth_reg_no?.instruction}
           />
 
           <FieldRow
             label="Date of Birth:"
             isRequired={isRequired('birth_year')}
             error={errors.birth_year || errors.birth_month || errors.birth_day}
-            tooltip="Birth year is auto-filled from birth registration number. Select month and day manually"
+            tooltip={
+              kind === 'class-6'
+                ? 'Birth year is auto-filled from birth registration number. Select month and day manually'
+                : undefined
+            }
           >
             <div className="flex w-full flex-col gap-2 sm:flex-row">
               <input
                 type="text"
-                id="birth_year"
                 {...register('birth_year')}
                 maxLength={4}
                 readOnly
                 disabled
                 className="w-full rounded border bg-gray-100 px-3 py-2 text-sm sm:w-32 sm:text-base"
                 placeholder="Year"
-                tabIndex={-1}
-                aria-invalid={!!errors.birth_year}
+                tabIndex={kind === 'class-6' ? -1 : undefined}
+                aria-invalid={kind === 'class-6' ? !!errors.birth_year : undefined}
               />
 
               <select
-                id="birth_month"
                 {...register('birth_month')}
                 className="w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:w-40 sm:text-base"
                 disabled={disableMonth || !birth_year}
-                aria-invalid={!!errors.birth_month}
+                aria-invalid={kind === 'class-6' ? !!errors.birth_month : undefined}
               >
                 <option value="">Month</option>
                 {monthOptions.map((month) => (
@@ -702,7 +787,6 @@ export default function RegistrationClass6Client({
                 ))}
               </select>
               <select
-                id="birth_day"
                 {...register('birth_day')}
                 className="w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:w-28 sm:text-base"
                 disabled={disableDay}
@@ -722,21 +806,21 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('father_name_bn')}
-            instruction="(SSC সনদ/NID/ছাত্রের প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-            tooltip="Enter father's name exactly as it appears in SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in Bengali"
             filterType="bangla"
             placeholder="পিতার নাম (বাংলায়)"
+            tooltip={metadata.father_name_bn?.tooltip}
+            instruction={metadata.father_name_bn?.instruction}
           />
           <FormInput
-            label="Father's Name (in English)"
+            label={config.fatherNameEnLabel}
             name="father_name_en"
             register={register}
             errors={errors}
             isRequired={isRequired('father_name_en')}
-            instruction="(According to SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate)"
-            tooltip="Enter father's name exactly as it appears in SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in English"
             filterType="english"
             placeholder="Father's Name (in English)"
+            tooltip={metadata.father_name_en?.tooltip}
+            instruction={metadata.father_name_en?.instruction}
           />
           <FormInput
             label="Father's NID Number"
@@ -744,10 +828,11 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('father_nid')}
-            tooltip="Enter father's National ID number (10-17 digits)"
             filterType="numeric"
             maxLength={17}
             placeholder="10 Digits/13 Digits/17 Digits"
+            tooltip={metadata.father_nid?.tooltip}
+            instruction={metadata.father_nid?.instruction}
           />
           <FormInput
             label="Father's Mobile Number"
@@ -755,10 +840,14 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('father_phone')}
-            tooltip="Enter father's mobile number in 11-digit format (e.g., 01XXXXXXXXX)"
             filterType="numeric"
             maxLength={11}
             placeholder="01XXXXXXXXX"
+            tooltip={
+              kind === 'class-6'
+                ? "Enter father's mobile number in 11-digit format (e.g., 01XXXXXXXXX)"
+                : undefined
+            }
           />
           <FormInput
             label="মাতার নাম (বাংলায়)"
@@ -766,21 +855,21 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('mother_name_bn')}
-            instruction="(SSC সনদ/NID/ছাত্রের প্রাথমিক/জন্মনিবন্ধন সনদ অনুযায়ী)"
-            tooltip="Enter mother's name exactly as it appears in SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in Bengali"
             filterType="bangla"
             placeholder="মাতার নাম (বাংলায়)"
+            tooltip={metadata.mother_name_bn?.tooltip}
+            instruction={metadata.mother_name_bn?.instruction}
           />
           <FormInput
-            label="Mother's Name (in English)"
+            label={config.motherNameEnLabel}
             name="mother_name_en"
             register={register}
             errors={errors}
             isRequired={isRequired('mother_name_en')}
-            instruction="(According to SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate)"
-            tooltip="Enter mother's name exactly as it appears in SSC Certificate/NID Card/Student's Primary/Birth Registration Certificate in English"
             filterType="english"
             placeholder="Mother's Name (in English)"
+            tooltip={metadata.mother_name_en?.tooltip}
+            instruction={metadata.mother_name_en?.instruction}
           />
           <FormInput
             label="Mother's NID Number"
@@ -788,10 +877,11 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('mother_nid')}
-            tooltip="Enter mother's National ID number (10-17 digits)"
             filterType="numeric"
             maxLength={17}
             placeholder="10 Digits/13 Digits/17 Digits"
+            tooltip={metadata.mother_nid?.tooltip}
+            instruction={metadata.mother_nid?.instruction}
           />
           <FormInput
             label="Mother's Mobile Number"
@@ -799,19 +889,45 @@ export default function RegistrationClass6Client({
             register={register}
             errors={errors}
             isRequired={isRequired('mother_phone')}
-            tooltip="Enter mother's mobile number in 11-digit format (e.g., 01XXXXXXXXX)"
             filterType="numeric"
             maxLength={11}
             placeholder="01XXXXXXXXX"
+            tooltip={
+              kind === 'class-6'
+                ? "Enter mother's mobile number in 11-digit format (e.g., 01XXXXXXXXX)"
+                : undefined
+            }
           />
+          {config.showBloodGroup ? (
+            <FieldRow label="Blood Group:" isRequired error={errors.blood_group}>
+              <select
+                {...register('blood_group')}
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              >
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+              </select>
+            </FieldRow>
+          ) : null}
           <FormInput
             label="Email"
             name="email"
             register={register}
             errors={errors}
             isRequired={false}
-            tooltip="Enter a valid email address for communication. This is recommended"
             placeholder="example@email.com"
+            tooltip={
+              kind === 'class-6'
+                ? 'Enter a valid email address for communication. This is recommended'
+                : undefined
+            }
           />
         </SectionHeader>
         <SectionHeader title="Address Information">
@@ -829,22 +945,23 @@ export default function RegistrationClass6Client({
           <div className="my-4 flex items-center gap-2">
             <input
               type="checkbox"
-              id="sameAsPermanent"
+              id={kind === 'class-6' ? 'sameAsPermanent' : undefined}
               checked={sameAsPermanent}
               onChange={(e) => {
                 const checked = e.target.checked;
                 setValue('same_as_permanent', checked);
                 if (!checked) {
-                  const fields = [
-                    'present_district',
-                    'present_upazila',
-                    'present_post_office',
-                    'present_post_code',
-                    'present_village_road',
-                  ];
-                  fields.forEach((f) => {
-                    setValue(f as any, '');
-                    clearErrors(f as any);
+                  (
+                    [
+                      'present_district',
+                      'present_upazila',
+                      'present_post_office',
+                      'present_post_code',
+                      'present_village_road',
+                    ] as const
+                  ).forEach((f) => {
+                    setValue(f, '');
+                    clearErrors(f);
                   });
                 }
               }}
@@ -874,125 +991,35 @@ export default function RegistrationClass6Client({
           setValue={setValue}
           isRequired={isRequired}
           permanentAddress={permanentAddress}
+          {...(config.passGuardianMetadata ? { metadata } : {})}
         />
-        <SectionHeader title="Previous School Information (Class 5)">
-          <FieldRow
-            label="Name of Previous School :"
-            isRequired={isRequired('prev_school_name')}
-            error={errors.prev_school_name}
-            tooltip="Enter the full name of your previous school"
-          >
-            <input
-              {...register('prev_school_name')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              placeholder="Enter the name of your previous school"
-              aria-invalid={!!errors.prev_school_name}
-            />
-          </FieldRow>
-          <FieldRow
-            label="Passing Year:"
-            isRequired={isRequired('prev_school_passing_year')}
-            error={errors.prev_school_passing_year}
-            tooltip="Select the year you passed from your previous school"
-          >
-            <select
-              {...register('prev_school_passing_year')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              aria-invalid={!!errors.prev_school_passing_year}
-            >
-              <option value="">Select Year</option>
-              {Array.from({ length: 3 }, (_, i) => String(new Date().getFullYear() - 1 - i)).map(
-                (y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ),
-              )}
-            </select>
-          </FieldRow>
 
-          <FieldRow
-            label="Section:"
-            isRequired={isRequired('section_in_prev_school')}
-            error={errors.section_in_prev_school}
-            tooltip="Select which section you were in during previous school"
-          >
-            <select
-              {...register('section_in_prev_school')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              aria-invalid={!!errors.section_in_prev_school}
-            >
-              <option value="">Select Section</option>
-              {['No section', 'A', 'B', 'C', 'D', 'E', 'F'].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </FieldRow>
+        <ExtraFields
+          register={register}
+          errors={errors}
+          setValue={setValue}
+          control={control}
+          isRequired={isRequired}
+          settings={settings}
+          schoolConfig={schoolConfig}
+          prevSchoolUpazilas={prevSchoolUpazilas}
+          prev_school_district={prev_school_district}
+          prevSchoolOption={prevSchoolOption}
+          handlePrevSchoolOptionChange={handlePrevSchoolOptionChange}
+          nearbyOption={nearbyOption}
+          handleNearbyOptionChange={handleNearbyOptionChange}
+          nearbyOptions={nearbyOptions}
+          group_class_nine={group_class_nine}
+          main_subject={main_subject}
+        />
 
-          <FieldRow
-            label="Roll:"
-            isRequired={isRequired('roll_in_prev_school')}
-            error={errors.roll_in_prev_school}
-            tooltip="Enter your roll number in previous school"
-          >
-            <input
-              {...register('roll_in_prev_school')}
-              inputMode="numeric"
-              maxLength={6}
-              onInput={(e) => {
-                const target = e.target as HTMLInputElement;
-                target.value = filterNumericInput(target.value).slice(0, 6);
-              }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              placeholder="Roll Number"
-              aria-invalid={!!errors.roll_in_prev_school}
-            />
-          </FieldRow>
-
-          <AddressFields
-            prefix="prev_school"
-            register={register}
-            setValue={setValue}
-            errors={errors}
-            upazilas={prevSchoolUpazilas}
-            districtValue={prev_school_district}
-            isRequired={isRequired}
-            showPostFields={false}
-          />
-        </SectionHeader>
-        <SectionHeader title="Student Information Reference">
-          <FieldRow
-            label="বাসার নিকটবর্তী ষষ্ঠ শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
-            isRequired={isRequired('nearby_student_info')}
-            error={errors.nearby_student_info}
-            tooltip="Select a classmate name from the list"
-          >
-            <select
-              {...register('nearby_student_info')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-              aria-invalid={!!errors.nearby_student_info}
-            >
-              <option value="">Select Name</option>
-              {(settings?.classmates ?? '')
-                .split(/\n|,/)
-                .map((name: string) => name.trim())
-                .filter(Boolean)
-                .map((trimmedName: string, idx: number) => (
-                  <option key={idx} value={trimmedName}>
-                    {trimmedName}
-                  </option>
-                ))}
-            </select>
-          </FieldRow>
-        </SectionHeader>
         <SectionHeader title="বিদ্যালয়ের ইউনিফর্ম পরিহিত ছাত্রের রঙ্গিন ছবি">
           <FieldRow
-            label={<span>Photo:</span>}
+            label={kind === 'class-6' ? <span>Photo:</span> : 'Photo:'}
             isRequired={isRequired('photo')}
-            tooltip="Upload a recent photo. File must be JPG format and less than 2MB"
-            error={errors.photo}
+            error={errors.photo as any}
+            tooltip={metadata.photo?.tooltip}
+            instruction={config.photoHelp === 'p' ? metadata.photo?.instruction : undefined}
           >
             <div className="flex flex-col items-start gap-4 lg:flex-row">
               <div className="shrink-0">
@@ -1016,7 +1043,7 @@ export default function RegistrationClass6Client({
                   <input
                     id="photo-input"
                     type="file"
-                    name="photo"
+                    name={kind === 'class-6' ? 'photo' : undefined}
                     accept=".jpg,.jpeg,image/jpeg"
                     onChange={handlePhotoChange}
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -1056,13 +1083,20 @@ export default function RegistrationClass6Client({
                     </button>
                   )}
                 </div>
-                <Instruction>
-                  JPG only. Max 2MB. <strong>Requirement: exactly {REG_PHOTO_SIZE_LABEL}.</strong>
-                </Instruction>
+                {config.photoHelp === 'instruction' ? (
+                  <Instruction>
+                    JPG only. Max 2MB. <strong>Requirement: exactly {REG_PHOTO_SIZE_LABEL}.</strong>
+                  </Instruction>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500">
+                    JPG only. Max 2MB. <strong>Requirement: exactly {REG_PHOTO_SIZE_LABEL}.</strong>
+                  </p>
+                )}
               </div>
             </div>
           </FieldRow>
         </SectionHeader>
+
         <div className="flex justify-center border-t-2 border-gray-100 pt-10">
           <button
             type="submit"

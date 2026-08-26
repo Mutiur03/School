@@ -1,8 +1,7 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { resolveClientAxiosBaseUrl } from '@/lib/resolveBackend';
 
@@ -11,26 +10,22 @@ type ProvidersProps = {
 };
 
 export default function Providers({ children }: ProvidersProps) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000,
-            refetchOnWindowFocus: false,
-          },
-        },
-      }),
-  );
-
   useLayoutEffect(() => {
-    axios.defaults.baseURL = resolveClientAxiosBaseUrl();
+    const baseURL = resolveClientAxiosBaseUrl();
+    axios.defaults.baseURL = baseURL;
+    // Custom domains call apisms cross-origin (no tenant-router). Host is the API
+    // box, so the school must be identified the same way SSR/tenant-router do.
+    if (baseURL) {
+      const tenantHost = window.location.hostname;
+      axios.defaults.headers.common['x-tenant-host'] = tenantHost;
+      axios.defaults.headers.common['x-forwarded-host'] = tenantHost;
+    }
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       {children}
       <Toaster position="top-right" />
-    </QueryClientProvider>
+    </>
   );
 }

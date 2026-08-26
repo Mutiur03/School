@@ -1,10 +1,14 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
 import { env } from '@/config/env.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { ApiError } from '@/utils/ApiError.js';
+import {
+  deleteFromR2IfPresent,
+  pdfDocFields,
+  presignTenantUpload,
+  swapR2Key,
+} from '@/utils/r2Key.util.js';
 
 const cacheKey = () => {
   const schoolId = getRlsContext()?.schoolId;
@@ -16,19 +20,13 @@ const invalidateCache = () => {
 };
 
 export class ClassRoutineService {
-  static async getPresignedUploadUrl(filename: string, contentType: string) {
-    const key = tenantR2Key(`class_routines/${Date.now()}-${filename}`);
-    const uploadUrl = await getUploadUrl(key, contentType);
-    return { uploadUrl, key };
+  static getPresignedUploadUrl(filename: string, contentType: string) {
+    return presignTenantUpload('class_routines', filename, contentType);
   }
 
   static async createPdf(key: string) {
     const pdf = await prisma.class_routine_pdf.create({
-      data: {
-        pdf_url: key,
-        download_url: key,
-        public_id: key,
-      },
+      data: pdfDocFields(key),
     });
 
     invalidateCache();
@@ -57,7 +55,7 @@ export class ClassRoutineService {
       throw new ApiError(404, 'PDF not found');
     }
 
-    await deleteFromR2(pdf.public_id);
+    await deleteFromR2IfPresent(pdf.public_id);
     await prisma.class_routine_pdf.delete({ where: { id } });
     invalidateCache();
   }
@@ -71,10 +69,8 @@ export class ClassRoutineService {
     const updateData: Record<string, string> = {};
 
     if (key) {
-      await deleteFromR2(pdf.public_id);
-      updateData.pdf_url = key;
-      updateData.download_url = key;
-      updateData.public_id = key;
+      await swapR2Key(pdf.public_id, key);
+      Object.assign(updateData, pdfDocFields(key));
     }
 
     const updated = await prisma.class_routine_pdf.update({

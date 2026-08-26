@@ -1,36 +1,46 @@
+'use client';
+
 import type { Syllabus } from '@/types';
-import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { useRef, useState } from 'react';
 
-export const useRoutinePDF = () => {
-  return useQuery({
-    queryKey: ['routinePDF'],
-    enabled: false,
-    queryFn: async () => {
-      const res = await axios.get('/api/class-routine/pdf');
-      return res.data.data?.[0]?.pdf_url || null;
-    },
-  });
-};
+function useLazyFetch<T>(fetcher: () => Promise<T>) {
+  const [data, setData] = useState<T | undefined>(undefined);
+  const inflight = useRef<Promise<T> | null>(null);
 
-export const useSyllabuses = () => {
-  return useQuery<Syllabus[]>({
-    queryKey: ['syllabuses'],
-    enabled: false,
-    queryFn: async () => {
-      const res = await axios.get('/api/syllabus');
-      return res.data.data ?? [];
-    },
-  });
-};
+  const refetch = async () => {
+    if (inflight.current) {
+      return { data: await inflight.current };
+    }
+    const promise = fetcher().then((value) => {
+      setData(value);
+      return value;
+    });
+    inflight.current = promise;
+    try {
+      return { data: await promise };
+    } finally {
+      if (inflight.current === promise) inflight.current = null;
+    }
+  };
 
-export const useCitizenCharter = () => {
-  return useQuery({
-    queryKey: ['citizenCharter'],
-    enabled: false,
-    queryFn: async () => {
-      const response = await axios.get('/api/citizen-charter');
-      return response.data.file || null;
-    },
+  return { data, refetch };
+}
+
+export const useRoutinePDF = () =>
+  useLazyFetch(async () => {
+    const res = await axios.get('/api/class-routine/pdf');
+    return (res.data.data?.[0]?.pdf_url as string | null) || null;
   });
-};
+
+export const useSyllabuses = () =>
+  useLazyFetch<Syllabus[]>(async () => {
+    const res = await axios.get('/api/syllabus');
+    return (res.data.data ?? []) as Syllabus[];
+  });
+
+export const useCitizenCharter = () =>
+  useLazyFetch(async () => {
+    const response = await axios.get('/api/citizen-charter');
+    return (response.data.file as string | null) || null;
+  });

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '@/utils/ApiResponse.js';
 import { SmsSettingsService } from './sms-settings.service.js';
 import asyncHandler from '@/utils/asyncHandler.js';
+import { SMSService } from '@/utils/sms.service.js';
 
 export class SmsSettingsController {
   static getSettings = asyncHandler(async (_req: Request, res: Response) => {
@@ -42,7 +43,7 @@ export class SmsSettingsController {
 
   static sendTestSMS = asyncHandler(async (req: Request, res: Response) => {
     const { phoneNumber, message } = req.body;
-    const result = await SmsSettingsService.sendTestSMS(phoneNumber, message);
+    const result = await SMSService.sendTestSMS(phoneNumber, message);
     return res.status(200).json(new ApiResponse(200, result, 'Test SMS sent'));
   });
 
@@ -51,7 +52,7 @@ export class SmsSettingsController {
     if (!text || typeof text !== 'string') {
       return res.status(400).json(new ApiResponse(400, null, 'Text parameter is required'));
     }
-    const result = SmsSettingsService.calculateSMSCount(text);
+    const result = SMSService.calculateSMSCount(text);
     return res.status(200).json(new ApiResponse(200, result, 'SMS count calculated'));
   });
 }

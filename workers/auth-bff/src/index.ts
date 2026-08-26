@@ -1,26 +1,19 @@
+import {
+  REFRESH_PATH,
+  LOGOUT_PATH,
+  buildCorsHeaders,
+  isPasswordResetPath,
+  jsonResponse,
+  parseCookies,
+  tryHandleAuthSession,
+  withCors,
+} from '../../shared/auth-proxy.js';
+
 type Env = {
   BACKEND_URL: string;
 };
 
 const API_PREFIX = '/api';
-const LOGIN_PATHS = new Set([
-  '/api/auth/admin/sessions',
-  '/api/auth/super_admin/sessions',
-  '/api/auth/teacher/sessions',
-  '/api/auth/student/sessions',
-]);
-const REFRESH_PATH = '/api/auth/sessions/refresh';
-const LOGOUT_PATH = '/api/auth/sessions';
-const PASSWORD_RESET_PREFIXES = [
-  '/api/auth/admin/password-reset',
-  '/api/auth/super_admin/password-reset',
-  '/api/auth/teacher/password-reset',
-  '/api/auth/student/password-reset',
-];
-
-const ALLOWED_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
-const ACCESS_COOKIE = 'access_token';
-const REFRESH_COOKIE = 'refresh_token';
 
 const now = () => Date.now();
 
@@ -43,62 +36,6 @@ const logRequest = (
   } else {
     console.log(line);
   }
-};
-
-const jsonResponse = (data: unknown, status: number, headers?: HeadersInit) => {
-  const responseHeaders = new Headers(headers);
-  responseHeaders.set('content-type', 'application/json');
-  return new Response(JSON.stringify(data), { status, headers: responseHeaders });
-};
-
-const buildCookie = (name: string, value: string, options: { maxAge: number; path: string }) => {
-  const parts = [
-    `${name}=${value}`,
-    'HttpOnly',
-    'Secure',
-    'SameSite=Strict',
-    `Path=${options.path}`,
-    `Max-Age=${options.maxAge}`,
-  ];
-
-  return parts.join('; ');
-};
-
-const clearCookie = (name: string, path: string) => buildCookie(name, '', { maxAge: 0, path });
-
-const parseCookies = (cookieHeader: string | null) => {
-  const cookies: Record<string, string> = {};
-  if (!cookieHeader) return cookies;
-
-  for (const part of cookieHeader.split(';')) {
-    const [rawName, ...rest] = part.trim().split('=');
-    if (!rawName) continue;
-    cookies[rawName] = rest.join('=');
-  }
-
-  return cookies;
-};
-
-const buildCorsHeaders = (origin: string) => {
-  const headers = new Headers();
-  headers.set('Access-Control-Allow-Origin', origin);
-  headers.set('Access-Control-Allow-Credentials', 'true');
-  headers.set('Access-Control-Allow-Methods', ALLOWED_METHODS);
-  headers.set('Vary', 'Origin');
-  return headers;
-};
-
-const withCors = (response: Response, origin: string) => {
-  const headers = new Headers(response.headers);
-  headers.set('Access-Control-Allow-Origin', origin);
-  headers.set('Access-Control-Allow-Credentials', 'true');
-  headers.set('Access-Control-Allow-Methods', ALLOWED_METHODS);
-  headers.set('Vary', 'Origin');
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
 };
 
 const logAndReturn = ({
@@ -132,50 +69,6 @@ const logAndReturn = ({
   });
 
   return response;
-};
-
-const attachRefreshCookie = (headers: Headers, refreshToken: string) => {
-  // Clear legacy access-token cookies from older BFF versions. Access tokens now stay in JS memory only.
-  headers.append('Set-Cookie', clearCookie(ACCESS_COOKIE, '/'));
-  headers.append(
-    'Set-Cookie',
-    buildCookie(REFRESH_COOKIE, refreshToken, {
-      maxAge: 2592000,
-      path: REFRESH_PATH,
-    }),
-  );
-};
-
-const attachClearedCookies = (headers: Headers) => {
-  headers.append('Set-Cookie', clearCookie(ACCESS_COOKIE, '/'));
-  headers.append('Set-Cookie', clearCookie(REFRESH_COOKIE, REFRESH_PATH));
-};
-
-const isPasswordResetPath = (pathname: string) =>
-  PASSWORD_RESET_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-
-const extractAccessToken = (payload: any) =>
-  payload?.accessToken ?? payload?.data?.accessToken ?? null;
-
-const extractRefreshToken = (payload: any) =>
-  payload?.refreshToken ?? payload?.data?.refreshToken ?? null;
-
-const extractUser = (payload: any) => payload?.user ?? payload?.data?.user ?? null;
-
-const extractRefreshTokenFromSetCookie = (setCookieHeader: string | null) => {
-  if (!setCookieHeader) return null;
-  const match = setCookieHeader.match(/(?:^|;\s*)refreshToken=([^;]+)/i);
-  return match?.[1] ?? null;
-};
-
-const parseJson = async (response: Response) => {
-  try {
-    return await response.clone().json();
-  } catch {
-    return null;
-  }
 };
 
 const forwardRequest = (request: Request, targetUrl: URL, headers: Headers) =>
@@ -255,6 +148,12 @@ const applyTenantHeaders = (headers: Headers, request: Request, requestUrl: URL)
   headers.set('x-tenant-host', tenant.hostname);
 };
 
+const sessionBranch = (pathname: string) => {
+  if (pathname === REFRESH_PATH) return 'refresh';
+  if (pathname === LOGOUT_PATH) return 'logout';
+  return 'login';
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const id = requestId(request);
@@ -313,105 +212,18 @@ export default {
       const cookies = parseCookies(request.headers.get('cookie'));
       applyTenantHeaders(headers, request, requestUrl);
 
-      if (LOGIN_PATHS.has(requestUrl.pathname) && request.method === 'POST') {
-        const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
-
-        if (backendResponse.status === 401) {
-          attachClearedCookies(corsHeaders);
-          return finish(jsonResponse({ success: false }, 401, corsHeaders), 'login-unauthorized');
-        }
-
-        if (!backendResponse.ok) {
-          return finish(withCors(backendResponse, origin), 'login-backend-error');
-        }
-
-        const data = await parseJson(backendResponse);
-        const accessToken = extractAccessToken(data);
-        const refreshToken =
-          extractRefreshToken(data) ||
-          extractRefreshTokenFromSetCookie(backendResponse.headers.get('Set-Cookie'));
-        const user = extractUser(data);
-
-        if (!accessToken || !refreshToken) {
-          return finish(withCors(backendResponse, origin), 'login-token-missing');
-        }
-
-        attachRefreshCookie(corsHeaders, refreshToken);
-        return finish(
-          jsonResponse(
-            { success: true, data: { accessToken, ...(user ? { user } : {}) } },
-            200,
-            corsHeaders,
-          ),
-          'login-success',
-        );
-      }
-
-      if (requestUrl.pathname === REFRESH_PATH && request.method === 'POST') {
-        const refreshToken = cookies[REFRESH_COOKIE];
-        if (!refreshToken) {
-          attachClearedCookies(corsHeaders);
-          return finish(
-            jsonResponse({ success: false }, 401, corsHeaders),
-            'refresh-cookie-missing',
-          );
-        }
-
-        headers.delete('cookie');
-        headers.set('Cookie', `refreshToken=${refreshToken}`);
-
-        const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
-
-        if (backendResponse.status === 401) {
-          attachClearedCookies(corsHeaders);
-          return finish(jsonResponse({ success: false }, 401, corsHeaders), 'refresh-unauthorized');
-        }
-
-        if (!backendResponse.ok) {
-          return finish(withCors(backendResponse, origin), 'refresh-backend-error');
-        }
-
-        const data = await parseJson(backendResponse);
-        const accessToken = extractAccessToken(data);
-        const nextRefreshToken =
-          extractRefreshToken(data) ||
-          extractRefreshTokenFromSetCookie(backendResponse.headers.get('Set-Cookie'));
-        const user = extractUser(data);
-
-        if (!accessToken || !nextRefreshToken) {
-          return finish(withCors(backendResponse, origin), 'refresh-token-missing');
-        }
-
-        attachRefreshCookie(corsHeaders, nextRefreshToken);
-        return finish(
-          jsonResponse(
-            { success: true, data: { accessToken, ...(user ? { user } : {}) } },
-            200,
-            corsHeaders,
-          ),
-          'refresh-success',
-        );
-      }
-
-      if (
-        requestUrl.pathname === LOGOUT_PATH &&
-        (request.method === 'DELETE' || request.method === 'POST')
-      ) {
-        const refreshToken = cookies[REFRESH_COOKIE];
-        headers.delete('cookie');
-        if (refreshToken) {
-          headers.set('Cookie', `refreshToken=${refreshToken}`);
-        }
-
-        const backendResponse = await forwardOrUnavailable(request, targetUrl, headers);
-
-        if (backendResponse.status === 401) {
-          attachClearedCookies(corsHeaders);
-          return finish(jsonResponse({ success: false }, 401, corsHeaders), 'logout-unauthorized');
-        }
-
-        attachClearedCookies(corsHeaders);
-        return finish(jsonResponse({ success: true }, 200, corsHeaders), 'logout');
+      const sessionResponse = await tryHandleAuthSession({
+        request,
+        pathname: requestUrl.pathname,
+        headers,
+        cookies,
+        origin,
+        corsHeaders,
+        forward: (req, hdrs) => forwardOrUnavailable(req, targetUrl, hdrs),
+        logoutFailOn401: true,
+      });
+      if (sessionResponse) {
+        return finish(sessionResponse, sessionBranch(requestUrl.pathname));
       }
 
       if (!isPasswordResetPath(requestUrl.pathname)) {

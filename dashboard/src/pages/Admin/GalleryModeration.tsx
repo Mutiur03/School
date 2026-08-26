@@ -4,6 +4,7 @@ import { getFileUrl } from '@/lib/backend';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,7 +40,51 @@ interface GroupedGalleries {
   categories: Record<string, GalleryImage[]>;
 }
 
-export default function RejectedImages() {
+type Mode = 'pending' | 'rejected';
+
+const MODE = {
+  pending: {
+    list: '/api/gallery/pending',
+    title: 'Pending Gallery Approvals',
+    description: 'Review and approve or reject student gallery submissions.',
+    accent: 'text-yellow-500',
+    badgeClass: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
+    groupBadge: 'Pending Review',
+    statusLabel: 'Pending Approval',
+    chipClass: 'bg-yellow-500/90',
+    emptyTitle: 'No pending approvals',
+    emptyDesc: 'All gallery submissions have been reviewed. Check back later for new submissions.',
+    bulkLabel: 'Reject All',
+    bulkConfirmTitle: 'Reject all images?',
+    bulkConfirmLabel: 'Reject All',
+    bulkEndpoint: '/api/gallery/rejectMultiple',
+    bulkSuccess: (n: number) => `Rejected ${n} images successfully!`,
+    bulkError: 'Failed to reject images',
+    toastOnFetchError: false as boolean,
+  },
+  rejected: {
+    list: '/api/gallery/rejected',
+    title: 'Rejected Gallery Images',
+    description: 'Review rejected submissions, approve, or delete permanently.',
+    accent: 'text-red-500',
+    badgeClass: 'bg-red-500/20 text-red-400 dark:text-red-200',
+    groupBadge: 'Rejected',
+    statusLabel: 'Rejected',
+    chipClass: 'bg-red-500/90',
+    emptyTitle: 'No rejected images found',
+    emptyDesc: 'All images have been approved or there are no submissions yet.',
+    bulkLabel: 'Delete All',
+    bulkConfirmTitle: 'Delete all images?',
+    bulkConfirmLabel: 'Delete All',
+    bulkEndpoint: '/api/gallery/deleteMultiple',
+    bulkSuccess: (n: number) => `Deleted ${n} images successfully!`,
+    bulkError: 'Failed to delete images',
+    toastOnFetchError: true as boolean,
+  },
+} as const;
+
+export default function GalleryModeration({ mode }: { mode: Mode }) {
+  const cfg = MODE[mode];
   const { confirm, dialog } = useConfirmDialog();
   const [groupedGalleries, setGroupedGalleries] = useState<GroupedGalleries>({
     events: {},
@@ -47,11 +92,11 @@ export default function RejectedImages() {
   });
   const [selectedGroup, setSelectedGroup] = useState<GalleryImage[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
-  const [direction, setDirection] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [direction, setDirection] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
 
-  const modalVariants = {
+  const modalVariants: Variants = {
     enter: (dir: number) => ({
       x: dir > 0 ? 500 : -500,
       opacity: 0,
@@ -62,7 +107,7 @@ export default function RejectedImages() {
       opacity: 1,
       position: 'relative' as const,
       transition: {
-        x: { type: 'spring' as const, stiffness: 400, damping: 30 },
+        x: { type: 'spring', stiffness: 400, damping: 30 },
         opacity: { duration: 0.3 },
       },
     },
@@ -71,27 +116,27 @@ export default function RejectedImages() {
       opacity: 0,
       position: 'absolute' as const,
       transition: {
-        x: { type: 'spring' as const, stiffness: 400, damping: 30 },
+        x: { type: 'spring', stiffness: 400, damping: 30 },
         opacity: { duration: 0.2 },
       },
     }),
   };
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.4, ease: 'easeOut' as const },
+      transition: { duration: 0.4, ease: 'easeOut' },
     },
   };
 
-  const foldVariants = {
+  const foldVariants: Variants = {
     open: {
       opacity: 1,
-      height: 'auto' as const,
+      height: 'auto',
       transition: {
-        height: { duration: 0.3, ease: 'easeInOut' as const },
+        height: { duration: 0.3, ease: 'easeInOut' },
         opacity: { duration: 0.2, delay: 0.1 },
       },
     },
@@ -99,27 +144,29 @@ export default function RejectedImages() {
       opacity: 0,
       height: 0,
       transition: {
-        height: { duration: 0.3, ease: 'easeInOut' as const },
+        height: { duration: 0.3, ease: 'easeInOut' },
         opacity: { duration: 0.1 },
       },
     },
   };
 
-  const fetchPendingGalleries = async () => {
+  const fetchGalleries = async () => {
     try {
-      const response = await axios.get('/api/gallery/rejected');
+      const response = await axios.get(cfg.list);
       setGroupedGalleries(response.data || { events: {}, categories: {} });
     } catch (error) {
-      console.error('Error fetching pending galleries:', error);
-      toast.error('Failed to load pending galleries');
+      console.error('Error fetching galleries:', error);
+      if (cfg.toastOnFetchError) toast.error('Failed to load pending galleries');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPendingGalleries();
-  }, []);
+    setIsLoading(true);
+    fetchGalleries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when mode changes
+  }, [mode]);
 
   const handleApprove = async (id: number) => {
     try {
@@ -129,6 +176,17 @@ export default function RejectedImages() {
     } catch (error) {
       console.error('Error approving image:', error);
       toast.error('Failed to approve image');
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    try {
+      await axios.patch(`/api/gallery/reject/${id}`);
+      toast.success('Image rejected successfully!');
+      handleActionComplete(id);
+    } catch (error) {
+      console.error('Error rejecting image:', error);
+      toast.error('Failed to reject image');
     }
   };
 
@@ -149,25 +207,27 @@ export default function RejectedImages() {
     }
   };
 
-  const handleDeleteAll = async (images: GalleryImage[]) => {
+  const handleBulk = async (images: GalleryImage[]) => {
     const ok = await confirm({
-      title: 'Delete all images?',
-      msg: `Are you sure you want to delete all ${images.length} images?`,
-      confirmLabel: 'Delete All',
+      title: cfg.bulkConfirmTitle,
+      msg: `Are you sure you want to ${mode === 'pending' ? 'reject' : 'delete'} all ${images.length} images?`,
+      confirmLabel: cfg.bulkConfirmLabel,
     });
     if (!ok) return;
+
     try {
       const ids = images.map((img) => img.id);
-      await axios.post('/api/gallery/deleteMultiple', { ids });
-      toast.success(`Deleted ${images.length} images successfully!`);
-      fetchPendingGalleries();
-    } catch {
-      toast.error('Failed to delete images');
+      await axios.post(cfg.bulkEndpoint, { ids });
+      toast.success(cfg.bulkSuccess(images.length));
+      fetchGalleries();
+    } catch (error) {
+      console.error('Error bulk-processing images:', error);
+      toast.error(cfg.bulkError);
     }
   };
 
   const handleActionComplete = (processedId: number) => {
-    fetchPendingGalleries().then(() => {
+    fetchGalleries().then(() => {
       const currentGroupIndex = selectedGroup.findIndex((img) => img.id === processedId);
       let nextIndex: number | null = null;
 
@@ -220,7 +280,7 @@ export default function RejectedImages() {
               <ChevronDown className="text-muted-foreground dark:text-gray-300" />
             </motion.div>
             <motion.h2 className="flex items-center gap-2 text-xl font-semibold text-gray-800 dark:text-gray-100">
-              <Clock className="text-red-500" />
+              <Clock className={cfg.accent} />
               {title} <span className="text-muted-foreground text-sm">({images.length})</span>
             </motion.h2>
           </div>
@@ -231,14 +291,14 @@ export default function RejectedImages() {
               className="flex items-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDeleteAll(images);
+                handleBulk(images);
               }}
             >
               <Trash2 className="mr-1" />
-              Delete All
+              {cfg.bulkLabel}
             </Button>
-            <Badge variant="secondary" className="bg-red-500/20 text-red-400 dark:text-red-200">
-              Rejected
+            <Badge variant="secondary" className={cfg.badgeClass}>
+              {cfg.groupBadge}
             </Badge>
           </div>
         </motion.div>
@@ -277,8 +337,10 @@ export default function RejectedImages() {
                     {img.student_batch && (
                       <span className="text-sm text-white/90">Batch {img.student_batch}</span>
                     )}
-                    <span className="mt-1 self-start rounded-full bg-red-500/90 px-2 py-1 text-xs text-white/80">
-                      Rejected
+                    <span
+                      className={`mt-1 self-start rounded-full ${cfg.chipClass} px-2 py-1 text-xs text-white/80`}
+                    >
+                      {cfg.statusLabel}
                     </span>
                   </div>
                 </div>
@@ -307,15 +369,18 @@ export default function RejectedImages() {
 
   const hasEvents = Object.keys(groupedGalleries.events).length > 0;
   const hasCategories = Object.keys(groupedGalleries.categories).length > 0;
-  const hasAnyPending = hasEvents || hasCategories;
+  const hasAny = hasEvents || hasCategories;
+
+  const modalStatusBadgeClass =
+    mode === 'pending'
+      ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+      : 'bg-red-500/20 text-red-600 dark:text-red-400';
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       {dialog}
-      <PageHeader
-        title="Rejected Gallery Images"
-        description="Review rejected submissions, approve, or delete permanently."
-      >
-        {hasAnyPending && (
+      <PageHeader title={cfg.title} description={cfg.description}>
+        {hasAny && (
           <Button
             variant="outline"
             className="flex items-center gap-2"
@@ -360,7 +425,7 @@ export default function RejectedImages() {
       <div className="space-y-16">
         {isLoading ? (
           renderSkeletonLoader()
-        ) : hasAnyPending ? (
+        ) : hasAny ? (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -368,11 +433,11 @@ export default function RejectedImages() {
               transition={{ delay: 0.2 }}
             >
               <h1 className="mb-8 flex items-center gap-3 text-2xl font-bold text-gray-800 md:text-3xl dark:text-gray-100">
-                <Calendar className="text-red-500" />
+                <Calendar className={cfg.accent} />
                 Event Submissions
               </h1>
               {Object.entries(groupedGalleries.events).map(([title, images]) =>
-                renderImageGroup(title, images),
+                renderImageGroup(title, images as GalleryImage[]),
               )}
             </motion.div>
             <Separator className="my-8 bg-gray-200 dark:bg-gray-700" />
@@ -382,11 +447,11 @@ export default function RejectedImages() {
               transition={{ delay: 0.4 }}
             >
               <h1 className="mb-8 flex items-center gap-3 text-2xl font-bold text-gray-800 md:text-3xl dark:text-gray-100">
-                <Tag className="text-red-500" />
+                <Tag className={cfg.accent} />
                 Category Submissions
               </h1>
               {Object.entries(groupedGalleries.categories).map(([title, images]) =>
-                renderImageGroup(title, images),
+                renderImageGroup(title, images as GalleryImage[]),
               )}
             </motion.div>
           </>
@@ -397,12 +462,10 @@ export default function RejectedImages() {
             className="flex flex-col items-center justify-center py-12 text-center"
           >
             <div className="relative mb-6">
-              <AlertCircle className="h-12 w-12 text-red-500" />
+              <AlertCircle className={`h-12 w-12 ${cfg.accent}`} />
             </div>
-            <h3 className="mb-2 text-lg font-medium md:text-xl">No rejected images found</h3>
-            <p className="text-muted-foreground max-w-md text-sm md:text-base">
-              All images have been approved or there are no submissions yet.
-            </p>
+            <h3 className="mb-2 text-lg font-medium md:text-xl">{cfg.emptyTitle}</h3>
+            <p className="text-muted-foreground max-w-md text-sm md:text-base">{cfg.emptyDesc}</p>
           </motion.div>
         )}
       </div>
@@ -423,14 +486,16 @@ export default function RejectedImages() {
               <div className="relative flex h-screen max-h-[90vh] w-full items-center justify-center">
                 {selectedGroup.length > 1 && (
                   <>
-                    <button
-                      className="absolute top-4 left-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
-                      onClick={() => {
-                        handleDelete(selectedGroup[currentIndex].id);
-                      }}
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    {mode === 'rejected' && (
+                      <button
+                        className="absolute top-4 left-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
+                        onClick={() => {
+                          handleDelete(selectedGroup[currentIndex].id);
+                        }}
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
                     <button
                       className="absolute top-1/2 left-2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 md:left-4 md:p-3"
                       onClick={() => navigateImage(-1)}
@@ -475,6 +540,11 @@ export default function RejectedImages() {
                           />
                         </div>
                         <div className="bg-card rounded-b-lg p-4">
+                          {mode === 'pending' && (
+                            <h3 className="text-lg font-semibold text-gray-800 md:text-xl dark:text-white">
+                              {selectedGroup[currentIndex].caption || 'No caption provided'}
+                            </h3>
+                          )}
                           <div className="text-muted-foreground mt-2 flex flex-wrap justify-between gap-4 text-sm dark:text-gray-300">
                             {selectedGroup[currentIndex].student_name && (
                               <div>
@@ -487,15 +557,20 @@ export default function RejectedImages() {
                             )}
                             <div>
                               <span className="font-medium">Status: </span>
-                              <Badge
-                                variant="secondary"
-                                className="bg-red-500/20 text-red-600 dark:text-red-400"
-                              >
-                                Rejected
+                              <Badge variant="secondary" className={modalStatusBadgeClass}>
+                                {cfg.statusLabel}
                               </Badge>
                             </div>
                           </div>
                           <div className="mt-4 flex flex-col justify-end gap-4 md:flex-row">
+                            {mode === 'pending' && (
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleReject(selectedGroup[currentIndex].id)}
+                              >
+                                <X className="mr-2" /> Reject
+                              </Button>
+                            )}
                             <Button onClick={() => handleApprove(selectedGroup[currentIndex].id)}>
                               <Check className="mr-2" /> Approve
                             </Button>

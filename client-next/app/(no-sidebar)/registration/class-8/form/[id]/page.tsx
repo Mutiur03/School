@@ -4,7 +4,7 @@ import {
   getClass8RegistrationRecord,
   getClass8RegistrationSettings,
 } from '@/queries/registration.queries';
-import RegistrationClass8Client from '../RegistrationClass8Client';
+import RegistrationFormClient from '../../../_shared/RegistrationFormClient';
 
 interface Class8RegistrationEditPageProps {
   params: Promise<{
@@ -39,7 +39,8 @@ export default async function Class8RegistrationEditPage({
   }
 
   return (
-    <RegistrationClass8Client
+    <RegistrationFormClient
+      kind="class-8"
       schoolConfig={schoolConfig}
       settings={settings}
       initialRecord={record}

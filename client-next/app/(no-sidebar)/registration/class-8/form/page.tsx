@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { fetchSchoolConfig } from '@/queries/school.queries';
 import { getClass8RegistrationSettings } from '@/queries/registration.queries';
-import RegistrationClass8Client from './RegistrationClass8Client';
+import RegistrationFormClient from '../../_shared/RegistrationFormClient';
 
 export const metadata = {
   title: 'Class Eight Registration Form',
@@ -17,5 +17,5 @@ export default async function Class8RegistrationFormPage() {
     redirect('/');
   }
 
-  return <RegistrationClass8Client schoolConfig={schoolConfig} settings={settings} />;
+  return <RegistrationFormClient kind="class-8" schoolConfig={schoolConfig} settings={settings} />;
 }

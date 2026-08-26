@@ -3,7 +3,7 @@ import {
   getClass6RegistrationRecord,
   getClass6RegistrationSettings,
 } from '@/queries/registration.queries';
-import RegistrationClass6Client from '../RegistrationClass6Client';
+import RegistrationFormClient from '../../../_shared/RegistrationFormClient';
 
 interface Class6RegistrationEditPageProps {
   params: Promise<{
@@ -36,5 +36,5 @@ export default async function Class6RegistrationEditPage({
     redirect('/');
   }
 
-  return <RegistrationClass6Client settings={settings} initialRecord={record} />;
+  return <RegistrationFormClient kind="class-6" settings={settings} initialRecord={record} />;
 }

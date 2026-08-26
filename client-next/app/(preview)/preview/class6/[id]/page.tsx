@@ -1,6 +1,6 @@
 'use client';
 
-import { Class6PdfPreview } from '@school/common-ui';
+import { RegistrationPdfPreview } from '@school/common-ui';
 import { use } from 'react';
 
 type PageProps = {
@@ -9,5 +9,5 @@ type PageProps = {
 
 export default function Class6PdfPreviewPage({ params }: PageProps) {
   const { id } = use(params);
-  return <Class6PdfPreview id={id} />;
+  return <RegistrationPdfPreview classSlug="class-6" id={id} />;
 }

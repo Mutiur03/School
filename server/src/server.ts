@@ -45,7 +45,7 @@ import {
   registrationSettingsClass6Router,
   registrationSettingsClass8Router,
   registrationSettingsClass9Router,
-} from './modules/registration/registrationSettings.routers.js';
+} from './modules/registration/registrationSettings.route.js';
 import { check } from './config/redis.js';
 import { startMarksheetWorker, drainMarksheetQueue } from './modules/marks/marksheet.worker.js';
 import {
@@ -122,7 +122,7 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-host', 'x-forwarded-host'],
 };
 
 app.use(cors(corsOptions));

@@ -3,18 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "sideEffects": [
-    "*.css"
-  ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./dist/index.css",
     "./blob": {
       "types": "./dist/lib/blob.d.ts",
       "import": "./dist/lib/blob.js"
@@ -24,18 +17,13 @@
     "dist"
   ],
   "scripts": {
-    "dev": "tsup --watch",
+    "dev": "tsup --watch --onSuccess \"tsc\"",
     "build": "tsup && tsc",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^3.3.1"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

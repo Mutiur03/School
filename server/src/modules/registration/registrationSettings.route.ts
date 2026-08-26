@@ -4,8 +4,16 @@ import AuthMiddleware from '@/middlewares/auth.middleware.js';
 import { validate } from '@/middlewares/validate.middleware.js';
 import asyncHandler from '@/utils/asyncHandler.js';
 import { ApiResponse } from '@/utils/ApiResponse.js';
-import { registrationNoticeUploadSchema } from '@school/shared-schemas';
 import {
+  class6RegistrationSettingsSchema,
+  class8RegistrationSettingsSchema,
+  class9RegistrationSettingsSchema,
+  registrationNoticeUploadSchema,
+} from '@school/shared-schemas';
+import {
+  class6SettingsConfig,
+  class8SettingsConfig,
+  class9SettingsConfig,
   createRegistrationSettingsService,
   type RegistrationSettingsConfig,
 } from './registrationSettings.service.js';
@@ -61,3 +69,27 @@ export function makeRegistrationSettingsRouter(opts: {
   outer.use(opts.mountPath, router);
   return outer;
 }
+
+export const registrationSettingsClass6Router = makeRegistrationSettingsRouter({
+  mountPath: '/api/reg/class-6',
+  settingsSchema: class6RegistrationSettingsSchema,
+  config: class6SettingsConfig,
+  updateSuccessMessage: 'Class Six Registration updated successfully',
+  fetchSuccessMessage: 'Class Six Registration fetched successfully',
+});
+
+export const registrationSettingsClass8Router = makeRegistrationSettingsRouter({
+  mountPath: '/api/reg/class-8',
+  settingsSchema: class8RegistrationSettingsSchema,
+  config: class8SettingsConfig,
+  updateSuccessMessage: 'Class Eight Registration updated successfully',
+  fetchSuccessMessage: 'Class Eight Registration fetched successfully',
+});
+
+export const registrationSettingsClass9Router = makeRegistrationSettingsRouter({
+  mountPath: '/api/reg/class-9',
+  settingsSchema: class9RegistrationSettingsSchema,
+  config: class9SettingsConfig,
+  updateSuccessMessage: 'Class 9 Registration updated successfully',
+  fetchSuccessMessage: 'Class 9 Registration fetched successfully',
+});

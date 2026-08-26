@@ -4,13 +4,12 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import { Toaster } from 'react-hot-toast';
 import RoleRoute from './components/RoleRoute.tsx';
-import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from '@school/common-ui';
-import type { ComponentType } from 'react';
+import { RegistrationPdfPreview } from '@school/common-ui';
 
-function ClassPdfPreviewPage({ Preview }: { Preview: ComponentType<{ id: string }> }) {
+function ClassPdfPreviewPage({ classSlug }: { classSlug: 'class-6' | 'class-8' | 'class-9' }) {
   const { id } = useParams();
   if (!id) return <Navigate to="/" replace />;
-  return <Preview id={id} />;
+  return <RegistrationPdfPreview classSlug={classSlug} id={id} />;
 }
 
 import { useAuth } from './context/useAuth.tsx';
@@ -57,11 +56,8 @@ const Syllabus = lazy(() => import('./pages/Admin/Syllabus'));
 const ClassRoutinePDF = lazy(() => import('./pages/Admin/ClassRoutinePDF'));
 const Events = lazy(() => import('./pages/Admin/Events'));
 const Gallery = lazy(() => import('./pages/Admin/Gallery'));
-const PendingImages = lazy(() => import('./pages/Admin/PendingImages'));
-const RejectedImages = lazy(() => import('./pages/Admin/RejectedImages'));
-const Class9RegForm = lazy(() => import('./pages/Admin/Class9RegForm'));
-const Class6RegForm = lazy(() => import('./pages/Admin/Class6RegForm'));
-const Class8RegForm = lazy(() => import('./pages/Admin/Class8RegForm'));
+const GalleryModeration = lazy(() => import('./pages/Admin/GalleryModeration'));
+const ClassRegForm = lazy(() => import('./pages/Admin/ClassRegForm'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdmin/Dashboard'));
 const SchoolManagement = lazy(() => import('./pages/SuperAdmin/SchoolManagement'));
 
@@ -79,9 +75,9 @@ registerRoutePrefetchers({
   '/admin/result/view-marks': ViewMarks,
   '/admin/result/generate-result': GenerateResult,
   '/admin/result/customize-result': UpdateStatus,
-  '/admin/registration/class-6': Class6RegForm,
-  '/admin/registration/class-8': Class8RegForm,
-  '/admin/registration/class-9': Class9RegForm,
+  '/admin/registration/class-6': ClassRegForm,
+  '/admin/registration/class-8': ClassRegForm,
+  '/admin/registration/class-9': ClassRegForm,
   '/admin/admission/form': Admission,
   '/admin/admission/settings': AdmissionSettings,
   '/admin/admission/result': AdmissionResult,
@@ -96,8 +92,8 @@ registerRoutePrefetchers({
   '/admin/holiday': Holidays,
   '/admin/events': Events,
   '/admin/gallery/upload': Gallery,
-  '/admin/gallery/pending': PendingImages,
-  '/admin/gallery/rejected': RejectedImages,
+  '/admin/gallery/pending': GalleryModeration,
+  '/admin/gallery/rejected': GalleryModeration,
   '/teacher/dashboard': TeacherDashboard,
   '/teacher/settings': TeacherSettings,
   '/teacher/students': StudentList,
@@ -192,15 +188,15 @@ function App() {
           <SentryRoutes>
             <Route
               path="/preview/class6/:id"
-              element={<ClassPdfPreviewPage Preview={Class6PdfPreview} />}
+              element={<ClassPdfPreviewPage classSlug="class-6" />}
             />
             <Route
               path="/preview/class8/:id"
-              element={<ClassPdfPreviewPage Preview={Class8PdfPreview} />}
+              element={<ClassPdfPreviewPage classSlug="class-8" />}
             />
             <Route
               path="/preview/class9/:id"
-              element={<ClassPdfPreviewPage Preview={Class9PdfPreview} />}
+              element={<ClassPdfPreviewPage classSlug="class-9" />}
             />
 
             {/* CASE 1: envPreferredRole IS PRESENT */}
@@ -436,11 +432,26 @@ function App() {
                             <Route path="/classRoutine" element={<ClassRoutinePDF />} />
                             <Route path="/events" element={<Events />} />
                             <Route path="/gallery/upload" element={<Gallery />} />
-                            <Route path="/gallery/pending" element={<PendingImages />} />
-                            <Route path="/gallery/rejected" element={<RejectedImages />} />
-                            <Route path="/registration/class-9" element={<Class9RegForm />} />
-                            <Route path="/registration/class-6" element={<Class6RegForm />} />
-                            <Route path="/registration/class-8" element={<Class8RegForm />} />
+                            <Route
+                              path="/gallery/pending"
+                              element={<GalleryModeration mode="pending" />}
+                            />
+                            <Route
+                              path="/gallery/rejected"
+                              element={<GalleryModeration mode="rejected" />}
+                            />
+                            <Route
+                              path="/registration/class-9"
+                              element={<ClassRegForm variant={9} />}
+                            />
+                            <Route
+                              path="/registration/class-6"
+                              element={<ClassRegForm variant={6} />}
+                            />
+                            <Route
+                              path="/registration/class-8"
+                              element={<ClassRegForm variant={8} />}
+                            />
                             <Route path="*" element={<Navigate to="/admin/dashboard" />} />
                           </Routes>
                         </div>
