@@ -219,7 +219,7 @@ export default {
         cookies,
         origin,
         corsHeaders,
-        forward: (req, hdrs) => forwardOrUnavailable(req, targetUrl, hdrs),
+        forward: (req: Request, hdrs: Headers) => forwardOrUnavailable(req, targetUrl, hdrs),
         logoutFailOn401: true,
       });
       if (sessionResponse) {
