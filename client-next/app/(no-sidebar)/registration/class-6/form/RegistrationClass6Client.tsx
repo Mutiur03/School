@@ -58,6 +58,7 @@ export default function RegistrationClass6Client({
   const [initialUpazilasApplied, setInitialUpazilasApplied] = useState(false);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [apiErrors, setApiErrors] = useState<FormErrorItem[] | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -976,15 +977,15 @@ export default function RegistrationClass6Client({
               aria-invalid={!!errors.nearby_student_info}
             >
               <option value="">Select Name</option>
-              {settings?.resolvedClassmates &&
-                settings.resolvedClassmates.split(',').map((name: string, idx: number) => {
-                  const trimmedName = name.trim();
-                  return trimmedName ? (
-                    <option key={idx} value={trimmedName}>
-                      {trimmedName}
-                    </option>
-                  ) : null;
-                })}
+              {(settings?.classmates ?? '')
+                .split(/\n|,/)
+                .map((name: string) => name.trim())
+                .filter(Boolean)
+                .map((trimmedName: string, idx: number) => (
+                  <option key={idx} value={trimmedName}>
+                    {trimmedName}
+                  </option>
+                ))}
             </select>
           </FieldRow>
         </SectionHeader>

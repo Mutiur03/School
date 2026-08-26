@@ -7,7 +7,7 @@ import type {
 const defaultSettings: Class6RegistrationSettingsData & {
   notice?: string | null;
   reg_open?: boolean;
-  resolvedClassmates?: string | null;
+  classmates?: string | null;
 } = {
   reg_open: false,
   class6_year: new Date().getFullYear(),

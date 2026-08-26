@@ -18,6 +18,7 @@ import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
+import { parseOptionalRegistrationYear } from '@/modules/registration/registrationSettings.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -89,15 +90,12 @@ export class RegistrationFormClass9Service {
     sscYear?: string | number | null,
   ) {
     const resolvedSchoolId = Number.isInteger(schoolId) ? (schoolId as number) : requireSchoolId();
-    const parsedYear =
-      sscYear !== null && sscYear !== undefined && String(sscYear).trim()
-        ? parseInt(String(sscYear), 10)
-        : NaN;
+    const parsedYear = parseOptionalRegistrationYear(sscYear);
 
     return await prisma.ssc_reg.findFirst({
       where: {
         school_id: resolvedSchoolId,
-        ...(Number.isInteger(parsedYear) ? { ssc_year: parsedYear } : {}),
+        ...(parsedYear !== undefined ? { ssc_year: parsedYear } : {}),
       },
       orderBy: [{ ssc_year: 'desc' }, { id: 'desc' }],
       select: RegistrationFormClass9Service.PDF_SETTINGS_SELECT,
@@ -385,7 +383,7 @@ export class RegistrationFormClass9Service {
       upazila: reg.permanent_upazila,
       district: reg.permanent_district,
       dob: reg.birth_date,
-      class: 10,
+      class: 9,
       roll: reg.roll ? removeInitialZeros(String(reg.roll)) : '',
       section: reg.section,
       group: reg.group_class_nine,

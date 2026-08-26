@@ -32,6 +32,7 @@
     "format:check": "prettier --check .",
     "lint": "node scripts/run-eslint.mjs",
     "lint:fix": "node scripts/run-eslint.mjs --fix",
+    "type:check": "pnpm run build:packages && pnpm --filter client-next exec next typegen && pnpm -r --filter=!tenant-router-worker exec tsc --noEmit",
     "check:server": "node scripts/ci-check.mjs server",
     "check:client-next": "node scripts/ci-check.mjs client-next",
     "check:dashboard": "node scripts/ci-check.mjs dashboard",

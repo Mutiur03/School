@@ -673,7 +673,7 @@ model ssc_reg {
   a_sec_roll             String?
   b_sec_roll             String?
   notice                 String?
-  ssc_year               Int?
+  ssc_year               Int
   reg_open               Boolean? @default(false)
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
@@ -757,6 +757,8 @@ model student_registration_ssc {
   pdf_settings_snapshot    Json?
   pdf_generated_at         DateTime?
 
+  @@unique([school_id, ssc_batch, section, roll], map: "student_registration_ssc_school_year_section_roll_key")
+  @@unique([school_id, ssc_batch, birth_reg_no], map: "student_registration_ssc_school_year_birth_reg_key")
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
@@ -887,7 +889,7 @@ model class6_reg {
   a_sec_roll             String?
   b_sec_roll             String?
   notice                 String?
-  class6_year            Int?
+  class6_year            Int
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
@@ -896,7 +898,7 @@ model class6_reg {
   school_id              Int      @default(dbgenerated("app.current_school_id()"))
   school                 School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@unique([school_id])
+  @@unique([school_id, class6_year])
   @@index([school_id])
 }
 
@@ -960,6 +962,8 @@ model student_registration_class6 {
   pdf_settings_snapshot    Json?
   pdf_generated_at         DateTime?
 
+  @@unique([school_id, class6_year, section, roll], map: "student_registration_class6_school_year_section_roll_key")
+  @@unique([school_id, class6_year, birth_reg_no], map: "student_registration_class6_school_year_birth_reg_key")
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])
@@ -974,7 +978,7 @@ model class8_reg {
   a_sec_roll             String?
   b_sec_roll             String?
   notice                 String?
-  class8_year            Int?
+  class8_year            Int
   instruction_for_a      String?  @default("Please follow the instructions carefully")
   instruction_for_b      String?  @default("Please follow the instructions carefully")
   attachment_instruction String?  @default("Please attach all required documents")
@@ -983,7 +987,7 @@ model class8_reg {
   school_id              Int      @default(dbgenerated("app.current_school_id()"))
   school                 School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@unique([school_id])
+  @@unique([school_id, class8_year])
   @@index([school_id])
 }
 
@@ -1046,6 +1050,8 @@ model student_registration_class8 {
   pdf_settings_snapshot   Json?
   pdf_generated_at        DateTime?
 
+  @@unique([school_id, class8_year, section, roll], map: "student_registration_class8_school_year_section_roll_key")
+  @@unique([school_id, class8_year, birth_reg_no], map: "student_registration_class8_school_year_birth_reg_key")
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])

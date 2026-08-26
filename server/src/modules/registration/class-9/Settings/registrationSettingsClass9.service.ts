@@ -1,21 +1,15 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl } from '@/config/r2.js';
 import path from 'path';
-import { removeInitialZeros } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  parseRegistrationYear,
+  resolveRegistrationClassmates,
+} from '@/modules/registration/registrationSettings.util.js';
 
 export class RegistrationSettingsClass9Service {
-  private static resolveYear(data: any) {
-    const rawYear = data?.ssc_year ?? data?.class9_year ?? data?.year;
-    const year = rawYear ? parseInt(String(rawYear), 10) : NaN;
-    if (!Number.isInteger(year)) {
-      throw new ApiError(400, 'SSC year is required for Class 9 registration settings');
-    }
-    return year;
-  }
-
   static async createOrUpdateClass9Reg(data: any) {
     const {
       a_sec_roll,
@@ -31,10 +25,10 @@ export class RegistrationSettingsClass9Service {
       classmates_source,
     } = data;
 
-    const resolvedYear = RegistrationSettingsClass9Service.resolveYear({
-      ssc_year,
-      class9_year,
-    });
+    const resolvedYear = parseRegistrationYear(
+      ssc_year ?? class9_year,
+      'SSC year is required for Class 9 registration settings',
+    );
 
     const updateData: any = {
       a_sec_roll: a_sec_roll || null,
@@ -54,19 +48,13 @@ export class RegistrationSettingsClass9Service {
     }
 
     const schoolId = requireSchoolId();
-    const existing = await prisma.ssc_reg.findFirst({
-      where: { school_id: schoolId, ssc_year: resolvedYear },
-    });
 
-    if (existing) {
-      return await prisma.ssc_reg.update({
-        where: { id: existing.id },
-        data: updateData,
-      });
-    }
-
-    return await prisma.ssc_reg.create({
-      data: { ...updateData, school_id: schoolId },
+    return await prisma.ssc_reg.upsert({
+      where: {
+        school_id_ssc_year: { school_id: schoolId, ssc_year: resolvedYear },
+      },
+      update: updateData,
+      create: { ...updateData, school_id: schoolId },
     });
   }
 
@@ -103,50 +91,26 @@ export class RegistrationSettingsClass9Service {
       };
     }
 
-    let resolvedClassmates = class9Reg.classmates;
-
-    if (class9Reg.classmates_source === 'default' && class9Reg.ssc_year) {
-      const enrollments = await prisma.student_enrollments.findMany({
-        where: {
-          year: (class9Reg.ssc_year as number) - 2,
-          class: 9,
-        },
-        include: {
-          student: {
-            select: {
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          student: {
-            name: 'asc',
-          },
-        },
-      });
-
-      resolvedClassmates = enrollments
-        .map((en: any) => {
-          const name = en.student.name;
-          const section = en.section || '';
-          const roll = en.roll ? removeInitialZeros(String(en.roll)) : '';
-          return section && roll ? `${name}/${section}-${roll}` : name;
-        })
-        .join('\n');
-    }
+    const classmates = await resolveRegistrationClassmates(
+      schoolId,
+      class9Reg.classmates,
+      class9Reg.classmates_source,
+      class9Reg.ssc_year ? class9Reg.ssc_year - 2 : null,
+      9,
+    );
 
     return {
       ...class9Reg,
       ssc_year: class9Reg.ssc_year,
       class9_year: class9Reg.ssc_year,
-      classmates: resolvedClassmates,
+      classmates,
     };
   }
 
   static async deleteClass9RegNotice(query: any = {}) {
     const class9Reg = await RegistrationSettingsClass9Service.getClass9Reg(query);
 
-    if (!class9Reg || !class9Reg.notice) {
+    if (!class9Reg?.id || !class9Reg.notice) {
       throw new ApiError(404, 'No notice found to delete');
     }
 

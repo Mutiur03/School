@@ -1,10 +1,13 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import path from 'path';
-import { removeInitialZeros } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  parseRegistrationYear,
+  resolveRegistrationClassmates,
+} from '@/modules/registration/registrationSettings.util.js';
 
 export class RegistrationSettingsClass8Service {
   static async createOrUpdateClass8Reg(data: any) {
@@ -21,10 +24,15 @@ export class RegistrationSettingsClass8Service {
       classmates_source,
     } = data;
 
+    const resolvedYear = parseRegistrationYear(
+      class8_year,
+      'Academic year is required for Class 8 registration settings',
+    );
+
     const updateData: any = {
       a_sec_roll: a_sec_roll || null,
       b_sec_roll: b_sec_roll || null,
-      class8_year: class8_year ? parseInt(class8_year, 10) : null,
+      class8_year: resolvedYear,
       reg_open: reg_open === 'true' || reg_open === true,
       instruction_for_a: instruction_for_a || 'Please follow the instructions carefully',
       instruction_for_b: instruction_for_b || 'Please follow the instructions carefully',
@@ -34,33 +42,49 @@ export class RegistrationSettingsClass8Service {
       notice: null,
     };
 
+    const schoolId = requireSchoolId();
+
     if (notice_key) {
-      const schoolId = requireSchoolId();
-      const existingRecord = await prisma.class8_reg.findUnique({ where: { school_id: schoolId } });
-      if (existingRecord && existingRecord.notice && existingRecord.notice !== notice_key) {
-        await deleteFromR2(existingRecord.notice);
+      const existing = await prisma.class8_reg.findFirst({
+        where: { school_id: schoolId, class8_year: resolvedYear },
+      });
+      if (existing?.notice && existing.notice !== notice_key) {
+        await deleteFromR2(existing.notice);
       }
       updateData.notice = notice_key;
     }
 
-    const schoolId = requireSchoolId();
     return await prisma.class8_reg.upsert({
-      where: { school_id: schoolId },
+      where: {
+        school_id_class8_year: { school_id: schoolId, class8_year: resolvedYear },
+      },
       update: updateData,
-      create: updateData,
+      create: { ...updateData, school_id: schoolId },
     });
   }
 
-  static async getClass8Reg() {
+  static async getClass8Reg(query: any = {}) {
     const schoolId = requireSchoolId();
-    const class8Reg = await prisma.class8_reg.findUnique({ where: { school_id: schoolId } });
+    const requestedYear = query?.class8_year ?? query?.year;
+    const class8Reg = requestedYear
+      ? await prisma.class8_reg.findFirst({
+          where: { school_id: schoolId, class8_year: parseInt(String(requestedYear), 10) },
+        })
+      : await prisma.class8_reg.findFirst({
+          where: { school_id: schoolId },
+          orderBy: [{ reg_open: 'desc' }, { class8_year: 'desc' }, { id: 'desc' }],
+        });
 
     if (!class8Reg) {
+      const fallbackYear = requestedYear
+        ? parseInt(String(requestedYear), 10)
+        : new Date().getFullYear();
+
       return {
         id: 0,
         a_sec_roll: null,
         b_sec_roll: null,
-        class8_year: new Date().getFullYear(),
+        class8_year: fallbackYear,
         reg_open: false,
         instruction_for_a: 'Please follow the instructions carefully',
         instruction_for_b: 'Please follow the instructions carefully',
@@ -68,54 +92,24 @@ export class RegistrationSettingsClass8Service {
         notice: null,
         classmates: null,
         classmates_source: 'default',
-        resolvedClassmates: '',
       };
     }
 
-    let resolvedClassmates = class8Reg.classmates;
+    const classmates = await resolveRegistrationClassmates(
+      schoolId,
+      class8Reg.classmates,
+      class8Reg.classmates_source,
+      class8Reg.class8_year,
+      8,
+    );
 
-    // If classmates_source is 'default', resolve from student enrollments
-    if (class8Reg.classmates_source === 'default' && class8Reg.class8_year) {
-      const enrollments = await prisma.student_enrollments.findMany({
-        where: {
-          year: class8Reg.class8_year as number,
-          class: 8,
-        },
-        include: {
-          student: {
-            select: {
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          student: {
-            name: 'asc',
-          },
-        },
-      });
-
-      resolvedClassmates = enrollments
-        .map((en: any) => {
-          const name = en.student.name;
-          const section = en.section || '';
-          const roll = en.roll ? removeInitialZeros(String(en.roll)) : '';
-          return section && roll ? `${name}/${section}-${roll}` : name;
-        })
-        .join(', ');
-    }
-
-    return {
-      ...class8Reg,
-      resolvedClassmates,
-    };
+    return { ...class8Reg, classmates };
   }
 
-  static async deleteClass8RegNotice() {
-    const schoolId = requireSchoolId();
-    const class8Reg = await prisma.class8_reg.findUnique({ where: { school_id: schoolId } });
+  static async deleteClass8RegNotice(query: any = {}) {
+    const class8Reg = await RegistrationSettingsClass8Service.getClass8Reg(query);
 
-    if (!class8Reg || !class8Reg.notice) {
+    if (!class8Reg?.id || !class8Reg.notice) {
       throw new ApiError(404, 'No notice found to delete');
     }
 
@@ -136,7 +130,7 @@ export class RegistrationSettingsClass8Service {
     }
 
     const ext = path.extname(filename);
-    const key = tenantR2Key(`notices/registrations/notice-class8-${Date.now()}${ext}`);
+    const key = tenantR2Key(`notices/registrations/notice-class-8-${Date.now()}${ext}`);
     const url = await getUploadUrl(key, filetype);
 
     return { uploadUrl: url, key };

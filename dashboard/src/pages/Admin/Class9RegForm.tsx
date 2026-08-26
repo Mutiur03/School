@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from 'react';
-import type { ChangeEvent } from 'react';
 import axios from 'axios';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import { useForm } from 'react-hook-form';
@@ -17,8 +16,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  CalendarDays,
-  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getFileUrl } from '@/lib/backend';
@@ -49,6 +46,11 @@ import type {
   Class9RegistrationSettingsData,
 } from '@school/shared-schemas';
 import { class9RegistrationSettingsSchema } from '@school/shared-schemas';
+import { useRegistrationSettingsYear } from '@/hooks/useRegistrationSettingsYear';
+import {
+  RegistrationSettingsYearHeader,
+  RegistrationSettingsYearStatus,
+} from '@/components/RegistrationSettingsYearControls';
 
 /** Full DB record as returned by the admin API — all server-managed fields are non-nullable here. */
 type Registration = Omit<
@@ -88,8 +90,6 @@ const Class9RegForm = () => {
 
   const currentYear = new Date().getFullYear().toString();
   const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
-  const [settingsYear, setSettingsYear] = useState(currentYear);
-  const [settingsYearTouched, setSettingsYearTouched] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     section: '',
@@ -128,78 +128,36 @@ const Class9RegForm = () => {
   });
 
   const settingsForm = watch();
-  const normalizedSettingsYear = settingsYear.trim();
-  const settingsYearIsValid = /^\d{4}$/.test(normalizedSettingsYear);
-
   const {
-    data: latestSettingsData,
-    isLoading: latestSettingsLoading,
-    isFetched: latestSettingsFetched,
-  } = useQuery({
-    queryKey: ['class9RegSettings', 'latest'],
-    queryFn: async () => {
-      const res = await axios.get(`/api/reg/class-9`);
-      return res.data.success ? res.data.data : null;
-    },
+    normalizedSettingsYear,
+    settingsYearIsValid,
+    latestSettingsData,
+    latestSettingsLoading,
+    settingsData,
+    settingsLoading,
+    settingsFetching,
+    settingsExist,
+    defaultSettingsYear,
+    settingsYearOptions,
+    onSettingsYearChange,
+    onUseLatestSettingsYear,
+    settingsYear,
+    settingsYearTouched,
+  } = useRegistrationSettingsYear({
+    queryKey: 'class9RegSettings',
+    apiPath: '/api/reg/class-9',
+    yearParam: 'ssc_year',
+    yearField: 'ssc_year',
+    extraYearValues: [settingsForm.ssc_year, filters.year],
   });
-
-  const {
-    data: settingsData,
-    isLoading: settingsLoading,
-    isFetching: settingsFetching,
-  } = useQuery({
-    queryKey: ['class9RegSettings', normalizedSettingsYear],
-    queryFn: async () => {
-      const res = await axios.get(`/api/reg/class-9`, {
-        params: { ssc_year: normalizedSettingsYear },
-      });
-      return res.data.success ? res.data.data : null;
-    },
-    enabled: settingsYearIsValid && (settingsYearTouched || latestSettingsFetched),
-  });
-
-  const defaultSettingsYear = String(latestSettingsData?.ssc_year || currentYear);
-
-  const settingsYearOptions = useMemo(() => {
-    const baseYear = Number(defaultSettingsYear);
-    const years = Number.isInteger(baseYear)
-      ? Array.from({ length: 6 }, (_, i) => baseYear - i)
-      : [];
-
-    for (const value of [settingsYear, settingsForm.ssc_year, filters.year]) {
-      const parsed = Number(value);
-      if (value && Number.isInteger(parsed) && !years.includes(parsed)) {
-        years.push(parsed);
-      }
-    }
-
-    return years.sort((a, b) => b - a);
-  }, [defaultSettingsYear, filters.year, settingsForm.ssc_year, settingsYear]);
-
-  useEffect(() => {
-    if (!settingsYearTouched && latestSettingsData?.ssc_year) {
-      setSettingsYear(String(latestSettingsData.ssc_year));
-    }
-  }, [latestSettingsData?.ssc_year, settingsYearTouched]);
-
-  const handleSettingsYearChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    setSettingsYearTouched(true);
-    setSettingsYear(event.target.value);
-  }, []);
-
-  const handleLatestSettingsYear = useCallback(() => {
-    setSettingsYearTouched(false);
-    setSettingsYear(defaultSettingsYear);
-  }, [defaultSettingsYear]);
 
   useEffect(() => {
     if (settingsData) {
-      const formData = {
-        ...settingsData,
-        ssc_year: settingsData.ssc_year || normalizedSettingsYear,
-        notice_key: settingsData.notice,
-      };
-      reset(formData);
+      reset({
+        ...(settingsData as Class9RegistrationSettingsData),
+        ssc_year: String(settingsData.ssc_year ?? normalizedSettingsYear),
+        notice_key: settingsData.notice ?? null,
+      });
     }
   }, [normalizedSettingsYear, settingsData, reset]);
 
@@ -251,7 +209,7 @@ const Class9RegForm = () => {
 
   useEffect(() => {
     if (latestSettingsData?.ssc_year) {
-      setFilters((prev) => ({ ...prev, year: latestSettingsData.ssc_year.toString() }));
+      setFilters((prev) => ({ ...prev, year: String(latestSettingsData.ssc_year) }));
     }
   }, [latestSettingsData?.ssc_year]);
 
@@ -285,7 +243,9 @@ const Class9RegForm = () => {
       return res.data;
     },
     onSuccess: () => {
-      toast.success('Settings updated successfully');
+      toast.success(
+        settingsExist ? 'Settings updated successfully' : 'Settings created successfully',
+      );
       queryClient.invalidateQueries({ queryKey: ['class9RegSettings'] });
       setSelectedNotice(null);
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -407,41 +367,16 @@ const Class9RegForm = () => {
           description="Settings are saved separately for each SSC batch."
           icon={<Settings size={20} />}
           headerAction={
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
-              <div className="min-w-0 sm:w-44">
-                <label
-                  htmlFor="class9-settings-year"
-                  className="text-muted-foreground mb-1 flex items-center gap-1.5 text-xs font-medium"
-                >
-                  <CalendarDays size={13} aria-hidden="true" />
-                  SSC Batch
-                </label>
-                <select
-                  id="class9-settings-year"
-                  name="class9-settings-year"
-                  value={settingsYear}
-                  onChange={handleSettingsYearChange}
-                  className={`${filterSelectClassName} h-10 min-w-32 tabular-nums`}
-                  aria-describedby="class9-settings-year-status"
-                >
-                  {settingsYearOptions.map((year) => (
-                    <option key={year} value={String(year)}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleLatestSettingsYear}
-                disabled={settingsYear === defaultSettingsYear && !settingsYearTouched}
-                className="h-10 gap-2"
-              >
-                <RotateCcw size={15} aria-hidden="true" />
-                Use Latest
-              </Button>
-            </div>
+            <RegistrationSettingsYearHeader
+              id="class9-settings-year"
+              label="SSC Batch"
+              settingsYear={settingsYear}
+              settingsYearOptions={settingsYearOptions}
+              defaultSettingsYear={defaultSettingsYear}
+              settingsYearTouched={settingsYearTouched}
+              onYearChange={onSettingsYearChange}
+              onUseLatest={onUseLatestSettingsYear}
+            />
           }
         >
           {latestSettingsLoading || settingsLoading ? (
@@ -450,16 +385,13 @@ const Class9RegForm = () => {
             </div>
           ) : (
             <form onSubmit={handleSettingsSubmit} className="space-y-6">
-              {settingsFetching && (
-                <div
-                  id="class9-settings-year-status"
-                  aria-live="polite"
-                  className="text-muted-foreground -mt-2 flex items-center gap-2 text-sm"
-                >
-                  <Loader2 size={14} className="animate-spin" aria-hidden="true" />
-                  Loading selected batch settings…
-                </div>
-              )}
+              <RegistrationSettingsYearStatus
+                statusId="class9-settings-year-status"
+                settingsFetching={settingsFetching}
+                loadingLabel="Loading selected batch settings…"
+                showCreateHint={!settingsExist && Boolean(settingsData)}
+                createHint={`No settings for SSC ${normalizedSettingsYear} yet. Fill in the fields and create them.`}
+              />
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label className="text-foreground mb-1 block text-sm font-medium">
@@ -603,8 +535,9 @@ const Class9RegForm = () => {
                   type="submit"
                   disabled={
                     !settingsYearIsValid ||
+                    !settingsData ||
                     settingsMutation.isPending ||
-                    (!isDirty && !selectedNotice)
+                    (settingsExist && !isDirty && !selectedNotice)
                   }
                   className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-6 py-2 text-white transition-colors disabled:opacity-50"
                 >
@@ -613,7 +546,7 @@ const Class9RegForm = () => {
                   ) : (
                     <Plus size={18} />
                   )}
-                  Save Settings
+                  {settingsExist ? 'Save Settings' : 'Create Settings'}
                 </button>
               </div>
             </form>

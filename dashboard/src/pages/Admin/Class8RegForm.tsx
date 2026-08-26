@@ -46,6 +46,11 @@ import type {
   Class8RegistrationSettingsData,
 } from '@school/shared-schemas';
 import { class8RegistrationSettingsSchema } from '@school/shared-schemas';
+import { useRegistrationSettingsYear } from '@/hooks/useRegistrationSettingsYear';
+import {
+  RegistrationSettingsYearHeader,
+  RegistrationSettingsYearStatus,
+} from '@/components/RegistrationSettingsYearControls';
 
 /** Full DB record as returned by the admin API — all server-managed fields are non-nullable here. */
 type Registration = Omit<
@@ -83,11 +88,12 @@ const Class8RegForm = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  const currentYear = new Date().getFullYear().toString();
   const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
   const [filters, setFilters] = useState({
     status: 'all',
     section: '',
-    year: new Date().getFullYear().toString(),
+    year: currentYear,
     search: '',
   });
   const [page, setPage] = useState(1);
@@ -110,7 +116,7 @@ const Class8RegForm = () => {
     defaultValues: {
       a_sec_roll: '',
       b_sec_roll: '',
-      class8_year: new Date().getFullYear().toString(),
+      class8_year: currentYear,
       reg_open: false,
       instruction_for_a: '',
       instruction_for_b: '',
@@ -122,24 +128,38 @@ const Class8RegForm = () => {
   });
 
   const settingsForm = watch();
-
-  const { data: settingsData, isLoading: settingsLoading } = useQuery({
-    queryKey: ['class8RegSettings'],
-    queryFn: async () => {
-      const res = await axios.get(`/api/reg/class-8`);
-      return res.data.success ? res.data.data : null;
-    },
+  const {
+    normalizedSettingsYear,
+    settingsYearIsValid,
+    latestSettingsData,
+    latestSettingsLoading,
+    settingsData,
+    settingsLoading,
+    settingsFetching,
+    settingsExist,
+    defaultSettingsYear,
+    settingsYearOptions,
+    onSettingsYearChange,
+    onUseLatestSettingsYear,
+    settingsYear,
+    settingsYearTouched,
+  } = useRegistrationSettingsYear({
+    queryKey: 'class8RegSettings',
+    apiPath: '/api/reg/class-8',
+    yearParam: 'class8_year',
+    yearField: 'class8_year',
+    extraYearValues: [settingsForm.class8_year, filters.year],
   });
 
   useEffect(() => {
     if (settingsData) {
-      const formData = {
-        ...settingsData,
-        notice_key: settingsData.notice,
-      };
-      reset(formData);
+      reset({
+        ...(settingsData as Class8RegistrationSettingsData),
+        class8_year: String(settingsData.class8_year ?? normalizedSettingsYear),
+        notice_key: settingsData.notice ?? null,
+      });
     }
-  }, [settingsData, reset]);
+  }, [settingsData, normalizedSettingsYear, reset]);
 
   const {
     data: registrationsResponse,
@@ -188,10 +208,10 @@ const Class8RegForm = () => {
   );
 
   useEffect(() => {
-    if (settingsData?.class8_year) {
-      setFilters((prev) => ({ ...prev, year: settingsData.class8_year.toString() }));
+    if (latestSettingsData?.class8_year) {
+      setFilters((prev) => ({ ...prev, year: String(latestSettingsData.class8_year) }));
     }
-  }, [settingsData?.class8_year]);
+  }, [latestSettingsData?.class8_year]);
 
   const settingsMutation = useMutation({
     mutationFn: async (updatedSettings: Class8RegistrationSettingsData) => {
@@ -211,6 +231,7 @@ const Class8RegForm = () => {
 
       const payload = {
         ...updatedSettings,
+        class8_year: updatedSettings.class8_year || normalizedSettingsYear,
         notice_key,
         reg_open:
           typeof updatedSettings.reg_open === 'boolean'
@@ -222,7 +243,9 @@ const Class8RegForm = () => {
       return res.data;
     },
     onSuccess: () => {
-      toast.success('Settings updated successfully');
+      toast.success(
+        settingsExist ? 'Settings updated successfully' : 'Settings created successfully',
+      );
       queryClient.invalidateQueries({ queryKey: ['class8RegSettings'] });
       setSelectedNotice(null);
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -339,13 +362,36 @@ const Class8RegForm = () => {
       <TabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} className="mb-6" />
 
       {activeTab === 'settings' ? (
-        <SectionCard title="Registration Settings" icon={<Settings size={20} />}>
-          {settingsLoading ? (
+        <SectionCard
+          title="Registration Settings"
+          description="Settings are saved separately for each academic year."
+          icon={<Settings size={20} />}
+          headerAction={
+            <RegistrationSettingsYearHeader
+              id="class8-settings-year"
+              label="Academic Year"
+              settingsYear={settingsYear}
+              settingsYearOptions={settingsYearOptions}
+              defaultSettingsYear={defaultSettingsYear}
+              settingsYearTouched={settingsYearTouched}
+              onYearChange={onSettingsYearChange}
+              onUseLatest={onUseLatestSettingsYear}
+            />
+          }
+        >
+          {latestSettingsLoading || settingsLoading ? (
             <div className="flex justify-center py-20">
               <Loader2 size={40} className="text-primary animate-spin" />
             </div>
           ) : (
             <form onSubmit={handleSettingsSubmit} className="space-y-6">
+              <RegistrationSettingsYearStatus
+                statusId="class8-settings-year-status"
+                settingsFetching={settingsFetching}
+                loadingLabel="Loading selected year settings…"
+                showCreateHint={!settingsExist && Boolean(settingsData)}
+                createHint={`No settings for ${normalizedSettingsYear} yet. Fill in the fields and create them.`}
+              />
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label className="text-foreground mb-1 block text-sm font-medium">
@@ -369,7 +415,7 @@ const Class8RegForm = () => {
                   <label className="text-foreground mb-1 block text-sm font-medium">
                     Academic Year
                   </label>
-                  <Input type="text" {...register('class8_year')} />
+                  <Input type="text" {...register('class8_year')} readOnly />
                   {errors.class8_year && (
                     <p className="mt-1 text-xs text-red-500">{errors.class8_year.message}</p>
                   )}
@@ -487,7 +533,12 @@ const Class8RegForm = () => {
               <div className="flex justify-end pt-4">
                 <button
                   type="submit"
-                  disabled={settingsMutation.isPending || (!isDirty && !selectedNotice)}
+                  disabled={
+                    !settingsYearIsValid ||
+                    !settingsData ||
+                    settingsMutation.isPending ||
+                    (settingsExist && !isDirty && !selectedNotice)
+                  }
                   className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-6 py-2 text-white transition-colors disabled:opacity-50"
                 >
                   {settingsMutation.isPending ? (
@@ -495,7 +546,7 @@ const Class8RegForm = () => {
                   ) : (
                     <Plus size={18} />
                   )}
-                  Save Settings
+                  {settingsExist ? 'Save Settings' : 'Create Settings'}
                 </button>
               </div>
             </form>
@@ -583,9 +634,11 @@ const Class8RegForm = () => {
                 className={filterSelectClassName}
               >
                 {(() => {
-                  const currentYear = new Date().getFullYear();
+                  const currentBatchYear = Number(
+                    settingsData?.class8_year || new Date().getFullYear(),
+                  );
                   const years = [];
-                  for (let i = 0; i < 5; i++) years.push(currentYear - i);
+                  for (let i = 0; i < 6; i++) years.push(currentBatchYear - i);
 
                   const settingsYear = Number(settingsForm.class8_year);
                   if (

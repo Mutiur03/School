@@ -17,6 +17,7 @@ import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
+import { parseOptionalRegistrationYear } from '@/modules/registration/registrationSettings.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -25,11 +26,12 @@ const checkDuplicates = async (
 ) => {
   const duplicates = [];
   try {
-    if (data && data.birth_reg_no) {
+    if (data && data.birth_reg_no && data.class6_year) {
       const existing = await prisma.student_registration_class6.findFirst({
         where: {
           school_id: schoolId,
           birth_reg_no: data.birth_reg_no,
+          class6_year: parseInt(data.class6_year, 10),
           ...(excludeId ? { id: { not: excludeId } } : {}),
         },
         select: { id: true, student_name_en: true },
@@ -37,7 +39,7 @@ const checkDuplicates = async (
       if (existing) {
         duplicates.push({
           field: 'birthRegNo',
-          message: `একটি নিবন্ধন এই জন্ম নিবন্ধন নম্বর (Birth Reg No) দিয়ে ইতিমধ্যেই বিদ্যমান`,
+          message: `এই জন্ম নিবন্ধন নম্বর (Birth Reg No) দিয়ে ${data.class6_year} শিক্ষাবর্ষে ইতিমধ্যেই একটি নিবন্ধন বিদ্যমান`,
         });
       }
     }
@@ -103,10 +105,19 @@ export class RegistrationFormClass6Service {
     classmates_source: true,
   };
 
-  private static async getSettingsSnapshot(schoolId?: number | null) {
+  private static async getSettingsSnapshot(
+    schoolId?: number | null,
+    class6Year?: string | number | null,
+  ) {
     const resolvedSchoolId = Number.isInteger(schoolId) ? (schoolId as number) : requireSchoolId();
-    return await prisma.class6_reg.findUnique({
-      where: { school_id: resolvedSchoolId },
+    const parsedYear = parseOptionalRegistrationYear(class6Year);
+
+    return await prisma.class6_reg.findFirst({
+      where: {
+        school_id: resolvedSchoolId,
+        ...(parsedYear !== undefined ? { class6_year: parsedYear } : {}),
+      },
+      orderBy: [{ reg_open: 'desc' }, { class6_year: 'desc' }, { id: 'desc' }],
       select: RegistrationFormClass6Service.PDF_SETTINGS_SELECT,
     });
   }
@@ -325,6 +336,7 @@ export class RegistrationFormClass6Service {
       if (!registration.pdf_settings_snapshot) {
         const settingsSnapshot = await RegistrationFormClass6Service.getSettingsSnapshot(
           registration.school_id,
+          registration.class6_year,
         );
         RegistrationFormClass6Service.assertSettingsMatchRegistrationYear(
           registration,
@@ -363,7 +375,10 @@ export class RegistrationFormClass6Service {
       throw new ApiError(400, 'Filename and filetype are required');
     }
 
-    const settings = await RegistrationFormClass6Service.getSettingsSnapshot(requireSchoolId());
+    const settings = await RegistrationFormClass6Service.getSettingsSnapshot(
+      requireSchoolId(),
+      class6_year,
+    );
     const academicYear =
       String(class6_year || settings?.class6_year || new Date().getFullYear())
         .trim()
@@ -498,7 +513,10 @@ export class RegistrationFormClass6Service {
       settings =
         shouldUseFrozenPdf && registration.pdf_settings_snapshot
           ? registration.pdf_settings_snapshot
-          : await RegistrationFormClass6Service.getSettingsSnapshot(registration.school_id);
+          : await RegistrationFormClass6Service.getSettingsSnapshot(
+              registration.school_id,
+              registration.class6_year,
+            );
       RegistrationFormClass6Service.assertSettingsMatchRegistrationYear(registration, settings);
     } catch (error) {
       console.warn('Failed to fetch Class 6 settings:', error);

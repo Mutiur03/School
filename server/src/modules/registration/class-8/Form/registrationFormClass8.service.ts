@@ -18,6 +18,7 @@ import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
+import { parseOptionalRegistrationYear } from '@/modules/registration/registrationSettings.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -84,10 +85,19 @@ export class RegistrationFormClass8Service {
     classmates_source: true,
   };
 
-  private static async getSettingsSnapshot(schoolId?: number | null) {
+  private static async getSettingsSnapshot(
+    schoolId?: number | null,
+    class8Year?: string | number | null,
+  ) {
     const resolvedSchoolId = Number.isInteger(schoolId) ? (schoolId as number) : requireSchoolId();
-    return await prisma.class8_reg.findUnique({
-      where: { school_id: resolvedSchoolId },
+    const parsedYear = parseOptionalRegistrationYear(class8Year);
+
+    return await prisma.class8_reg.findFirst({
+      where: {
+        school_id: resolvedSchoolId,
+        ...(parsedYear !== undefined ? { class8_year: parsedYear } : {}),
+      },
+      orderBy: [{ reg_open: 'desc' }, { class8_year: 'desc' }, { id: 'desc' }],
       select: RegistrationFormClass8Service.PDF_SETTINGS_SELECT,
     });
   }
@@ -134,7 +144,10 @@ export class RegistrationFormClass8Service {
       throw new ApiError(400, 'Filename and filetype are required');
     }
 
-    const settings = await RegistrationFormClass8Service.getSettingsSnapshot(requireSchoolId());
+    const settings = await RegistrationFormClass8Service.getSettingsSnapshot(
+      requireSchoolId(),
+      class8_year,
+    );
     const year =
       String(class8_year || settings?.class8_year || 'unknown')
         .trim()
@@ -149,6 +162,13 @@ export class RegistrationFormClass8Service {
 
   static async createRegistration(data: any) {
     const schoolId = requireSchoolId();
+
+    if (!data.class8_year) {
+      const settings = await RegistrationFormClass8Service.getSettingsSnapshot(schoolId);
+      data.class8_year = settings?.class8_year || new Date().getFullYear();
+    }
+    data.class8_year = parseInt(String(data.class8_year), 10);
+
     const duplicates = await checkDuplicates(data, null, schoolId);
     if (duplicates.length > 0) {
       throw new ApiError(400, 'Duplicate information found', duplicates as any);
@@ -249,6 +269,7 @@ export class RegistrationFormClass8Service {
       if (!registration.pdf_settings_snapshot) {
         const settingsSnapshot = await RegistrationFormClass8Service.getSettingsSnapshot(
           registration.school_id,
+          registration.class8_year,
         );
         RegistrationFormClass8Service.assertSettingsMatchRegistrationYear(
           registration,
@@ -433,7 +454,10 @@ export class RegistrationFormClass8Service {
       settings =
         shouldUseFrozenPdf && registration.pdf_settings_snapshot
           ? registration.pdf_settings_snapshot
-          : await RegistrationFormClass8Service.getSettingsSnapshot(registration.school_id);
+          : await RegistrationFormClass8Service.getSettingsSnapshot(
+              registration.school_id,
+              registration.class8_year,
+            );
       RegistrationFormClass8Service.assertSettingsMatchRegistrationYear(registration, settings);
     } catch (error) {
       console.warn('Failed to fetch Class 8 settings:', error);

@@ -46,6 +46,11 @@ import type {
   Class6RegistrationSettingsData,
 } from '@school/shared-schemas';
 import { class6RegistrationSettingsSchema } from '@school/shared-schemas';
+import { useRegistrationSettingsYear } from '@/hooks/useRegistrationSettingsYear';
+import {
+  RegistrationSettingsYearHeader,
+  RegistrationSettingsYearStatus,
+} from '@/components/RegistrationSettingsYearControls';
 
 /** Full DB record as returned by the admin API — all server-managed fields are non-nullable here. */
 type Registration = Omit<
@@ -85,11 +90,12 @@ const Class6RegForm = () => {
       setSearchParams({ tab: 'registrations' }, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+  const currentYear = new Date().getFullYear().toString();
   const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
   const [filters, setFilters] = useState({
     status: 'all',
     section: '',
-    year: new Date().getFullYear().toString(),
+    year: currentYear,
     search: '',
   });
   const [page, setPage] = useState(1);
@@ -112,7 +118,7 @@ const Class6RegForm = () => {
     defaultValues: {
       a_sec_roll: '',
       b_sec_roll: '',
-      class6_year: new Date().getFullYear().toString(),
+      class6_year: currentYear,
       reg_open: false,
       instruction_for_a: '',
       instruction_for_b: '',
@@ -124,24 +130,38 @@ const Class6RegForm = () => {
   });
 
   const settingsForm = watch();
-
-  const { data: settingsData, isLoading: settingsLoading } = useQuery({
-    queryKey: ['class6RegSettings'],
-    queryFn: async () => {
-      const res = await axios.get(`/api/reg/class-6`);
-      return res.data.success ? res.data.data : null;
-    },
+  const {
+    normalizedSettingsYear,
+    settingsYearIsValid,
+    latestSettingsData,
+    latestSettingsLoading,
+    settingsData,
+    settingsLoading,
+    settingsFetching,
+    settingsExist,
+    defaultSettingsYear,
+    settingsYearOptions,
+    onSettingsYearChange,
+    onUseLatestSettingsYear,
+    settingsYear,
+    settingsYearTouched,
+  } = useRegistrationSettingsYear({
+    queryKey: 'class6RegSettings',
+    apiPath: '/api/reg/class-6',
+    yearParam: 'class6_year',
+    yearField: 'class6_year',
+    extraYearValues: [settingsForm.class6_year, filters.year],
   });
 
   useEffect(() => {
     if (settingsData) {
-      const formData = {
-        ...settingsData,
-        notice_key: settingsData.notice, // Map notice to notice_key as per schema
-      };
-      reset(formData);
+      reset({
+        ...(settingsData as Class6RegistrationSettingsData),
+        class6_year: String(settingsData.class6_year ?? normalizedSettingsYear),
+        notice_key: settingsData.notice ?? null,
+      });
     }
-  }, [settingsData, reset]);
+  }, [settingsData, normalizedSettingsYear, reset]);
 
   const {
     data: registrationsResponse,
@@ -190,10 +210,10 @@ const Class6RegForm = () => {
   );
 
   useEffect(() => {
-    if (settingsData?.class6_year) {
-      setFilters((prev) => ({ ...prev, year: settingsData.class6_year.toString() }));
+    if (latestSettingsData?.class6_year) {
+      setFilters((prev) => ({ ...prev, year: String(latestSettingsData.class6_year) }));
     }
-  }, [settingsData?.class6_year]);
+  }, [latestSettingsData?.class6_year]);
 
   const settingsMutation = useMutation({
     mutationFn: async (updatedSettings: Class6RegistrationSettingsData) => {
@@ -213,6 +233,7 @@ const Class6RegForm = () => {
 
       const payload = {
         ...updatedSettings,
+        class6_year: updatedSettings.class6_year || normalizedSettingsYear,
         notice_key,
         reg_open:
           typeof updatedSettings.reg_open === 'boolean'
@@ -224,7 +245,9 @@ const Class6RegForm = () => {
       return res.data;
     },
     onSuccess: () => {
-      toast.success('Settings updated successfully');
+      toast.success(
+        settingsExist ? 'Settings updated successfully' : 'Settings created successfully',
+      );
       queryClient.invalidateQueries({ queryKey: ['class6RegSettings'] });
       setSelectedNotice(null);
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -360,13 +383,36 @@ const Class6RegForm = () => {
       <TabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} className="mb-6" />
 
       {activeTab === 'settings' ? (
-        <SectionCard title="Registration Settings" icon={<Settings size={20} />}>
-          {settingsLoading ? (
+        <SectionCard
+          title="Registration Settings"
+          description="Settings are saved separately for each academic year."
+          icon={<Settings size={20} />}
+          headerAction={
+            <RegistrationSettingsYearHeader
+              id="class6-settings-year"
+              label="Academic Year"
+              settingsYear={settingsYear}
+              settingsYearOptions={settingsYearOptions}
+              defaultSettingsYear={defaultSettingsYear}
+              settingsYearTouched={settingsYearTouched}
+              onYearChange={onSettingsYearChange}
+              onUseLatest={onUseLatestSettingsYear}
+            />
+          }
+        >
+          {latestSettingsLoading || settingsLoading ? (
             <div className="flex justify-center py-20">
               <Loader2 size={40} className="text-primary animate-spin" />
             </div>
           ) : (
             <form onSubmit={handleSettingsSubmit} className="space-y-6">
+              <RegistrationSettingsYearStatus
+                statusId="class6-settings-year-status"
+                settingsFetching={settingsFetching}
+                loadingLabel="Loading selected year settings…"
+                showCreateHint={!settingsExist && Boolean(settingsData)}
+                createHint={`No settings for ${normalizedSettingsYear} yet. Fill in the fields and create them.`}
+              />
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label className="text-foreground mb-1 block text-sm font-medium">
@@ -390,7 +436,7 @@ const Class6RegForm = () => {
                   <label className="text-foreground mb-1 block text-sm font-medium">
                     Academic Year
                   </label>
-                  <Input type="text" {...register('class6_year')} />
+                  <Input type="text" {...register('class6_year')} readOnly />
                   {errors.class6_year && (
                     <p className="mt-1 text-xs text-red-500">{errors.class6_year.message}</p>
                   )}
@@ -508,7 +554,12 @@ const Class6RegForm = () => {
               <div className="flex justify-end pt-4">
                 <button
                   type="submit"
-                  disabled={settingsMutation.isPending || (!isDirty && !selectedNotice)}
+                  disabled={
+                    !settingsYearIsValid ||
+                    !settingsData ||
+                    settingsMutation.isPending ||
+                    (settingsExist && !isDirty && !selectedNotice)
+                  }
                   className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-6 py-2 text-white transition-colors disabled:opacity-50"
                 >
                   {settingsMutation.isPending ? (
@@ -516,7 +567,7 @@ const Class6RegForm = () => {
                   ) : (
                     <Plus size={18} />
                   )}
-                  Save Settings
+                  {settingsExist ? 'Save Settings' : 'Create Settings'}
                 </button>
               </div>
             </form>
@@ -604,9 +655,11 @@ const Class6RegForm = () => {
                 className={filterSelectClassName}
               >
                 {(() => {
-                  const currentYear = new Date().getFullYear();
+                  const currentBatchYear = Number(
+                    settingsData?.class6_year || new Date().getFullYear(),
+                  );
                   const years = [];
-                  for (let i = 0; i < 5; i++) years.push(currentYear - i);
+                  for (let i = 0; i < 6; i++) years.push(currentBatchYear - i);
 
                   const settingsYear = Number(settingsForm.class6_year);
                   if (
