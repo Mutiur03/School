@@ -422,4 +422,3 @@ async function get<T>(url: string, options?: any) {
 
   return cachedGet(requestUrl, tenantKey, headersJson);
 }
-

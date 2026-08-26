@@ -31,8 +31,8 @@ export const registrationSchemaClass8 = registrationObjectShape
   .superRefine(registrationSuperRefine);
 
 export const class8RegistrationStatusSchema = z.object({
-  status: z.enum(['pending', 'approved', 'rejected'], {
-    message: 'Status must be pending, approved, or rejected',
+  status: z.enum(['pending', 'approved'], {
+    message: 'Status must be pending or approved',
   }),
 });
 

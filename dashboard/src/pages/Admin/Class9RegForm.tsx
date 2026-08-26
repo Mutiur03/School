@@ -1358,7 +1358,7 @@ const Class9RegForm = () => {
                 Select Status
               </label>
               <div className="grid grid-cols-1 gap-2">
-                {(['pending', 'approved', 'rejected'] as const).map((s) => (
+                {(['pending', 'approved'] as const).map((s) => (
                   <button
                     key={s}
                     type="button"
@@ -1374,18 +1374,10 @@ const Class9RegForm = () => {
                         className={`rounded-full p-2 ${
                           s === 'approved'
                             ? 'bg-emerald-100 text-emerald-600'
-                            : s === 'rejected'
-                              ? 'bg-red-100 text-red-600'
-                              : 'bg-amber-100 text-amber-600'
+                            : 'bg-amber-100 text-amber-600'
                         }`}
                       >
-                        {s === 'approved' ? (
-                          <CheckCircle2 size={18} />
-                        ) : s === 'rejected' ? (
-                          <XCircle size={18} />
-                        ) : (
-                          <AlertCircle size={18} />
-                        )}
+                        {s === 'approved' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                       </div>
                       <span className="text-sm font-semibold text-gray-900 capitalize dark:text-white">
                         {s}

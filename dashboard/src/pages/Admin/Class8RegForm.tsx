@@ -1319,15 +1319,9 @@ const Class8RegForm = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`rounded-full p-2 ${s === 'approved' ? 'bg-emerald-100 text-emerald-600' : s === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}
+                        className={`rounded-full p-2 ${s === 'approved' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}
                       >
-                        {s === 'approved' ? (
-                          <CheckCircle2 size={20} />
-                        ) : s === 'rejected' ? (
-                          <XCircle size={20} />
-                        ) : (
-                          <AlertCircle size={20} />
-                        )}
+                        {s === 'approved' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
                       </div>
                       <span className="font-semibold text-gray-900 capitalize dark:text-white">
                         {s}

@@ -8,7 +8,10 @@ import type {
   Class9RegistrationSettingsData,
 } from '@school/shared-schemas';
 
-function makeRegistrationQueries<TSettings, TRecord>(classSlug: string, defaultSettings: TSettings) {
+function makeRegistrationQueries<TSettings, TRecord>(
+  classSlug: string,
+  defaultSettings: TSettings,
+) {
   return {
     getSettings: async (): Promise<TSettings> => {
       try {
