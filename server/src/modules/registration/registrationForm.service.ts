@@ -1281,9 +1281,7 @@ export const class9FormConfig: RegistrationFormConfig = {
         [
           registration.jsc_reg_no ? `Reg No: ${registration.jsc_reg_no}` : '',
           registration.jsc_roll_no ? `Roll No: ${registration.jsc_roll_no}` : '',
-          registration.jsc_passing_year
-            ? `${registration.jsc_passing_year}`
-            : '',
+          registration.jsc_passing_year ? `${registration.jsc_passing_year}` : '',
           registration.jsc_board ? `${registration.jsc_board}` : '',
         ]
           .filter(Boolean)
