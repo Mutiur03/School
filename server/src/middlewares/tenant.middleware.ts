@@ -7,7 +7,7 @@ import {
 } from '@/utils/tenantHost.util.js';
 import { prisma } from '@/config/prisma.js';
 import { redis } from '@/config/redis.js';
-import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
+import { env } from '@/config/env.js';
 
 const TENANT_SUBDOMAIN_SUFFIXES = ['.localhost', '.mutiurrahman.com'] as const;
 
@@ -86,7 +86,7 @@ export const schoolContextMiddleware = async (
     return res.status(404).json({ message: 'School not found' });
   }
 
-  await redis.set(cacheKey, JSON.stringify({ id: school.id }), 'EX', LONG_TERM_CACHE_TTL);
+  await redis.set(cacheKey, JSON.stringify({ id: school.id }), 'EX', env.LONG_TERM_CACHE_TTL);
   req.schoolId = school.id;
   next();
 };

@@ -1,7 +1,7 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
-import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
+import { env } from '@/config/env.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 
@@ -52,7 +52,7 @@ export class SyllabusService {
     if (schoolId) where.school_id = schoolId;
 
     const syllabuses = await prisma.syllabus.findMany({ where });
-    await redis.set(key, JSON.stringify(syllabuses), 'EX', LONG_TERM_CACHE_TTL).catch(() => {});
+    await redis.set(key, JSON.stringify(syllabuses), 'EX', env.LONG_TERM_CACHE_TTL).catch(() => {});
 
     return syllabuses;
   }

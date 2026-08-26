@@ -1,7 +1,6 @@
 import { env } from '@/config/env.js';
 import { prisma } from '@/config/prisma.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
-import axios from 'axios';
 import { calculateSMSCount } from '@school/shared-schemas';
 import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
 
@@ -107,34 +106,36 @@ export class SMSService {
     ];
 
     try {
-      const response = await axios.post(
-        apiUrl,
-        {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           api_key: apiKey,
           senderid: senderId,
           MessageParameters: messageParameters,
-        },
-        {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      console.log(response.data);
+        }),
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          message: data?.message || `Failed to send SMS (${res.status})`,
+        };
+      }
+      console.log(data);
 
-      // Sum up sms_count from results if available
       let totalSmsUsed = 0;
-      if (response.data?.results && Array.isArray(response.data.results)) {
-        totalSmsUsed = response.data.results.reduce(
-          (sum: number, res: any) => sum + (res.sms_count || 0),
+      if (data?.results && Array.isArray(data.results)) {
+        totalSmsUsed = data.results.reduce(
+          (sum: number, row: any) => sum + (row.sms_count || 0),
           0,
         );
       }
-
-      // Fallback if results are empty but top level has something
       if (totalSmsUsed === 0) {
-        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || 1;
+        totalSmsUsed = data?.total_sms || data?.sms_count || 1;
       }
 
       if (!options?.skipBalanceUpdate) {
@@ -150,14 +151,14 @@ export class SMSService {
 
       return {
         success: true,
-        data: response.data,
+        data,
         message: 'SMS sent successfully',
       };
     } catch (error: any) {
       console.error('SMS sending error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to send SMS',
+        message: error.message || 'Failed to send SMS',
       };
     }
   }
@@ -197,30 +198,35 @@ export class SMSService {
     }));
 
     try {
-      const response = await axios.post(
-        apiUrl,
-        {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           api_key: apiKey,
           senderid: senderId,
           MessageParameters: messageParameters,
-        },
-        {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-      console.log(response.data);
+        }),
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          success: false,
+          message: data?.message || `Failed to send bulk SMS (${res.status})`,
+        };
+      }
+      console.log(data);
       let totalSmsUsed = 0;
-      if (response.data?.results && Array.isArray(response.data.results)) {
-        totalSmsUsed = response.data.results.reduce(
-          (sum: number, res: any) => sum + (res.sms_count || 0),
+      if (data?.results && Array.isArray(data.results)) {
+        totalSmsUsed = data.results.reduce(
+          (sum: number, row: any) => sum + (row.sms_count || 0),
           0,
         );
       }
       if (totalSmsUsed === 0) {
-        totalSmsUsed = response.data?.total_sms || response.data?.sms_count || totalSegmentsNeeded;
+        totalSmsUsed = data?.total_sms || data?.sms_count || totalSegmentsNeeded;
       }
 
       if (!options?.skipBalanceUpdate) {
@@ -236,14 +242,14 @@ export class SMSService {
 
       return {
         success: true,
-        data: response.data,
+        data,
         message: 'Bulk SMS sent successfully',
       };
     } catch (error: any) {
       console.error('Bulk SMS sending error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to send bulk SMS',
+        message: error.message || 'Failed to send bulk SMS',
       };
     }
   }

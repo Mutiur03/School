@@ -1,57 +1,15 @@
-import express from 'express';
-import AuthMiddleware from '@/middlewares/auth.middleware.js';
-import { validate } from '@/middlewares/validate.middleware.js';
-import {
-  registrationSchema,
-  class6RegistrationStatusSchema,
-  registrationPhotoUploadSchema,
-} from '@school/shared-schemas';
-import { RegistrationFormClass6Controller } from './registrationFormClass6.controller.js';
+import { registrationSchema, class6RegistrationStatusSchema } from '@school/shared-schemas';
+import { RegistrationFormClass6Service } from './registrationFormClass6.service.js';
+import { makeRegistrationFormRouter } from '../../registrationForm.route.js';
 
-const router = express.Router();
-
-router.post('/', validate(registrationSchema), RegistrationFormClass6Controller.createRegistration);
-router.get(
-  '/',
-  AuthMiddleware.authenticate(['admin']),
-  RegistrationFormClass6Controller.getAllRegistrations,
-);
-router.get(
-  '/export',
-  AuthMiddleware.authenticate(['admin']),
-  RegistrationFormClass6Controller.exportRegistrations,
-);
-router.get(
-  '/export-photos',
-  AuthMiddleware.authenticate(['admin']),
-  RegistrationFormClass6Controller.exportRegistrationPhotos,
-);
-router.post(
-  '/upload-url',
-  validate(registrationPhotoUploadSchema),
-  RegistrationFormClass6Controller.getRegistrationPhotoUploadUrl,
-);
-router.get('/:id', RegistrationFormClass6Controller.getRegistrationById);
-router.get('/:id/pdf', RegistrationFormClass6Controller.downloadRegistrationPDF);
-router.put(
-  '/:id/status',
-  AuthMiddleware.authenticateOptional(),
-  validate(class6RegistrationStatusSchema),
-  RegistrationFormClass6Controller.updateRegistrationStatus,
-);
-router.put(
-  '/:id',
-  AuthMiddleware.authenticateOptional(),
-  validate(registrationSchema),
-  RegistrationFormClass6Controller.updateRegistration,
-);
-router.delete(
-  '/:id',
-  AuthMiddleware.authenticate(['admin']),
-  RegistrationFormClass6Controller.deleteRegistration,
-);
-
-const registrationFormClass6Router = express.Router();
-registrationFormClass6Router.use('/api/reg/class-6/form', router);
-
-export default registrationFormClass6Router;
+export default makeRegistrationFormRouter({
+  mountPath: '/api/reg/class-6/form',
+  formSchema: registrationSchema,
+  statusSchema: class6RegistrationStatusSchema,
+  service: RegistrationFormClass6Service,
+  excelFilename: 'Class6_Registrations.xlsx',
+  photosZipPrefix: 'Class6_Photos',
+  yearQueryKeys: ['class6_year'],
+  photoField: 'photo',
+  pdfFilenamePrefix: 'Class6_Reg',
+});

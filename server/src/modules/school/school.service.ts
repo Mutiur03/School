@@ -1,11 +1,19 @@
 import bcrypt from 'bcrypt';
-import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
+import { getRlsContext, patchRlsContext } from '../../config/rlsContextStore.js';
 import { prisma } from '../../config/prisma.js';
 import { redis } from '../../config/redis.js';
 import generatePassword from '../../utils/pwgenerator.js';
 import { ApiError } from '../../utils/ApiError.js';
 
 const schoolInfoKey = (id: number) => `school:info:${id}`;
+
+function sheetToBuffer(rows: Record<string, unknown>[], sheetName: string): Buffer {
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
+}
 
 export class SchoolService {
   static async createSchool(data: any) {
@@ -127,44 +135,50 @@ export class SchoolService {
       }),
     );
 
-    await prisma.$transaction(async (tx) => {
-      for (const student of processed) {
-        await tx.students.update({
-          where: { id: student.id },
-          data: {
-            password: student.hashedPassword,
-            tokenVersion: { increment: 1 },
-          },
-        });
-      }
-    });
+    // Outer $transaction without inRlsTransaction makes the RLS extension nest a
+    // new txn per update; the outer txn idles and dies (~5s) → "Transaction not found".
+    const rls = getRlsContext();
+    await prisma.$transaction(
+      async (tx) => {
+        if (rls) {
+          await tx.$executeRaw`
+            SELECT
+              set_config('app.is_super_admin', ${rls.isSuperAdmin ? '1' : '0'}, true),
+              set_config('app.school_id', ${rls.schoolId ? String(rls.schoolId) : ''}, true)
+          `;
+        }
+        patchRlsContext({ inRlsTransaction: true });
+        try {
+          await Promise.all(
+            processed.map((student) =>
+              tx.students.update({
+                where: { id: student.id },
+                data: {
+                  password: student.hashedPassword,
+                  tokenVersion: { increment: 1 },
+                },
+              }),
+            ),
+          );
+        } finally {
+          patchRlsContext({ inRlsTransaction: false });
+        }
+      },
+      { timeout: 120_000 },
+    );
 
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Rotated Passwords');
-    sheet.columns = [
-      { header: 'Login ID', key: 'login_id', width: 14 },
-      { header: 'Name', key: 'name', width: 26 },
-      { header: 'Batch', key: 'batch', width: 8 },
-      { header: 'Religion', key: 'religion', width: 12 },
-      { header: 'New Password', key: 'password', width: 16 },
-    ];
-    sheet.getRow(1).font = { bold: true };
-
-    for (const student of processed) {
-      sheet.addRow({
-        login_id: student.login_id.toString(),
-        name: student.name,
-        batch: student.batch,
-        religion: student.religion,
-        password: student.password,
-      });
-    }
-
-    const arrayBuffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(arrayBuffer);
+    return sheetToBuffer(
+      processed.map((student) => ({
+        'Login ID': student.login_id.toString(),
+        Name: student.name,
+        Batch: student.batch,
+        'New Password': student.password,
+      })),
+      'Rotated Passwords',
+    );
   }
 
-  /** Build an .xlsx of all students for a school, embedding each student image. */
+  /** Build an .xlsx of all students for a school. */
   static async exportStudentsExcel(schoolId: number) {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
     if (!school) throw new ApiError(404, 'School not found');
@@ -177,54 +191,30 @@ export class SchoolService {
       orderBy: { login_id: 'asc' },
     });
 
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Students');
-
-    sheet.columns = [
-      { header: 'Login ID', key: 'login_id', width: 14 },
-      { header: 'Name', key: 'name', width: 26 },
-      { header: 'Father Name', key: 'father_name', width: 24 },
-      { header: 'Mother Name', key: 'mother_name', width: 24 },
-      { header: 'Batch', key: 'batch', width: 8 },
-      { header: 'Class', key: 'class', width: 8 },
-      { header: 'Section', key: 'section', width: 9 },
-      { header: 'Roll', key: 'roll', width: 8 },
-      { header: 'Religion', key: 'religion', width: 12 },
-      { header: 'Father Phone', key: 'father_phone', width: 14 },
-      { header: 'Mother Phone', key: 'mother_phone', width: 14 },
-      { header: 'DOB', key: 'dob', width: 12 },
-      { header: 'Village', key: 'village', width: 18 },
-      { header: 'Post Office', key: 'post_office', width: 16 },
-      { header: 'Upazila', key: 'upazila', width: 16 },
-      { header: 'District', key: 'district', width: 16 },
-      { header: 'Available', key: 'available', width: 10 },
-    ];
-    sheet.getRow(1).font = { bold: true };
-
-    for (const student of students) {
-      const enrollment = student.enrollments[0];
-      sheet.addRow({
-        login_id: student.login_id.toString(),
-        name: student.name,
-        father_name: student.father_name ?? '',
-        mother_name: student.mother_name ?? '',
-        batch: student.batch,
-        class: enrollment?.class ?? '',
-        section: enrollment?.section ?? '',
-        roll: enrollment?.roll ?? '',
-        religion: student.religion,
-        father_phone: student.father_phone ?? '',
-        mother_phone: student.mother_phone ?? '',
-        dob: student.dob ?? '',
-        village: student.village ?? '',
-        post_office: student.post_office ?? '',
-        upazila: student.upazila ?? '',
-        district: student.district ?? '',
-        available: student.available ? 'Yes' : 'No',
-      });
-    }
-
-    const arrayBuffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(arrayBuffer);
+    return sheetToBuffer(
+      students.map((student) => {
+        const enrollment = student.enrollments[0];
+        return {
+          'Login ID': student.login_id.toString(),
+          Name: student.name,
+          'Father Name': student.father_name ?? '',
+          'Mother Name': student.mother_name ?? '',
+          Batch: student.batch,
+          Class: enrollment?.class ?? '',
+          Section: enrollment?.section ?? '',
+          Roll: enrollment?.roll ?? '',
+          Religion: student.religion,
+          'Father Phone': student.father_phone ?? '',
+          'Mother Phone': student.mother_phone ?? '',
+          DOB: student.dob ?? '',
+          Village: student.village ?? '',
+          'Post Office': student.post_office ?? '',
+          Upazila: student.upazila ?? '',
+          District: student.district ?? '',
+          Available: student.available ? 'Yes' : 'No',
+        };
+      }),
+      'Students',
+    );
   }
 }

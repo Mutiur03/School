@@ -1,7 +1,6 @@
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/config/prisma.js';
 import EmailService from '@/utils/email.service.js';
-const prisma = new PrismaClient();
 
 async function generateToken() {
   const role = 'super_admin';
@@ -33,6 +32,5 @@ async function generateToken() {
   });
 
   EmailService.sendSetupTokenEmail(token, role);
-  await prisma.$disconnect();
 }
 export default generateToken;

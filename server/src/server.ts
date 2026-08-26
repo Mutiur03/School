@@ -38,12 +38,14 @@ import admissionRouter from './modules/admission/admission.route.js';
 import admissionFormRouter from './modules/admission/form/admission-form.route.js';
 import admissionResultRouter from './modules/admission/result/admission-result.route.js';
 import smsRouter from './modules/sms-logs/sms-logs.route.js';
-import registrationSettingsClass6Router from './modules/registration/class-6/Settings/registrationSettingsClass6.route.js';
 import registrationFormClass6Router from './modules/registration/class-6/Form/registrationFormClass6.route.js';
-import registrationSettingsClass8Router from './modules/registration/class-8/Settings/registrationSettingsClass8.route.js';
 import registrationFormClass8Router from './modules/registration/class-8/Form/registrationFormClass8.route.js';
-import registrationSettingsClass9Router from './modules/registration/class-9/Settings/registrationSettingsClass9.route.js';
 import registrationFormClass9Router from './modules/registration/class-9/Form/registrationFormClass9.route.js';
+import {
+  registrationSettingsClass6Router,
+  registrationSettingsClass8Router,
+  registrationSettingsClass9Router,
+} from './modules/registration/registrationSettings.routers.js';
 import { check } from './config/redis.js';
 import { startMarksheetWorker, drainMarksheetQueue } from './modules/marks/marksheet.worker.js';
 import {

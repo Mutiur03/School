@@ -2,7 +2,7 @@ import { prisma } from '@/config/prisma.js';
 import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
-import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
+import { env } from '@/config/env.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { ApiError } from '@/utils/ApiError.js';
 
@@ -45,7 +45,9 @@ export class ClassRoutineService {
       orderBy: [{ id: 'desc' }],
     });
 
-    await redis.set(cacheKey(), JSON.stringify(pdfs), 'EX', LONG_TERM_CACHE_TTL).catch(() => {});
+    await redis
+      .set(cacheKey(), JSON.stringify(pdfs), 'EX', env.LONG_TERM_CACHE_TTL)
+      .catch(() => {});
     return pdfs;
   }
 

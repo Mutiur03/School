@@ -1,7 +1,5 @@
-import morgan from 'morgan';
 import logger from '../utils/logger.js';
 
-// Fields that should never appear in logs
 const SENSITIVE_FIELDS = new Set([
   'password',
   'passwordConfirm',
@@ -13,9 +11,6 @@ const SENSITIVE_FIELDS = new Set([
   'authorization',
 ]);
 
-/**
- * Recursively redact sensitive keys from an object.
- */
 const redact = (obj, depth = 0) => {
   if (depth > 5 || typeof obj !== 'object' || obj === null) return obj;
   return Object.fromEntries(
@@ -26,30 +21,14 @@ const redact = (obj, depth = 0) => {
   );
 };
 
-/**
- * Extract the real client IP, accounting for reverse proxies.
- */
 const getClientIp = (req) =>
   (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
   req.headers['x-real-ip'] ||
   req.socket?.remoteAddress ||
   'unknown';
 
-// ── Morgan middleware ────────────────────────────────────────────────────────
-// Uses :method :url :status :res[content-length] - :response-time ms format
-// and pipes the output to winston so it ends up in the log files.
-
-const morganFormat = process.env.NODE_ENV === 'development' ? 'dev' : 'combined';
-
-export const morganMiddleware = morgan(morganFormat, {
-  stream: logger.stream,
-});
-
-// ── Detailed request / response logger ──────────────────────────────────────
 export const detailedRequestLogger = (req, res, next) => {
   const startAt = process.hrtime.bigint();
-
-  // Capture the original end so we can intercept it.
   const originalEnd = res.end.bind(res);
 
   res.end = function (...args) {

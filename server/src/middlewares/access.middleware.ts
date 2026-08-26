@@ -22,19 +22,6 @@ export const assertVerifiedTenantSchoolId = (schoolId?: number): number => {
   return schoolId as number;
 };
 
-export const requireSuperAdminHostMiddleware = async (
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-) => {
-  try {
-    await assertSuperAdminHostAllowed(req);
-    return next();
-  } catch {
-    return next(new ApiError(403, 'Access denied: Invalid host for super admin'));
-  }
-};
-
 export const requireSchoolContextOrSuperAdminHostMiddleware = async (
   req: Request,
   _res: Response,

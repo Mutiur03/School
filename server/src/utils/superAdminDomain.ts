@@ -1,9 +1,7 @@
-import { Request } from 'express';
 import { resolveTenantHostname } from '@/utils/tenantHost.util.js';
+import { Request } from 'express';
 
 const SUPER_ADMIN_HOSTS = new Set(['admin.localhost', 'superadmin.mutiurrahman.com']);
-
-export const hostName = (req: Request): string => resolveTenantHostname(req);
 
 export const assertSuperAdminHostAllowed = async (req: Request) => {
   const lowerHostname = resolveTenantHostname(req).toLowerCase();

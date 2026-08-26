@@ -11,10 +11,8 @@ const envSchema = z.object({
   DOMAIN: z.string().optional(),
   REDIS_HOST: z.string().optional(),
 
-  // Google Sheets (Optional but checked if present)
-  SHEET_ID: z.string().optional(),
-  client_email: z.string().email().optional(),
-  private_key: z.string().optional(),
+  SHORT_TERM_CACHE_TTL: z.coerce.number().int().positive().default(300),
+  LONG_TERM_CACHE_TTL: z.coerce.number().int().positive().default(3600),
 
   // SMS API
   BULK_SMS_API_KEY: z.string().optional(),

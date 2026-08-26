@@ -8,7 +8,6 @@ import {
   CreateMultipartUploadCommand,
   UploadPartCommand,
   CompleteMultipartUploadCommand,
-  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -66,15 +65,6 @@ export const completeMultipartUpload = async (key: string, uploadId: string, par
     MultipartUpload: {
       Parts: parts,
     },
-  });
-  return await r2Client.send(command);
-};
-
-export const abortMultipartUpload = async (key: string, uploadId: string) => {
-  const command = new AbortMultipartUploadCommand({
-    Bucket: R2_BUCKET_NAME,
-    Key: key,
-    UploadId: uploadId,
   });
   return await r2Client.send(command);
 };

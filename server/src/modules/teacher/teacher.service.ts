@@ -1,6 +1,6 @@
 import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
-import { getRlsContext } from '@/config/rlsContextStore.js';
+import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
 import { prisma } from '@/config/prisma.js';
 import { deleteFromR2 } from '@/config/r2.js';
 import * as XLSX from 'xlsx';
@@ -9,7 +9,6 @@ import { ApiError } from '@/utils/ApiError.js';
 import EmailService from '@/utils/email.service.js';
 import { env } from '@/config/env.js';
 import { redis } from '@/config/redis.js';
-import { LONG_TERM_CACHE_TTL } from '@/utils/globalVars.js';
 import type { Prisma } from '@prisma/client';
 
 const headMsgCacheKey = (schoolId?: number | null) =>
@@ -357,21 +356,37 @@ export class TeacherService {
       password: string;
     }> = [];
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      for (const teacher of processedTeachers) {
-        await tx.teachers.update({
-          where: { id: teacher.id },
-          data: { password: teacher.hashedPassword },
-        });
+    const rls = getRlsContext();
+    await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        if (rls) {
+          await tx.$executeRaw`
+            SELECT
+              set_config('app.is_super_admin', ${rls.isSuperAdmin ? '1' : '0'}, true),
+              set_config('app.school_id', ${rls.schoolId ? String(rls.schoolId) : ''}, true)
+          `;
+        }
+        patchRlsContext({ inRlsTransaction: true });
+        try {
+          for (const teacher of processedTeachers) {
+            await tx.teachers.update({
+              where: { id: teacher.id },
+              data: { password: teacher.hashedPassword },
+            });
 
-        rotatedTeachers.push({
-          name: teacher.name,
-          email: teacher.email || 'N/A',
-          designation: teacher.designation || 'N/A',
-          password: teacher.password,
-        });
-      }
-    });
+            rotatedTeachers.push({
+              name: teacher.name,
+              email: teacher.email || 'N/A',
+              designation: teacher.designation || 'N/A',
+              password: teacher.password,
+            });
+          }
+        } finally {
+          patchRlsContext({ inRlsTransaction: false });
+        }
+      },
+      { timeout: 120_000 },
+    );
 
     const excelData = rotatedTeachers.map(
       (teacher: { name: string; email: string; designation: string; password: string }) => ({
@@ -469,7 +484,7 @@ export class TeacherService {
       },
     });
 
-    await redis.set(key, JSON.stringify(headMsg), 'EX', LONG_TERM_CACHE_TTL);
+    await redis.set(key, JSON.stringify(headMsg), 'EX', env.LONG_TERM_CACHE_TTL);
     return headMsg;
   }
 }

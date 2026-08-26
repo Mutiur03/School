@@ -3,7 +3,7 @@ import { prisma } from '@/config/prisma.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
 import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
-import { SHORT_TERM_CACHE_TTL } from '@/utils/globalVars.js';
+import { env } from '@/config/env.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
@@ -166,7 +166,7 @@ export class AdmissionService {
     const data = await prisma.admission.findUnique({ where: { school_id: schoolId } });
     const formatted = this.formatAdmission((data as Record<string, unknown> | null) ?? null);
 
-    await redis.set(cacheKey, JSON.stringify(formatted), 'EX', SHORT_TERM_CACHE_TTL);
+    await redis.set(cacheKey, JSON.stringify(formatted), 'EX', env.SHORT_TERM_CACHE_TTL);
     return formatted;
   }
 
