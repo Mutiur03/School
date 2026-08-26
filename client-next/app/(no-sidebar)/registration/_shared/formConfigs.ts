@@ -82,8 +82,8 @@ const class9Metadata = {
     instruction: 'নবম শ্রেণির শাখা নির্বাচন করুন',
   },
   roll: {
-    tooltip: 'Select your current Class 9 roll number',
-    instruction: 'নবম শ্রেণির রোল নম্বর নির্বাচন করুন',
+    tooltip: 'Select your current roll number',
+    instruction: 'রোল নম্বর নির্বাচন করুন',
   },
   student_name_bn: {
     tooltip: "Write student's name in Bangla as per JSC/JDC/Class 8 certificate",

@@ -899,7 +899,7 @@ export default function RegistrationFormClient({
             }
           />
           {config.showBloodGroup ? (
-            <FieldRow label="Blood Group:" isRequired error={errors.blood_group}>
+            <FieldRow label="Blood Group:" isRequired={false} error={errors.blood_group}>
               <select
                 {...register('blood_group')}
                 className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
