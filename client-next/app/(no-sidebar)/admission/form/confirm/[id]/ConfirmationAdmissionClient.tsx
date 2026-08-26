@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { getFileUrl } from '@/lib/cdn';
 import { ConfirmationAdmission_Props } from '@/queries/admission-form.queries';
 import type { SchoolConfig } from '@/types';
-import DownloadPDF from './AdmissionDownloadPDF';
+import ConfirmDownloadPDF from '@/components/ConfirmDownloadPDF';
 import Image from 'next/image';
 
 function ConfirmationAdmissionClient({
@@ -237,7 +237,16 @@ function ConfirmationAdmissionClient({
   };
 
   if (isConfirmed) {
-    return <DownloadPDF admission={admission} schoolConfig={schoolConfig} pdf_url={pdf_url} />;
+    return (
+      <ConfirmDownloadPDF
+        title1="Admission Confirmed!"
+        title2="Download Your Submitted Admission Form"
+        bannerText="Your application has been successfully submitted"
+        schoolConfig={schoolConfig}
+        pdfUrl={pdf_url}
+        downloadFilename={`${admission.student_name_en}.pdf`}
+      />
+    );
   }
 
   return (

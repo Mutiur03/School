@@ -3,9 +3,9 @@ import { fetchSchoolConfig } from '@/queries/school.queries';
 import {
   getClass9RegistrationRecord,
   getClass9RegistrationSettings,
-} from '@/queries/class9-registration.queries';
+} from '@/queries/registration.queries';
 import ConfirmationClass9Client from './ConfirmationClass9Client';
-import Class9DownloadPDF from './Class9DownloadPDF';
+import ConfirmDownloadPDF from '@/components/ConfirmDownloadPDF';
 
 interface Class9RegistrationConfirmPageProps {
   params: Promise<{
@@ -39,7 +39,12 @@ export default async function Class9RegistrationConfirmPage({
 
   if (registration.status === 'approved') {
     return (
-      <Class9DownloadPDF registration={registration} schoolConfig={schoolConfig} pdfUrl={pdfUrl} />
+      <ConfirmDownloadPDF
+        title2="Download Your SSC Registration Form"
+        schoolConfig={schoolConfig}
+        pdfUrl={pdfUrl}
+        downloadFilename={`Class_9_Registration_${registration.student_name_en?.replace(/\s+/g, '_') || registration.roll}.pdf`}
+      />
     );
   }
 

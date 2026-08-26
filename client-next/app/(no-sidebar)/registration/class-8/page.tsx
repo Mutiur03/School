@@ -1,6 +1,6 @@
 import Link from '@/components/Link';
 import { getFileUrl } from '@/lib/cdn';
-import { getClass8RegistrationSettings } from '@/queries/class8-registration.queries';
+import { getClass8RegistrationSettings } from '@/queries/registration.queries';
 
 export const metadata = {
   title: 'Class Eight Registration Notice',

@@ -5,23 +5,24 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { downloadBlob } from '@school/common-ui/blob';
 import type { SchoolConfig } from '@/types';
-import type { Class6RegistrationRecord } from '@school/shared-schemas';
 
-type Class6DownloadPDFProps = {
+type ConfirmDownloadPDFProps = {
   title1?: string;
   title2?: string;
+  bannerText?: string;
   schoolConfig: SchoolConfig;
-  registration: Class6RegistrationRecord;
   pdfUrl: string;
+  downloadFilename: string;
 };
 
-export default function Class6DownloadPDF({
+export default function ConfirmDownloadPDF({
   title1 = 'Registration Confirmed!',
   title2 = 'Download Your Registration Form',
+  bannerText = 'Your registration has been successfully submitted',
   schoolConfig,
-  registration,
   pdfUrl,
-}: Class6DownloadPDFProps) {
+  downloadFilename,
+}: ConfirmDownloadPDFProps) {
   const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   const handleDownloadPDF = async () => {
@@ -29,7 +30,7 @@ export default function Class6DownloadPDF({
       setDownloadingPDF(true);
       const response = await axios.get(pdfUrl, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
-      downloadBlob(blob, `Class6_Reg_${registration.student_name_en?.replace(/\s+/g, '_')}.pdf`);
+      downloadBlob(blob, downloadFilename);
     } catch {
       toast.error('Failed to download PDF');
     } finally {
@@ -62,7 +63,7 @@ export default function Class6DownloadPDF({
             </div>
           </div>
           <h1 className="mb-3 text-4xl font-bold">{title1}</h1>
-          <p className="text-xl">Your registration has been successfully submitted</p>
+          <p className="text-xl">{bannerText}</p>
         </div>
 
         <div className="overflow-hidden rounded-b bg-white shadow">

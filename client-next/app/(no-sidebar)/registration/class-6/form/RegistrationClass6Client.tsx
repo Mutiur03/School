@@ -25,10 +25,7 @@ import FieldRow, { Instruction } from '@/components/Form/FieldRow';
 import AddressFields from '@/components/Form/AddressFields';
 import GuardianSection from '@/components/Form/GuardianSection';
 import FormInput from '@/components/Form/FormInput';
-
-const registrationSchemaBase = registrationSchema;
-
-import type { Class6RegistrationSettings } from '@/queries/class6-registration.queries';
+import type { Class6RegistrationSettings } from '@/queries/registration.queries';
 import type { Class6RegistrationRecord } from '@school/shared-schemas';
 
 type RegistrationClass6ClientProps = {
@@ -68,7 +65,7 @@ export default function RegistrationClass6Client({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<Class6Registration>({
-    resolver: zodResolver(registrationSchemaBase) as any,
+    resolver: zodResolver(registrationSchema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     shouldUnregister: false,

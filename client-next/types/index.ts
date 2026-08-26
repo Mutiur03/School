@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 export type Syllabus = {
   id: number;
   class: number;
@@ -156,11 +154,6 @@ export type SchoolConfig = {
   seo?: SchoolSeoConfig;
   gaMeasurementId?: string;
   backendBaseUrl?: string;
-};
-
-export type SchoolProviderProps = {
-  config: SchoolConfig;
-  children: ReactNode;
 };
 
 export type Teacher = {

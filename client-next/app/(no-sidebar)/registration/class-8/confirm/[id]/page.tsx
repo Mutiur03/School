@@ -3,9 +3,9 @@ import { fetchSchoolConfig } from '@/queries/school.queries';
 import {
   getClass8RegistrationRecord,
   getClass8RegistrationSettings,
-} from '@/queries/class8-registration.queries';
+} from '@/queries/registration.queries';
 import ConfirmationClass8Client from './ConfirmationClass8Client';
-import Class8DownloadPDF from './Class8DownloadPDF';
+import ConfirmDownloadPDF from '@/components/ConfirmDownloadPDF';
 
 interface Class8RegistrationConfirmPageProps {
   params: Promise<{
@@ -39,7 +39,11 @@ export default async function Class8RegistrationConfirmPage({
 
   if (registration.status === 'approved') {
     return (
-      <Class8DownloadPDF registration={registration} schoolConfig={schoolConfig} pdfUrl={pdfUrl} />
+      <ConfirmDownloadPDF
+        schoolConfig={schoolConfig}
+        pdfUrl={pdfUrl}
+        downloadFilename={`Class8_Reg_${registration.student_name_en?.replace(/\s+/g, '_')}.pdf`}
+      />
     );
   }
 

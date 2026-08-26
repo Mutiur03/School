@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { getFileUrl } from '@/lib/cdn';
 import type { Class8RegistrationRecord } from '@school/shared-schemas';
 import type { SchoolConfig } from '@/types';
-import Class8DownloadPDF from './Class8DownloadPDF';
+import ConfirmDownloadPDF from '@/components/ConfirmDownloadPDF';
 
 type ConfirmationClass8ClientProps = {
   registration: Class8RegistrationRecord;
@@ -136,7 +136,11 @@ export default function ConfirmationClass8Client({
 
   if (isConfirmed) {
     return (
-      <Class8DownloadPDF registration={registration} schoolConfig={schoolConfig} pdfUrl={pdfUrl} />
+      <ConfirmDownloadPDF
+        schoolConfig={schoolConfig}
+        pdfUrl={pdfUrl}
+        downloadFilename={`Class8_Reg_${registration.student_name_en?.replace(/\s+/g, '_')}.pdf`}
+      />
     );
   }
 

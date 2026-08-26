@@ -3,7 +3,7 @@ import { fetchSchoolConfig } from '@/queries/school.queries';
 import {
   getClass9RegistrationRecord,
   getClass9RegistrationSettings,
-} from '@/queries/class9-registration.queries';
+} from '@/queries/registration.queries';
 import RegistrationClass9Client from '../RegistrationClass9Client';
 
 interface Class9RegistrationEditPageProps {

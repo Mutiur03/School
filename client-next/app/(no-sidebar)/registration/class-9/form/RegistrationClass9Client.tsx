@@ -24,7 +24,7 @@ import FieldRow from '@/components/Form/FieldRow';
 import AddressFields from '@/components/Form/AddressFields';
 import GuardianSection from '@/components/Form/GuardianSection';
 import FormInput from '@/components/Form/FormInput';
-import type { Class9RegistrationSettings } from '@/queries/class9-registration.queries';
+import type { Class9RegistrationSettings } from '@/queries/registration.queries';
 import type { Class9RegistrationRecord } from '@school/shared-schemas';
 import type { SchoolConfig } from '@/types';
 

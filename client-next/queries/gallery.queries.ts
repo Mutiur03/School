@@ -38,29 +38,18 @@ const normalizeGalleryItem = (item: Record<string, unknown>): GalleryItem => {
   };
 };
 
-export const fetchGalleryCategories = async (): Promise<GalleryItem[]> => {
-  try {
-    const response = await api.get<GalleryItem[]>('/api/gallery/getCategories', {
-      revalidate: 60,
-    });
-    return normalizeArray<Record<string, unknown>>(response.data).map(normalizeGalleryItem);
-  } catch (error) {
-    console.error('Error fetching gallery categories:', error);
-    return [];
-  }
-};
+export const fetchGalleryCategories = () => fetchGalleryList('/api/gallery/getCategories');
+export const fetchGalleryEvents = () => fetchGalleryList('/api/events/getEvents');
 
-export const fetchGalleryEvents = async (): Promise<GalleryItem[]> => {
+async function fetchGalleryList(path: string): Promise<GalleryItem[]> {
   try {
-    const response = await api.get<GalleryItem[]>('/api/events/getEvents', {
-      revalidate: 60,
-    });
+    const response = await api.get<GalleryItem[]>(path, { revalidate: 60 });
     return normalizeArray<Record<string, unknown>>(response.data).map(normalizeGalleryItem);
   } catch (error) {
-    console.error('Error fetching gallery events:', error);
+    console.error(`Error fetching gallery list from ${path}:`, error);
     return [];
   }
-};
+}
 
 export const fetchGalleryImages = async (
   type: 'campus' | 'event',

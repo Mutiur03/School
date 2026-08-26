@@ -1,6 +1,6 @@
 import Link from '@/components/Link';
 import { getFileUrl } from '@/lib/cdn';
-import { getClass9RegistrationSettings } from '@/queries/class9-registration.queries';
+import { getClass9RegistrationSettings } from '@/queries/registration.queries';
 
 export const metadata = {
   title: 'SSC Registration Notice',

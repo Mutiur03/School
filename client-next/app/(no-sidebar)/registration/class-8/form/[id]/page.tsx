@@ -3,7 +3,7 @@ import { fetchSchoolConfig } from '@/queries/school.queries';
 import {
   getClass8RegistrationRecord,
   getClass8RegistrationSettings,
-} from '@/queries/class8-registration.queries';
+} from '@/queries/registration.queries';
 import RegistrationClass8Client from '../RegistrationClass8Client';
 
 interface Class8RegistrationEditPageProps {

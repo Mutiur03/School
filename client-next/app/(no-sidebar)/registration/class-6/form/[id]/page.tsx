@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import {
   getClass6RegistrationRecord,
   getClass6RegistrationSettings,
-} from '@/queries/class6-registration.queries';
+} from '@/queries/registration.queries';
 import RegistrationClass6Client from '../RegistrationClass6Client';
 
 interface Class6RegistrationEditPageProps {

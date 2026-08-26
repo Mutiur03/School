@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getClass6RegistrationSettings } from '@/queries/class6-registration.queries';
+import { getClass6RegistrationSettings } from '@/queries/registration.queries';
 import RegistrationClass6Client from './RegistrationClass6Client';
 
 export const metadata = {

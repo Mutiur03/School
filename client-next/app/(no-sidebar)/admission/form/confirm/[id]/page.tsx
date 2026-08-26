@@ -3,7 +3,7 @@ import { getAdmissionFormRecord } from '@/queries/admission-form.queries';
 import { redirect } from 'next/navigation';
 import ConfirmationAdmissionClient from './ConfirmationAdmissionClient';
 import { getAdmissionData } from '@/queries/admission.queries';
-import DownloadPDF from './AdmissionDownloadPDF';
+import ConfirmDownloadPDF from '@/components/ConfirmDownloadPDF';
 
 interface AdmissionConfirmPageProps {
   params: Promise<{
@@ -32,10 +32,13 @@ export default async function AdmissionConfirmPage({ params }: AdmissionConfirmP
   }
   if (admissionRecord.status === 'approved') {
     return (
-      <DownloadPDF
-        admission={admissionRecord}
+      <ConfirmDownloadPDF
+        title1="Admission Confirmed!"
+        title2="Download Your Submitted Admission Form"
+        bannerText="Your application has been successfully submitted"
         schoolConfig={schoolConfig}
-        pdf_url={`/api/admission/form/${id}/pdf`}
+        pdfUrl={`/api/admission/form/${id}/pdf`}
+        downloadFilename={`${admissionRecord.student_name_en}.pdf`}
       />
     );
   }

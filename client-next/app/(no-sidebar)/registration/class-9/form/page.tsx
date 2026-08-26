@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { fetchSchoolConfig } from '@/queries/school.queries';
-import { getClass9RegistrationSettings } from '@/queries/class9-registration.queries';
+import { getClass9RegistrationSettings } from '@/queries/registration.queries';
 import RegistrationClass9Client from './RegistrationClass9Client';
 
 export const metadata = {
