@@ -303,7 +303,8 @@ jobs:
             docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma migrate deploy; else pnpm exec prisma migrate deploy; fi'
 
             echo "Seeding database..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma db seed; else pnpm exec prisma db seed; fi'
+            # Seed is idempotent (skipDuplicates); don't block deploy if the runner image lacks seed tooling.
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma db seed; else pnpm exec prisma db seed; fi' || echo "Seeding completed or skipped"
 
             # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs

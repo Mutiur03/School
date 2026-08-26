@@ -18,6 +18,7 @@ export type NoticeItem = {
 
 export type Head = {
   head_message: string;
+  head_role?: string | null;
   teacher: {
     name: string;
     image: string;
