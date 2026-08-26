@@ -15,6 +15,12 @@ export function parseOptionalRegistrationYear(raw: unknown): number | undefined 
   return Number.isInteger(year) ? year : undefined;
 }
 
+export function assertRegistrationOpen(settings: { reg_open?: boolean | null } | null | undefined) {
+  if (!settings?.reg_open) {
+    throw new ApiError(403, 'Registration is currently closed');
+  }
+}
+
 export async function resolveRegistrationClassmates(
   schoolId: number,
   stored: string | null,

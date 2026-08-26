@@ -18,7 +18,10 @@ import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
-import { parseOptionalRegistrationYear } from '@/modules/registration/registrationSettings.util.js';
+import {
+  assertRegistrationOpen,
+  parseOptionalRegistrationYear,
+} from '@/modules/registration/registrationSettings.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -148,6 +151,7 @@ export class RegistrationFormClass8Service {
       requireSchoolId(),
       class8_year,
     );
+    assertRegistrationOpen(settings);
     const year =
       String(class8_year || settings?.class8_year || 'unknown')
         .trim()
@@ -163,11 +167,22 @@ export class RegistrationFormClass8Service {
   static async createRegistration(data: any) {
     const schoolId = requireSchoolId();
 
+    const settings = await RegistrationFormClass8Service.getSettingsSnapshot(
+      schoolId,
+      data.class8_year,
+    );
     if (!data.class8_year) {
-      const settings = await RegistrationFormClass8Service.getSettingsSnapshot(schoolId);
-      data.class8_year = settings?.class8_year || new Date().getFullYear();
+      data.class8_year = settings?.class8_year;
+    }
+    if (!data.class8_year) {
+      throw new ApiError(400, 'Academic year is required');
     }
     data.class8_year = parseInt(String(data.class8_year), 10);
+    assertRegistrationOpen(settings);
+
+    if (!data.photo) {
+      throw new ApiError(400, 'Student photo is required');
+    }
 
     const duplicates = await checkDuplicates(data, null, schoolId);
     if (duplicates.length > 0) {
@@ -232,10 +247,7 @@ export class RegistrationFormClass8Service {
         orderBy: { created_at: 'desc' },
       }),
       prisma.student_registration_class8.count({
-        where: {
-          school_id: schoolId,
-          ...(class8_year ? { class8_year: Number(class8_year) } : {}),
-        },
+        where,
       }),
       prisma.student_registration_class8.count({
         where: { ...statsWhere, status: 'pending' },
@@ -287,6 +299,12 @@ export class RegistrationFormClass8Service {
 
   static async updateRegistration(id: string, data: any) {
     const existing = await RegistrationFormClass8Service.findOwnedRegistration(id);
+    assertRegistrationOpen(
+      await RegistrationFormClass8Service.getSettingsSnapshot(
+        existing.school_id,
+        data.class8_year || existing.class8_year,
+      ),
+    );
 
     const duplicates = await checkDuplicates(data, id, existing.school_id);
     if (duplicates.length > 0) {

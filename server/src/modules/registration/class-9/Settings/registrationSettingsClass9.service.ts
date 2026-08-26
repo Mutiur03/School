@@ -1,5 +1,5 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl } from '@/config/r2.js';
+import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
 import path from 'path';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
@@ -43,11 +43,17 @@ export class RegistrationSettingsClass9Service {
       notice: null,
     };
 
+    const schoolId = requireSchoolId();
+
     if (notice_key) {
+      const existing = await prisma.ssc_reg.findFirst({
+        where: { school_id: schoolId, ssc_year: resolvedYear },
+      });
+      if (existing?.notice && existing.notice !== notice_key) {
+        await deleteFromR2(existing.notice);
+      }
       updateData.notice = notice_key;
     }
-
-    const schoolId = requireSchoolId();
 
     return await prisma.ssc_reg.upsert({
       where: {
@@ -113,6 +119,8 @@ export class RegistrationSettingsClass9Service {
     if (!class9Reg?.id || !class9Reg.notice) {
       throw new ApiError(404, 'No notice found to delete');
     }
+
+    await deleteFromR2(class9Reg.notice);
 
     await prisma.ssc_reg.update({
       where: { id: class9Reg.id },

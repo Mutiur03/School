@@ -17,7 +17,10 @@ import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
-import { parseOptionalRegistrationYear } from '@/modules/registration/registrationSettings.util.js';
+import {
+  assertRegistrationOpen,
+  parseOptionalRegistrationYear,
+} from '@/modules/registration/registrationSettings.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -170,11 +173,18 @@ export class RegistrationFormClass6Service {
       data.birth_year = y;
     }
 
+    const settings = await RegistrationFormClass6Service.getSettingsSnapshot(
+      schoolId,
+      data.class6_year,
+    );
     if (!data.class6_year) {
-      const settings = await RegistrationFormClass6Service.getSettingsSnapshot(schoolId);
-      data.class6_year = settings?.class6_year || new Date().getFullYear();
+      data.class6_year = settings?.class6_year;
     }
-    data.class6_year = parseInt(data.class6_year);
+    if (!data.class6_year) {
+      throw new ApiError(400, 'Academic year is required');
+    }
+    data.class6_year = parseInt(data.class6_year, 10);
+    assertRegistrationOpen(settings);
 
     if (!data.photo) {
       throw new ApiError(400, 'Student photo is required');
@@ -240,10 +250,7 @@ export class RegistrationFormClass6Service {
 
       const [total, pending, approved, registrations] = await prisma.$transaction([
         prisma.student_registration_class6.count({
-          where: {
-            school_id: schoolId,
-            ...(class6_year ? { class6_year: Number(class6_year) } : {}),
-          },
+          where,
         }),
         prisma.student_registration_class6.count({
           where: { ...statsWhere, status: 'pending' },
@@ -286,6 +293,12 @@ export class RegistrationFormClass6Service {
 
   static async updateRegistration(id: string, data: any) {
     const existing = await RegistrationFormClass6Service.findOwnedRegistration(id);
+    assertRegistrationOpen(
+      await RegistrationFormClass6Service.getSettingsSnapshot(
+        existing.school_id,
+        data.class6_year || existing.class6_year,
+      ),
+    );
 
     const duplicates = await checkDuplicates(data, id, existing.school_id);
     if (duplicates.length > 0) {
@@ -379,6 +392,7 @@ export class RegistrationFormClass6Service {
       requireSchoolId(),
       class6_year,
     );
+    assertRegistrationOpen(settings);
     const academicYear =
       String(class6_year || settings?.class6_year || new Date().getFullYear())
         .trim()

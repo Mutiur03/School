@@ -370,7 +370,11 @@ export const registrationSuperRefine = (data: any, ctx: z.RefinementCtx) => {
   }
 };
 
-export const registrationSchema = registrationObjectShape.superRefine(registrationSuperRefine);
+export const registrationSchema = registrationObjectShape
+  .extend({
+    class6_year: z.union([z.string(), z.number()]).optional(),
+  })
+  .superRefine(registrationSuperRefine);
 
 export const class6RegistrationStatusSchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected'], {

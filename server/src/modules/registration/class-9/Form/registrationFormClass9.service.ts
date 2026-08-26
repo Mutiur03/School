@@ -18,7 +18,10 @@ import { tenantR2Key } from '@/utils/r2Key.util.js';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { formatDateLong } from '../../class-6/Form/registrationFormClass6.service.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
-import { parseOptionalRegistrationYear } from '@/modules/registration/registrationSettings.util.js';
+import {
+  assertRegistrationOpen,
+  parseOptionalRegistrationYear,
+} from '@/modules/registration/registrationSettings.util.js';
 
 const checkDuplicates = async (
   data: any,
@@ -97,7 +100,7 @@ export class RegistrationFormClass9Service {
         school_id: resolvedSchoolId,
         ...(parsedYear !== undefined ? { ssc_year: parsedYear } : {}),
       },
-      orderBy: [{ ssc_year: 'desc' }, { id: 'desc' }],
+      orderBy: [{ reg_open: 'desc' }, { ssc_year: 'desc' }, { id: 'desc' }],
       select: RegistrationFormClass9Service.PDF_SETTINGS_SELECT,
     });
   }
@@ -146,6 +149,7 @@ export class RegistrationFormClass9Service {
       requireSchoolId(),
       requestedYear,
     );
+    assertRegistrationOpen(settings);
     const year =
       String(requestedYear || settings?.ssc_year || 'unknown')
         .trim()
@@ -160,6 +164,21 @@ export class RegistrationFormClass9Service {
 
   static async createRegistration(data: any) {
     const schoolId = requireSchoolId();
+    const requestedYear = data.ssc_batch || data.ssc_year;
+    const settings = await RegistrationFormClass9Service.getSettingsSnapshot(
+      schoolId,
+      requestedYear,
+    );
+    data.ssc_batch = String(data.ssc_batch || data.ssc_year || settings?.ssc_year || '');
+    if (!data.ssc_batch) {
+      throw new ApiError(400, 'SSC year is required');
+    }
+    assertRegistrationOpen(settings);
+
+    if (!data.photo) {
+      throw new ApiError(400, 'Student photo is required');
+    }
+
     const duplicates = await checkDuplicates(data, null, schoolId);
     if (duplicates.length > 0) {
       throw new ApiError(400, 'Duplicate information found', duplicates as any);
@@ -227,10 +246,7 @@ export class RegistrationFormClass9Service {
         orderBy: { created_at: 'desc' },
       }),
       prisma.student_registration_ssc.count({
-        where: {
-          school_id: schoolId,
-          ssc_batch: ssc_batch ? String(ssc_batch) : undefined,
-        },
+        where,
       }),
       prisma.student_registration_ssc.count({
         where: { ...statsWhere, status: 'pending' },
@@ -292,6 +308,12 @@ export class RegistrationFormClass9Service {
 
   static async updateRegistration(id: string, data: any) {
     const existing = await RegistrationFormClass9Service.findOwnedRegistration(id);
+    assertRegistrationOpen(
+      await RegistrationFormClass9Service.getSettingsSnapshot(
+        existing.school_id,
+        data.ssc_batch || data.ssc_year || data.class9_year || existing.ssc_batch,
+      ),
+    );
 
     const duplicates = await checkDuplicates(data, id, existing.school_id);
     if (duplicates.length > 0) {

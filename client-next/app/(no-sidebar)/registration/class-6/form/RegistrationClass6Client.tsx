@@ -441,6 +441,7 @@ export default function RegistrationClass6Client({
       const submissionData = {
         ...data,
         photo,
+        class6_year: data.class6_year || settings?.class6_year,
       };
       const endpoint = isEditMode ? `/api/reg/class-6/form/${id}` : '/api/reg/class-6/form';
       const method = isEditMode ? 'put' : 'post';
