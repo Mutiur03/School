@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import toast from 'react-hot-toast';
-import DeleteConfirmationIcon from '@/components/DeleteConfimationIcon';
+import DeleteConfirmation from '@/components/DeleteConfimation';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants } from 'framer-motion';
@@ -859,7 +859,7 @@ export default function Gallery() {
                                 Set as Thumbnail
                               </button>
                             </div>
-                            <DeleteConfirmationIcon
+                            <DeleteConfirmation
                               onDelete={() => handleReject(selectedGroup[currentIndex].id)}
                               msg="Are you sure you want to reject this image?"
                             />

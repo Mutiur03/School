@@ -3,28 +3,14 @@ import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-do
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import { Toaster } from 'react-hot-toast';
-import PrivateRoute from './components/PrivateRoute.tsx';
-import SuperAdminRoute from './components/SuperAdminRoute.tsx';
-import TeacherRoute from './components/TeacherRoute.tsx';
-import StudentRoute from './components/StudentRoute.tsx';
+import RoleRoute from './components/RoleRoute.tsx';
 import { Class6PdfPreview, Class8PdfPreview, Class9PdfPreview } from '@school/common-ui';
+import type { ComponentType } from 'react';
 
-function Class6PdfPreviewPage() {
+function ClassPdfPreviewPage({ Preview }: { Preview: ComponentType<{ id: string }> }) {
   const { id } = useParams();
   if (!id) return <Navigate to="/" replace />;
-  return <Class6PdfPreview id={id} />;
-}
-
-function Class8PdfPreviewPage() {
-  const { id } = useParams();
-  if (!id) return <Navigate to="/" replace />;
-  return <Class8PdfPreview id={id} />;
-}
-
-function Class9PdfPreviewPage() {
-  const { id } = useParams();
-  if (!id) return <Navigate to="/" replace />;
-  return <Class9PdfPreview id={id} />;
+  return <Preview id={id} />;
 }
 
 import { useAuth } from './context/useAuth.tsx';
@@ -204,9 +190,18 @@ function App() {
           }
         >
           <SentryRoutes>
-            <Route path="/preview/class6/:id" element={<Class6PdfPreviewPage />} />
-            <Route path="/preview/class8/:id" element={<Class8PdfPreviewPage />} />
-            <Route path="/preview/class9/:id" element={<Class9PdfPreviewPage />} />
+            <Route
+              path="/preview/class6/:id"
+              element={<ClassPdfPreviewPage Preview={Class6PdfPreview} />}
+            />
+            <Route
+              path="/preview/class8/:id"
+              element={<ClassPdfPreviewPage Preview={Class8PdfPreview} />}
+            />
+            <Route
+              path="/preview/class9/:id"
+              element={<ClassPdfPreviewPage Preview={Class9PdfPreview} />}
+            />
 
             {/* CASE 1: envPreferredRole IS PRESENT */}
             {envPreferredRole && (
@@ -320,7 +315,8 @@ function App() {
               <Route
                 path="/teacher/*"
                 element={
-                  <TeacherRoute
+                  <RoleRoute
+                    role="teacher"
                     element={
                       <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
@@ -358,7 +354,8 @@ function App() {
               <Route
                 path="/student/*"
                 element={
-                  <StudentRoute
+                  <RoleRoute
+                    role="student"
                     element={
                       <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
@@ -392,7 +389,8 @@ function App() {
               <Route
                 path="/admin/*"
                 element={
-                  <PrivateRoute
+                  <RoleRoute
+                    role="admin"
                     element={
                       <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar
@@ -458,7 +456,8 @@ function App() {
               <Route
                 path="/super_admin/*"
                 element={
-                  <SuperAdminRoute
+                  <RoleRoute
+                    role="super_admin"
                     element={
                       <div className="flex min-h-0 flex-1 flex-col">
                         <Navbar

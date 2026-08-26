@@ -5,29 +5,9 @@ const resolveBackendUrl = (): string => {
     return fromEnv;
   }
 
-  const currentHost = window.location.hostname.toLowerCase();
-
-  // Local fallback for development if no env is provided.
-  if (currentHost === 'localhost' || currentHost.endsWith('.localhost')) {
-    return '';
-  }
-
+  // Local + tenant hosts go through the Vite proxy (empty = same origin).
+  // ponytail: always '' in browser; restore URL rewrite if API ever leaves the proxy.
   return '';
-
-  try {
-    const parsed = new URL(fromEnv);
-    const isLocalBackend = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-    const isTenantLocalhost = currentHost.endsWith('.localhost');
-
-    // Keep tenant host (e.g. lbp.localhost) so cookies are first-party on refresh.
-    if (isLocalBackend && isTenantLocalhost) {
-      parsed.hostname = currentHost;
-    }
-
-    return parsed.toString().replace(/\/$/, '');
-  } catch {
-    return fromEnv;
-  }
 };
 
 const backend = resolveBackendUrl();

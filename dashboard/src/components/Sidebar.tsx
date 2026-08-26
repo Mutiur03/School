@@ -1,11 +1,26 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import type { ForwardedRef } from 'react';
-import { FaHome, FaUser, FaClipboardList, FaUsers, FaCogs } from 'react-icons/fa';
-import { FaGear, FaRegImage, FaBullhorn } from 'react-icons/fa6';
-
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, NavLink, useNavigate } from 'react-router-dom';
-import { Megaphone, Calendar, CalendarClock, TreePalm, ChevronDown } from 'lucide-react';
+import {
+  Home,
+  User,
+  ClipboardList,
+  GraduationCap,
+  Briefcase,
+  ClipboardPen,
+  UserPlus,
+  Settings,
+  Image as ImageIcon,
+  MessageSquare,
+  Bell,
+  CalendarCheck,
+  Footprints,
+  TreePalm,
+  PartyPopper,
+  Building2,
+  ChevronDown,
+} from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import useNavigationStore from '@/store/navigation.Store';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
@@ -36,7 +51,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
   const adminRoutes: SidebarItem[] = [
     {
       label: 'Dashboard',
-      icon: FaHome,
+      icon: Home,
       dropdown: false,
       link: '/admin/dashboard',
       id: 'dashboard',
@@ -44,7 +59,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Student',
-      icon: FaUsers,
+      icon: GraduationCap,
       dropdown: true,
       id: 'student',
       link: '/admin/students',
@@ -64,7 +79,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Teacher',
-      icon: FaUser,
+      icon: Briefcase,
       dropdown: true,
       id: 'administration',
       roles: ['admin'],
@@ -89,7 +104,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Results',
-      icon: FaClipboardList,
+      icon: ClipboardList,
       dropdown: true,
       id: 'reports',
       roles: ['admin'],
@@ -128,7 +143,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Registration',
-      icon: FaCogs,
+      icon: ClipboardPen,
       dropdown: true,
       id: 'registration',
       roles: ['admin'],
@@ -152,7 +167,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Admission',
-      icon: Megaphone,
+      icon: UserPlus,
       dropdown: true,
       id: 'admission',
       roles: ['admin'],
@@ -176,7 +191,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Settings',
-      icon: FaGear,
+      icon: Settings,
       dropdown: true,
       id: 'settings',
       roles: ['admin'],
@@ -205,7 +220,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Attendance',
-      icon: Calendar,
+      icon: CalendarCheck,
       dropdown: false,
       link: '/admin/attendance',
       id: 'attendance',
@@ -213,7 +228,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Running Away',
-      icon: CalendarClock,
+      icon: Footprints,
       dropdown: false,
       link: '/admin/attendance-double',
       id: 'stay-check',
@@ -221,7 +236,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'SMS Management',
-      icon: Megaphone,
+      icon: MessageSquare,
       dropdown: false,
       link: '/admin/sms-management',
       id: 'sms-management',
@@ -229,7 +244,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Notice',
-      icon: FaBullhorn,
+      icon: Bell,
       dropdown: false,
       link: '/admin/notice',
       id: 'notice',
@@ -245,7 +260,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Events',
-      icon: CalendarClock,
+      icon: PartyPopper,
       dropdown: false,
       link: '/admin/events',
       id: 'events',
@@ -253,7 +268,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Gallery',
-      icon: FaRegImage,
+      icon: ImageIcon,
       dropdown: true,
       id: 'gallery',
       roles: ['admin'],
@@ -280,7 +295,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
   const teacherRoutes: SidebarItem[] = [
     {
       label: 'Dashboard',
-      icon: FaHome,
+      icon: Home,
       dropdown: false,
       link: '/teacher/dashboard',
       id: 'dashboard',
@@ -288,7 +303,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: "Students' Info",
-      icon: FaUsers,
+      icon: GraduationCap,
       dropdown: false,
       link: '/teacher/students',
       id: 'students',
@@ -296,7 +311,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Attendance',
-      icon: Calendar,
+      icon: CalendarCheck,
       dropdown: false,
       link: '/teacher/attendance',
       id: 'attendance',
@@ -304,7 +319,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Running Away',
-      icon: CalendarClock,
+      icon: Footprints,
       dropdown: false,
       link: '/teacher/attendance-double',
       id: 'stay-check',
@@ -312,7 +327,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Mark Management',
-      icon: FaClipboardList,
+      icon: ClipboardList,
       dropdown: true,
       id: 'mark-management',
       roles: ['teacher'],
@@ -331,7 +346,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Settings',
-      icon: FaCogs,
+      icon: Settings,
       dropdown: false,
       link: '/teacher/settings',
       id: 'settings',
@@ -342,7 +357,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
   const studentRoutes: SidebarItem[] = [
     {
       label: 'Dashboard',
-      icon: FaHome,
+      icon: Home,
       dropdown: false,
       link: '/student/dashboard',
       id: 'dashboard',
@@ -350,7 +365,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Profile',
-      icon: FaUser,
+      icon: User,
       dropdown: false,
       link: '/student/profile',
       id: 'profile',
@@ -358,7 +373,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     },
     {
       label: 'Result',
-      icon: FaClipboardList,
+      icon: ClipboardList,
       dropdown: false,
       link: '/student/result',
       id: 'result',
@@ -373,7 +388,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     super_admin: [
       {
         label: 'Dashboard',
-        icon: FaHome,
+        icon: Home,
         dropdown: false,
         link: '/super_admin/dashboard',
         id: 'dashboard',
@@ -381,7 +396,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       },
       {
         label: 'School Management',
-        icon: FaGear,
+        icon: Building2,
         dropdown: false,
         link: '/super_admin/settings/school',
         id: 'school-settings',

@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { formatDay } from '@/lib/utils';
 import { getFileUrl } from '@/lib/backend';
 import { Badge } from '@/components/ui/badge';
 import type { Student } from '@/types/students';
@@ -55,7 +55,7 @@ export function StudentProfileView({ student, compact = false }: StudentProfileV
     student.district,
   ].filter(Boolean);
 
-  const dobLabel = student.dob ? format(new Date(student.dob), 'dd MMM yyyy') : null;
+  const dobLabel = student.dob ? formatDay(new Date(student.dob)) : null;
 
   return (
     <div className="space-y-5">

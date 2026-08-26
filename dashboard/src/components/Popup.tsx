@@ -1,4 +1,6 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 type PopupSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 
@@ -8,23 +10,20 @@ interface PopupProps {
   children: React.ReactNode;
   size?: PopupSize;
   className?: string;
-  /** Accessible name when children don't include a visible title */
   'aria-label'?: string;
   'aria-labelledby'?: string;
 }
 
 const sizeClasses: Record<PopupSize, string> = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  '2xl': 'max-w-2xl',
-  full: 'max-w-5xl',
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-md',
+  lg: 'sm:max-w-lg',
+  xl: 'sm:max-w-xl',
+  '2xl': 'sm:max-w-2xl',
+  full: 'sm:max-w-5xl',
 };
 
-const FOCUSABLE =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
+/** Thin Radix Dialog wrapper — keeps the old Popup API. */
 const Popup = ({
   open,
   onOpenChange,
@@ -34,85 +33,21 @@ const Popup = ({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
 }: PopupProps) => {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const lastFocusedRef = useRef<HTMLElement | null>(null);
-  const titleId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-
-    lastFocusedRef.current = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    const focusFirst = () => {
-      const root = dialogRef.current;
-      if (!root) return;
-      const focusable = root.querySelectorAll<HTMLElement>(FOCUSABLE);
-      (focusable[0] ?? root).focus();
-    };
-    // Wait a frame so content is mounted
-    const raf = requestAnimationFrame(focusFirst);
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onOpenChange(false);
-        return;
-      }
-      if (e.key !== 'Tab' || !dialogRef.current) return;
-      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE);
-      if (focusable.length === 0) {
-        e.preventDefault();
-        dialogRef.current.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKey);
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
-      lastFocusedRef.current?.focus();
-    };
-  }, [open, onOpenChange]);
-
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      style={{ overscrollBehavior: 'contain' }}
-      onClick={() => onOpenChange(false)}
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton={false}
         aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy ?? (!ariaLabel ? titleId : undefined)}
-        tabIndex={-1}
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl outline-none dark:bg-gray-800 dark:text-white ${sizeClasses[size]} ${className}`}
-        style={{ overscrollBehavior: 'contain' }}
-        onClick={(e) => e.stopPropagation()}
+        aria-labelledby={ariaLabelledBy}
+        className={cn(
+          'max-h-[90vh] w-full max-w-[calc(100%-2rem)] overflow-y-auto p-0',
+          sizeClasses[size],
+          className,
+        )}
       >
-        {!ariaLabel && !ariaLabelledBy ? (
-          <span id={titleId} className="sr-only">
-            Dialog
-          </span>
-        ) : null}
         {children}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

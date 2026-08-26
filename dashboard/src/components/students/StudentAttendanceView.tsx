@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { formatDay, formatDayLong } from '@/lib/utils';
 import {
   CalendarDays,
   ChevronLeft,
@@ -253,8 +253,8 @@ export function StudentAttendanceView({
                   } ${isFetching ? 'opacity-70' : ''}`}
                   title={
                     record
-                      ? `${format(parseISO(cell.dateKey!), 'dd MMM yyyy')} — ${meta?.label}`
-                      : format(parseISO(cell.dateKey!), 'dd MMM yyyy')
+                      ? `${formatDay(cell.dateKey!)} — ${meta?.label}`
+                      : formatDay(cell.dateKey!)
                   }
                 >
                   <span className="text-xs font-semibold">{cell.day}</span>
@@ -299,9 +299,7 @@ export function StudentAttendanceView({
                   className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
                   <div>
-                    <p className="font-medium">
-                      {format(parseISO(record.date), 'EEEE, dd MMM yyyy')}
-                    </p>
+                    <p className="font-medium">{formatDayLong(record.date)}</p>
                     <p className="text-muted-foreground text-xs">{record.date}</p>
                   </div>
                   <span

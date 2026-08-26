@@ -1,12 +1,12 @@
-import envPreferredRole from '@/lib/role';
-import axios from 'axios';
-import type { AxiosResponse } from 'axios';
-import { createContext, useEffect, useState, useRef, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import toast from 'react-hot-toast';
 import backend from '@/lib/backend';
 import { syncSentryUser } from '@/lib/sentry';
 import { getErrorMessage } from '@/lib/utils';
+import envPreferredRole from '@/lib/role';
+import axios from 'axios';
+import type { AxiosResponse } from 'axios';
 
 // Extend axios config to support custom flags
 declare module 'axios' {
@@ -603,5 +603,7 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     </UnifiedAuthContext.Provider>
   );
 };
+
+export const useAuth = () => useContext(UnifiedAuthContext);
 
 export default UnifiedAuthContext;

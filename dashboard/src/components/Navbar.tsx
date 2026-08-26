@@ -1,9 +1,9 @@
 import { forwardRef, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import LogoutConfirmation from '@/components/LogOutConfirmation';
+import DeleteConfirmation from '@/components/DeleteConfimation';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
-import { Menu } from 'lucide-react';
+import { Menu, Power } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { getInitials } from '@/lib/utils';
 import envPreferredRole from '@/lib/role';
@@ -170,7 +170,12 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
             </div>
           ))}
         <div className="bg-popover scale-80 rounded-full p-2">
-          <LogoutConfirmation onClick={handleLogout} />
+          <DeleteConfirmation
+            onDelete={handleLogout}
+            trigger={<Power />}
+            confirmLabel="Logout"
+            msg='You will be logged out of your account. This action cannot be undone. To log out, click the "Logout" button.'
+          />
         </div>
       </div>
     </nav>

@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
-import { Calendar } from 'lucide-react';
-import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatDay } from '@/lib/utils';
 import { Input } from './ui/input';
 interface DateRangePickerFProps {
   date: { from: Date | null; to: Date | null };
@@ -147,21 +146,21 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
   }
 
   return (
-    <div className="relative font-sans">
-      <div className="relative">
+    <div className={`relative min-w-0 font-sans ${className ?? ''}`}>
+      <div className="relative w-full">
         <Input
           type="text"
           readOnly
           onClick={() => setShowCalendar(!showCalendar)}
           value={
             date?.from && date?.to
-              ? `${format(date.from, 'dd MMM yyyy')} to ${format(date.to, 'dd MMM yyyy')}`
+              ? `${formatDay(date.from)} to ${formatDay(date.to)}`
               : date?.from
-                ? `${format(date.from, 'dd MMM yyyy')} to ...`
+                ? `${formatDay(date.from)} to ...`
                 : ''
           }
           placeholder="Click to select date range"
-          className={`px-10 ${className}`}
+          className="w-full px-10"
         />
         <Calendar
           size={20}

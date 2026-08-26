@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,15 +12,25 @@ import {
 } from '@/components/ui/alert-dialog';
 import ActionButton from '@/components/ActionButton';
 
-const DeleteConfirmation = ({ onDelete, msg }: { onDelete: () => void; msg?: string }) => {
+const DeleteConfirmation = ({
+  onDelete,
+  msg,
+  trigger,
+  confirmLabel = 'Confirm Delete',
+  title = 'Are you absolutely sure?',
+}: {
+  onDelete: () => void;
+  msg?: string;
+  trigger?: ReactNode;
+  confirmLabel?: string;
+  title?: string;
+}) => {
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <ActionButton action="delete" />
-      </AlertDialogTrigger>
+      <AlertDialogTrigger asChild>{trigger ?? <ActionButton action="delete" />}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
             {msg ||
               'This action cannot be undone. This will permanently delete the item from your database.'}
@@ -28,7 +39,7 @@ const DeleteConfirmation = ({ onDelete, msg }: { onDelete: () => void; msg?: str
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={onDelete} className="bg-red-600 text-white hover:bg-red-700">
-            Confirm Delete
+            {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

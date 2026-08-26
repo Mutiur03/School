@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'react-hot-toast';
 import DeleteConfirmation from '@/components/DeleteConfimation';
-import { format } from 'date-fns';
+import { formatDay } from '@/lib/utils';
 import { getFileUrl } from '@/lib/backend';
 import { Calendar } from 'lucide-react';
 import { PageHeader, SectionCard } from '@/components';
@@ -324,7 +324,7 @@ const Events: React.FC = () => {
                 <div className="p-4">
                   <h3 className="mb-1 text-lg font-semibold">{event.title}</h3>
                   <p className="text-muted-foreground mb-2 text-sm">
-                    {format(new Date(event.date), 'dd MMM yyyy')}
+                    {formatDay(new Date(event.date))}
                   </p>
                   <button
                     className="text-primary text-sm hover:underline"
@@ -382,7 +382,7 @@ const Events: React.FC = () => {
                     <div className="flex justify-between">
                       <div>
                         <strong className="text-gray-700">Date:</strong>
-                        <p className="mt-1">{format(new Date(popup.event.date), 'dd MMM yyyy')}</p>
+                        <p className="mt-1">{formatDay(new Date(popup.event.date))}</p>
                       </div>
                       {popup.event.location && (
                         <div className="text-right">

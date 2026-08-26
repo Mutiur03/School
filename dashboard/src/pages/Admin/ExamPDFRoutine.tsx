@@ -21,9 +21,9 @@ import {
   MARKSHEET_GEN_POLL_MS,
   type MarksheetGenStatus,
 } from '@/queries/marks.queries';
-import { format } from 'date-fns';
+import { formatDay } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import DeleteConfirmationIcon from '@/components/DeleteConfimationIcon';
+import DeleteConfirmation from '@/components/DeleteConfimation';
 import { uploadToR2 } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
@@ -555,14 +555,11 @@ function ExamPDFRoutine() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1 text-sm">
-                        <div>Start: {format(new Date(exam.start_date), 'dd MMM yyyy')}</div>
-                        <div>End: {format(new Date(exam.end_date), 'dd MMM yyyy')}</div>
-                        <div>Result: {format(new Date(exam.result_date), 'dd MMM yyyy')}</div>
+                        <div>Start: {formatDay(new Date(exam.start_date))}</div>
+                        <div>End: {formatDay(new Date(exam.end_date))}</div>
+                        <div>Result: {formatDay(new Date(exam.result_date))}</div>
                         <div>
-                          Return:{' '}
-                          {exam.return_date
-                            ? format(new Date(exam.return_date), 'dd MMM yyyy')
-                            : '-'}
+                          Return: {exam.return_date ? formatDay(new Date(exam.return_date)) : '-'}
                         </div>
                       </div>
                     </td>
@@ -783,7 +780,7 @@ function ExamPDFRoutine() {
                         <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
                       </button>
 
-                      <DeleteConfirmationIcon
+                      <DeleteConfirmation
                         onDelete={() => confirmDelete(exam.id)}
                         msg="This action cannot be undone. This will permanently delete the item from your database."
                       />
@@ -839,7 +836,7 @@ function ExamPDFRoutine() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <DeleteConfirmationIcon
+                        <DeleteConfirmation
                           onDelete={() => confirmDelete(exam.id)}
                           msg="This action cannot be undone. This will permanently delete the item from your database."
                         />

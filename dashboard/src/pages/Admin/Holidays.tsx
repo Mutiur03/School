@@ -13,13 +13,19 @@ import {
 import { Label } from '@/components/ui/label';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import { Calendar } from '@/components/Calendar';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import DateRangePickerF from '@/components/DateRangePickerF';
-import { useHolidayStore } from '@/store';
+import {
+  useHolidays,
+  useAddHoliday,
+  useUpdateHoliday,
+  useDeleteHoliday,
+  type Holiday,
+  type HolidayFormData,
+} from '@/queries/holidays.queries';
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
-import type { Holiday, HolidayFormData } from '@/store/holiday.Store';
 import { PageHeader, SectionCard } from '@/components';
+import { formatYmd } from '@/lib/utils';
 
 type HolidayForm = HolidayFormData;
 
@@ -29,8 +35,10 @@ interface DateRange {
 }
 
 const HolidayCalendar = () => {
-  const { holidays, fetchHolidays, isLoading, deleteHoliday, addHoliday, updateHoliday } =
-    useHolidayStore();
+  const { data: holidays = [], isLoading } = useHolidays();
+  const addHoliday = useAddHoliday();
+  const updateHoliday = useUpdateHoliday();
+  const deleteHoliday = useDeleteHoliday();
   const [open, setOpen] = useState<boolean>(false);
   const [form, setForm] = useState<HolidayForm>({
     title: '',
@@ -57,23 +65,19 @@ const HolidayCalendar = () => {
     if (dateRange.from && dateRange.to) {
       setForm((prev) => ({
         ...prev,
-        start_date: format(dateRange.from as Date, 'yyyy-MM-dd'),
-        end_date: format(dateRange.to as Date, 'yyyy-MM-dd'),
+        start_date: formatYmd(dateRange.from as Date),
+        end_date: formatYmd(dateRange.to as Date),
       }));
     }
   }, [dateRange]);
-
-  useEffect(() => {
-    fetchHolidays();
-  }, [fetchHolidays]);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     try {
       if (editingId) {
-        await updateHoliday(editingId, form);
+        await updateHoliday.mutateAsync({ id: editingId, formData: form });
       } else {
-        await addHoliday(form);
+        await addHoliday.mutateAsync(form);
       }
       handleClose();
     } catch {
@@ -214,7 +218,7 @@ const HolidayCalendar = () => {
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <Button onClick={() => handleEdit(holiday)}>Edit</Button>
-                    <DeleteConfirmation onDelete={() => deleteHoliday(holiday.id)} />
+                    <DeleteConfirmation onDelete={() => deleteHoliday.mutate(holiday.id)} />
                   </div>
                 </li>
               ))}
