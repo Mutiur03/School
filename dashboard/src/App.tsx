@@ -9,7 +9,7 @@ import { RegistrationPdfPreview } from '@school/common-ui';
 function ClassPdfPreviewPage({ classSlug }: { classSlug: 'class-6' | 'class-8' | 'class-9' }) {
   const { id } = useParams();
   if (!id) return <Navigate to="/" replace />;
-  return <RegistrationPdfPreview classSlug={classSlug} id={id} />;
+  return <RegistrationPdfPreview classSlug={classSlug} id={id} mode="live" />;
 }
 
 import { useAuth } from './context/useAuth.tsx';

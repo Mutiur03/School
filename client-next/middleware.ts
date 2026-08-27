@@ -10,18 +10,19 @@ import { getDevTenantHost, isBareLocalHost } from '@/lib/resolveBackend';
 export function middleware(request: NextRequest) {
   const hostname = (request.headers.get('host') ?? '').split(':')[0];
   const { pathname } = request.nextUrl;
+  const headers = new Headers(request.headers);
+  headers.set('x-pathname', pathname);
 
   let response: NextResponse;
 
   if (isBareLocalHost(hostname) && pathname.startsWith('/api/')) {
     const tenantHost = getDevTenantHost();
-    const headers = new Headers(request.headers);
     headers.set('x-forwarded-host', tenantHost);
     headers.set('x-tenant-host', tenantHost);
     headers.set('origin', `http://${tenantHost}`);
     response = NextResponse.next({ request: { headers } });
   } else {
-    response = NextResponse.next();
+    response = NextResponse.next({ request: { headers } });
   }
 
   // CDN-friendly HTML caching (per-host on Vercel/CF). Skip immutable Next assets.

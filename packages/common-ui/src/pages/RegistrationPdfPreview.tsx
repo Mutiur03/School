@@ -1,20 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import backend from '../lib/backend';
 
 type ClassSlug = 'class-6' | 'class-8' | 'class-9';
+type PreviewMode = 'stored' | 'live';
 
 type Props = {
   classSlug: ClassSlug;
   id: string;
+  mode?: PreviewMode;
 };
 
-export default function RegistrationPdfPreview({ classSlug, id }: Props) {
+export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' }: Props) {
   const [isLoading, setIsLoading] = useState(true);
 
   const base = String(backend || '')
     .trim()
     .replace(/\/$/, '');
-  const previewUrl = `${base}/api/reg/${classSlug}/form/${id}/pdf?preview=1&t=${Date.now()}`;
+  const previewUrl = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (mode === 'live') {
+      params.set('preview', '1');
+    }
+
+    params.set('t', String(Date.now()));
+    return `${base}/api/reg/${classSlug}/form/${id}/pdf?${params.toString()}`;
+  }, [base, classSlug, id, mode]);
   const label = classSlug.replace('class-', 'Class ');
 
   return (

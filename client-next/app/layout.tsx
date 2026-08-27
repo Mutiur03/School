@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import Providers from './providers';
 import { Analytics } from '@/components/Analytics';
@@ -37,6 +38,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const incomingHeaders = await headers();
+  const pathname = incomingHeaders.get('x-pathname') || '';
+
+  if (pathname.startsWith('/preview/')) {
+    return (
+      <html lang="en" className="h-full antialiased">
+        <body className="h-full overflow-hidden">{children}</body>
+      </html>
+    );
+  }
+
   const school = await fetchSchoolConfig();
   const assets = school?.assets;
   const siteUrl = getSchoolSiteUrl(school, await getRequestSiteUrl());
