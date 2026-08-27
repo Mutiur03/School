@@ -19,9 +19,7 @@ export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' 
   const previewUrl = useMemo(() => {
     const params = new URLSearchParams();
 
-    if (mode === 'live') {
-      params.set('preview', '1');
-    }
+    params.set('preview', mode === 'live' ? '1' : 'stored-inline');
 
     params.set('t', String(Date.now()));
     return `${base}/api/reg/${classSlug}/form/${id}/pdf?${params.toString()}`;

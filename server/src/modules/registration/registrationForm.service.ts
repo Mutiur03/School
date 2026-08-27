@@ -550,14 +550,15 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
   }
 
   async function downloadRegistrationPDF(id: string, previewParam: string = '') {
-    const isInlinePreview =
+    const isLivePreview =
       previewParam === '1' || previewParam === 'true' || previewParam === 'inline';
+    const isInlinePreview = isLivePreview || previewParam === 'stored-inline';
     const isHtmlPreview = previewParam === 'html';
 
     const registration = await findOwnedRegistration(id);
 
     const shouldUseFrozenPdf =
-      !isInlinePreview &&
+      !isLivePreview &&
       !isHtmlPreview &&
       Boolean(registration.pdf_settings_snapshot) &&
       String(registration.status || '')
@@ -895,7 +896,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     });
 
     await page.setContent(html, {
-      waitUntil: isInlinePreview ? ['domcontentloaded'] : ['load', 'domcontentloaded'],
+      waitUntil: isLivePreview ? ['domcontentloaded'] : ['load', 'domcontentloaded'],
     });
 
     await page.evaluate((quickPreview) => {
@@ -913,7 +914,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
           setTimeout(resolve, fallbackDelay);
         }
       });
-    }, isInlinePreview);
+    }, isLivePreview);
 
     const pdfBuffer = await page.pdf({
       format: 'a4',
