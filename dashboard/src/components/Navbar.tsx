@@ -12,31 +12,54 @@ import useNavigationStore from '@/store/navigation.Store';
 
 interface NavbarProps {
   onBurgerClick?: () => void;
+  sidebarOpen?: boolean;
 }
 
-const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => {
-  const { logout, user } = useAuth();
-  const navigate = useNavigate();
-  const { isDirty, resetDirty } = useNavigationStore();
-  const [leaveOpen, setLeaveOpen] = useState(false);
-  const [leaveIsLogout, setLeaveIsLogout] = useState(false);
-  const pendingAction = useRef<'logout' | string | null>(null);
+const Navbar = forwardRef<HTMLElement, NavbarProps>(
+  ({ onBurgerClick, sidebarOpen = false }, ref) => {
+    const { logout, user } = useAuth();
+    const navigate = useNavigate();
+    const { isDirty, resetDirty } = useNavigationStore();
+    const [leaveOpen, setLeaveOpen] = useState(false);
+    const [leaveIsLogout, setLeaveIsLogout] = useState(false);
+    const pendingAction = useRef<'logout' | string | null>(null);
 
-  const requestLeave = (e: React.MouseEvent | undefined, action: 'logout' | string) => {
-    if (!isDirty) return true;
-    e?.preventDefault();
-    pendingAction.current = action;
-    setLeaveIsLogout(action === 'logout');
-    setLeaveOpen(true);
-    return false;
-  };
+    const requestLeave = (e: React.MouseEvent | undefined, action: 'logout' | string) => {
+      if (!isDirty) return true;
+      e?.preventDefault();
+      pendingAction.current = action;
+      setLeaveIsLogout(action === 'logout');
+      setLeaveOpen(true);
+      return false;
+    };
 
-  const confirmLeave = async () => {
-    const action = pendingAction.current;
-    pendingAction.current = null;
-    setLeaveOpen(false);
-    resetDirty();
-    if (action === 'logout') {
+    const confirmLeave = async () => {
+      const action = pendingAction.current;
+      pendingAction.current = null;
+      setLeaveOpen(false);
+      resetDirty();
+      if (action === 'logout') {
+        try {
+          await logout();
+          const rolePath = envPreferredRole
+            ? envPreferredRole === 'super_admin'
+              ? 'super_admin'
+              : envPreferredRole
+            : user?.role === 'super_admin'
+              ? 'super_admin'
+              : user?.role;
+          navigate(`/${rolePath}/login`);
+        } catch (error) {
+          console.error('Logout failed:', error);
+          toast.error('Failed to logout. Please try again.');
+        }
+        return;
+      }
+      if (typeof action === 'string') navigate(action);
+    };
+
+    const handleLogout = async () => {
+      if (!requestLeave(undefined, 'logout')) return;
       try {
         await logout();
         const rolePath = envPreferredRole
@@ -51,136 +74,118 @@ const Navbar = forwardRef<HTMLElement, NavbarProps>(({ onBurgerClick }, ref) => 
         console.error('Logout failed:', error);
         toast.error('Failed to logout. Please try again.');
       }
-      return;
-    }
-    if (typeof action === 'string') navigate(action);
-  };
+    };
 
-  const handleLogout = async () => {
-    if (!requestLeave(undefined, 'logout')) return;
-    try {
-      await logout();
-      const rolePath = envPreferredRole
-        ? envPreferredRole === 'super_admin'
-          ? 'super_admin'
-          : envPreferredRole
-        : user?.role === 'super_admin'
-          ? 'super_admin'
-          : user?.role;
-      navigate(`/${rolePath}/login`);
-    } catch (error) {
-      console.error('Logout failed:', error);
-      toast.error('Failed to logout. Please try again.');
-    }
-  };
-
-  return (
-    <nav
-      ref={ref}
-      className="navbar bg-sidebar border-border sticky top-0 z-40 flex h-[3.5rem] w-full items-center justify-between gap-2 border-b px-3 shadow-sm backdrop-blur-xl sm:px-5"
-    >
-      <ConfirmationPopup
-        open={leaveOpen}
-        onOpenChange={(open) => {
-          setLeaveOpen(open);
-          if (!open) {
-            pendingAction.current = null;
-            setLeaveIsLogout(false);
-          }
-        }}
-        onConfirm={confirmLeave}
-        title="Leave without saving?"
-        msg="You have unsaved attendance changes. Leaving this page will discard them."
-        confirmLabel={leaveIsLogout ? 'Discard & Log Out' : 'Discard & Leave'}
-        cancelLabel="Stay"
-        variant="destructive"
-      />
-      <button
-        className="focus-visible:ring-ring mr-2 rounded p-2 focus:outline-none focus-visible:ring-2 md:hidden"
-        onClick={() => {
-          if (onBurgerClick) onBurgerClick();
-        }}
-        aria-label="Open sidebar"
-        type="button"
+    return (
+      <nav
+        ref={ref}
+        className={`navbar bg-sidebar border-border sticky top-0 z-40 flex h-[3.5rem] w-full items-center justify-between gap-2 px-3 sm:px-5 ${
+          sidebarOpen ? 'border-b-0 md:border-b' : 'border-b'
+        }`}
       >
-        <Menu className="h-6 w-6" />
-      </button>
-      {user && user.role === 'admin' && (
-        <Link
-          to="/admin"
-          onClick={(e) => {
-            if (!requestLeave(e, '/admin')) return;
+        <ConfirmationPopup
+          open={leaveOpen}
+          onOpenChange={(open) => {
+            setLeaveOpen(open);
+            if (!open) {
+              pendingAction.current = null;
+              setLeaveIsLogout(false);
+            }
           }}
-          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
-        >
-          Admin
-        </Link>
-      )}
-      {user && user.role === 'super_admin' && (
-        <Link
-          to="/super_admin"
-          onClick={(e) => {
-            if (!requestLeave(e, '/super_admin')) return;
+          onConfirm={confirmLeave}
+          title="Leave without saving?"
+          msg="You have unsaved attendance changes. Leaving this page will discard them."
+          confirmLabel={leaveIsLogout ? 'Discard & Log Out' : 'Discard & Leave'}
+          cancelLabel="Stay"
+          variant="destructive"
+        />
+        <button
+          className="focus-visible:ring-ring mr-2 rounded p-2 focus:outline-none focus-visible:ring-2 md:hidden"
+          onClick={() => {
+            if (onBurgerClick) onBurgerClick();
           }}
-          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
+          aria-label="Open sidebar"
+          type="button"
         >
-          Super Admin
-        </Link>
-      )}
-      {user && user.role === 'teacher' && (
-        <Link
-          to="/teacher"
-          onClick={(e) => {
-            if (!requestLeave(e, '/teacher')) return;
-          }}
-          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
-        >
-          <span className="sm:hidden">Teacher</span>
-          <span className="hidden sm:inline">Teacher&apos;s Dashboard</span>
-        </Link>
-      )}
-      {user && user.role === 'student' && (
-        <Link
-          to="/student"
-          onClick={(e) => {
-            if (!requestLeave(e, '/student')) return;
-          }}
-          className="min-w-0 truncate text-lg font-semibold sm:text-xl"
-        >
-          <span className="sm:hidden">Student</span>
-          <span className="hidden sm:inline">Student&apos;s Dashboard</span>
-        </Link>
-      )}
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        {user &&
-          user.role === 'teacher' &&
-          (user?.image ? (
-            <div className="border-border h-10 w-10 overflow-hidden rounded-full border-4 shadow-sm">
-              <img
-                src={getFileUrl(user.image)}
-                alt="Profile"
-                width={40}
-                height={40}
-                className="h-full w-full object-cover object-top"
-              />
-            </div>
-          ) : (
-            <div className="bg-muted text-muted-foreground border-border flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold">
-              {getInitials(user?.name)}
-            </div>
-          ))}
-        <div className="bg-popover scale-80 rounded-full p-2">
-          <DeleteConfirmation
-            onDelete={handleLogout}
-            trigger={<Power />}
-            confirmLabel="Logout"
-            msg='You will be logged out of your account. This action cannot be undone. To log out, click the "Logout" button.'
-          />
+          <Menu className="h-6 w-6" />
+        </button>
+        {user && user.role === 'admin' && (
+          <Link
+            to="/admin"
+            onClick={(e) => {
+              if (!requestLeave(e, '/admin')) return;
+            }}
+            className="min-w-0 truncate text-lg font-semibold sm:text-xl"
+          >
+            Admin
+          </Link>
+        )}
+        {user && user.role === 'super_admin' && (
+          <Link
+            to="/super_admin"
+            onClick={(e) => {
+              if (!requestLeave(e, '/super_admin')) return;
+            }}
+            className="min-w-0 truncate text-lg font-semibold sm:text-xl"
+          >
+            Super Admin
+          </Link>
+        )}
+        {user && user.role === 'teacher' && (
+          <Link
+            to="/teacher"
+            onClick={(e) => {
+              if (!requestLeave(e, '/teacher')) return;
+            }}
+            className="min-w-0 truncate text-lg font-semibold sm:text-xl"
+          >
+            <span className="sm:hidden">Teacher</span>
+            <span className="hidden sm:inline">Teacher&apos;s Dashboard</span>
+          </Link>
+        )}
+        {user && user.role === 'student' && (
+          <Link
+            to="/student"
+            onClick={(e) => {
+              if (!requestLeave(e, '/student')) return;
+            }}
+            className="min-w-0 truncate text-lg font-semibold sm:text-xl"
+          >
+            <span className="sm:hidden">Student</span>
+            <span className="hidden sm:inline">Student&apos;s Dashboard</span>
+          </Link>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {user &&
+            user.role === 'teacher' &&
+            (user?.image ? (
+              <div className="border-border h-10 w-10 overflow-hidden rounded-full border-4 shadow-sm">
+                <img
+                  src={getFileUrl(user.image)}
+                  alt="Profile"
+                  width={40}
+                  height={40}
+                  className="h-full w-full object-cover object-top"
+                />
+              </div>
+            ) : (
+              <div className="bg-muted text-muted-foreground border-border flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold">
+                {getInitials(user?.name)}
+              </div>
+            ))}
+          <div className="bg-popover scale-80 rounded-full p-2">
+            <DeleteConfirmation
+              onDelete={handleLogout}
+              trigger={<Power />}
+              confirmLabel="Logout"
+              msg='You will be logged out of your account. This action cannot be undone. To log out, click the "Logout" button.'
+            />
+          </div>
         </div>
-      </div>
-    </nav>
-  );
-});
+      </nav>
+    );
+  },
+);
 
 Navbar.displayName = 'Navbar';
 

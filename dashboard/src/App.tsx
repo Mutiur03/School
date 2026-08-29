@@ -318,6 +318,7 @@ function App() {
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                          sidebarOpen={sidebarOpen}
                         />
                         <Sidebar
                           sidebarExpanded={sidebarExpanded}
@@ -357,6 +358,7 @@ function App() {
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                          sidebarOpen={sidebarOpen}
                         />
                         <Sidebar
                           sidebarExpanded={sidebarExpanded}
@@ -392,6 +394,7 @@ function App() {
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                          sidebarOpen={sidebarOpen}
                         />
                         <Sidebar
                           sidebarExpanded={sidebarExpanded}
@@ -474,6 +477,7 @@ function App() {
                         <Navbar
                           ref={navbarRef}
                           onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                          sidebarOpen={sidebarOpen}
                         />
                         <Sidebar
                           sidebarExpanded={sidebarExpanded}

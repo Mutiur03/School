@@ -774,8 +774,8 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
           .en, .en * { font-family: ${timesNewRomanBase64 ? "'TimesNewRoman', 'Times New Roman'" : "'Times New Roman'"}, serif !important; letter-spacing: 0.02em; font-size: 1rem; }
           * { unicode-bidi: bidi-override; direction: ltr; font-size: 1rem; }
           .header { position: relative; text-align: center; margin-bottom: 12px; padding: 12px 0 8px 0; font-size: 1rem; }
-          .header-top { display: grid; grid-template-columns: 100px 1fr 95px; align-items: start; gap: 12px; width: 100%; }
-          .monogram { width: 90px; height: 90px; margin-top: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: transparent; }
+          .header-top { display: grid; grid-template-columns: 100px 1fr 95px; align-items: center; gap: 12px; width: 100%; }
+          .monogram { width: 80px; height: 80px; margin-top: 2px; margin-left: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: transparent; }
           .monogram img { width: 100%; height: 100%; object-fit: contain; }
           .passport-photo { width: 90px; height: 110px; border: 1px solid #bbb; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, 0.92); display: flex; align-items: center; justify-content: center; margin-top: 2px; }
           .passport-photo img { width: 100%; height: 100%; object-fit: cover; }

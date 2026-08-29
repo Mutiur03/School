@@ -547,7 +547,7 @@ const Sidebar = ({
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
           onClick={onClose}
         />
       ) : null}
@@ -564,7 +564,7 @@ const Sidebar = ({
         }}
         ref={sidebarRef}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="bg-sidebar border-border fixed top-14 right-auto bottom-0 z-50 flex w-[250px] flex-col overscroll-contain border-r pb-[env(safe-area-inset-bottom,0px)] shadow-sm backdrop-blur-sm md:w-auto"
+        className="bg-sidebar border-border fixed top-[calc(3.5rem-1px)] right-auto bottom-0 z-40 flex w-[250px] flex-col overscroll-contain border-r pb-[env(safe-area-inset-bottom,0px)] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.08)] md:w-auto"
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <nav className="min-h-0 flex-1 [scrollbar-width:none] overflow-x-hidden overflow-y-auto overscroll-contain py-4 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
