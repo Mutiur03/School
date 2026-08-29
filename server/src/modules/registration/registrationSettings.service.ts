@@ -139,6 +139,18 @@ export function createRegistrationSettingsService(cfg: RegistrationSettingsConfi
     return result;
   }
 
+  /** Last 3 years (most recent first) that have registration settings configured. */
+  async function getYears() {
+    const rows = await table().findMany({
+      where: { school_id: requireSchoolId() },
+      select: { [cfg.yearField]: true },
+      distinct: [cfg.yearField],
+      orderBy: { [cfg.yearField]: 'desc' },
+      take: 3,
+    });
+    return rows.map((row: any) => row[cfg.yearField]).filter((y: any) => y != null);
+  }
+
   async function deleteNotice(query: any = {}) {
     const row = await get(query);
     if (!row?.id || !row.notice) {
@@ -163,7 +175,7 @@ export function createRegistrationSettingsService(cfg: RegistrationSettingsConfi
     return { uploadUrl: url, key };
   }
 
-  return { createOrUpdate, get, deleteNotice, getNoticeUploadUrl };
+  return { createOrUpdate, get, getYears, deleteNotice, getNoticeUploadUrl };
 }
 
 export type RegistrationSettingsService = ReturnType<typeof createRegistrationSettingsService>;

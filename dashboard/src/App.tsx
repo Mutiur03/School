@@ -445,15 +445,15 @@ function App() {
                             />
                             <Route
                               path="/registration/class-9"
-                              element={<ClassRegForm variant={9} />}
+                              element={<ClassRegForm key="class-9" variant={9} />}
                             />
                             <Route
                               path="/registration/class-6"
-                              element={<ClassRegForm variant={6} />}
+                              element={<ClassRegForm key="class-6" variant={6} />}
                             />
                             <Route
                               path="/registration/class-8"
-                              element={<ClassRegForm variant={8} />}
+                              element={<ClassRegForm key="class-8" variant={8} />}
                             />
                             <Route path="*" element={<Navigate to="/admin/dashboard" />} />
                           </Routes>

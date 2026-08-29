@@ -12,6 +12,7 @@ export function makeRegistrationFormRouter(opts: {
   mountPath: string;
   formSchema: ZodType;
   statusSchema: ZodType;
+  lookupSchema: ZodType;
   service: RegistrationFormService;
   excelFilename: string;
   photosZipPrefix: string;
@@ -29,6 +30,7 @@ export function makeRegistrationFormRouter(opts: {
     validate(registrationPhotoUploadSchema),
     ctrl.getRegistrationPhotoUploadUrl,
   );
+  router.post('/find', validate(opts.lookupSchema), ctrl.findRegistration);
   router.get('/export', AuthMiddleware.authenticate(['admin']), ctrl.exportRegistrations);
   router.get(
     '/export-photos',

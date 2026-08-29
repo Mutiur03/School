@@ -7,6 +7,7 @@ import { getUpazilasByDistrict } from '@school/shared-schemas';
 import axios from 'axios';
 import { useRouter, useParams } from 'next/navigation';
 import { getFileUrl } from '@/lib/cdn';
+import { parseRollRange } from '@/lib/rollRange';
 import { checkRegistrationPhoto, REG_PHOTO_SIZE_LABEL } from '@/lib/registrationPhoto';
 import DuplicateWarning, { Duplicate } from '@/components/Form/DuplicateWarning';
 import FormErrorSummary, {
@@ -28,30 +29,6 @@ type Props = {
   initialRecord?: any;
   schoolConfig?: SchoolConfig;
 };
-
-function parseRollRange(rollRange: string | null): string[] {
-  if (!rollRange) return [];
-  const rolls: Set<number> = new Set();
-  const parts = rollRange.split(',').map((p) => p.trim());
-  for (const part of parts) {
-    const rangeMatch = part.match(/^(\d+)-(\d+)$/);
-    if (rangeMatch) {
-      const start = parseInt(rangeMatch[1]);
-      const end = parseInt(rangeMatch[2]);
-      for (let i = start; i <= end; i++) {
-        rolls.add(i);
-      }
-    } else {
-      const num = parseInt(part);
-      if (!isNaN(num)) {
-        rolls.add(num);
-      }
-    }
-  }
-  return Array.from(rolls)
-    .sort((a, b) => a - b)
-    .map((num) => String(num).padStart(2, '0'));
-}
 
 export default function RegistrationFormClient({
   kind,

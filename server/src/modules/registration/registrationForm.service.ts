@@ -351,6 +351,32 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     return applyOutgoing(await findOwnedRegistration(id));
   }
 
+  async function findRegistrationByCriteria(data: {
+    year: string;
+    section: string;
+    roll: string;
+    phone: string;
+  }) {
+    const registration = await students().findFirst({
+      where: {
+        school_id: requireSchoolId(),
+        [cfg.yearField]: coerceYear(data.year),
+        section: data.section,
+        roll: data.roll,
+        OR: [
+          { father_phone: data.phone },
+          { mother_phone: data.phone },
+          { guardian_phone: data.phone },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!registration) {
+      throw new ApiError(404, 'No registration found for the given details');
+    }
+    return { id: registration.id };
+  }
+
   async function updateRegistration(id: string, data: any) {
     const existing = await findOwnedRegistration(id);
     const yearForSettings = pickYear(data, cfg.bodyYearKeys) ?? yearFromRow(existing);
@@ -951,6 +977,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     createRegistration,
     getAllRegistrations,
     getRegistrationById,
+    findRegistrationByCriteria,
     updateRegistration,
     updateRegistrationStatus,
     deleteRegistration,

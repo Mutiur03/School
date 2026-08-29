@@ -10,6 +10,7 @@ type Settings = {
 type Props = {
   title: string;
   formHref: string;
+  statusHref: string;
   yearKey: string | readonly string[];
   getSettings: () => Promise<Settings>;
 };
@@ -23,7 +24,13 @@ function pickYear(data: Settings, yearKey: string | readonly string[]) {
   return new Date().getFullYear();
 }
 
-export default async function RegistrationNotice({ title, formHref, yearKey, getSettings }: Props) {
+export default async function RegistrationNotice({
+  title,
+  formHref,
+  statusHref,
+  yearKey,
+  getSettings,
+}: Props) {
   const data = await getSettings();
   const noticeUrl = data?.notice ? getFileUrl(data.notice) : null;
 
@@ -50,7 +57,7 @@ export default async function RegistrationNotice({ title, formHref, yearKey, get
                   title={title}
                 />
               </div>
-              <div className="mt-2 text-center">
+              {/* <div className="mt-2 text-center">
                 <a
                   href={noticeUrl}
                   target="_blank"
@@ -59,7 +66,7 @@ export default async function RegistrationNotice({ title, formHref, yearKey, get
                 >
                   Open in new tab / Download
                 </a>
-              </div>
+              </div> */}
             </div>
           ) : (
             <div className="mb-6 py-8 text-center text-gray-500">
@@ -89,6 +96,12 @@ export default async function RegistrationNotice({ title, formHref, yearKey, get
                 </p>
               </div>
             )}
+          </div>
+
+          <div className="mt-4 text-center">
+            <Link href={statusHref} className="text-sm text-blue-600 underline hover:text-blue-800">
+              Already applied? Check your registration status
+            </Link>
           </div>
         </div>
       </div>

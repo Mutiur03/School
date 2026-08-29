@@ -13,6 +13,7 @@ export type RegistrationFormService = {
   createRegistration: (body: any) => Promise<any>;
   getAllRegistrations: (query: any) => Promise<any>;
   getRegistrationById: (id: string) => Promise<any>;
+  findRegistrationByCriteria: (data: any) => Promise<any>;
   updateRegistration: (id: string, body: any) => Promise<any>;
   updateRegistrationStatus: (id: string, status: any) => Promise<any>;
   deleteRegistration: (id: string) => Promise<any>;
@@ -55,6 +56,11 @@ export function createRegistrationFormController(opts: {
     getRegistrationById: asyncHandler(async (req: Request, res: Response) => {
       const registration = await service.getRegistrationById(req.params.id as string);
       res.status(200).json(new ApiResponse(200, registration, 'Registration fetched successfully'));
+    }),
+
+    findRegistration: asyncHandler(async (req: Request, res: Response) => {
+      const result = await service.findRegistrationByCriteria(req.body);
+      res.status(200).json(new ApiResponse(200, result, 'Registration found'));
     }),
 
     updateRegistration: asyncHandler(async (req: Request, res: Response) => {

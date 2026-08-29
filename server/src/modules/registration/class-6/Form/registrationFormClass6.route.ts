@@ -1,4 +1,8 @@
-import { registrationSchema, class6RegistrationStatusSchema } from '@school/shared-schemas';
+import {
+  registrationSchema,
+  class6RegistrationStatusSchema,
+  registrationLookupSchema,
+} from '@school/shared-schemas';
 import { RegistrationFormClass6Service } from './registrationFormClass6.service.js';
 import { makeRegistrationFormRouter } from '../../registrationForm.route.js';
 
@@ -6,6 +10,7 @@ export default makeRegistrationFormRouter({
   mountPath: '/api/reg/class-6/form',
   formSchema: registrationSchema,
   statusSchema: class6RegistrationStatusSchema,
+  lookupSchema: registrationLookupSchema,
   service: RegistrationFormClass6Service,
   excelFilename: 'Class6_Registrations.xlsx',
   photosZipPrefix: 'Class6_Photos',

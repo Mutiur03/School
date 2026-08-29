@@ -46,6 +46,14 @@ export function makeRegistrationSettingsRouter(opts: {
     }),
   );
 
+  router.get(
+    '/years',
+    asyncHandler(async (_req: Request, res: Response) => {
+      const years = await service.getYears();
+      res.status(200).json(new ApiResponse(200, years, 'Registration setting years fetched'));
+    }),
+  );
+
   router.delete(
     '/notice',
     AuthMiddleware.authenticate(['admin']),

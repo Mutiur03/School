@@ -17,3 +17,4 @@ export * from './schoolSchemas.js';
 export * from './admissionSchemas.js';
 export * from './staffSchemas.js';
 export * from './marksSchemas.js';
+export * from './registrationLookupSchema.js';

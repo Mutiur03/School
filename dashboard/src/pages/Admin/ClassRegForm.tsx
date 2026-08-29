@@ -810,20 +810,22 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                   const currentBatchYear =
                     variant === 9
                       ? Number(
-                          (settingsData as { ssc_year?: number; ssc_batch?: string })?.ssc_year ||
-                            (settingsData as { ssc_batch?: string })?.ssc_batch ||
+                          (latestSettingsData as { ssc_year?: number; ssc_batch?: string })
+                            ?.ssc_year ||
+                            (latestSettingsData as { ssc_batch?: string })?.ssc_batch ||
                             new Date().getFullYear(),
                         )
                       : Number(
-                          (settingsData as Record<string, unknown>)?.[cfg.settingsYearField] ||
-                            new Date().getFullYear(),
+                          (latestSettingsData as Record<string, unknown>)?.[
+                            cfg.settingsYearField
+                          ] || new Date().getFullYear(),
                         );
                   const years = [];
                   for (let i = 0; i < 6; i++) years.push(currentBatchYear - i);
 
-                  const formYear = Number(settingsYearValue);
-                  if (settingsYearValue && !isNaN(formYear) && !years.includes(formYear)) {
-                    years.push(formYear);
+                  const selectedYear = Number(filters.year);
+                  if (filters.year && !isNaN(selectedYear) && !years.includes(selectedYear)) {
+                    years.push(selectedYear);
                     years.sort((a, b) => b - a);
                   }
                   return years.map((y) => (

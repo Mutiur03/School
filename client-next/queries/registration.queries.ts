@@ -27,6 +27,21 @@ function makeRegistrationQueries<TSettings, TRecord>(
       });
       return response.data ?? null;
     },
+    getYears: async (): Promise<Array<string | number>> => {
+      const response = await api.get<Array<string | number>>(`/api/reg/${classSlug}/years`);
+      return response.data ?? [];
+    },
+    getSettingsForYear: async (year: string | number): Promise<TSettings> => {
+      try {
+        const response = await api.get<TSettings>(`/api/reg/${classSlug}`, {
+          params: { year },
+          cache: 'no-store',
+        });
+        return response.data ?? defaultSettings;
+      } catch {
+        return defaultSettings;
+      }
+    },
   };
 }
 
@@ -78,7 +93,13 @@ const class9 = makeRegistrationQueries<Class9RegistrationSettings, Class9Registr
 
 export const getClass6RegistrationSettings = class6.getSettings;
 export const getClass6RegistrationRecord = class6.getRecord;
+export const getClass6RegistrationYears = class6.getYears;
+export const getClass6RegistrationSettingsForYear = class6.getSettingsForYear;
 export const getClass8RegistrationSettings = class8.getSettings;
 export const getClass8RegistrationRecord = class8.getRecord;
+export const getClass8RegistrationYears = class8.getYears;
+export const getClass8RegistrationSettingsForYear = class8.getSettingsForYear;
 export const getClass9RegistrationSettings = class9.getSettings;
 export const getClass9RegistrationRecord = class9.getRecord;
+export const getClass9RegistrationYears = class9.getYears;
+export const getClass9RegistrationSettingsForYear = class9.getSettingsForYear;

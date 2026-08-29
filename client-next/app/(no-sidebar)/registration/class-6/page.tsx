@@ -10,6 +10,7 @@ export default function Class6RegistrationNoticePage() {
     <RegistrationNotice
       title="Class Six Registration Notice"
       formHref="/registration/class-6/form"
+      statusHref="/registration/class-6/status"
       yearKey="class6_year"
       getSettings={getClass6RegistrationSettings}
     />
