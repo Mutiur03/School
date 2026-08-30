@@ -614,7 +614,7 @@ export default function ConfirmationClient(props: ConfirmationClientProps) {
                   href={`/registration/${kind}/form/${registration.id}`}
                   className="flex cursor-pointer items-center justify-center rounded bg-gray-600 px-6 py-3 text-lg font-medium text-white! transition-all duration-200 hover:bg-gray-700 focus:outline-none"
                 >
-                  Edit registration
+                  Edit registration info
                 </Link>
                 <button
                   onClick={handleConfirmRegistration}
@@ -625,7 +625,7 @@ export default function ConfirmationClient(props: ConfirmationClientProps) {
                       : 'bg-green-600 text-white hover:bg-green-700'
                   } flex items-center justify-center text-lg focus:outline-none`}
                 >
-                  {confirming ? 'Confirming...' : 'Confirm registration'}
+                  {confirming ? 'Confirming...' : 'Confirm registration info'}
                 </button>
               </div>
             </div>

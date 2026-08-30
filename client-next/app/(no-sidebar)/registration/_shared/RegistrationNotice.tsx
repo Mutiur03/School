@@ -81,7 +81,7 @@ export default async function RegistrationNotice({
                 href={formHref}
                 className="inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold text-white! transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
               >
-                Registration Form
+                Registration Info Form
               </Link>
             ) : (
               <div className="text-center">
