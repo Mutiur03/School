@@ -400,18 +400,25 @@ export const registrationNoticeUploadSchema = z.object({
   filetype: z.string().min(1, 'Filetype is required'),
 });
 
-export const registrationPhotoUploadSchema = z.object({
-  filename: z.string().min(1, 'Filename is required'),
-  filetype: z.string().min(1, 'Filetype is required'),
-  section: z.string().optional(),
-  roll: z.string().optional(),
-  ssc_batch: z.union([z.string(), z.number()]).optional(),
-  ssc_year: z.union([z.string(), z.number()]).optional(),
-  class8_year: z.union([z.string(), z.number()]).optional(),
-  class6_year: z.union([z.string(), z.number()]).optional(),
-  year: z.union([z.string(), z.number()]).optional(),
-  name: z.string().optional(),
-});
+export const registrationPhotoUploadSchema = z
+  .object({
+    filename: z.string().min(1, 'Filename is required'),
+    filetype: z.string().min(1, 'Filetype is required'),
+    section: z.string().optional(),
+    roll: z.string().optional(),
+    ssc_batch: z.union([z.string(), z.number()]).optional(),
+    ssc_year: z.union([z.string(), z.number()]).optional(),
+    class8_year: z.union([z.string(), z.number()]).optional(),
+    class6_year: z.union([z.string(), z.number()]).optional(),
+    year: z.union([z.string(), z.number()]).optional(),
+    name: z.string().optional(),
+  })
+  .refine(
+    (data) =>
+      (data.filetype === 'image/jpeg' || data.filetype === 'image/jpg') &&
+      /\.jpe?g$/i.test(data.filename),
+    { message: 'Only JPG/JPEG images are allowed', path: ['filetype'] },
+  );
 
 export type Class6Registration = z.infer<typeof registrationSchema>;
 export type Class6RegistrationStatusData = z.infer<typeof class6RegistrationStatusSchema>;

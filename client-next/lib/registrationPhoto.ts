@@ -7,8 +7,21 @@ export const REG_PHOTO_SIZE_LABEL = `${REG_PHOTO_WIDTH}×${REG_PHOTO_HEIGHT} px`
 export type RegistrationPhotoCheck =
   { ok: true; width: number; height: number } | { ok: false; message: string };
 
+function isJpegFile(file: File): boolean {
+  if (!/\.jpe?g$/i.test(file.name)) return false;
+  // Some browsers leave type empty; extension already required above.
+  if (!file.type) return true;
+  return file.type === 'image/jpeg' || file.type === 'image/jpg';
+}
+
 /** JPG, max 2MB, exact 300×330 px. */
 export function checkRegistrationPhoto(file: File): Promise<RegistrationPhotoCheck> {
+  if (!isJpegFile(file)) {
+    return Promise.resolve({
+      ok: false,
+      message: 'Only JPG/JPEG images are allowed.',
+    });
+  }
   if (file.size > REG_PHOTO_MAX_BYTES) {
     return Promise.resolve({
       ok: false,
