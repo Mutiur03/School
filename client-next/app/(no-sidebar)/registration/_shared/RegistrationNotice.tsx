@@ -75,13 +75,13 @@ export default async function RegistrationNotice({
             </div>
           )}
 
-          <div className="mt-8 text-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             {data?.reg_open ? (
               <Link
                 href={formHref}
                 className="inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold text-white! transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
               >
-                Proceed to Registration Form
+                Registration Form
               </Link>
             ) : (
               <div className="text-center">
@@ -96,11 +96,12 @@ export default async function RegistrationNotice({
                 </p>
               </div>
             )}
-          </div>
 
-          <div className="mt-4 text-center">
-            <Link href={statusHref} className="text-sm text-blue-600 underline hover:text-blue-800">
-              Already applied? Check your registration status
+            <Link
+              href={statusHref}
+              className="inline-block w-full max-w-sm rounded-lg border border-[#609513] px-6 py-3 text-center text-base font-bold text-[#609513] transition-colors duration-200 hover:bg-[#609513]/10 hover:text-[#4f7f13] sm:w-auto sm:px-8 sm:text-lg"
+            >
+              Registration status
             </Link>
           </div>
         </div>
