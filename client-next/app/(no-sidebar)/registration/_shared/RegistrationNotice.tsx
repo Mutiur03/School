@@ -104,7 +104,7 @@ export default async function RegistrationNotice({
               >
                 Registration status
               </Link>
-              {!data?.reg_open && <p className="mt-2 text-sm invisible">placeholder</p>}
+              {!data?.reg_open && <p className="invisible mt-2 text-sm">placeholder</p>}
             </div>
           </div>
         </div>
