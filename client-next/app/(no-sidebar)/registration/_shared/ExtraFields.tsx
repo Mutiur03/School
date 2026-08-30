@@ -38,7 +38,7 @@ export function Class6ExtraFields({
 }: ExtraFieldsProps) {
   return (
     <>
-      <SectionHeader title="Previous School Information (Class 5)">
+      <SectionHeader title="Previous School Information (Class Five)">
         <FieldRow
           label="Name of Previous School :"
           isRequired={isRequired('prev_school_name')}
@@ -345,7 +345,7 @@ export function Class9ExtraFields({
 
   return (
     <>
-      <SectionHeader title="Previous School Information">
+      <SectionHeader title="Previous School Information (Class Eight)">
         <FieldRow label="Name of Previous School :" isRequired error={errors.prev_school_name}>
           <div className="space-y-3">
             <select
