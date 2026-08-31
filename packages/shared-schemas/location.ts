@@ -124,7 +124,7 @@ export const upazilas: Upazila[] = [
 
   // Bogura District
   { id: 'Adamdighi', name: 'Adamdighi', districtId: 'Bogura' },
-  { id: 'Bogra Sadar', name: 'Bogra Sadar', districtId: 'Bogura' },
+  { id: 'Bogura Sadar', name: 'Bogura Sadar', districtId: 'Bogura' },
   { id: 'Dhunat', name: 'Dhunat', districtId: 'Bogura' },
   { id: 'Dupchanchia', name: 'Dupchanchia', districtId: 'Bogura' },
   { id: 'Gabtali', name: 'Gabtali', districtId: 'Bogura' },
