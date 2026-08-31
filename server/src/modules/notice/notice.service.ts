@@ -47,7 +47,7 @@ export class NoticeService {
       },
     });
 
-    redis.del(noticesKey(schoolId)).catch(() => {});
+    await redis.del(noticesKey(schoolId)).catch(() => {});
     return notice;
   }
 
@@ -78,7 +78,7 @@ export class NoticeService {
       data: updateData,
     });
 
-    redis.del(noticesKey(schoolId)).catch(() => {});
+    await redis.del(noticesKey(schoolId)).catch(() => {});
     return updated;
   }
 
@@ -89,7 +89,7 @@ export class NoticeService {
     if (!existing) throw new ApiError(404, 'Notice not found');
 
     await prisma.notices.delete({ where: { id } });
-    redis.del(noticesKey(schoolId)).catch(() => {});
+    await redis.del(noticesKey(schoolId)).catch(() => {});
     await deleteFromR2IfPresent(existing.public_id);
   }
 }

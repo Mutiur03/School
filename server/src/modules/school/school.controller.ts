@@ -47,7 +47,6 @@ export class SchoolController {
 
     if (!info) throw new ApiError(404, 'School not found');
 
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.status(200).json(new ApiResponse(200, info, 'School info fetched successfully'));
   });
 

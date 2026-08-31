@@ -37,7 +37,6 @@ export const getNoticesController = asyncHandler(async (req: Request, res: Respo
   }
 
   const result = await service.getNotices(take, req.schoolId);
-  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
   return res.status(200).json(new ApiResponse(200, result, 'Notices fetched successfully'));
 });
 
