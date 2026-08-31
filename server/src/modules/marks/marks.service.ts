@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
+import { VALID_GROUPS } from '@school/shared-schemas';
 
 const PDF_STYLES = {
   startX: 50,
@@ -47,7 +48,6 @@ const SIGNATURE_BLOCK_HEIGHT = 88;
 const SIGNATURE_IMAGE_WIDTH = 60;
 
 const GROUPED_CLASSES = new Set([9, 10]);
-const STUDENT_GROUPS = ['Science', 'Commerce', 'Humanities'] as const;
 
 type ClassStatsSnapshot = {
   highestBySubject: Record<number, number>;
@@ -300,7 +300,7 @@ export class MarksService {
   ): Promise<{ classWide: ClassStatsSnapshot; byGroup: StatsByGroup }> {
     const byGroup: StatsByGroup = {};
     await Promise.all(
-      STUDENT_GROUPS.map(async (g) => {
+      VALID_GROUPS.map(async (g) => {
         byGroup[g] = await this.computeStats(client, examId, klass, year, g);
       }),
     );
@@ -3857,10 +3857,10 @@ export class MarksService {
     }
     const groupName = typeof group === 'string' ? group.trim() : '';
     if (!groupName) {
-      throw new Error('Group is required (Science, Commerce, or Humanities)');
+      throw new Error(`Group is required (${VALID_GROUPS.join(', ')})`);
     }
-    if (!['Science', 'Commerce', 'Humanities'].includes(groupName)) {
-      throw new Error(`Invalid group: ${groupName}. Allowed: Science, Commerce, Humanities`);
+    if (!(VALID_GROUPS as readonly string[]).includes(groupName)) {
+      throw new Error(`Invalid group: ${groupName}. Allowed: ${VALID_GROUPS.join(', ')}`);
     }
 
     if (subjectId != null) {

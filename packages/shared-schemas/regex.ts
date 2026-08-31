@@ -41,6 +41,22 @@ export function filterNumericInput(value: string) {
 
 export const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-export const VALID_GROUPS = ['Science', 'Commerce', 'Humanities'] as const;
+/** Canonical display/storage order for class 9–10 groups. */
+export const VALID_GROUPS = ['Science', 'Humanities', 'Commerce'] as const;
+
+export type ValidGroup = (typeof VALID_GROUPS)[number];
+
+/** Parse comma-separated groups and return them in {@link VALID_GROUPS} order. */
+export function formatSubjectGroups(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const selected = new Set(
+    value
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean),
+  );
+  const sorted = VALID_GROUPS.filter((group) => selected.has(group));
+  return sorted.length === 0 ? null : sorted.join(', ');
+}
 
 export const RELIGION = ['Islam', 'Hinduism', 'Christianity', 'Buddhism'] as const;

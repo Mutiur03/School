@@ -5,6 +5,7 @@ import { MarksheetService } from './marksheet.service.js';
 import { ClassSummaryService } from './class-summary.service.js';
 import { ApiResponse } from '@/utils/ApiResponse.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { VALID_GROUPS } from '@school/shared-schemas';
 
 export class MarksController {
   static addMarksController = asyncHandler(async (req: Request, res: Response) => {
@@ -200,9 +201,9 @@ export class MarksController {
     }
     const groupName = typeof group === 'string' && group.trim() ? group.trim() : '';
     if (!groupName) {
-      throw new ApiError(400, 'group is required (Science, Commerce, or Humanities)');
+      throw new ApiError(400, `group is required (${VALID_GROUPS.join(', ')})`);
     }
-    if (!['Science', 'Commerce', 'Humanities'].includes(groupName)) {
+    if (!(VALID_GROUPS as readonly string[]).includes(groupName)) {
       throw new ApiError(400, `Invalid group: ${groupName}`);
     }
     const normalizedSubjectId =

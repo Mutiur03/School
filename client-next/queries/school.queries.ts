@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { api, getFileUrl } from '@/lib/backend';
-import { defaultSchoolSidebarConfig } from '@school/shared-schemas';
+import { defaultSchoolSidebarConfig, formatSubjectGroups } from '@school/shared-schemas';
 import type { SchoolConfig } from '@/types';
 
 /** Tenant-neutral shell — never hardcode a real school's identity. */
@@ -155,7 +155,7 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
       grades: getString(academicProfile.grades, emptySchoolConfig.academic.grades),
       ageRange: getString(academicProfile.ageRange, emptySchoolConfig.academic.ageRange),
       subjects: getString(
-        info.subjectGroups ?? academicProfile.subjects,
+        formatSubjectGroups(info.subjectGroups ?? academicProfile.subjects),
         emptySchoolConfig.academic.subjects,
       ),
       enrollment: getString(academicProfile.enrollment, emptySchoolConfig.academic.enrollment),

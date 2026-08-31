@@ -15,7 +15,10 @@ import toast from 'react-hot-toast';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import {
   Building2,
+  ChevronLeft,
+  ChevronRight,
   Download,
+  GripVertical,
   ImageIcon,
   KeyRound,
   Loader2,
@@ -38,6 +41,7 @@ import {
   SCHOOL_MEDIUMS,
   SCHOOL_OWNERSHIPS,
   VALID_GROUPS,
+  formatSubjectGroups,
   type District,
   type SchoolAssetKind,
   type Upazila,
@@ -422,17 +426,7 @@ const pickEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | 
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : '';
 };
 
-const pickGroups = (value: unknown) =>
-  [
-    ...new Set(
-      asString(value)
-        .split(',')
-        .map((part) => part.trim())
-        .filter((part): part is (typeof VALID_GROUPS)[number] =>
-          VALID_GROUPS.includes(part as (typeof VALID_GROUPS)[number]),
-        ),
-    ),
-  ].join(', ');
+const pickGroups = (value: unknown) => formatSubjectGroups(value) ?? '';
 
 const normalizeBannerUrls = (raw: unknown): string[] => {
   if (Array.isArray(raw)) {
@@ -536,6 +530,8 @@ function SchoolManagement() {
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
   const [bannerPreviewUrls, setBannerPreviewUrls] = useState<string[]>([]);
+  const [bannerDragIndex, setBannerDragIndex] = useState<number | null>(null);
+  const [bannerDropIndex, setBannerDropIndex] = useState<number | null>(null);
   const [schoolAdmins, setSchoolAdmins] = useState<SchoolAdmin[]>([]);
   const [fetchingAdmins, setFetchingAdmins] = useState(false);
   const [addingAdmin, setAddingAdmin] = useState(false);
@@ -809,6 +805,71 @@ function SchoolManagement() {
       banners: prev.banners.filter((_, i) => i !== index),
     }));
   };
+
+  const moveBannerTo = (from: number, to: number) => {
+    if (from === to) return;
+    const saved = [...bannerUrls];
+    const previews = [...bannerPreviewUrls];
+    const files = [...pendingAssets.banners];
+    if (
+      from < 0 ||
+      to < 0 ||
+      from >= saved.length + files.length ||
+      to >= saved.length + files.length
+    ) {
+      return;
+    }
+
+    type BannerSlot =
+      { kind: 'saved'; key: string } | { kind: 'pending'; file: File; preview: string };
+    const slots: BannerSlot[] = [
+      ...saved.map((key) => ({ kind: 'saved' as const, key })),
+      ...files.map((file, index) => ({
+        kind: 'pending' as const,
+        file,
+        preview: previews[index],
+      })),
+    ];
+    const [item] = slots.splice(from, 1);
+    slots.splice(to, 0, item);
+
+    const nextSaved: string[] = [];
+    const nextFiles: File[] = [];
+    const nextPreviews: string[] = [];
+    for (const slot of slots) {
+      if (slot.kind === 'saved') nextSaved.push(slot.key);
+      else {
+        nextFiles.push(slot.file);
+        nextPreviews.push(slot.preview);
+      }
+    }
+    setValue('bannerUrls', nextSaved, { shouldValidate: true });
+    setPendingAssets((prev) => ({ ...prev, banners: nextFiles }));
+    setBannerPreviewUrls(nextPreviews);
+  };
+
+  const moveBanner = (from: number, direction: -1 | 1) => moveBannerTo(from, from + direction);
+
+  const removeBannerAt = (flatIndex: number) => {
+    if (flatIndex < bannerUrls.length) removeExistingBanner(flatIndex);
+    else removePendingBanner(flatIndex - bannerUrls.length);
+  };
+
+  const bannerDisplayItems = useMemo(
+    () => [
+      ...bannerUrls.map((key) => ({
+        kind: 'saved' as const,
+        key,
+        previewUrl: getFileUrl(key),
+      })),
+      ...bannerPreviewUrls.map((previewUrl, pendingIndex) => ({
+        kind: 'pending' as const,
+        pendingIndex,
+        previewUrl,
+      })),
+    ],
+    [bannerUrls, bannerPreviewUrls],
+  );
 
   const uploadAssetFile = async (kind: SchoolAssetKind, file: File): Promise<string> => {
     const signRes = await axios.post('/api/schools/logo-upload-url', {
@@ -1651,11 +1712,36 @@ function SchoolManagement() {
                       </Field>
                     </div>
 
-                    <Field
-                      id="banner-upload"
-                      label="Campus / Banner Images (up to 12)"
-                      hint={`≥${IMAGE_RULES.banner.minWidth}×${IMAGE_RULES.banner.minHeight}px landscape · max ${formatMb(IMAGE_RULES.banner.maxBytes)} · up to 12`}
-                    >
+                    <div className="border-border bg-muted/15 space-y-4 rounded-xl border p-4 sm:p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-foreground text-sm font-semibold">
+                              Header carousel slides
+                            </h4>
+                            <span className="bg-background text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums">
+                              {bannerDisplayItems.length}/12
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground max-w-xl text-xs leading-relaxed">
+                            Landscape photos rotate behind the header logo on the public site. Order
+                            here is the carousel order — drag a slide or use the arrows, then save.
+                          </p>
+                        </div>
+                        {bannerDisplayItems.length < 12 ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={assetUploading}
+                            onClick={() => bannerInputRef.current?.click()}
+                          >
+                            <Plus className="h-4 w-4" aria-hidden />
+                            Add images
+                          </Button>
+                        ) : null}
+                      </div>
+
                       <input
                         ref={bannerInputRef}
                         id="banner-upload"
@@ -1666,52 +1752,141 @@ function SchoolManagement() {
                         disabled={assetUploading}
                         onChange={handleBannerPick}
                       />
+
                       {hasBanners ? (
-                        <div className="flex flex-wrap gap-3">
-                          {bannerUrls.map((url, index) => (
-                            <div key={`saved-${url}-${index}`} className="relative">
-                              <img
-                                src={getFileUrl(url)}
-                                alt={`Banner ${index + 1}`}
-                                className="h-20 w-28 rounded border object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeExistingBanner(index)}
-                                aria-label={`Remove banner ${index + 1}`}
-                                className="absolute -top-2 -right-2 rounded-full bg-red-600 p-1 text-white"
-                              >
-                                <Trash2 className="h-3 w-3" aria-hidden />
-                              </button>
-                            </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {bannerDisplayItems.map((item, index) => (
+                            <article
+                              key={
+                                item.kind === 'saved'
+                                  ? `saved-${item.key}-${index}`
+                                  : `pending-${item.pendingIndex}-${index}`
+                              }
+                              draggable={!assetUploading}
+                              onDragStart={(event) => {
+                                if (assetUploading) {
+                                  event.preventDefault();
+                                  return;
+                                }
+                                setBannerDragIndex(index);
+                                event.dataTransfer.effectAllowed = 'move';
+                                event.dataTransfer.setData('text/plain', String(index));
+                              }}
+                              onDragEnd={() => {
+                                setBannerDragIndex(null);
+                                setBannerDropIndex(null);
+                              }}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = 'move';
+                                if (bannerDragIndex != null && bannerDragIndex !== index) {
+                                  setBannerDropIndex(index);
+                                }
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                const from = Number(event.dataTransfer.getData('text/plain'));
+                                if (Number.isFinite(from)) moveBannerTo(from, index);
+                                setBannerDragIndex(null);
+                                setBannerDropIndex(null);
+                              }}
+                              className={cn(
+                                'bg-background overflow-hidden rounded-lg border shadow-sm transition-all',
+                                !assetUploading && 'cursor-grab active:cursor-grabbing',
+                                assetUploading && 'opacity-60',
+                                bannerDragIndex === index && 'scale-[0.98] opacity-50',
+                                bannerDropIndex === index &&
+                                  'border-primary ring-primary/30 ring-2',
+                              )}
+                            >
+                              <div className="border-border flex items-center justify-between gap-2 border-b px-2.5 py-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <GripVertical
+                                    className="text-muted-foreground h-4 w-4 shrink-0"
+                                    aria-hidden
+                                  />
+                                  <span className="text-xs font-semibold tabular-nums">
+                                    Slide {index + 1}
+                                  </span>
+                                  {index === 0 ? (
+                                    <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-medium">
+                                      First
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {item.kind === 'pending' ? (
+                                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                                      New
+                                    </span>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    disabled={assetUploading}
+                                    onClick={() => removeBannerAt(index)}
+                                    aria-label={`Remove slide ${index + 1}`}
+                                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded p-1 transition-colors disabled:opacity-40"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="bg-muted/40 relative aspect-[16/10]">
+                                <img
+                                  src={item.previewUrl}
+                                  alt={`Carousel slide ${index + 1}`}
+                                  draggable={false}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                                <span className="text-muted-foreground text-[11px]">
+                                  {index === 0 ? 'Shows first on site' : `After slide ${index}`}
+                                </span>
+                                <div className="flex gap-0.5">
+                                  <button
+                                    type="button"
+                                    disabled={index === 0 || assetUploading}
+                                    onClick={() => moveBanner(index, -1)}
+                                    aria-label={`Move slide ${index + 1} earlier`}
+                                    className="border-border hover:bg-muted rounded border p-1 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      index === bannerDisplayItems.length - 1 || assetUploading
+                                    }
+                                    onClick={() => moveBanner(index, 1)}
+                                    aria-label={`Move slide ${index + 1} later`}
+                                    className="border-border hover:bg-muted rounded border p-1 disabled:cursor-not-allowed disabled:opacity-40"
+                                  >
+                                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                                  </button>
+                                </div>
+                              </div>
+                            </article>
                           ))}
-                          {bannerPreviewUrls.map((url, index) => (
-                            <div key={`pending-${index}`} className="relative">
-                              <img
-                                src={url}
-                                alt={`New banner ${index + 1}`}
-                                className="h-20 w-28 rounded border object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removePendingBanner(index)}
-                                aria-label={`Remove new banner ${index + 1}`}
-                                className="absolute -top-2 -right-2 rounded-full bg-red-600 p-1 text-white"
-                              >
-                                <Trash2 className="h-3 w-3" aria-hidden />
-                              </button>
-                            </div>
-                          ))}
-                          {bannerUrls.length + pendingAssets.banners.length < 12 ? (
+
+                          {bannerDisplayItems.length < 12 ? (
                             <button
                               type="button"
                               disabled={assetUploading}
                               onClick={() => bannerInputRef.current?.click()}
-                              aria-label="Add banner image"
-                              className="border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50 flex h-20 w-28 flex-col items-center justify-center gap-1 rounded border border-dashed text-xs transition-colors disabled:opacity-50"
+                              aria-label="Add carousel slide"
+                              className="border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/40 focus-visible:ring-ring flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
                             >
-                              <Plus className="h-4 w-4" aria-hidden />
-                              Add
+                              <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
+                                <Plus className="h-5 w-5" aria-hidden />
+                              </div>
+                              <span className="text-foreground text-sm font-medium">Add slide</span>
+                              <span className="text-xs">
+                                {12 - bannerDisplayItems.length} slot
+                                {12 - bannerDisplayItems.length === 1 ? '' : 's'} left
+                              </span>
                             </button>
                           ) : null}
                         </div>
@@ -1720,15 +1895,34 @@ function SchoolManagement() {
                           type="button"
                           disabled={assetUploading}
                           onClick={() => bannerInputRef.current?.click()}
-                          className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                          className="border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-muted/30 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
                         >
-                          <ImageIcon className="h-8 w-8 opacity-60" aria-hidden />
-                          <span className="text-foreground text-sm font-medium">
-                            Upload campus photos
-                          </span>
+                          <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
+                            <ImageIcon className="h-6 w-6 opacity-70" aria-hidden />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-foreground text-sm font-medium">
+                              Add your first carousel slide
+                            </p>
+                            <p className="text-xs leading-relaxed">
+                              Upload up to 12 landscape campus or school photos for the public
+                              header.
+                            </p>
+                          </div>
                         </button>
                       )}
-                    </Field>
+
+                      <p className="text-muted-foreground text-[11px] leading-relaxed">
+                        Recommended: at least {IMAGE_RULES.banner.minWidth}×
+                        {IMAGE_RULES.banner.minHeight}px landscape, max{' '}
+                        {formatMb(IMAGE_RULES.banner.maxBytes)} per image.
+                      </p>
+                      {errors.bannerUrls?.message ? (
+                        <p className="text-destructive text-xs" role="alert">
+                          {errors.bannerUrls.message}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 )}
 
@@ -1837,9 +2031,11 @@ function SchoolManagement() {
                                   const next = checked
                                     ? selectedGroups.filter((g) => g !== group)
                                     : [...selectedGroups, group];
-                                  setValue('subjectGroups', next.join(', '), {
-                                    shouldValidate: true,
-                                  });
+                                  setValue(
+                                    'subjectGroups',
+                                    formatSubjectGroups(next.join(', ')) ?? '',
+                                    { shouldValidate: true },
+                                  );
                                 }}
                               />
                               {group}

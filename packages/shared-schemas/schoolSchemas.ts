@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { districts, upazilas } from './location.js';
-import { PHONE_NUMBER, VALID_GROUPS } from './regex.js';
+import { PHONE_NUMBER, VALID_GROUPS, formatSubjectGroups } from './regex.js';
 
 const currentYear = new Date().getFullYear();
 const districtIds = new Set(districts.map((d) => d.id));
@@ -241,18 +241,7 @@ const optionalEnumValue = <T extends string>(values: readonly [T, ...T[]], label
 const optionalGroupsValue = z
   .string()
   .nullish()
-  .transform((raw) => {
-    if (typeof raw !== 'string' || !raw.trim()) return null;
-    const parts = [
-      ...new Set(
-        raw
-          .split(',')
-          .map((part) => part.trim())
-          .filter(Boolean),
-      ),
-    ];
-    return parts.length === 0 ? null : parts.join(', ');
-  })
+  .transform((raw) => formatSubjectGroups(raw))
   .superRefine((value, ctx) => {
     if (!value) return;
     for (const group of value.split(', ')) {
