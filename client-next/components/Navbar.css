@@ -754,13 +754,6 @@ header#masthead {
   }
 }
 
-@media (min-width: 1600px) {
-  #TF-Navbar > ul > li > a {
-    padding: 10px 12px;
-    font-size: 15px;
-  }
-}
-
 .row {
   display: flex;
   flex-wrap: wrap;
