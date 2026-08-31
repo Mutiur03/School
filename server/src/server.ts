@@ -60,7 +60,7 @@ import studentRouter from './modules/student/student.route.js';
 import routerTeacher from './modules/teacher/teacher.route.js';
 import generateToken from '@/utils/generateSetupToken.js';
 import subjectRouter from './modules/result/subject/subject.route.js';
-import { schoolContextMiddleware } from './middlewares/tenant.middleware.js';
+import { schoolContextMiddleware, isKnownTenantHost } from './middlewares/tenant.middleware.js';
 import { requireSchoolContextMiddleware } from './middlewares/access.middleware.js';
 import {
   initRlsContextMiddleware,
@@ -86,7 +86,7 @@ const configuredOrigins = (env.ALLOWED_ORIGINS || '')
   .map((origin) => origin.trim().toLowerCase())
   .filter(Boolean);
 
-const isAllowedOrigin = (origin?: string) => {
+const isAllowedOrigin = async (origin?: string): Promise<boolean> => {
   if (!origin) return true;
 
   try {
@@ -97,6 +97,7 @@ const isAllowedOrigin = (origin?: string) => {
     }
 
     if (
+      hostname === 'mutiurrahman.com' ||
       hostname.endsWith('.mutiurrahman.com') ||
       configuredOrigins.includes(origin.toLowerCase()) ||
       configuredOrigins.includes(hostname)
@@ -104,8 +105,9 @@ const isAllowedOrigin = (origin?: string) => {
       return true;
     }
 
-    // Allow custom domains in production if they hit this backend directly.
-    return hostname.includes('.');
+    // Any school's registered customDomain — looked up (and cached) rather than
+    // hardcoded, since there can be thousands of these and they change over time.
+    return await isKnownTenantHost(hostname);
   } catch {
     return false;
   }
@@ -113,12 +115,15 @@ const isAllowedOrigin = (origin?: string) => {
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error('CORS blocked for this origin'));
+    isAllowedOrigin(origin)
+      .then((allowed) => {
+        if (allowed) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error('CORS blocked for this origin'));
+      })
+      .catch((error) => callback(error));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

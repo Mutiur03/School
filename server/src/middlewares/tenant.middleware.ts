@@ -49,6 +49,28 @@ const tenantCacheKey = (tenantHostname: string) => {
   return `tenant:domain:${getMainDomain(tenantHostname)}`;
 };
 
+/**
+ * Is this hostname a known school (platform subdomain or registered customDomain)?
+ * Shares the tenant-resolution cache so a CORS check and the tenant middleware
+ * don't do separate DB lookups for the same host. Used by the CORS allowlist,
+ * which must accept any of the (potentially thousands of) school custom domains
+ * without hardcoding them.
+ */
+export const isKnownTenantHost = async (tenantHostname: string): Promise<boolean> => {
+  const cacheKey = tenantCacheKey(tenantHostname);
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    const parsedCached = JSON.parse(cached) as { id?: number };
+    return Boolean(parsedCached?.id);
+  }
+
+  const school = await lookupSchool(tenantHostname);
+  if (!school) return false;
+
+  await redis.set(cacheKey, JSON.stringify({ id: school.id }), 'EX', env.LONG_TERM_CACHE_TTL);
+  return true;
+};
+
 export const schoolContextMiddleware = async (
   req: express.Request,
   res: express.Response,

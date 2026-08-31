@@ -720,7 +720,7 @@ export class AuthService {
     res.cookie('refreshToken', token, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
+      sameSite: isProduction ? 'strict' : 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -733,7 +733,7 @@ export class AuthService {
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
         path: '/',
         domain: env.DOMAIN || undefined,
         partitioned: isProduction,
@@ -742,7 +742,7 @@ export class AuthService {
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
         path: '/',
         domain: env.DOMAIN || undefined,
       },
@@ -750,16 +750,31 @@ export class AuthService {
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
         path: '/',
       },
       // without domain + partitioned
       {
         httpOnly: true,
         secure: isProduction,
-        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        sameSite: (isProduction ? 'strict' : 'lax') as 'strict' | 'lax',
         path: '/',
         partitioned: isProduction,
+      },
+      // legacy 'none' variants — clears cookies set before this change
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
+        domain: env.DOMAIN || undefined,
+        partitioned: isProduction,
+      },
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+        path: '/',
       },
       // nuclear - all false
       {
