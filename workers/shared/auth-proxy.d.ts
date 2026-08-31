@@ -16,8 +16,9 @@ export function buildCookie(
 export function clearCookie(name: string, path: string): string;
 export function attachRefreshCookie(headers: Headers, refreshToken: string): void;
 export function attachClearedCookies(headers: Headers): void;
-export function buildCorsHeaders(origin: string): Headers;
-export function withCors(response: Response, origin: string): Response;
+export function resolveCorsOrigin(originHeader: string | null, requestUrl: URL): string | null;
+export function buildCorsHeaders(safeOrigin: string | null): Headers;
+export function withCors(response: Response, safeOrigin: string | null): Response;
 export function parseCookies(cookieHeader: string | null): Record<string, string>;
 export function jsonResponse(data: unknown, status: number, headers?: HeadersInit): Response;
 export function extractAccessToken(payload: unknown): string | null;
@@ -33,7 +34,7 @@ export function tryHandleAuthSession(opts: {
   pathname: string;
   headers: Headers;
   cookies: Record<string, string>;
-  origin: string;
+  origin: string | null;
   corsHeaders: Headers;
   forward: (req: Request, headers: Headers) => Promise<Response>;
   logoutFailOn401?: boolean;
