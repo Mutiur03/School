@@ -5,6 +5,7 @@ import {
   isPasswordResetPath,
   jsonResponse,
   parseCookies,
+  resolveCorsOrigin,
   tryHandleAuthSession,
   withCors,
 } from '../../shared/auth-proxy.js';
@@ -198,7 +199,7 @@ export default {
         targetOrigin: backendProxy ? backendOrigin : target.origin,
       });
       const originHeader = request.headers.get('Origin');
-      const origin = originHeader ?? requestUrl.origin;
+      const origin = resolveCorsOrigin(originHeader, requestUrl);
       const corsHeaders = buildCorsHeaders(origin);
 
       const finish = (response, branch) =>

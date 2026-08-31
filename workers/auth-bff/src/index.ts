@@ -5,6 +5,7 @@ import {
   isPasswordResetPath,
   jsonResponse,
   parseCookies,
+  resolveCorsOrigin,
   tryHandleAuthSession,
   withCors,
 } from '../../shared/auth-proxy.js';
@@ -161,7 +162,7 @@ export default {
     const requestUrl = new URL(request.url);
     try {
       const originHeader = request.headers.get('Origin');
-      const origin = originHeader ?? requestUrl.origin;
+      const origin = resolveCorsOrigin(originHeader, requestUrl);
 
       if (!requestUrl.pathname.startsWith(API_PREFIX)) {
         const response = new Response('Not found', { status: 404 });

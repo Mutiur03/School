@@ -48,19 +48,43 @@ export const attachClearedCookies = (headers) => {
   headers.append('Set-Cookie', clearCookie('refreshToken', '/'));
 };
 
-export const buildCorsHeaders = (origin) => {
+/**
+ * These endpoints set/read auth cookies, so Access-Control-Allow-Origin must never
+ * blindly echo the request's Origin header with credentials — that lets any site
+ * (including a sibling tenant subdomain, which is same-site under SameSite=Strict)
+ * read another tenant's session response. Only the request's own host is safe.
+ */
+export const resolveCorsOrigin = (originHeader, requestUrl) => {
+  if (!originHeader) return null;
+  try {
+    return new URL(originHeader).hostname.toLowerCase() === requestUrl.hostname.toLowerCase()
+      ? originHeader
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+export const buildCorsHeaders = (safeOrigin) => {
   const headers = new Headers();
-  headers.set('Access-Control-Allow-Origin', origin);
-  headers.set('Access-Control-Allow-Credentials', 'true');
+  if (safeOrigin) {
+    headers.set('Access-Control-Allow-Origin', safeOrigin);
+    headers.set('Access-Control-Allow-Credentials', 'true');
+  }
   headers.set('Access-Control-Allow-Methods', ALLOWED_METHODS);
   headers.set('Vary', 'Origin');
   return headers;
 };
 
-export const withCors = (response, origin) => {
+export const withCors = (response, safeOrigin) => {
   const headers = new Headers(response.headers);
-  headers.set('Access-Control-Allow-Origin', origin);
-  headers.set('Access-Control-Allow-Credentials', 'true');
+  if (safeOrigin) {
+    headers.set('Access-Control-Allow-Origin', safeOrigin);
+    headers.set('Access-Control-Allow-Credentials', 'true');
+  } else {
+    headers.delete('Access-Control-Allow-Origin');
+    headers.delete('Access-Control-Allow-Credentials');
+  }
   headers.set('Access-Control-Allow-Methods', ALLOWED_METHODS);
   headers.set('Vary', 'Origin');
   return new Response(response.body, {
