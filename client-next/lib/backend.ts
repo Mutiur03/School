@@ -189,6 +189,18 @@ function isTenantLocalHost(hostname: string): boolean {
   return host.endsWith('.localhost');
 }
 
+function getLoopbackOriginForLocalTenant(proto: string, host: string): string | undefined {
+  try {
+    const url = new URL(`${proto}://${host}`);
+    if (!isTenantLocalHost(url.hostname)) return undefined;
+
+    const port = url.port ? `:${url.port}` : '';
+    return `${url.protocol}//127.0.0.1${port}`;
+  } catch {
+    return undefined;
+  }
+}
+
 /** True when Next threw because headers() was used during static generation. */
 function isDynamicServerUsageError(error: unknown): boolean {
   return (
@@ -232,6 +244,9 @@ async function getRequestOrigin() {
 
   const hostname = host.split(':')[0]?.toLowerCase() || host.toLowerCase();
   if (isBareLocalHost(hostname)) return undefined;
+
+  const loopbackOrigin = getLoopbackOriginForLocalTenant(proto, host);
+  if (loopbackOrigin) return loopbackOrigin;
 
   return `${proto}://${host}`;
 }

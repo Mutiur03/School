@@ -31,6 +31,13 @@ export function filterAddressInput(value: string) {
   return value.replace(ADDRESS_FILTER, '').replace(/\s+/g, ' ').trimStart();
 }
 
+export function sentenceCaseAddressInput(value: unknown) {
+  const normalized = filterAddressInput(String(value ?? ''))
+    .trim()
+    .toLowerCase();
+  return normalized.replace(/[A-Za-z]/, (char) => char.toUpperCase());
+}
+
 export function filterBanglaInput(value: string) {
   return value.replace(BANGLA_FILTER, '').replace(/\s+/g, ' ').trimStart();
 }

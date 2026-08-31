@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Control, useWatch, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { getUpazilasByDistrict } from '@school/shared-schemas';
+import { getUpazilasByDistrict, sentenceCaseAddressInput } from '@school/shared-schemas';
 import { guardianRelations } from '@/lib/guardian';
 import SectionHeader from './SectionHeader';
 import FieldRow from './FieldRow';
@@ -88,7 +88,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
     if (guardian_address_same_as_permanent && guardian_is_not_father) {
       setValue('guardian_district', permanentAddress.district);
       setValue('guardian_upazila', permanentAddress.upazila);
-      setValue('guardian_post_office', permanentAddress.post_office);
+      setValue('guardian_post_office', sentenceCaseAddressInput(permanentAddress.post_office));
       setValue('guardian_post_code', permanentAddress.post_code);
       setValue('guardian_village_road', permanentAddress.village_road);
     }

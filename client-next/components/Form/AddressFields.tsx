@@ -115,6 +115,7 @@ const AddressFields: React.FC<AddressFieldsProps> = ({
             instruction={postOfficeInstruction}
             filterType="address"
             placeholder="Post Office Name"
+            sentenceCase
             disabled={disabled}
           />
 

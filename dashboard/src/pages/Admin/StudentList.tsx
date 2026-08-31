@@ -26,6 +26,7 @@ import {
   toExcelString,
   normalizeExcelDate,
   formatDobForDateInput,
+  sentenceCaseAddressInput,
   type StudentFormSchemaData,
   RELIGION,
 } from '@school/shared-schemas';
@@ -1401,7 +1402,16 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium">Post Office</label>
-                      <Input type="text" placeholder="Post Office" {...register('post_office')} />
+                      <Input
+                        type="text"
+                        placeholder="Post Office"
+                        {...register('post_office', {
+                          setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
+                          onBlur: (e) => {
+                            e.target.value = sentenceCaseAddressInput(e.target.value);
+                          },
+                        })}
+                      />
                       {errors.post_office && <ErrorMessage message={errors.post_office.message} />}
                     </div>
                     <div className="space-y-1.5">

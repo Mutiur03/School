@@ -6,6 +6,7 @@ import {
   filterBanglaInput,
   filterNumericInput,
   filterAddressInput,
+  sentenceCaseAddressInput,
 } from '@school/shared-schemas';
 
 interface FormInputProps {
@@ -19,6 +20,7 @@ interface FormInputProps {
   placeholder?: string;
   type?: string;
   filterType?: 'english' | 'bangla' | 'numeric' | 'address';
+  sentenceCase?: boolean;
   maxLength?: number;
   className?: string;
   inputMode?: 'text' | 'numeric' | 'tel' | 'search' | 'email' | 'url' | 'decimal' | 'none';
@@ -43,6 +45,7 @@ const FormInput: React.FC<FormInputProps> = ({
   placeholder,
   type = 'text',
   filterType,
+  sentenceCase = false,
   maxLength,
   className = '',
   inputMode,
@@ -56,13 +59,16 @@ const FormInput: React.FC<FormInputProps> = ({
     numeric: filterNumericInput,
     address: filterAddressInput,
   };
+  const normalizeValue = (value: string) => {
+    const filtered = filterType && filterMap[filterType] ? filterMap[filterType](value) : value;
+    const normalized = sentenceCase ? sentenceCaseAddressInput(filtered) : filtered;
+    return maxLength ? normalized.slice(0, maxLength) : normalized;
+  };
 
   const registration = register(name, {
     setValueAs: (value) => {
       const raw = typeof value === 'string' ? value : '';
-      if (!filterType || !filterMap[filterType]) return raw;
-      const filtered = filterMap[filterType](raw);
-      return maxLength ? filtered.slice(0, maxLength) : filtered;
+      return normalizeValue(raw);
     },
   });
   const resolvedAutoComplete = autoComplete ?? inferAutoComplete(name, type);
@@ -98,6 +104,10 @@ const FormInput: React.FC<FormInputProps> = ({
             }
             target.value = val;
           }
+        }}
+        onBlur={(e) => {
+          e.target.value = normalizeValue(e.target.value);
+          registration.onBlur(e);
         }}
         className={`w-full rounded border p-2 transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${className} ${disabled ? 'cursor-not-allowed bg-gray-100' : 'bg-white'}`}
       />

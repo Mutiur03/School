@@ -13,20 +13,32 @@ function isBareLocalHost(hostname: string): boolean {
  */
 export function middleware(request: NextRequest) {
   const hostname = (request.headers.get('host') ?? '').split(':')[0];
+  const tenantHostname = (
+    request.headers.get('x-tenant-host') ??
+    request.headers.get('x-forwarded-host') ??
+    ''
+  )
+    .split(',')[0]
+    .trim()
+    .split(':')[0];
   const { pathname } = request.nextUrl;
   const headers = new Headers(request.headers);
   headers.set('x-pathname', pathname);
 
   let response: NextResponse;
 
-  if (isBareLocalHost(hostname) && pathname.startsWith('/api/')) {
+  if (isBareLocalHost(hostname) && !tenantHostname && pathname.startsWith('/api/')) {
     return new NextResponse('Tenant host required', { status: 404 });
   }
 
-  if (hostname.endsWith('.localhost') && pathname.startsWith('/api/')) {
-    headers.set('x-forwarded-host', hostname);
-    headers.set('x-tenant-host', hostname);
-    headers.set('origin', `http://${hostname}`);
+  if (
+    (hostname.endsWith('.localhost') || tenantHostname.endsWith('.localhost')) &&
+    pathname.startsWith('/api/')
+  ) {
+    const forwardedHostname = tenantHostname || hostname;
+    headers.set('x-forwarded-host', forwardedHostname);
+    headers.set('x-tenant-host', forwardedHostname);
+    headers.set('origin', `http://${forwardedHostname}`);
     response = NextResponse.next({ request: { headers } });
   } else {
     response = NextResponse.next({ request: { headers } });

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useForm, useWatch, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getUpazilasByDistrict } from '@school/shared-schemas';
+import { getUpazilasByDistrict, sentenceCaseAddressInput } from '@school/shared-schemas';
 import axios from 'axios';
 import { useRouter, useParams } from 'next/navigation';
 import { getFileUrl } from '@/lib/cdn';
@@ -334,7 +334,7 @@ export default function RegistrationFormClient({
     if (sameAsPermanent) {
       setValue('present_district', permanent_district);
       setValue('present_upazila', permanent_upazila);
-      setValue('present_post_office', permanent_post_office);
+      setValue('present_post_office', sentenceCaseAddressInput(permanent_post_office));
       setValue('present_post_code', permanent_post_code);
       setValue('present_village_road', permanent_village_road);
     }

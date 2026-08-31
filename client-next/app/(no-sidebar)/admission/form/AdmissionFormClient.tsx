@@ -14,6 +14,7 @@ import {
   filterNumericInput,
   filterEnglishInput,
   filterBanglaInput,
+  sentenceCaseAddressInput,
   bloodGroups,
   districts,
   getUpazilasByDistrict,
@@ -750,6 +751,14 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
     });
   };
 
+  const postOfficeRegistration = (field: keyof AdmissionFormData) =>
+    register(field, {
+      setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
+      onBlur: (e) => {
+        e.target.value = sentenceCaseAddressInput(e.target.value);
+      },
+    });
+
   const PRESENT_ADDRESS_FIELDS: Array<keyof AdmissionFormData> = [
     'present_district',
     'present_upazila',
@@ -824,7 +833,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         shouldValidate: true,
       });
       setValue('present_upazila', permanent_upazila, { shouldValidate: true });
-      setValue('present_post_office', permanent_post_office, {
+      setValue('present_post_office', sentenceCaseAddressInput(permanent_post_office), {
         shouldValidate: true,
       });
       setValue('present_post_code', permanent_post_code, {
@@ -849,7 +858,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         shouldValidate: true,
       });
       setValue('guardian_upazila', permanent_upazila, { shouldValidate: true });
-      setValue('guardian_post_office', permanent_post_office, {
+      setValue('guardian_post_office', sentenceCaseAddressInput(permanent_post_office), {
         shouldValidate: true,
       });
       setValue('guardian_post_code', permanent_post_code, {
@@ -2093,7 +2102,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             <input
               type="text"
               id="permanent_post_office"
-              {...register('permanent_post_office')}
+              {...postOfficeRegistration('permanent_post_office')}
               className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
               placeholder="Post Office Name"
             />
@@ -2196,7 +2205,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 error={errors.present_post_office}
               >
                 <input
-                  {...register('present_post_office')}
+                  {...postOfficeRegistration('present_post_office')}
                   className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
                   placeholder="Post Office Name"
                 />
@@ -2429,7 +2438,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                     tooltip="Enter the name of your guardian's nearest post office"
                   >
                     <input
-                      {...register('guardian_post_office')}
+                      {...postOfficeRegistration('guardian_post_office')}
                       className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
                       placeholder="Post Office Name"
                     />
