@@ -1,4 +1,4 @@
-export const BANGLA_ONLY = /^[\u0980-\u09FF\s.:]+$/;
+export const BANGLA_ONLY = /^[\u0980-\u09FF\s.,:-]+$/;
 export const PHONE_NUMBER = /^01\d{9}$/;
 export const NID = /^(?:\d{10}|\d{13}|\d{17})$/;
 export const BIRTH_REG_NO = /^\d{17}$/;
@@ -18,9 +18,9 @@ export const ASCII_ONLY = /^[\u0000-\u007F]+$/;
 export const EMAIL = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 export const LOGIN_ID = /^\d{6}$/;
 
-export const ENGLISH_FILTER = /[^A-Za-z.():\s]/g;
+export const ENGLISH_FILTER = /[^A-Za-z.,():\-\s]/g;
 export const ADDRESS_FILTER = /[^A-Za-z0-9\s,./()'-]/g;
-export const BANGLA_FILTER = /[^\u0980-\u09FF.():\s]/g;
+export const BANGLA_FILTER = /[^\u0980-\u09FF.,():\-\s]/g;
 export const NUMERIC_FILTER = /[^\d]/g;
 
 export function filterEnglishInput(value: string) {
