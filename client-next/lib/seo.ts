@@ -96,10 +96,7 @@ export function resolveSeoAssetUrl(value: string | undefined | null, siteUrl: st
 }
 
 export function getSchoolIconUrl(school: SchoolConfig, siteUrl: string) {
-  return (
-    resolveSeoAssetUrl(school.assets.favicon, siteUrl) ||
-    resolveSeoAssetUrl(school.assets.logo, siteUrl)
-  );
+  return resolveSeoAssetUrl(school.assets.logo, siteUrl);
 }
 
 function getSeoDescription(school: SchoolConfig) {
@@ -135,7 +132,6 @@ export async function buildSchoolMetadata(school: SchoolConfig): Promise<Metadat
   const iconUrl = getSchoolIconUrl(school, siteUrl) || '/favicon';
   const imageUrl =
     resolveSeoAssetUrl(school.seo?.image, siteUrl) ||
-    resolveSeoAssetUrl(school.assets.headerLogo, siteUrl) ||
     resolveSeoAssetUrl(school.assets.logo, siteUrl);
 
   return {
@@ -194,13 +190,8 @@ export async function buildSchoolMetadata(school: SchoolConfig): Promise<Metadat
 }
 
 export function buildSchoolJsonLd(school: SchoolConfig, siteUrl: string) {
-  const logo =
-    resolveSeoAssetUrl(school.assets.logo, siteUrl) ||
-    resolveSeoAssetUrl(school.assets.favicon, siteUrl);
-  const image =
-    resolveSeoAssetUrl(school.seo?.image, siteUrl) ||
-    resolveSeoAssetUrl(school.assets.headerLogo, siteUrl) ||
-    logo;
+  const logo = resolveSeoAssetUrl(school.assets.logo, siteUrl);
+  const image = resolveSeoAssetUrl(school.seo?.image, siteUrl) || logo;
 
   return {
     '@context': 'https://schema.org',
@@ -223,7 +214,7 @@ export function buildSchoolJsonLd(school: SchoolConfig, siteUrl: string) {
       : undefined,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: school.contact.address || school.contact.location,
+      streetAddress: school.contact.address,
       addressLocality: school.contact.upazila,
       addressRegion: school.contact.district,
       addressCountry: 'BD',

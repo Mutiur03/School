@@ -13,37 +13,33 @@ model School {
   shortName          String?                       @db.VarChar(50)
   eiin               String?                       @unique @db.VarChar(20)
   logo               String?
-  favicon            String?
   district           String?                       @db.VarChar(100)
   upazila            String?                       @db.VarChar(100)
   phone              String?                       @db.VarChar(20)
   email              String?                       @db.VarChar(100)
-  website            String?
-  slogan             String?
   establishedIn      Int?
   nameBn             String?                       @map("name_bn") @db.VarChar(300)
   centerCode         String?                       @map("center_code") @db.VarChar(50)
+  schoolCode         String?                       @map("school_code") @db.VarChar(50)
+  subjectGroups      String?                       @map("subject_groups") @db.VarChar(100)
+  medium             String?                       @db.VarChar(50)
+  board              String?                       @db.VarChar(100)
+  ownership          String?                       @db.VarChar(50)
+  gender             String?                       @db.VarChar(50)
   mapEmbedUrl        String?                       @map("map_embed_url") @db.Text
-  governmentLogo     String?                       @map("government_logo")
   headerLogo         String?                       @map("header_logo")
   bannerUrls         Json?                         @map("banner_urls")
   resultsUrl         String?                       @map("results_url")
   teacherLoginUrl    String?                       @map("teacher_login_url")
   studentLoginUrl    String?                       @map("student_login_url")
   address            String?                       @db.VarChar(500)
-  location           String?                       @db.VarChar(200)
   nationalizedYear   String?                       @map("nationalized_year") @db.VarChar(20)
   subdomain          String?                       @unique @db.VarChar(100)
   customDomain       String?                       @unique @db.VarChar(255)
   gaMeasurementId    String?                       @map("ga_measurement_id") @db.VarChar(50)
   descriptions       Json?
   academicProfile    Json?                         @map("academic_profile")
-  identifiersExtra   Json?                         @map("identifiers_extra")
-  sidebarConfig      Json?                         @map("sidebar_config")
-  menuItems          Json?                         @map("menu_items")
-  homeCharts         Json?                         @map("home_charts")
   seo                Json?
-  theme              Json?
   createdAt          DateTime                      @default(now())
   updatedAt          DateTime                      @updatedAt
   students           students[]

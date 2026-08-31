@@ -590,7 +590,6 @@ export class MarksheetService {
     n: string | null;
     loc: string | null;
     eiin: string | null;
-    cc: string | null;
     w: string | null;
     p: string | null;
     logo: string | null;
@@ -600,7 +599,6 @@ export class MarksheetService {
       n: null,
       loc: null,
       eiin: null,
-      cc: null,
       w: null,
       p: null,
       logo: null,
@@ -615,12 +613,9 @@ export class MarksheetService {
         district: true,
         address: true,
         eiin: true,
-        centerCode: true,
         customDomain: true,
-        website: true,
         phone: true,
         logo: true,
-        headerLogo: true,
       },
     });
     if (!school) return empty;
@@ -628,7 +623,7 @@ export class MarksheetService {
       .map((s) => s?.trim())
       .filter(Boolean)
       .join(', ');
-    const raw = school.customDomain?.trim() || school.website?.trim() || '';
+    const raw = school.customDomain?.trim() || '';
     let w: string | null = null;
     if (raw) {
       try {
@@ -644,12 +639,11 @@ export class MarksheetService {
             .toLowerCase() || null;
       }
     }
-    const logo = school.headerLogo || school.logo || null;
+    const logo = school.logo || null;
     return {
       n: school.name?.trim() || null,
       loc: place || school.address?.trim() || null,
       eiin: school.eiin?.trim() || null,
-      cc: school.centerCode?.trim() || null,
       w,
       p: school.phone?.trim() || null,
       logo,
@@ -669,7 +663,6 @@ export class MarksheetService {
     n: string | null;
     loc: string | null;
     eiin: string | null;
-    cc: string | null;
     w: string | null;
     p: string | null;
     logo: string | null;

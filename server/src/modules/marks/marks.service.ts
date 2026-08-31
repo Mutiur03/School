@@ -2027,7 +2027,6 @@ export class MarksService {
       name?: string | null;
       location?: string | null;
       eiin?: string | null;
-      centerCode?: string | null;
       website?: string | null;
       phone?: string | null;
     } | null,
@@ -2107,7 +2106,6 @@ export class MarksService {
       name?: string | null;
       location?: string | null;
       eiin?: string | null;
-      centerCode?: string | null;
       website?: string | null;
       phone?: string | null;
     } | null,
@@ -2688,11 +2686,8 @@ export class MarksService {
     doc.rect(25, 25, 545, 792).lineWidth(0.5).stroke('#666666');
   }
 
-  private static normalizeSchoolWebsite(
-    customDomain?: string | null,
-    website?: string | null,
-  ): string | null {
-    const raw = customDomain?.trim() || website?.trim() || '';
+  private static normalizeSchoolWebsite(customDomain?: string | null): string | null {
+    const raw = customDomain?.trim() || '';
     if (!raw) return null;
 
     try {
@@ -2714,7 +2709,6 @@ export class MarksService {
     name: string | null;
     location: string | null;
     eiin: string | null;
-    centerCode: string | null;
     website: string | null;
     phone: string | null;
     logoKey: string | null;
@@ -2724,7 +2718,6 @@ export class MarksService {
       name: null,
       location: null,
       eiin: null,
-      centerCode: null,
       website: null,
       phone: null,
       logoKey: null,
@@ -2740,12 +2733,9 @@ export class MarksService {
         district: true,
         address: true,
         eiin: true,
-        centerCode: true,
         customDomain: true,
-        website: true,
         phone: true,
         logo: true,
-        headerLogo: true,
       },
     });
     if (!school) return empty;
@@ -2753,13 +2743,12 @@ export class MarksService {
       .map((s) => s?.trim())
       .filter(Boolean)
       .join(', ');
-    const logoKey = school.headerLogo || school.logo || null;
+    const logoKey = school.logo || null;
     return {
       name: school.name?.trim() || null,
       location: place || school.address?.trim() || null,
       eiin: school.eiin?.trim() || null,
-      centerCode: school.centerCode?.trim() || null,
-      website: this.normalizeSchoolWebsite(school.customDomain, school.website),
+      website: this.normalizeSchoolWebsite(school.customDomain),
       phone: school.phone?.trim() || null,
       logoKey,
       logoEtag: logoKey ? await headObjectEtag(logoKey) : null,
@@ -2808,7 +2797,6 @@ export class MarksService {
       name?: string | null;
       location?: string | null;
       eiin?: string | null;
-      centerCode?: string | null;
       website?: string | null;
       phone?: string | null;
     } | null,
@@ -2882,7 +2870,6 @@ export class MarksService {
 
     const infoBits: string[] = [];
     if (school?.eiin) infoBits.push(`EIIN: ${school.eiin}`);
-    if (school?.centerCode) infoBits.push(`School Code: ${school.centerCode}`);
     if (school?.phone) infoBits.push(`Phone: ${school.phone}`);
     const infoText = infoBits.join(', ');
     if (infoText) {

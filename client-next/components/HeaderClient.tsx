@@ -1,15 +1,12 @@
 'use client';
 import * as React from 'react';
 
-import governmentLogoImage from '../assets/images/gov-logo.png';
 import Image from 'next/image';
-import type { StaticImageData } from 'next/image';
 
 export type HeaderProps = {
   bannerImages?: string[];
   headerLogo?: string;
-  leftLogo?: string;
-  rightLogo?: string | StaticImageData;
+  logo?: string;
   titleBn?: string;
   titleEn?: string;
   slideIntervalMs?: number;
@@ -18,7 +15,6 @@ export type HeaderProps = {
       banners?: string[];
       headerLogo?: string;
       logo?: string;
-      governmentLogo?: string;
     };
     name?: {
       bn?: string;
@@ -30,8 +26,7 @@ export type HeaderProps = {
 export function Header({
   bannerImages: bannerImagesProp,
   headerLogo: headerLogoProp,
-  leftLogo: leftLogoProp,
-  rightLogo: rightLogoProp,
+  logo: logoProp,
   titleBn: titleBnProp,
   titleEn: titleEnProp,
   slideIntervalMs = 4000,
@@ -39,11 +34,7 @@ export function Header({
 }: HeaderProps) {
   const bannerImages = bannerImagesProp ?? school.assets?.banners ?? [];
   const headerLogo = headerLogoProp ?? school.assets?.headerLogo ?? '';
-  const leftLogo = leftLogoProp ?? school.assets?.logo ?? '';
-  const rightLogo =
-    rightLogoProp ??
-    (school.assets as { governmentLogo?: string } | undefined)?.governmentLogo ??
-    governmentLogoImage;
+  const logo = logoProp ?? school.assets?.logo ?? '';
   const titleBn = titleBnProp ?? String(school.name?.bn ?? '');
   const titleEn = titleEnProp ?? String(school.name?.en ?? '');
 
@@ -148,9 +139,9 @@ export function Header({
             </div>
           ) : (
             <div className="flex w-full max-w-245 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:px-5">
-              {leftLogo ? (
+              {logo ? (
                 <Image
-                  src={leftLogo}
+                  src={logo}
                   alt="School logo"
                   width={96}
                   height={96}
@@ -169,10 +160,10 @@ export function Header({
                   </h3>
                 ) : null}
               </div>
-              {rightLogo ? (
+              {logo ? (
                 <Image
-                  src={rightLogo}
-                  alt="Government logo"
+                  src={logo}
+                  alt="School logo"
                   width={96}
                   height={96}
                   className="h-12 w-12 shrink-0 object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"

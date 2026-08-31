@@ -1,27 +1,32 @@
 import { fetchSchoolConfig } from '@/queries/school.queries';
-import Image from 'next/image';
+import { fetchHeadMasterMsg } from '@/queries/teacher.queries';
 
 export default async function At_a_glance() {
-  const schoolConfig = await fetchSchoolConfig();
+  const [schoolConfig, head] = await Promise.all([fetchSchoolConfig(), fetchHeadMasterMsg()]);
   const config = schoolConfig as Record<string, any>;
 
-  const asText = (value: unknown, fallback = '—') => {
+  const asText = (value: unknown): string | null => {
     if (typeof value === 'string') {
       const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : fallback;
+      return trimmed.length > 0 ? trimmed : null;
     }
     if (typeof value === 'number') return String(value);
-    return fallback;
+    return null;
   };
 
   const schoolNameEn = asText(config.name?.en);
   const schoolNameBn = asText(config.name?.bn);
+  const schoolName =
+    schoolNameEn && schoolNameBn
+      ? `${schoolNameEn} (${schoolNameBn})`
+      : (schoolNameEn ?? schoolNameBn);
   const website = asText(config.contact?.website);
   const email = asText(config.contact?.email);
   const phone = asText(config.contact?.phone);
   const eiin = asText(config.identifiers?.eiin);
   const centerCode = asText(config.identifiers?.centerCode);
-  const location = asText(config.contact?.location);
+  const schoolCode = asText(config.identifiers?.schoolCode);
+  const address = asText(config.contact?.address);
   const established = asText(config.history?.established);
   const nationalized = asText(config.history?.nationalized);
   const grades = asText(config.academic?.grades);
@@ -29,139 +34,76 @@ export default async function At_a_glance() {
   const studentTeacherRatio = asText(config.academic?.studentTeacherRatio);
   const medium = asText(config.academic?.medium);
   const board = asText(config.academic?.board);
+  const ownership = asText(config.academic?.ownership);
+  const gender = asText(config.academic?.gender);
   const campusArea = asText(config.academic?.campusArea);
   const playgroundArea = asText(config.academic?.playgroundArea);
-  const headmaster = asText(config.academic?.headmaster);
+  const headmaster = asText(head?.teacher?.name);
   const colors = asText(config.academic?.colors);
-  const address = asText(config.contact?.address);
   const descriptionMain = asText(config.descriptions?.main);
   const descriptionSub = asText(config.descriptions?.sub);
   const subjects = asText(config.academic?.subjects);
   const ageRange = asText(config.academic?.ageRange);
-  const motto = asText(config.academic?.motto);
 
-  const banners = Array.isArray(config.assets?.banners)
-    ? config.assets.banners.filter((item: unknown) => typeof item === 'string' && item.trim())
-    : [];
-  const campusImage = banners[0] || '/placeholder.svg';
-  const locationPart = location.split(',')[1]?.trim() || location;
+  const row = (label: string, value: string | null | undefined) =>
+    value ? { label, value } : null;
 
-  const allRows: { label: string; value: React.ReactNode }[] = [
-    {
-      label: 'College / School Name',
-      value: `${schoolNameEn} (${schoolNameBn})`,
-    },
-    { label: 'Website', value: website },
-    { label: 'E-mail', value: email },
-    { label: 'Phone', value: phone },
-    { label: 'Code (EIIN)', value: eiin },
-    { label: 'Center Code', value: centerCode },
-    { label: 'Location', value: location },
-    { label: 'Established', value: established },
-    { label: 'Nationalized', value: nationalized },
-    { label: 'Grades', value: grades },
-    { label: 'Enrollment', value: enrollment },
-    {
-      label: 'Student-Teacher Ratio',
-      value: studentTeacherRatio,
-    },
-    { label: 'Medium', value: medium },
-    { label: 'Board', value: board },
-    { label: 'Campus / Land Area', value: campusArea },
-    { label: 'Playground', value: playgroundArea },
-    { label: 'Headmaster', value: headmaster },
-    { label: 'Uniform Color', value: colors },
+  type AtAGlanceRow = { label: string; value: React.ReactNode };
+  const allRows: AtAGlanceRow[] = [];
 
-    {
+  for (const entry of [
+    row('College / School Name', schoolName),
+    row('Website', website),
+    row('E-mail', email),
+    row('Phone', phone),
+    row('Code (EIIN)', eiin),
+    row('Center Code', centerCode),
+    row('School Code', schoolCode),
+    row('Address', address),
+    row('Established', established),
+    row('Nationalized', nationalized),
+    row('Grades', grades),
+    row('Age Range', ageRange),
+    row('Groups', subjects),
+    row('Enrollment', enrollment),
+    row('Student-Teacher Ratio', studentTeacherRatio),
+    row('Medium', medium),
+    row('Board', board),
+    row('Ownership', ownership),
+    row('School For', gender),
+    row('Campus / Land Area', campusArea),
+    row('Playground', playgroundArea),
+    row('Headmaster', headmaster),
+    row('Uniform Color', colors),
+  ]) {
+    if (entry) allRows.push(entry);
+  }
+
+  if (descriptionMain || descriptionSub) {
+    allRows.push({
       label: 'Description',
       value: (
         <div>
-          <p className="mb-2 text-sm leading-relaxed text-gray-700">{descriptionMain}</p>
-          <p className="text-sm leading-relaxed text-gray-600">{descriptionSub}</p>
+          {descriptionMain ? (
+            <p className="mb-2 text-sm leading-relaxed text-gray-700">{descriptionMain}</p>
+          ) : null}
+          {descriptionSub ? (
+            <p className="text-sm leading-relaxed text-gray-600">{descriptionSub}</p>
+          ) : null}
         </div>
       ),
-    },
-
-    {
-      label: 'Academic Programs',
-      value: (
-        <ul className="list-disc pl-5 text-sm text-gray-600">
-          <li>Secondary Education ({grades} level)</li>
-          <li>National Curriculum ({medium} medium)</li>
-          <li>{subjects}</li>
-          <li>Special care for board exams</li>
-        </ul>
-      ),
-    },
-
-    {
-      label: 'Student Body',
-      value: (
-        <ul className="list-disc pl-5 text-sm text-gray-600">
-          <li>Enrollment: {enrollment}</li>
-          <li>Age Range: {ageRange}</li>
-          <li>Student-Teacher Ratio: {studentTeacherRatio}</li>
-          {/* <li>Active Student Council & Publication "Anushilon"</li> */}
-        </ul>
-      ),
-    },
-
-    {
-      label: 'Achievements & Reputation',
-      value: (
-        <ul className="list-disc pl-5 text-sm text-gray-600">
-          <li>Consistently strong SSC results</li>
-          <li>Recognized as a leading school in {locationPart}</li>
-          <li>Notable alumni and community impact</li>
-          {/* <li>School magazine: "Anushilon"</li> */}
-        </ul>
-      ),
-    },
-
-    {
-      label: 'School Details',
-      value: (
-        <ul className="list-disc pl-5 text-sm text-gray-600">
-          <li>Founded: {established}</li>
-          <li>Nationalized: {nationalized}</li>
-          <li>Motto: “{motto}”</li>
-          <li>Uniform Color: {colors}</li>
-        </ul>
-      ),
-    },
-
-    { label: 'Address', value: address },
-    { label: 'Contact Phone', value: phone },
-    { label: 'Contact E-mail', value: email },
-
-    {
-      label: 'Campus Image',
-      value: (
-        <div className="w-full max-w-md">
-          <Image
-            width={400}
-            height={300}
-            src={campusImage}
-            alt="School Campus"
-            className="h-48 w-full rounded-md object-cover shadow-sm"
-          />
-          <div className="mt-1 text-xs text-gray-500">School Campus</div>
-        </div>
-      ),
-    },
-  ];
+    });
+  }
 
   const renderCellValue = (val: React.ReactNode) => {
     if (typeof val === 'string') {
-      return val.trim()
-        ? val.split('\n').map((line, i) => (
-            <div key={i} className="leading-relaxed">
-              {line}
-            </div>
-          ))
-        : '—';
+      return val.split('\n').map((line, i) => (
+        <div key={i} className="leading-relaxed">
+          {line}
+        </div>
+      ));
     }
-    return val ?? '—';
+    return val;
   };
 
   return (
@@ -170,47 +112,51 @@ export default async function At_a_glance() {
         <h2 className="text-2xl text-balance sm:text-3xl md:text-4xl">At a glance</h2>
 
         <div className="mt-6 sm:mt-8">
-          <div className="overflow-hidden rounded-xs bg-white shadow">
-            {/* Mobile: stacked definition list */}
-            <dl className="divide-y divide-gray-300 border border-gray-300 md:hidden">
-              {allRows.map((row, idx) => {
-                const isEven = idx % 2 === 0;
-                return (
-                  <div
-                    key={row.label}
-                    className={`px-3 py-3 sm:px-4 sm:py-4 ${isEven ? 'bg-gray-50' : 'bg-white'}`}
-                  >
-                    <dt className="text-sm font-semibold text-gray-900">{row.label}</dt>
-                    <dd className="mt-1 min-w-0 text-sm break-words text-gray-700">
-                      {renderCellValue(row.value)}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-
-            {/* Desktop: table */}
-            <table className="hidden min-w-full border-collapse text-sm md:table">
-              <tbody className="border border-gray-300">
+          {allRows.length === 0 ? (
+            <p className="text-sm text-gray-600">No school information available yet.</p>
+          ) : (
+            <div className="overflow-hidden rounded-xs bg-white shadow">
+              {/* Mobile: stacked definition list */}
+              <dl className="divide-y divide-gray-300 border border-gray-300 md:hidden">
                 {allRows.map((row, idx) => {
                   const isEven = idx % 2 === 0;
                   return (
-                    <tr key={row.label} className={isEven ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="w-5/12 border-b border-gray-300 px-4 py-4 align-top font-semibold">
-                        {row.label}
-                      </td>
-                      <td className="w-12 border-b border-gray-300 px-2 py-4 text-center align-top">
-                        :
-                      </td>
-                      <td className="min-w-0 border-b border-gray-300 px-4 py-4 break-words">
+                    <div
+                      key={row.label}
+                      className={`px-3 py-3 sm:px-4 sm:py-4 ${isEven ? 'bg-gray-50' : 'bg-white'}`}
+                    >
+                      <dt className="text-sm font-semibold text-gray-900">{row.label}</dt>
+                      <dd className="mt-1 min-w-0 text-sm break-words text-gray-700">
                         {renderCellValue(row.value)}
-                      </td>
-                    </tr>
+                      </dd>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+              </dl>
+
+              {/* Desktop: table */}
+              <table className="hidden min-w-full border-collapse text-sm md:table">
+                <tbody className="border border-gray-300">
+                  {allRows.map((row, idx) => {
+                    const isEven = idx % 2 === 0;
+                    return (
+                      <tr key={row.label} className={isEven ? 'bg-gray-50' : 'bg-white'}>
+                        <td className="w-5/12 border-b border-gray-300 px-4 py-4 align-top font-semibold">
+                          {row.label}
+                        </td>
+                        <td className="w-12 border-b border-gray-300 px-2 py-4 text-center align-top">
+                          :
+                        </td>
+                        <td className="min-w-0 border-b border-gray-300 px-4 py-4 break-words">
+                          {renderCellValue(row.value)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

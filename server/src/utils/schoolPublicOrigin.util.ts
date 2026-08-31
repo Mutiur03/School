@@ -16,7 +16,6 @@ export function schoolWebsiteHost(raw?: string | null): string {
 export function schoolPublicOrigin(school: {
   customDomain?: string | null;
   subdomain?: string | null;
-  website?: string | null;
 }): string {
   const custom = school.customDomain?.trim();
   if (custom) {
@@ -32,13 +31,6 @@ export function schoolPublicOrigin(school: {
     const suffix = domain.startsWith('.') ? domain : `.${domain}`;
     const protocol = env.NODE_ENV === 'production' ? 'https' : 'http';
     return `${protocol}://${subdomain}-school${suffix}`;
-  }
-
-  const website = school.website?.trim();
-  if (website) {
-    return /^https?:\/\//i.test(website)
-      ? website.replace(/\/+$/, '')
-      : `https://${website.replace(/\/+$/, '')}`;
   }
 
   throw new ApiError(500, 'School public URL not configured');

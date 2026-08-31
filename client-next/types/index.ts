@@ -53,9 +53,7 @@ export type MenuItem = {
 export type SchoolAssets = {
   logo?: string;
   headerLogo?: string;
-  governmentLogo?: string;
   banners?: string[];
-  favicon?: string;
 };
 
 export type SchoolMap = {
@@ -73,7 +71,6 @@ export type SchoolContact = {
   email: string;
   phone: string;
   address: string;
-  location: string;
   district: string;
   upazila: string;
 };
@@ -81,6 +78,7 @@ export type SchoolContact = {
 export type SchoolIdentifiers = {
   eiin: string;
   centerCode: string;
+  schoolCode: string;
 };
 
 export type SchoolHistory = {
@@ -96,7 +94,8 @@ export type SchoolAcademic = {
   studentTeacherRatio: string;
   medium: string;
   board: string;
-  motto: string;
+  ownership: string;
+  gender: string;
   headmaster: string;
   colors: string;
   campusArea: string;

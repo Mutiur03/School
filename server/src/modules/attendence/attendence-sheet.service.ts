@@ -102,7 +102,7 @@ type SheetServeResult = { buffer: Buffer; filename: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Prefer full URL for PDF header (customDomain or website). */
+/** Prefer full URL for PDF header (customDomain). */
 function formatSchoolWebsiteUrl(raw?: string | null): string | null {
   const s = raw?.trim();
   if (!s) return null;
@@ -194,11 +194,9 @@ export class AttendanceSheetService {
           name: true,
           eiin: true,
           address: true,
-          location: true,
           district: true,
           upazila: true,
           phone: true,
-          website: true,
           customDomain: true,
           updatedAt: true,
         },
@@ -249,11 +247,10 @@ export class AttendanceSheetService {
         n: school?.name ?? null,
         e: school?.eiin ?? null,
         a: school?.address ?? null,
-        l: school?.location ?? null,
         di: school?.district ?? null,
         u: school?.upazila ?? null,
         p: school?.phone ?? null,
-        w: school?.customDomain?.trim() || school?.website?.trim() || null,
+        w: school?.customDomain?.trim() || null,
         t: isoStamp(school?.updatedAt),
       },
       ...(teacher ? { teacher } : {}),
@@ -1297,7 +1294,7 @@ export class AttendanceSheetService {
       schoolId
         ? prisma.school.findUnique({
             where: { id: schoolId },
-            select: { customDomain: true, eiin: true, website: true },
+            select: { customDomain: true, eiin: true },
           })
         : Promise.resolve(null),
       prisma.levels.findFirst({
@@ -1325,11 +1322,7 @@ export class AttendanceSheetService {
       }),
     ]);
 
-    const websiteRaw =
-      schoolHdr?.customDomain?.trim() ||
-      schoolHdr?.website?.trim() ||
-      schoolInfo?.website?.trim() ||
-      null;
+    const websiteRaw = schoolHdr?.customDomain?.trim() || null;
     const school = schoolInfo
       ? {
           ...schoolInfo,
@@ -1517,7 +1510,7 @@ export class AttendanceSheetService {
     });
     y += nameSize + 2;
 
-    const placeParts = [school?.upazila, school?.district, school?.location].filter(Boolean);
+    const placeParts = [school?.upazila, school?.district].filter(Boolean);
     const placeLine = placeParts.length > 0 ? placeParts.join(', ') : school?.address || '';
     if (placeLine) {
       doc
@@ -1532,7 +1525,10 @@ export class AttendanceSheetService {
     }
 
     // Same as marksheet: website URL alone, then EIIN / phone at same size.
-    const websiteUrl = formatSchoolWebsiteUrl(school?.website);
+    const websiteUrl = formatSchoolWebsiteUrl(
+      (school as { website?: string | null; customDomain?: string | null } | null)?.website ??
+        (school as { customDomain?: string | null } | null)?.customDomain,
+    );
     if (websiteUrl) {
       doc
         .font(FONT_BOLD)

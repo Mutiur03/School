@@ -16,7 +16,6 @@ import { Footer } from '@/components/Footer';
 import Header from '@/components/HeaderClient';
 import { Navbar } from '@/components/Navbar';
 import { TopBanner } from '@/components/TopBanner';
-import governmentLogoImage from '../assets/images/gov-logo.png';
 
 /**
  * Multi-tenant: headers()/Host still force dynamic rendering.
@@ -84,11 +83,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Header
               bannerImages={assets?.banners ?? []}
               headerLogo={assets?.headerLogo ?? ''}
-              leftLogo={assets?.logo ?? ''}
-              rightLogo={
-                (assets as { governmentLogo?: string } | undefined)?.governmentLogo ??
-                governmentLogoImage
-              }
+              logo={assets?.logo ?? ''}
               titleBn={String(school?.name?.bn ?? '')}
               titleEn={String(school?.name?.en ?? '')}
               school={school!}

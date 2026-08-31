@@ -1,157 +1,67 @@
 import { cache } from 'react';
 import { api, getFileUrl } from '@/lib/backend';
+import { defaultSchoolSidebarConfig } from '@school/shared-schemas';
 import type { SchoolConfig } from '@/types';
 
-const defaultSchoolConfig: SchoolConfig = {
+/** Tenant-neutral shell — never hardcode a real school's identity. */
+const emptySchoolConfig: SchoolConfig = {
   name: {
-    en: 'Panchbibi Lal Bihari Pilot Govt. High School',
-    bn: 'পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়',
-    shortEn: 'LBPHS',
+    en: '',
+    bn: '',
+    shortEn: '',
   },
   contact: {
-    website: 'www.lbphs.gov.bd',
-    email: 'lbpgovtschool@gmail.com',
-    phone: '+880 1309-121983',
-    address: 'Panchbibi, Joypurhat, Rajshahi Division, Bangladesh',
-    location: 'Damdama, Panchbibi.',
-    district: 'Joypurhat',
-    upazila: 'Panchbibi',
+    website: '',
+    email: '',
+    phone: '',
+    address: '',
+    district: '',
+    upazila: '',
   },
   identifiers: {
-    eiin: '121983',
-    centerCode: '484',
+    eiin: '',
+    centerCode: '',
+    schoolCode: '',
   },
   history: {
-    established: '1940',
-    nationalized: '1987',
+    established: '',
+    nationalized: '',
   },
   academic: {
-    grades: '6-10 (SSC)',
-    ageRange: '11-16 years',
-    subjects: 'Science and Humanities',
-    enrollment: '~600 boys',
-    studentTeacherRatio: '~30:1',
-    medium: 'Bangla',
-    board: 'Rajshahi Education Board',
-    motto: 'Learn it and give all',
-    headmaster: 'Md Ataur Rahman',
-    colors: 'Shirt: White, Pant: Navy Blue',
-    campusArea: '~548 decimals (campus), 54 rooms',
-    playgroundArea: '160 decimals',
+    grades: '',
+    ageRange: '',
+    subjects: '',
+    enrollment: '',
+    studentTeacherRatio: '',
+    medium: '',
+    board: '',
+    ownership: '',
+    gender: '',
+    headmaster: '',
+    colors: '',
+    campusArea: '',
+    playgroundArea: '',
   },
   links: {
     results: '/result',
   },
   sidebarLinks: {
-    important: [
-      {
-        title: 'Rajshahi Education Board',
-        url: 'http://rajshahieducationboard.gov.bd/',
-      },
-      { title: 'Directorate of Education', url: 'http://www.dshe.gov.bd/' },
-      { title: 'National University', url: 'http://nu.ac.bd/' },
-      { title: 'Rajshahi University', url: 'http://www.ru.ac.bd/' },
-      {
-        title: 'National Web Portal',
-        url: 'http://www.bangladesh.gov.bd/',
-      },
-      {
-        title: 'Rajshahi Division Portal',
-        url: 'http://www.rajshahidiv.gov.bd/',
-      },
-      {
-        title: 'Rajshahi City Corporation',
-        url: 'http://www.erajshahi.gov.bd/',
-      },
-      {
-        title: 'Rajshahi District Portal',
-        url: 'http://www.rajshahi.gov.bd/',
-      },
-    ],
-    quick: [
-      { title: 'প্রধানমন্ত্রীর কার্যালয়', url: 'http://www.pmo.gov.bd/' },
-      {
-        title: 'রাষ্ট্রপতির কার্যালয়',
-        url: 'http://www.bangabhaban.gov.bd/',
-      },
-      { title: 'মন্ত্রিপরিষদ বিভাগ', url: 'http://www.cabinet.gov.bd/' },
-      { title: 'জনপ্রশাসন মন্ত্রণালয়', url: 'http://www.mopa.gov.bd/' },
-      { title: 'অর্থ মন্ত্রণালয়', url: 'http://www.mof.gov.bd/en/' },
-      { title: 'জাতীয় পোর্টাল', url: 'http://www.bangladesh.gov.bd/' },
-      { title: 'শিক্ষা মন্ত্রণালয়', url: 'http://www.moedu.gov.bd/' },
-      {
-        title: 'মাধ্যমিক ও উচ্চশিক্ষা অধিদপ্তর',
-        url: 'http://dshe.gov.bd/',
-      },
-      {
-        title: 'জাতীয় শিক্ষা ব্যবস্থাপনা একাডেমি (নায়েম)',
-        url: 'http://naem.gov.bd/',
-      },
-      {
-        title: 'বাংলাদেশ শিক্ষাতথ্য ও পরিসংখ্যান ব্যুরো (ব্যানবেইস)',
-        url: 'http://www.banbeis.gov.bd/',
-      },
-      { title: 'ই-নথি', url: 'https://www.nothi.gov.bd/' },
-    ],
-    useful: [
-      {
-        title: 'National Web Portal',
-        url: 'http://www.bangladesh.gov.bd/',
-      },
-      { title: 'National University', url: 'https://www.nu.ac.bd' },
-      {
-        title: 'Education Board, Jashore',
-        url: 'https://www.jessoreboard.gov.bd',
-      },
-      { title: 'e-Shikhha', url: 'https://www.eshikkha.net' },
-      { title: 'Muktopaath', url: 'https://www.muktopaath.gov.bd' },
-      { title: 'Shikkhak Batayon', url: 'https://www.teachers.gov.bd' },
-      { title: 'eksheba', url: 'https://eksheba.gov.bd' },
-      { title: 'EMIS | DSHE', url: 'http://emis.gov.bd' },
-      {
-        title: 'Integrated Budget And Accounting System',
-        url: 'http://www.payfixation.gov.bd/',
-      },
-      {
-        title: 'IBAS++ Version Selector',
-        url: 'https://ibas.finance.gov.bd',
-      },
-      {
-        title: 'ইমিগ্রেশন ও পাসপোর্ট অধিদপ্তর',
-        url: 'http://www.dip.gov.bd',
-      },
-      { title: 'বাংলাদেশ ফরম', url: 'http://forms.mygov.bd/' },
-    ],
-    hotlines: [
-      {
-        title: 'Emergency Hotline',
-        image: '/biwta.jpeg',
-      },
-      {
-        title: 'National Helpline',
-        image: '/National-Helpline.jpg',
-      },
-    ],
+    important: defaultSchoolSidebarConfig.important.map((l) => ({ ...l })),
+    quick: defaultSchoolSidebarConfig.quick.map((l) => ({ ...l })),
+    useful: defaultSchoolSidebarConfig.useful.map((l) => ({ ...l })),
+    hotlines: defaultSchoolSidebarConfig.hotlines.map((l) => ({ ...l })),
   },
   map: {
-    embedUrl:
-      'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3610.4413182758058!2d89.0162750103328!3d25.18833557762371!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39fc940036ab258f%3A0x1ad698a28f60162!2sPanchbibi%20Lal%20Bihari%20Pilot%20Government%20High%20School!5e0!3m2!1sen!2sbd!4v1759324093017!5m2!1sen!2sbd',
+    embedUrl: undefined,
   },
   assets: {
-    logo: '/logo.png',
-    headerLogo: '/header.png',
-    banners: [
-      '/banner1.jpg',
-      '/banner2.jpeg',
-      '/banner3.jpg',
-      '/banner4.jpg',
-      '/banner5.jpg',
-      '/banner6.jpg',
-    ],
+    logo: undefined,
+    headerLogo: undefined,
+    banners: [],
   },
   descriptions: {
-    main: "Panchbibi Lal Bihari Pilot Government High School (Bengali: পাঁচবিবি লাল বিহারী পাইলট সরকারি উচ্চ বিদ্যালয়), formerly known as Panchbibi L. B. Pilot Government High School, is a prominent boys' secondary school located in Panchbibi Upazila, Joypurhat District, Rajshahi Division, Bangladesh. Established in 1940, the school has a long-standing reputation for academic excellence and community leadership.",
-    sub: 'The school offers education from Class 6 to Class 10 (SSC level) under the Rajshahi Education Board. With a dedicated faculty led by Headmaster Md. Ataur Rahman, and a student body of around 600 boys aged 11-16, the school provides a holistic environment that fosters academic achievement, character development, and social responsibility.',
+    main: '',
+    sub: '',
   },
   gaMeasurementId: undefined,
 };
@@ -180,39 +90,108 @@ const getStringArray = (value: unknown) => {
   return undefined;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const resolveBannerUrls = (info: Record<string, unknown>): string[] => {
+  const raw = info.bannerUrls ?? info.banners;
+  const list = getStringArray(raw) ?? [];
+  return list.map((item) => getFileUrl(item) || item).filter(Boolean);
+};
+
 const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
   if (!info || typeof info !== 'object') return null;
 
   const seo =
     info.seo && typeof info.seo === 'object' ? (info.seo as Record<string, unknown>) : info;
+  const academicProfile = asRecord(info.academicProfile) ?? {};
+  const descriptions = asRecord(info.descriptions) ?? {};
 
   const gaMeasurementId =
     getOptionalString(info.gaMeasurementId) ??
     getOptionalString(info.ga4MeasurementId) ??
     getOptionalString(info.googleAnalyticsMeasurementId);
 
+  const banners = resolveBannerUrls(info);
+  const logoUrl = getFileUrl(getString(info.logo, '')) || undefined;
+  const headerLogoUrl = getFileUrl(getString(info.headerLogo, '')) || undefined;
+  const customDomain = getOptionalString(info.customDomain);
+  const website = customDomain
+    ? customDomain.startsWith('http')
+      ? customDomain
+      : `https://${customDomain}`
+    : '';
+
   return {
-    ...defaultSchoolConfig,
+    ...emptySchoolConfig,
     gaMeasurementId,
     name: {
-      ...defaultSchoolConfig.name,
-      en: getString(info.name, defaultSchoolConfig.name.en),
-      shortEn: getString(info.shortName, defaultSchoolConfig.name.shortEn),
+      en: getString(info.name, emptySchoolConfig.name.en),
+      bn: getString(info.nameBn, emptySchoolConfig.name.bn),
+      shortEn: getString(info.shortName, emptySchoolConfig.name.shortEn),
     },
     contact: {
-      ...defaultSchoolConfig.contact,
-      website: getString(info.website, defaultSchoolConfig.contact.website),
-      email: getString(info.email, defaultSchoolConfig.contact.email),
-      phone: getString(info.phone, defaultSchoolConfig.contact.phone),
-      district: getString(info.district, defaultSchoolConfig.contact.district),
-      upazila: getString(info.upazila, defaultSchoolConfig.contact.upazila),
+      website,
+      email: getString(info.email, emptySchoolConfig.contact.email),
+      phone: getString(info.phone, emptySchoolConfig.contact.phone),
+      address: getString(info.address, emptySchoolConfig.contact.address),
+      district: getString(info.district, emptySchoolConfig.contact.district),
+      upazila: getString(info.upazila, emptySchoolConfig.contact.upazila),
+    },
+    identifiers: {
+      eiin: getString(info.eiin, emptySchoolConfig.identifiers.eiin),
+      centerCode: getString(info.centerCode, emptySchoolConfig.identifiers.centerCode),
+      schoolCode: getString(info.schoolCode, emptySchoolConfig.identifiers.schoolCode),
+    },
+    history: {
+      established: info.establishedIn
+        ? String(info.establishedIn)
+        : emptySchoolConfig.history.established,
+      nationalized: getString(info.nationalizedYear, emptySchoolConfig.history.nationalized),
+    },
+    academic: {
+      grades: getString(academicProfile.grades, emptySchoolConfig.academic.grades),
+      ageRange: getString(academicProfile.ageRange, emptySchoolConfig.academic.ageRange),
+      subjects: getString(
+        info.subjectGroups ?? academicProfile.subjects,
+        emptySchoolConfig.academic.subjects,
+      ),
+      enrollment: getString(academicProfile.enrollment, emptySchoolConfig.academic.enrollment),
+      studentTeacherRatio: getString(
+        academicProfile.studentTeacherRatio,
+        emptySchoolConfig.academic.studentTeacherRatio,
+      ),
+      medium: getString(info.medium ?? academicProfile.medium, emptySchoolConfig.academic.medium),
+      board: getString(info.board ?? academicProfile.board, emptySchoolConfig.academic.board),
+      ownership: getString(
+        info.ownership ?? academicProfile.ownership,
+        emptySchoolConfig.academic.ownership,
+      ),
+      gender: getString(info.gender ?? academicProfile.gender, emptySchoolConfig.academic.gender),
+      headmaster: '',
+      colors: getString(academicProfile.colors, emptySchoolConfig.academic.colors),
+      campusArea: getString(academicProfile.campusArea, emptySchoolConfig.academic.campusArea),
+      playgroundArea: getString(
+        academicProfile.playgroundArea,
+        emptySchoolConfig.academic.playgroundArea,
+      ),
+    },
+    descriptions: {
+      main: getString(descriptions.main, emptySchoolConfig.descriptions.main),
+      sub: getString(descriptions.sub, emptySchoolConfig.descriptions.sub),
     },
     assets: {
-      ...defaultSchoolConfig.assets,
-      logo: defaultSchoolConfig.assets.logo,
-      headerLogo: defaultSchoolConfig.assets.headerLogo,
-      favicon: getFileUrl(getString(info.logo, '')) || undefined,
+      ...emptySchoolConfig.assets,
+      logo: logoUrl,
+      headerLogo: headerLogoUrl,
+      banners,
     },
+    map: {
+      embedUrl: getOptionalString(info.mapEmbedUrl),
+    },
+    sidebarLinks: emptySchoolConfig.sidebarLinks,
     seo: {
       title:
         getOptionalString(seo.title) ??
@@ -221,32 +200,23 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
       description:
         getOptionalString(seo.description) ??
         getOptionalString(seo.metaDescription) ??
-        getOptionalString(info.slogan),
+        getOptionalString(descriptions.main) ??
+        getOptionalString(descriptions.sub),
       keywords: getStringArray(seo.keywords) ?? getStringArray(seo.metaKeywords),
       image:
         getOptionalString(seo.image) ??
         getOptionalString(seo.ogImage) ??
         getOptionalString(seo.twitterImage) ??
-        getOptionalString(info.logo),
-      canonicalUrl: getOptionalString(seo.canonicalUrl) ?? getOptionalString(info.website),
+        logoUrl,
+      canonicalUrl: getOptionalString(seo.canonicalUrl) ?? (website || undefined),
       noIndex: Boolean(seo.noIndex),
-    },
-    academic: {
-      ...defaultSchoolConfig.academic,
-      motto: getString(info.slogan, defaultSchoolConfig.academic.motto),
-    },
-    history: {
-      ...defaultSchoolConfig.history,
-      established: info.establishedIn
-        ? String(info.establishedIn)
-        : defaultSchoolConfig.history.established,
     },
     links: {
       results: getOptionalString(info.resultsUrl) ?? '/result',
       teacherLogin: getOptionalString(info.teacherLoginUrl),
       studentLogin: getOptionalString(info.studentLoginUrl),
     },
-  };
+  } satisfies SchoolConfig;
 };
 
 /** Deduped per RSC request (layout metadata + body + Footer). */
@@ -264,18 +234,5 @@ export const fetchSchoolConfig = cache(async () => {
     );
   }
 
-  try {
-    const legacy = await api.get<Record<string, unknown>>('/api/school/getConfig', {
-      revalidate: 300,
-    });
-    const mappedLegacy = mapPublicSchoolInfoToConfig(legacy?.data);
-    if (mappedLegacy) return mappedLegacy;
-  } catch (error) {
-    console.warn(
-      'Error fetching school config from /api/school/getConfig:',
-      error instanceof Error ? error.message : error,
-    );
-  }
-
-  return defaultSchoolConfig;
+  return emptySchoolConfig;
 });

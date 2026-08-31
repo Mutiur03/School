@@ -1,5 +1,13 @@
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+  type ChangeEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import axios from 'axios';
@@ -8,24 +16,30 @@ import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import {
   Building2,
   Download,
+  ImageIcon,
   KeyRound,
   Loader2,
-  Mail,
-  MapPin,
-  Phone,
   Plus,
   RefreshCw,
   Save,
+  Search,
   Trash2,
   UserCog,
 } from 'lucide-react';
 import { downloadBlob } from '@school/common-ui/blob';
+import { useSearchParams } from 'react-router-dom';
 import {
   addAdminSchema,
   createSchoolSchema,
   districts,
   getUpazilasByDistrict,
+  SCHOOL_BOARDS,
+  SCHOOL_GENDERS,
+  SCHOOL_MEDIUMS,
+  SCHOOL_OWNERSHIPS,
+  VALID_GROUPS,
   type District,
+  type SchoolAssetKind,
   type Upazila,
 } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
@@ -33,35 +47,50 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { PageHeader, SectionCard } from '@/components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface SchoolData {
   id?: number;
   name: string;
-  shortName?: string;
-  nameBn?: string;
-  eiin?: string;
-  centerCode?: string;
+  shortName?: string | null;
+  nameBn?: string | null;
+  eiin?: string | null;
+  centerCode?: string | null;
+  schoolCode?: string | null;
+  subjectGroups?: string | null;
+  medium?: string | null;
+  board?: string | null;
+  ownership?: string | null;
+  gender?: string | null;
   logo: string;
-  favicon?: string;
-  governmentLogo?: string;
-  headerLogo?: string;
+  headerLogo?: string | null;
+  bannerUrls?: string[] | null;
   district: string;
   upazila: string;
-  address?: string;
-  location?: string;
+  address?: string | null;
   phone: string;
   email: string;
-  website?: string;
-  mapEmbedUrl?: string;
-  slogan?: string;
-  establishedIn?: number;
-  nationalizedYear?: string;
-  resultsUrl?: string;
-  teacherLoginUrl?: string;
-  studentLoginUrl?: string;
-  subdomain?: string;
-  customDomain?: string;
-  gaMeasurementId?: string;
+  mapEmbedUrl?: string | null;
+  establishedIn?: number | null;
+  nationalizedYear?: string | null;
+  resultsUrl?: string | null;
+  teacherLoginUrl?: string | null;
+  studentLoginUrl?: string | null;
+  subdomain?: string | null;
+  customDomain?: string | null;
+  gaMeasurementId?: string | null;
+  descriptions?: { main?: string | null; sub?: string | null } | null;
+  academicProfile?: {
+    grades?: string | null;
+    ageRange?: string | null;
+    enrollment?: string | null;
+    studentTeacherRatio?: string | null;
+    colors?: string | null;
+    campusArea?: string | null;
+    playgroundArea?: string | null;
+  } | null;
 }
 
 interface SchoolAdmin {
@@ -79,34 +108,338 @@ const currentYear = new Date().getFullYear();
 
 type SchoolFormValues = z.input<typeof createSchoolSchema>;
 
+const MB = 1024 * 1024;
+
+/** Client-side image constraints for school branding assets. */
+const IMAGE_RULES = {
+  logo: {
+    label: 'Logo',
+    maxBytes: 2 * MB,
+    minWidth: 256,
+    maxWidth: 2048,
+    square: true as const,
+  },
+  header: {
+    label: 'Header logo',
+    maxBytes: 3 * MB,
+    minWidth: 800,
+    maxWidth: 3200,
+    minHeight: 120,
+    maxHeight: 900,
+    /** Width must be at least this many times the height (wide banner mark). */
+    minAspect: 2.5,
+  },
+  banner: {
+    label: 'Banner',
+    maxBytes: 4 * MB,
+    minWidth: 1200,
+    maxWidth: 3840,
+    minHeight: 300,
+    maxHeight: 1600,
+    minAspect: 1.5,
+  },
+} as const;
+
+const formatMb = (bytes: number) => `${(bytes / MB).toFixed(bytes % MB === 0 ? 0 : 1)} MB`;
+
+const readImageDimensions = (file: File) =>
+  new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const result = { width: img.width, height: img.height };
+      URL.revokeObjectURL(objectUrl);
+      resolve(result);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Unable to read image'));
+    };
+    img.src = objectUrl;
+  });
+
+const validateSchoolImage = async (
+  file: File,
+  kind: keyof typeof IMAGE_RULES,
+): Promise<string | null> => {
+  const rules = IMAGE_RULES[kind];
+  if (!file.type.startsWith('image/')) {
+    return `${rules.label} must be an image file (PNG or JPG)`;
+  }
+  if (file.size > rules.maxBytes) {
+    return `${rules.label} must be under ${formatMb(rules.maxBytes)} (got ${formatMb(file.size)})`;
+  }
+
+  let dimensions: { width: number; height: number };
+  try {
+    dimensions = await readImageDimensions(file);
+  } catch {
+    return `Unable to read ${rules.label.toLowerCase()} image`;
+  }
+
+  const { width, height } = dimensions;
+  if (width < 1 || height < 1) {
+    return `${rules.label} image is invalid`;
+  }
+
+  if (kind === 'logo') {
+    const logo = IMAGE_RULES.logo;
+    if (width !== height) {
+      return `${logo.label} must be square (got ${width}×${height})`;
+    }
+    if (width < logo.minWidth) {
+      return `${logo.label} must be at least ${logo.minWidth}×${logo.minWidth}px (got ${width}×${height})`;
+    }
+    if (width > logo.maxWidth) {
+      return `${logo.label} must be at most ${logo.maxWidth}×${logo.maxWidth}px (got ${width}×${height})`;
+    }
+    return null;
+  }
+
+  const wide = kind === 'header' ? IMAGE_RULES.header : IMAGE_RULES.banner;
+  if (width < wide.minWidth || height < wide.minHeight) {
+    return `${wide.label} must be at least ${wide.minWidth}×${wide.minHeight}px (got ${width}×${height})`;
+  }
+  if (width > wide.maxWidth || height > wide.maxHeight) {
+    return `${wide.label} must be at most ${wide.maxWidth}×${wide.maxHeight}px (got ${width}×${height})`;
+  }
+  const aspect = width / height;
+  if (aspect < wide.minAspect) {
+    return `${wide.label} must be wide (at least ${wide.minAspect}:1, got ${aspect.toFixed(2)}:1)`;
+  }
+  return null;
+};
+
+const EDITOR_TABS = [
+  { id: 'identity', label: 'Identity' },
+  { id: 'contact', label: 'Contact' },
+  { id: 'domains', label: 'Domains' },
+  { id: 'branding', label: 'Branding' },
+  { id: 'academic', label: 'Academic' },
+  { id: 'about', label: 'About' },
+  { id: 'admins', label: 'Admins' },
+] as const;
+
+type EditorTab = (typeof EDITOR_TABS)[number]['id'];
+
+const EDITOR_TAB_IDS = new Set<string>(EDITOR_TABS.map((tab) => tab.id));
+
+const parseSchoolId = (raw: string | null): number | 'new' => {
+  if (!raw || raw === 'new') return 'new';
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 ? id : 'new';
+};
+
+const parseEditorTab = (raw: string | null): EditorTab =>
+  raw && EDITOR_TAB_IDS.has(raw) ? (raw as EditorTab) : 'identity';
+
+const FIELD_TAB: Record<string, EditorTab> = {
+  name: 'identity',
+  nameBn: 'identity',
+  shortName: 'identity',
+  eiin: 'identity',
+  centerCode: 'identity',
+  schoolCode: 'identity',
+  establishedIn: 'identity',
+  nationalizedYear: 'identity',
+  phone: 'contact',
+  email: 'contact',
+  district: 'contact',
+  upazila: 'contact',
+  address: 'contact',
+  mapEmbedUrl: 'contact',
+  subdomain: 'domains',
+  customDomain: 'domains',
+  resultsUrl: 'domains',
+  teacherLoginUrl: 'domains',
+  studentLoginUrl: 'domains',
+  gaMeasurementId: 'domains',
+  logo: 'branding',
+  headerLogo: 'branding',
+  bannerUrls: 'branding',
+  subjectGroups: 'academic',
+  medium: 'academic',
+  board: 'academic',
+  ownership: 'academic',
+  gender: 'academic',
+  academicProfile: 'academic',
+  descriptions: 'about',
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  name: 'School Name',
+  nameBn: 'Bengali Name',
+  shortName: 'Short Name',
+  eiin: 'EIIN',
+  centerCode: 'Center Code',
+  schoolCode: 'School Code',
+  establishedIn: 'Established In',
+  nationalizedYear: 'Nationalized Year',
+  phone: 'Phone',
+  email: 'Email',
+  district: 'District',
+  upazila: 'Upazila',
+  address: 'Address',
+  mapEmbedUrl: 'Map Embed URL',
+  subdomain: 'Subdomain',
+  customDomain: 'Custom Domain',
+  resultsUrl: 'Results URL',
+  teacherLoginUrl: 'Teacher Login URL',
+  studentLoginUrl: 'Student Login URL',
+  gaMeasurementId: 'GA Measurement ID',
+  logo: 'Main Logo',
+  headerLogo: 'Header Logo',
+  bannerUrls: 'Banners',
+  subjectGroups: 'Groups',
+  medium: 'Medium',
+  board: 'Board',
+  ownership: 'Ownership',
+  gender: 'School For',
+  'academicProfile.grades': 'Grades',
+  'academicProfile.ageRange': 'Age Range',
+  'academicProfile.enrollment': 'Enrollment',
+  'academicProfile.studentTeacherRatio': 'Student-Teacher Ratio',
+  'academicProfile.colors': 'Uniform Colors',
+  'academicProfile.campusArea': 'Campus Area',
+  'academicProfile.playgroundArea': 'Playground Area',
+  'descriptions.main': 'Main Description',
+  'descriptions.sub': 'Sub Description',
+};
+
+function collectFormErrors(
+  errors: FieldErrors,
+  prefix = '',
+): Array<{ path: string; message: string }> {
+  const out: Array<{ path: string; message: string }> = [];
+  for (const [key, value] of Object.entries(errors)) {
+    if (!value || typeof value !== 'object') continue;
+    const path = prefix ? `${prefix}.${key}` : key;
+    if ('message' in value && value.message) {
+      out.push({ path, message: String(value.message) });
+    } else {
+      out.push(...collectFormErrors(value as FieldErrors, path));
+    }
+  }
+  return out;
+}
+
+const fieldLabel = (path: string) =>
+  FIELD_LABELS[path] || FIELD_LABELS[path.split('.')[0] ?? ''] || path;
+
+const tabForPath = (path: string): EditorTab =>
+  FIELD_TAB[path] ?? FIELD_TAB[path.split('.')[0] ?? ''] ?? 'identity';
+
+const pendingAssetKey = (kind: 'logo' | 'header', fileName: string) =>
+  `pending-${kind}/${fileName.replace(/[^a-z0-9._-]+/gi, '_')}`;
+
+const selectClassName = cn(
+  'w-full rounded-lg border px-3 py-2 text-sm outline-none transition-[color,box-shadow]',
+  'border-border bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white',
+  'focus:border-transparent focus:ring-2 focus:ring-primary/20',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+);
+
+function Field({
+  id,
+  label,
+  error,
+  hint,
+  className,
+  children,
+}: {
+  id?: string;
+  label: string;
+  error?: string;
+  hint?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn('space-y-1.5', className)}>
+      <Label htmlFor={id} className="text-foreground">
+        {label}
+      </Label>
+      {children}
+      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
+      {error ? (
+        <p className="text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+const emptyAcademic = (): NonNullable<SchoolFormValues['academicProfile']> => ({
+  grades: '',
+  ageRange: '',
+  enrollment: '',
+  studentTeacherRatio: '',
+  colors: '',
+  campusArea: '',
+  playgroundArea: '',
+});
+
+const emptyDescriptions = () => ({ main: '', sub: '' });
+
 const createEmptySchool = (): SchoolFormValues => ({
   name: '',
   shortName: '',
   nameBn: '',
   eiin: '',
   centerCode: '',
+  schoolCode: '',
   logo: '',
-  favicon: '',
-  governmentLogo: '',
   headerLogo: '',
+  bannerUrls: [],
   district: '',
   upazila: '',
   address: '',
-  location: '',
   phone: '',
   email: '',
-  slogan: '',
   establishedIn: currentYear,
   nationalizedYear: '',
   subdomain: '',
   customDomain: '',
-  website: '',
   resultsUrl: '',
   teacherLoginUrl: '',
   studentLoginUrl: '',
   mapEmbedUrl: '',
   gaMeasurementId: '',
+  subjectGroups: '',
+  medium: '' as '' | (typeof SCHOOL_MEDIUMS)[number],
+  board: '' as '' | (typeof SCHOOL_BOARDS)[number],
+  ownership: '' as '' | (typeof SCHOOL_OWNERSHIPS)[number],
+  gender: '' as '' | (typeof SCHOOL_GENDERS)[number],
+  descriptions: emptyDescriptions(),
+  academicProfile: emptyAcademic(),
 });
+
+const asString = (value: unknown) => (typeof value === 'string' ? value : '');
+
+const pickEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | '' => {
+  const raw = asString(value).trim();
+  return (allowed as readonly string[]).includes(raw) ? (raw as T) : '';
+};
+
+const pickGroups = (value: unknown) =>
+  [
+    ...new Set(
+      asString(value)
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part): part is (typeof VALID_GROUPS)[number] =>
+          VALID_GROUPS.includes(part as (typeof VALID_GROUPS)[number]),
+        ),
+    ),
+  ].join(', ');
+
+const normalizeBannerUrls = (raw: unknown): string[] => {
+  if (Array.isArray(raw)) {
+    return raw.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+  return [];
+};
 
 const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
   name: school?.name ?? '',
@@ -114,44 +447,105 @@ const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
   nameBn: school?.nameBn ?? '',
   eiin: school?.eiin ?? '',
   centerCode: school?.centerCode ?? '',
+  schoolCode: school?.schoolCode ?? '',
   logo: school?.logo ?? '',
-  favicon: school?.favicon ?? '',
-  governmentLogo: school?.governmentLogo ?? '',
   headerLogo: school?.headerLogo ?? '',
+  bannerUrls: normalizeBannerUrls(school?.bannerUrls),
   district: school?.district ?? '',
   upazila: school?.upazila ?? '',
   address: school?.address ?? '',
-  location: school?.location ?? '',
   phone: school?.phone ?? '',
   email: school?.email ?? '',
-  slogan: school?.slogan ?? '',
   establishedIn: school?.establishedIn ?? currentYear,
   nationalizedYear: school?.nationalizedYear ?? '',
   subdomain: school?.subdomain ?? '',
   customDomain: school?.customDomain ?? '',
-  website: school?.website ?? '',
   resultsUrl: school?.resultsUrl ?? '',
   teacherLoginUrl: school?.teacherLoginUrl ?? '',
   studentLoginUrl: school?.studentLoginUrl ?? '',
   mapEmbedUrl: school?.mapEmbedUrl ?? '',
   gaMeasurementId: school?.gaMeasurementId ?? '',
+  subjectGroups: pickGroups(school?.subjectGroups ?? school?.academicProfile?.subjects),
+  medium: pickEnum(school?.medium ?? school?.academicProfile?.medium, SCHOOL_MEDIUMS),
+  board: pickEnum(school?.board ?? school?.academicProfile?.board, SCHOOL_BOARDS),
+  ownership: pickEnum(school?.ownership ?? school?.academicProfile?.ownership, SCHOOL_OWNERSHIPS),
+  gender: pickEnum(school?.gender ?? school?.academicProfile?.gender, SCHOOL_GENDERS),
+  descriptions: {
+    main: asString(school?.descriptions?.main),
+    sub: asString(school?.descriptions?.sub),
+  },
+  academicProfile: {
+    ...emptyAcademic(),
+    grades: asString(school?.academicProfile?.grades),
+    ageRange: asString(school?.academicProfile?.ageRange),
+    enrollment: asString(school?.academicProfile?.enrollment),
+    studentTeacherRatio: asString(school?.academicProfile?.studentTeacherRatio),
+    colors: asString(school?.academicProfile?.colors),
+    campusArea: asString(school?.academicProfile?.campusArea),
+    playgroundArea: asString(school?.academicProfile?.playgroundArea),
+  },
 });
+
+type PendingAssetFiles = {
+  logo: File | null;
+  header: File | null;
+  banners: File[];
+};
 
 function SchoolManagement() {
   const { confirm, dialog } = useConfirmDialog();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedSchoolId = parseSchoolId(searchParams.get('school'));
+  const editorTab = parseEditorTab(searchParams.get('tab'));
+  const selectedSchoolIdRef = useRef(selectedSchoolId);
+  selectedSchoolIdRef.current = selectedSchoolId;
+
+  const patchQuery = useCallback(
+    (patch: { school?: number | 'new'; tab?: EditorTab }, replace = true) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (patch.school !== undefined) next.set('school', String(patch.school));
+          if (patch.tab !== undefined) next.set('tab', patch.tab);
+          if (!next.get('school')) next.set('school', 'new');
+          if (!next.get('tab')) next.set('tab', 'identity');
+          return next;
+        },
+        { replace },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const setEditorTab = useCallback(
+    (tab: EditorTab) => {
+      patchQuery({ tab });
+    },
+    [patchQuery],
+  );
+
   const [schools, setSchools] = useState<SchoolData[]>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState<number | 'new'>('new');
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [assetUploading, setAssetUploading] = useState(false);
+  const [pendingAssets, setPendingAssets] = useState<PendingAssetFiles>({
+    logo: null,
+    header: null,
+    banners: [],
+  });
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [headerPreviewUrl, setHeaderPreviewUrl] = useState<string | null>(null);
+  const [bannerPreviewUrls, setBannerPreviewUrls] = useState<string[]>([]);
   const [schoolAdmins, setSchoolAdmins] = useState<SchoolAdmin[]>([]);
   const [fetchingAdmins, setFetchingAdmins] = useState(false);
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [deletingAdminId, setDeletingAdminId] = useState<number | null>(null);
   const [rotatingId, setRotatingId] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
+  const [schoolQuery, setSchoolQuery] = useState('');
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const headerInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register: registerAdmin,
@@ -183,11 +577,51 @@ function SchoolManagement() {
   const district = watch('district');
   const schoolName = watch('name');
   const logoValue = watch('logo');
+  const headerLogoValue = watch('headerLogo');
+  const bannerUrls = normalizeBannerUrls(watch('bannerUrls'));
+  const selectedGroups = pickGroups(watch('subjectGroups')).split(', ').filter(Boolean);
+  const hasLogo = Boolean(logoPreviewUrl || logoValue);
+  const hasHeaderLogo = Boolean(headerPreviewUrl || headerLogoValue);
+  const hasBanners = bannerUrls.length > 0 || bannerPreviewUrls.length > 0;
+  const formErrorList = collectFormErrors(errors);
+  const tabsWithErrors = new Set(formErrorList.map((e) => tabForPath(e.path)));
 
   const sortedSchools = useMemo(
     () => [...schools].sort((a, b) => a.name.localeCompare(b.name)),
     [schools],
   );
+
+  const filteredSchools = useMemo(() => {
+    const q = schoolQuery.trim().toLowerCase();
+    if (!q) return sortedSchools;
+    return sortedSchools.filter((school) => {
+      const hay = [
+        school.name,
+        school.shortName,
+        school.eiin,
+        school.subdomain,
+        school.customDomain,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [sortedSchools, schoolQuery]);
+
+  const clearPendingPreviews = useCallback(() => {
+    if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+    if (headerPreviewUrl) URL.revokeObjectURL(headerPreviewUrl);
+    bannerPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    setLogoPreviewUrl(null);
+    setHeaderPreviewUrl(null);
+    setBannerPreviewUrls([]);
+    setPendingAssets({
+      logo: null,
+      header: null,
+      banners: [],
+    });
+  }, [logoPreviewUrl, headerPreviewUrl, bannerPreviewUrls]);
 
   const fetchSchools = useCallback(async () => {
     setFetching(true);
@@ -196,31 +630,33 @@ function SchoolManagement() {
       const list = Array.isArray(res.data?.data) ? res.data.data : [];
       setSchools(list);
 
-      setSelectedSchoolId((previousSelectedId) => {
-        if (previousSelectedId === 'new') {
-          return previousSelectedId;
-        }
-
-        const current = list.find((school: SchoolData) => school.id === previousSelectedId);
-        if (current) {
-          reset(toFormValues(current));
-          return previousSelectedId;
-        }
-
-        reset(createEmptySchool());
-        return 'new';
-      });
+      const schoolId = selectedSchoolIdRef.current;
+      if (schoolId !== 'new' && !list.some((school: SchoolData) => school.id === schoolId)) {
+        patchQuery({ school: 'new' });
+      }
     } catch (error) {
       console.error('Failed to fetch schools', error);
       toast.error('Failed to load schools');
     } finally {
       setFetching(false);
     }
-  }, [reset]);
+  }, [patchQuery]);
+
+  useEffect(() => {
+    if (!searchParams.get('school') || !searchParams.get('tab')) {
+      patchQuery({ school: selectedSchoolId, tab: editorTab });
+    }
+  }, [searchParams, selectedSchoolId, editorTab, patchQuery]);
 
   useEffect(() => {
     fetchSchools();
   }, [fetchSchools]);
+
+  useEffect(() => {
+    if (selectedSchoolId === 'new') return;
+    const current = schools.find((school) => school.id === selectedSchoolId);
+    if (current) reset(toFormValues(current));
+  }, [selectedSchoolId, schools, reset]);
 
   const fetchSchoolAdmins = useCallback(async (schoolId: number) => {
     setFetchingAdmins(true);
@@ -247,93 +683,144 @@ function SchoolManagement() {
   }, [selectedSchoolId, fetchSchoolAdmins, resetAdminForm]);
 
   const selectSchool = (school: SchoolData) => {
-    setSelectedSchoolId(school.id ?? 'new');
+    clearPendingPreviews();
     reset(toFormValues(school));
+    patchQuery({ school: school.id ?? 'new', tab: 'identity' });
   };
 
   const startNewSchool = () => {
-    setSelectedSchoolId('new');
+    clearPendingPreviews();
     reset(createEmptySchool());
     setSchoolAdmins([]);
     resetAdminForm({ username: '', password: '' });
-    setPendingLogoFile(null);
-    if (logoPreviewUrl) {
-      URL.revokeObjectURL(logoPreviewUrl);
-      setLogoPreviewUrl(null);
-    }
+    patchQuery({ school: 'new', tab: 'identity' });
   };
 
   const handleLogoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      setPendingLogoFile(null);
-      if (logoPreviewUrl) {
-        URL.revokeObjectURL(logoPreviewUrl);
-        setLogoPreviewUrl(null);
-      }
+    if (!file) return;
+
+    const error = await validateSchoolImage(file, 'logo');
+    if (error) {
+      setError('logo', { type: 'manual', message: error });
+      toast.error(error);
+      event.target.value = '';
       return;
     }
 
-    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      img.onload = () => {
-        const result = { width: img.width, height: img.height };
-        URL.revokeObjectURL(objectUrl);
-        resolve(result);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Unable to read image'));
-      };
-      img.src = objectUrl;
-    });
-
-    if (dimensions.width !== dimensions.height) {
-      setError('logo', {
-        type: 'manual',
-        message: 'Logo must be a square image',
-      });
-      toast.error('Logo must be a square image');
-      return;
-    }
-
-    if (logoPreviewUrl) {
-      URL.revokeObjectURL(logoPreviewUrl);
-    }
+    if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
     setLogoPreviewUrl(URL.createObjectURL(file));
-    setPendingLogoFile(file);
-    setValue('logo', `pending-logo/${file.name}`, { shouldValidate: true });
+    setPendingAssets((prev) => ({ ...prev, logo: file }));
+    setValue('logo', pendingAssetKey('logo', file.name), { shouldValidate: true });
     clearErrors('logo');
+    event.target.value = '';
   };
 
-  const uploadLogoIfNeeded = async (): Promise<string | null> => {
-    if (!pendingLogoFile) return null;
+  const handleHeaderPick = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    setLogoUploading(true);
-    try {
-      const signRes = await axios.post('/api/schools/logo-upload-url', {
-        fileName: pendingLogoFile.name,
-        contentType: pendingLogoFile.type || 'image/png',
-      });
-      const uploadUrl = signRes.data?.data?.uploadUrl as string | undefined;
-      const key = signRes.data?.data?.key as string | undefined;
-
-      if (!uploadUrl || !key) {
-        throw new Error('Upload URL generation failed');
-      }
-
-      await putFileToPresignedUrl(uploadUrl, pendingLogoFile, pendingLogoFile.type || 'image/png');
-
-      setPendingLogoFile(null);
-      if (logoPreviewUrl) {
-        URL.revokeObjectURL(logoPreviewUrl);
-        setLogoPreviewUrl(null);
-      }
-      return key;
-    } finally {
-      setLogoUploading(false);
+    const error = await validateSchoolImage(file, 'header');
+    if (error) {
+      setError('headerLogo', { type: 'manual', message: error });
+      toast.error(error);
+      event.target.value = '';
+      return;
     }
+
+    if (headerPreviewUrl) URL.revokeObjectURL(headerPreviewUrl);
+    setHeaderPreviewUrl(URL.createObjectURL(file));
+    setPendingAssets((prev) => ({ ...prev, header: file }));
+    setValue('headerLogo', pendingAssetKey('header', file.name), { shouldValidate: true });
+    clearErrors('headerLogo');
+    event.target.value = '';
+  };
+
+  const onInvalid = (formErrors: FieldErrors<SchoolFormValues>) => {
+    const list = collectFormErrors(formErrors);
+    const first = list[0];
+    if (first) setEditorTab(tabForPath(first.path));
+    toast.error(
+      first ? `${fieldLabel(first.path)}: ${first.message}` : 'Please fix the highlighted fields',
+    );
+  };
+
+  const applyServerFieldErrors = (
+    issues: Array<{ path?: Array<string | number>; message?: string }>,
+  ) => {
+    let firstPath = '';
+    for (const issue of issues) {
+      const rawPath = Array.isArray(issue.path) ? issue.path.join('.') : '';
+      const message = issue.message || 'Invalid value';
+      if (!rawPath) continue;
+      setError(rawPath as any, { type: 'server', message });
+      if (!firstPath) firstPath = rawPath;
+    }
+    if (firstPath) setEditorTab(tabForPath(firstPath));
+    return Boolean(firstPath);
+  };
+
+  const handleBannerPick = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const remaining = 12 - bannerUrls.length - pendingAssets.banners.length;
+    if (remaining <= 0) {
+      toast.error('Maximum 12 banners allowed');
+      event.target.value = '';
+      return;
+    }
+
+    const candidates = files.slice(0, remaining);
+    const accepted: File[] = [];
+    for (const file of candidates) {
+      const error = await validateSchoolImage(file, 'banner');
+      if (error) {
+        toast.error(error);
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    if (accepted.length === 0) {
+      event.target.value = '';
+      return;
+    }
+
+    const previews = accepted.map((file) => URL.createObjectURL(file));
+    setBannerPreviewUrls((prev) => [...prev, ...previews]);
+    setPendingAssets((prev) => ({ ...prev, banners: [...prev.banners, ...accepted] }));
+    event.target.value = '';
+  };
+
+  const removeExistingBanner = (index: number) => {
+    const next = bannerUrls.filter((_, i) => i !== index);
+    setValue('bannerUrls', next, { shouldValidate: true });
+  };
+
+  const removePendingBanner = (index: number) => {
+    setBannerPreviewUrls((prev) => {
+      const url = prev[index];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== index);
+    });
+    setPendingAssets((prev) => ({
+      ...prev,
+      banners: prev.banners.filter((_, i) => i !== index),
+    }));
+  };
+
+  const uploadAssetFile = async (kind: SchoolAssetKind, file: File): Promise<string> => {
+    const signRes = await axios.post('/api/schools/logo-upload-url', {
+      fileName: file.name,
+      contentType: file.type || 'image/png',
+      kind,
+    });
+    const uploadUrl = signRes.data?.data?.uploadUrl as string | undefined;
+    const key = signRes.data?.data?.key as string | undefined;
+    if (!uploadUrl || !key) throw new Error('Upload URL generation failed');
+    await putFileToPresignedUrl(uploadUrl, file, file.type || 'image/png');
+    return key;
   };
 
   const onSubmit = async (values: SchoolFormValues) => {
@@ -341,19 +828,30 @@ function SchoolManagement() {
     setSaving(true);
 
     try {
-      if (!values.logo && !pendingLogoFile) {
-        setError('logo', {
-          type: 'manual',
-          message: 'Logo is required',
-        });
+      if (!values.logo && !pendingAssets.logo) {
+        setError('logo', { type: 'manual', message: 'Logo is required' });
         toast.error('Logo is required');
+        setSaving(false);
         return;
       }
 
-      const uploadedLogoKey = await uploadLogoIfNeeded();
+      setAssetUploading(true);
+      const uploadedLogoKey = pendingAssets.logo
+        ? await uploadAssetFile('logo', pendingAssets.logo)
+        : null;
+      const uploadedHeaderKey = pendingAssets.header
+        ? await uploadAssetFile('header', pendingAssets.header)
+        : null;
+      const uploadedBannerKeys = await Promise.all(
+        pendingAssets.banners.map((file) => uploadAssetFile('banner', file)),
+      );
+      setAssetUploading(false);
+
       const payload = {
         ...values,
         logo: uploadedLogoKey ?? values.logo,
+        headerLogo: uploadedHeaderKey ?? values.headerLogo,
+        bannerUrls: [...normalizeBannerUrls(values.bannerUrls), ...uploadedBannerKeys],
       };
 
       if (selectedSchoolId !== 'new') {
@@ -365,10 +863,12 @@ function SchoolManagement() {
 
         const createdId = res.data?.data?.id;
         if (typeof createdId === 'number') {
-          setSelectedSchoolId(createdId);
+          selectedSchoolIdRef.current = createdId;
+          patchQuery({ school: createdId });
         }
       }
 
+      clearPendingPreviews();
       await fetchSchools();
     } catch (error) {
       console.error('Failed to save school', error);
@@ -382,30 +882,19 @@ function SchoolManagement() {
           | undefined;
 
         const issues = Array.isArray(responseData?.errors) ? responseData.errors : [];
+        const appliedFieldError = applyServerFieldErrors(issues);
+        const firstIssue = issues.find((i) => Array.isArray(i.path) && i.path.length > 0);
 
-        let appliedFieldError = false;
-        for (const issue of issues) {
-          const rawPath = Array.isArray(issue.path) ? issue.path.join('.') : '';
-          const message = issue.message || 'Invalid value';
-
-          if (rawPath && Object.prototype.hasOwnProperty.call(values, rawPath)) {
-            setError(rawPath as keyof SchoolFormValues, {
-              type: 'server',
-              message,
-            });
-            appliedFieldError = true;
-          }
-        }
-
-        if (appliedFieldError && issues[0]?.message) {
-          toast.error(issues[0].message);
-        } else {
-          toast.error(responseData?.message || 'Failed to save school');
-        }
+        toast.error(
+          appliedFieldError && firstIssue
+            ? `${fieldLabel(firstIssue.path!.join('.'))}: ${firstIssue.message || 'Invalid value'}`
+            : responseData?.message || 'Failed to save school',
+        );
       } else {
         toast.error('Failed to save school');
       }
     } finally {
+      setAssetUploading(false);
       setSaving(false);
     }
   };
@@ -503,10 +992,10 @@ function SchoolManagement() {
       {dialog}
       <PageHeader
         title="School Management"
-        description="Create and manage multiple schools from the super admin panel."
+        description="Create and manage Bangladesh school tenants from the super admin panel."
       >
         <Button type="button" variant="outline" onClick={fetchSchools} disabled={fetching}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${fetching ? 'animate-spin' : ''}`} />
+          <RefreshCw className={cn('mr-2 h-4 w-4', fetching && 'animate-spin')} />
           Refresh
         </Button>
       </PageHeader>
@@ -514,7 +1003,8 @@ function SchoolManagement() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <SectionCard
           className="lg:col-span-4"
-          title={`Schools (${sortedSchools.length})`}
+          title="Schools"
+          description={`${sortedSchools.length} tenant${sortedSchools.length === 1 ? '' : 's'}`}
           icon={<Building2 size={20} />}
           headerAction={
             <Button type="button" size="sm" onClick={startNewSchool}>
@@ -523,31 +1013,65 @@ function SchoolManagement() {
             </Button>
           }
         >
-          <div className="max-h-130 space-y-2 overflow-y-auto pr-1">
-            {sortedSchools.length === 0 && (
-              <p className="text-muted-foreground text-sm">No schools found yet.</p>
-            )}
+          <div className="relative mb-3">
+            <Search
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+              aria-hidden
+            />
+            <Input
+              value={schoolQuery}
+              onChange={(e) => setSchoolQuery(e.target.value)}
+              placeholder="Search schools…"
+              className="pl-9"
+              aria-label="Search schools"
+            />
+          </div>
 
-            {sortedSchools.map((school) => {
-              const isSelected = school.id === selectedSchoolId;
-              return (
-                <button
-                  key={school.id}
-                  type="button"
-                  onClick={() => selectSchool(school)}
-                  className={`w-full rounded-lg border p-3 text-left transition ${
-                    isSelected
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <p className="truncate font-medium">{school.name || 'Untitled School'}</p>
-                  <p className="text-muted-foreground mt-1 truncate text-xs">
-                    {school.subdomain ? `${school.subdomain}.localhost` : 'No subdomain'}
-                  </p>
-                </button>
-              );
-            })}
+          <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
+            {sortedSchools.length === 0 ? (
+              <p className="text-muted-foreground py-6 text-center text-sm">
+                No schools yet — create one.
+              </p>
+            ) : filteredSchools.length === 0 ? (
+              <p className="text-muted-foreground py-6 text-center text-sm">No schools match</p>
+            ) : (
+              filteredSchools.map((school) => {
+                const isSelected = school.id === selectedSchoolId;
+                const domainLabel =
+                  school.customDomain ||
+                  (school.subdomain ? `${school.subdomain}.localhost` : 'No domain');
+                return (
+                  <button
+                    key={school.id}
+                    type="button"
+                    onClick={() => selectSchool(school)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                      'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+                      isSelected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50',
+                    )}
+                  >
+                    <span className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                      {school.logo ? (
+                        <img
+                          src={getFileUrl(school.logo)}
+                          alt=""
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <Building2 className="text-muted-foreground h-5 w-5" aria-hidden />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{school.name || 'Untitled School'}</p>
+                      <p className="text-muted-foreground truncate text-xs">{domainLabel}</p>
+                    </span>
+                  </button>
+                );
+              })
+            )}
           </div>
         </SectionCard>
 
@@ -558,225 +1082,347 @@ function SchoolManagement() {
           }
           icon={<Building2 size={20} />}
         >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-            {selectedSchoolId !== 'new' && (
-              <div className="bg-muted/40 rounded-lg border p-4">
-                <p className="text-sm font-medium">Student Actions</p>
-                <p className="text-muted-foreground mb-3 text-xs">
-                  Applies to all students of this school.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
+          {selectedSchoolId !== 'new' && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 border-b pb-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleExportStudents(selectedSchoolId, schoolName)}
+                disabled={exportingId === selectedSchoolId}
+              >
+                {exportingId === selectedSchoolId ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Download All Students
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleRotatePassword(selectedSchoolId, schoolName)}
+                disabled={rotatingId === selectedSchoolId}
+              >
+                {rotatingId === selectedSchoolId ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <KeyRound className="mr-2 h-4 w-4" />
+                )}
+                Rotate passwords
+              </Button>
+            </div>
+          )}
+
+          <div
+            role="tablist"
+            aria-label="School editor sections"
+            className="-mx-1 mb-4 flex gap-1 overflow-x-auto border-b"
+          >
+            {EDITOR_TABS.map((tab) => {
+              const selected = editorTab === tab.id;
+              const hasError = tabsWithErrors.has(tab.id);
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${tab.id}`}
+                  aria-selected={selected}
+                  aria-controls={`panel-${tab.id}`}
+                  onClick={() => setEditorTab(tab.id)}
+                  className={cn(
+                    'shrink-0 px-3 py-2 text-sm font-medium transition-colors',
+                    'focus-visible:ring-ring rounded-t-md focus-visible:ring-2 focus-visible:outline-none',
+                    selected
+                      ? 'border-primary text-foreground border-b-2'
+                      : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
+                    hasError && !selected && 'text-red-600',
+                    hasError && selected && 'border-red-600',
+                  )}
+                >
+                  {tab.label}
+                  {hasError ? <span className="ml-1 text-red-600">•</span> : null}
+                </button>
+              );
+            })}
+          </div>
+
+          {formErrorList.length > 0 ? (
+            <div
+              role="alert"
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+            >
+              <p className="font-medium">Fix these before saving:</p>
+              <ul className="mt-1 list-inside list-disc space-y-0.5">
+                {formErrorList.map((item) => (
+                  <li key={item.path}>
+                    <button
+                      type="button"
+                      className="underline-offset-2 hover:underline"
+                      onClick={() => setEditorTab(tabForPath(item.path))}
+                    >
+                      {fieldLabel(item.path)}
+                    </button>
+                    : {item.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {editorTab === 'admins' ? (
+            selectedSchoolId === 'new' ? (
+              <p
+                role="tabpanel"
+                id="panel-admins"
+                aria-labelledby="tab-admins"
+                className="text-muted-foreground py-8 text-center text-sm"
+              >
+                Save the school first, then add admins.
+              </p>
+            ) : (
+              <div
+                role="tabpanel"
+                id="panel-admins"
+                aria-labelledby="tab-admins"
+                className="space-y-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="flex items-center gap-2 text-sm font-semibold">
+                    <UserCog className="text-primary h-4 w-4" />
+                    School Admins ({schoolAdmins.length})
+                  </h4>
+                  <Button
                     type="button"
-                    onClick={() => handleExportStudents(selectedSchoolId, schoolName)}
-                    disabled={exportingId === selectedSchoolId}
-                    className="bg-background text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm disabled:opacity-60"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchSchoolAdmins(selectedSchoolId)}
+                    disabled={fetchingAdmins}
                   >
-                    {exportingId === selectedSchoolId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    Download All Students
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRotatePassword(selectedSchoolId, schoolName)}
-                    disabled={rotatingId === selectedSchoolId}
-                    className="bg-background inline-flex items-center gap-2 rounded-md border border-amber-300 px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-60"
-                  >
-                    {rotatingId === selectedSchoolId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <KeyRound className="h-4 w-4" />
-                    )}
-                    Rotate All Student Passwords
-                  </button>
+                    <RefreshCw
+                      className={cn('mr-1 h-3.5 w-3.5', fetchingAdmins && 'animate-spin')}
+                    />
+                    Refresh
+                  </Button>
                 </div>
+
+                {fetchingAdmins ? (
+                  <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading admins…
+                  </div>
+                ) : schoolAdmins.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No admins for this school yet.</p>
+                ) : (
+                  <ul className="divide-border divide-y rounded-lg border">
+                    {schoolAdmins.map((admin) => (
+                      <li
+                        key={admin.id}
+                        className="flex items-center justify-between gap-3 px-4 py-3"
+                      >
+                        <div>
+                          <p className="font-medium">{admin.username}</p>
+                          <p className="text-muted-foreground text-xs capitalize">{admin.role}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteAdmin(admin)}
+                          disabled={deletingAdminId === admin.id}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          {deletingAdminId === admin.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                          Delete
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <form
+                  onSubmit={handleAdminSubmit(onAddAdmin)}
+                  className="grid grid-cols-1 gap-3 border-t pt-4 md:grid-cols-3"
+                  noValidate
+                >
+                  <Field id="admin-username" label="Username" error={adminErrors.username?.message}>
+                    <Input
+                      id="admin-username"
+                      {...registerAdmin('username')}
+                      placeholder="e.g. admin@school…"
+                      autoComplete="username"
+                    />
+                  </Field>
+                  <Field id="admin-password" label="Password" error={adminErrors.password?.message}>
+                    <Input
+                      id="admin-password"
+                      type="password"
+                      {...registerAdmin('password')}
+                      placeholder="Min 6 characters…"
+                      autoComplete="new-password"
+                    />
+                  </Field>
+                  <div className="flex items-end">
+                    <Button
+                      type="submit"
+                      disabled={addingAdmin || fetchingAdmins}
+                      className="w-full"
+                    >
+                      {addingAdmin ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="mr-2 h-4 w-4" />
+                      )}
+                      Add Admin
+                    </Button>
+                  </div>
+                </form>
               </div>
-            )}
-
-            <div className="space-y-6">
-              {/* Section 1: General & Board Info */}
-              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
-                <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
-                  <Building2 className="h-4 w-4" />
-                  General & Board Identification
-                </h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium">School Name (English)</label>
-                    <input
-                      {...register('name')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. Dhaka Residential Model College"
-                    />
-                    {errors.name && (
-                      <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>
-                    )}
+            )
+          ) : (
+            <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="flex flex-col" noValidate>
+              <div
+                role="tabpanel"
+                id={`panel-${editorTab}`}
+                aria-labelledby={`tab-${editorTab}`}
+                className="min-h-[20rem] space-y-4 pb-4"
+              >
+                {editorTab === 'identity' && (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Field
+                      id="name"
+                      label="School Name (English)"
+                      error={errors.name?.message}
+                      className="md:col-span-2"
+                    >
+                      <Input
+                        id="name"
+                        {...register('name')}
+                        placeholder="e.g. Dhaka Residential Model College…"
+                        autoComplete="organization"
+                      />
+                    </Field>
+                    <Field
+                      id="nameBn"
+                      label="School Name (Bengali / বাংলা নাম)"
+                      error={errors.nameBn?.message}
+                      className="md:col-span-2"
+                    >
+                      <Input
+                        id="nameBn"
+                        {...register('nameBn')}
+                        placeholder="e.g. ঢাকা রেসিডেনসিয়াল মডেল কলেজ…"
+                      />
+                    </Field>
+                    <Field id="shortName" label="Short Name" error={errors.shortName?.message}>
+                      <Input id="shortName" {...register('shortName')} placeholder="e.g. DRMC…" />
+                    </Field>
+                    <Field id="eiin" label="EIIN" error={errors.eiin?.message}>
+                      <Input
+                        id="eiin"
+                        {...register('eiin')}
+                        inputMode="numeric"
+                        maxLength={6}
+                        spellCheck={false}
+                        autoComplete="off"
+                        placeholder="e.g. 123456…"
+                      />
+                    </Field>
+                    <Field id="centerCode" label="Center Code" error={errors.centerCode?.message}>
+                      <Input
+                        id="centerCode"
+                        {...register('centerCode')}
+                        spellCheck={false}
+                        autoComplete="off"
+                        placeholder="e.g. 102…"
+                      />
+                    </Field>
+                    <Field id="schoolCode" label="School Code" error={errors.schoolCode?.message}>
+                      <Input
+                        id="schoolCode"
+                        {...register('schoolCode')}
+                        spellCheck={false}
+                        autoComplete="off"
+                        placeholder="e.g. 5100…"
+                      />
+                    </Field>
+                    <Field
+                      id="establishedIn"
+                      label="Established In"
+                      error={errors.establishedIn?.message}
+                    >
+                      <Input
+                        id="establishedIn"
+                        type="number"
+                        {...register('establishedIn')}
+                        placeholder="e.g. 1960…"
+                      />
+                    </Field>
+                    <Field
+                      id="nationalizedYear"
+                      label="Nationalized Year"
+                      error={errors.nationalizedYear?.message}
+                    >
+                      <Input
+                        id="nationalizedYear"
+                        {...register('nationalizedYear')}
+                        placeholder="e.g. 1980…"
+                      />
+                    </Field>
                   </div>
+                )}
 
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium">
-                      School Name (Bengali / বাংলা নাম)
-                    </label>
-                    <input
-                      {...register('nameBn')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. ঢাকা রেসিডেনসিয়াল মডেল কলেজ"
-                    />
-                    {errors.nameBn && (
-                      <p className="mt-1 text-xs text-red-600">{errors.nameBn.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Short Name</label>
-                    <input
-                      {...register('shortName')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. DRMC"
-                    />
-                    {errors.shortName && (
-                      <p className="mt-1 text-xs text-red-600">{errors.shortName.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">EIIN</label>
-                    <input
-                      {...register('eiin')}
-                      inputMode="numeric"
-                      maxLength={6}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. 123456"
-                    />
-                    {errors.eiin && (
-                      <p className="mt-1 text-xs text-red-600">{errors.eiin.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Center Code</label>
-                    <input
-                      {...register('centerCode')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. 102"
-                    />
-                    {errors.centerCode && (
-                      <p className="mt-1 text-xs text-red-600">{errors.centerCode.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Established In</label>
-                    <input
-                      type="number"
-                      {...register('establishedIn')}
-                      className="w-full rounded-md border px-3 py-2"
-                    />
-                    {errors.establishedIn && (
-                      <p className="mt-1 text-xs text-red-600">{errors.establishedIn.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Nationalized Year</label>
-                    <input
-                      {...register('nationalizedYear')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. 1980"
-                    />
-                    {errors.nationalizedYear && (
-                      <p className="mt-1 text-xs text-red-600">{errors.nationalizedYear.message}</p>
-                    )}
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium">Slogan / Motto</label>
-                    <input
-                      {...register('slogan')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. Knowledge is Power"
-                    />
-                    {errors.slogan && (
-                      <p className="mt-1 text-xs text-red-600">{errors.slogan.message}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Contact & Physical Location */}
-              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
-                <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
-                  <MapPin className="h-4 w-4" />
-                  Contact & Location
-                </h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 flex items-center gap-1 text-sm font-medium">
-                      <Phone className="h-4 w-4" /> Phone
-                    </label>
-                    <input
-                      {...register('phone')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. 01712345678"
-                    />
-                    {errors.phone && (
-                      <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 flex items-center gap-1 text-sm font-medium">
-                      <Mail className="h-4 w-4" /> Email
-                    </label>
-                    <input
-                      type="email"
-                      {...register('email')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. school@example.com"
-                    />
-                    {errors.email && (
-                      <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">District</label>
-                    <div className="relative">
-                      <MapPin className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                {editorTab === 'contact' && (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Field id="phone" label="Phone" error={errors.phone?.message}>
+                      <Input
+                        id="phone"
+                        {...register('phone')}
+                        autoComplete="tel"
+                        placeholder="e.g. 01712345678…"
+                      />
+                    </Field>
+                    <Field id="email" label="Email" error={errors.email?.message}>
+                      <Input
+                        id="email"
+                        type="email"
+                        {...register('email')}
+                        autoComplete="email"
+                        placeholder="e.g. school@example.com…"
+                      />
+                    </Field>
+                    <Field id="district" label="District" error={errors.district?.message}>
                       <select
+                        id="district"
                         {...register('district', {
                           onChange: () => {
                             setValue('upazila', '', { shouldValidate: true });
                           },
                         })}
-                        className="w-full rounded-md border px-3 py-2 pl-10"
+                        className={selectClassName}
                       >
-                        <option value="">Select District</option>
+                        <option value="">Select district…</option>
                         {districts.map((d: District) => (
                           <option key={d.id} value={d.id}>
                             {d.name}
                           </option>
                         ))}
                       </select>
-                    </div>
-                    {errors.district && (
-                      <p className="mt-1 text-xs text-red-600">{errors.district.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Upazila</label>
-                    <div className="relative">
-                      <MapPin className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                    </Field>
+                    <Field id="upazila" label="Upazila" error={errors.upazila?.message}>
                       <select
+                        id="upazila"
                         {...register('upazila')}
-                        className="w-full rounded-md border px-3 py-2 pl-10"
+                        className={selectClassName}
                         disabled={!district}
                       >
-                        <option value="">Select Upazila</option>
+                        <option value="">Select upazila…</option>
                         {district &&
                           getUpazilasByDistrict(district).map((u: Upazila) => (
                             <option key={u.id} value={u.id}>
@@ -784,342 +1430,472 @@ function SchoolManagement() {
                             </option>
                           ))}
                       </select>
-                    </div>
-                    {errors.upazila && (
-                      <p className="mt-1 text-xs text-red-600">{errors.upazila.message}</p>
-                    )}
+                    </Field>
+                    <Field
+                      id="address"
+                      label="Full Postal Address"
+                      error={errors.address?.message}
+                      className="md:col-span-2"
+                    >
+                      <Input
+                        id="address"
+                        {...register('address')}
+                        placeholder="e.g. Mirpur Road, Mohammadpur, Dhaka-1207…"
+                      />
+                    </Field>
+                    <Field
+                      id="mapEmbedUrl"
+                      label="Google Maps Embed URL"
+                      error={errors.mapEmbedUrl?.message}
+                    >
+                      <Input
+                        id="mapEmbedUrl"
+                        {...register('mapEmbedUrl')}
+                        autoComplete="url"
+                        placeholder="e.g. https://www.google.com/maps/embed?pb=…"
+                      />
+                    </Field>
                   </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-medium">Full Postal Address</label>
-                    <input
-                      {...register('address')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. Mirpur Road, Mohammadpur, Dhaka-1207"
-                    />
-                    {errors.address && (
-                      <p className="mt-1 text-xs text-red-600">{errors.address.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Short Location Summary</label>
-                    <input
-                      {...register('location')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. Mohammadpur, Dhaka"
-                    />
-                    {errors.location && (
-                      <p className="mt-1 text-xs text-red-600">{errors.location.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Google Maps Embed URL</label>
-                    <input
-                      {...register('mapEmbedUrl')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://www.google.com/maps/embed?pb=..."
-                    />
-                    {errors.mapEmbedUrl && (
-                      <p className="mt-1 text-xs text-red-600">{errors.mapEmbedUrl.message}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Subdomains & Portal Links */}
-              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
-                <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
-                  <Building2 className="h-4 w-4" />
-                  Routing & Portal Links
-                </h3>
-                <p className="text-muted-foreground text-xs">
-                  Portal links power the public site menu and sidebar. Results defaults to{' '}
-                  <code>/result</code> when blank. Leave teacher or student login blank to hide that
-                  link.
-                </p>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Subdomain</label>
-                    <input
-                      {...register('subdomain')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. drmc"
-                    />
-                    {errors.subdomain && (
-                      <p className="mt-1 text-xs text-red-600">{errors.subdomain.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Custom Domain</label>
-                    <input
-                      {...register('customDomain')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. drmc.edu.bd"
-                    />
-                    {errors.customDomain && (
-                      <p className="mt-1 text-xs text-red-600">{errors.customDomain.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">External Website URL</label>
-                    <input
-                      {...register('website')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://drmc.edu.bd"
-                    />
-                    {errors.website && (
-                      <p className="mt-1 text-xs text-red-600">{errors.website.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Results Portal Link</label>
-                    <input
-                      {...register('resultsUrl')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="Blank = /result, or e.g. https://results.example.com"
-                    />
-                    {errors.resultsUrl && (
-                      <p className="mt-1 text-xs text-red-600">{errors.resultsUrl.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Teacher Login URL</label>
-                    <input
-                      {...register('teacherLoginUrl')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://drmc.edu.bd/teacher-login"
-                    />
-                    {errors.teacherLoginUrl && (
-                      <p className="mt-1 text-xs text-red-600">{errors.teacherLoginUrl.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Student Login URL</label>
-                    <input
-                      {...register('studentLoginUrl')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://drmc.edu.bd/student-login"
-                    />
-                    {errors.studentLoginUrl && (
-                      <p className="mt-1 text-xs text-red-600">{errors.studentLoginUrl.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">
-                      Google Analytics Measurement ID (GA4)
-                    </label>
-                    <input
-                      {...register('gaMeasurementId')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. G-XXXXXXXXXX"
-                    />
-                    {errors.gaMeasurementId && (
-                      <p className="mt-1 text-xs text-red-600">{errors.gaMeasurementId.message}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 4: Logos & Branding */}
-              <div className="bg-muted/40 space-y-4 rounded-lg border p-4">
-                <h3 className="text-primary flex items-center gap-1.5 border-b pb-2 text-sm font-semibold">
-                  <Building2 className="h-4 w-4" />
-                  Logos & Graphics
-                </h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Main School Logo</label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      disabled={logoUploading}
-                      className="text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    {logoPreviewUrl && (
-                      <div className="text-muted-foreground mt-2 flex items-center gap-3 text-xs">
-                        <img
-                          src={logoPreviewUrl}
-                          alt="Selected logo preview"
-                          className="h-10 w-10 rounded border object-contain"
-                        />
-                        <span>Logo ready to upload</span>
-                      </div>
-                    )}
-                    {!logoPreviewUrl && logoValue && logoValue.startsWith('http') && (
-                      <div className="text-muted-foreground mt-2 flex items-center gap-3 text-xs">
-                        <img
-                          src={logoValue}
-                          alt="Uploaded logo preview"
-                          className="h-10 w-10 rounded border object-contain"
-                        />
-                        <span>Logo uploaded</span>
-                      </div>
-                    )}
-                    {!logoPreviewUrl && logoValue && (
-                      <img src={getFileUrl(logoValue)} alt="" className="w-20" />
-                    )}
-                    {errors.logo && (
-                      <p className="mt-1 text-xs text-red-600">{errors.logo.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Favicon URL / Path</label>
-                    <input
-                      {...register('favicon')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://.../favicon.ico"
-                    />
-                    {errors.favicon && (
-                      <p className="mt-1 text-xs text-red-600">{errors.favicon.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Govt Emblem Logo URL</label>
-                    <input
-                      {...register('governmentLogo')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://.../govt-logo.png"
-                    />
-                    {errors.governmentLogo && (
-                      <p className="mt-1 text-xs text-red-600">{errors.governmentLogo.message}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Header Banner Logo URL</label>
-                    <input
-                      {...register('headerLogo')}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="e.g. https://.../header-logo.png"
-                    />
-                    {errors.headerLogo && (
-                      <p className="mt-1 text-xs text-red-600">{errors.headerLogo.message}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button type="submit" disabled={saving || logoUploading}>
-                {saving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
                 )}
-                {selectedSchoolId !== 'new' ? 'Update School' : 'Create School'}
-              </Button>
-            </div>
-          </form>
 
-          {selectedSchoolId !== 'new' && (
-            <div className="bg-muted/40 mt-8 space-y-4 rounded-xl border p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <UserCog className="text-primary h-5 w-5" />
-                  School Admins ({schoolAdmins.length})
-                </h3>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchSchoolAdmins(selectedSchoolId)}
-                  disabled={fetchingAdmins}
-                >
-                  <RefreshCw
-                    className={`mr-1 h-3.5 w-3.5 ${fetchingAdmins ? 'animate-spin' : ''}`}
-                  />
-                  Refresh
+                {editorTab === 'domains' && (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground text-xs">
+                      Portal links power the public site menu and sidebar. Results defaults to{' '}
+                      <code className="text-foreground">/result</code> when blank. Leave teacher or
+                      student login blank to hide that link.
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <Field id="subdomain" label="Subdomain" error={errors.subdomain?.message}>
+                        <Input
+                          id="subdomain"
+                          {...register('subdomain')}
+                          spellCheck={false}
+                          autoComplete="off"
+                          placeholder="e.g. drmc…"
+                        />
+                      </Field>
+                      <Field
+                        id="customDomain"
+                        label="Custom Domain"
+                        error={errors.customDomain?.message}
+                      >
+                        <Input
+                          id="customDomain"
+                          {...register('customDomain')}
+                          spellCheck={false}
+                          autoComplete="off"
+                          placeholder="e.g. drmc.edu.bd…"
+                        />
+                      </Field>
+                      <Field
+                        id="resultsUrl"
+                        label="Results Portal Link"
+                        error={errors.resultsUrl?.message}
+                      >
+                        <Input
+                          id="resultsUrl"
+                          {...register('resultsUrl')}
+                          autoComplete="url"
+                          placeholder="Blank = /result, or full URL…"
+                        />
+                      </Field>
+                      <Field
+                        id="teacherLoginUrl"
+                        label="Teacher Login URL"
+                        error={errors.teacherLoginUrl?.message}
+                      >
+                        <Input
+                          id="teacherLoginUrl"
+                          {...register('teacherLoginUrl')}
+                          autoComplete="url"
+                          placeholder="e.g. https://drmc.edu.bd/teacher-login…"
+                        />
+                      </Field>
+                      <Field
+                        id="studentLoginUrl"
+                        label="Student Login URL"
+                        error={errors.studentLoginUrl?.message}
+                      >
+                        <Input
+                          id="studentLoginUrl"
+                          {...register('studentLoginUrl')}
+                          autoComplete="url"
+                          placeholder="e.g. https://drmc.edu.bd/student-login…"
+                        />
+                      </Field>
+                      <Field
+                        id="gaMeasurementId"
+                        label="Google Analytics Measurement ID (GA4)"
+                        error={errors.gaMeasurementId?.message}
+                      >
+                        <Input
+                          id="gaMeasurementId"
+                          {...register('gaMeasurementId')}
+                          spellCheck={false}
+                          autoComplete="off"
+                          placeholder="e.g. G-XXXXXXXXXX…"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                )}
+
+                {editorTab === 'branding' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <Field
+                        id="logo-upload"
+                        label="Main School Logo (square)"
+                        error={errors.logo?.message}
+                        hint={`${IMAGE_RULES.logo.minWidth}–${IMAGE_RULES.logo.maxWidth}px square · max ${formatMb(IMAGE_RULES.logo.maxBytes)}`}
+                      >
+                        <input
+                          ref={logoInputRef}
+                          id="logo-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={assetUploading}
+                          onChange={handleLogoUpload}
+                        />
+                        {hasLogo ? (
+                          <div className="border-border bg-background flex items-center gap-3 rounded-lg border p-3">
+                            <img
+                              src={logoPreviewUrl || getFileUrl(String(logoValue))}
+                              alt="Logo preview"
+                              className="h-16 w-16 shrink-0 rounded border object-contain"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">Logo selected</p>
+                              <p className="text-muted-foreground text-xs">
+                                Square image for favicon &amp; PDFs
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={assetUploading}
+                              onClick={() => logoInputRef.current?.click()}
+                            >
+                              Replace
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={assetUploading}
+                            onClick={() => logoInputRef.current?.click()}
+                            className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                          >
+                            <ImageIcon className="h-8 w-8 opacity-60" aria-hidden />
+                            <span className="text-foreground text-sm font-medium">
+                              Upload square logo
+                            </span>
+                          </button>
+                        )}
+                      </Field>
+
+                      <Field
+                        id="header-upload"
+                        label="Header Logo"
+                        error={errors.headerLogo?.message}
+                        hint={`≥${IMAGE_RULES.header.minWidth}×${IMAGE_RULES.header.minHeight}px · ≥${IMAGE_RULES.header.minAspect}:1 · max ${formatMb(IMAGE_RULES.header.maxBytes)}`}
+                      >
+                        <input
+                          ref={headerInputRef}
+                          id="header-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={assetUploading}
+                          onChange={handleHeaderPick}
+                        />
+                        {hasHeaderLogo ? (
+                          <div className="border-border bg-background flex items-center gap-3 rounded-lg border p-3">
+                            <img
+                              src={headerPreviewUrl || getFileUrl(String(headerLogoValue))}
+                              alt="Header preview"
+                              className="h-12 max-h-16 max-w-40 shrink-0 rounded border object-contain"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">Header logo selected</p>
+                              <p className="text-muted-foreground text-xs">
+                                Wide image for the public header
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={assetUploading}
+                              onClick={() => headerInputRef.current?.click()}
+                            >
+                              Replace
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={assetUploading}
+                            onClick={() => headerInputRef.current?.click()}
+                            className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                          >
+                            <ImageIcon className="h-8 w-8 opacity-60" aria-hidden />
+                            <span className="text-foreground text-sm font-medium">
+                              Upload header logo
+                            </span>
+                          </button>
+                        )}
+                      </Field>
+                    </div>
+
+                    <Field
+                      id="banner-upload"
+                      label="Campus / Banner Images (up to 12)"
+                      hint={`≥${IMAGE_RULES.banner.minWidth}×${IMAGE_RULES.banner.minHeight}px landscape · max ${formatMb(IMAGE_RULES.banner.maxBytes)} · up to 12`}
+                    >
+                      <input
+                        ref={bannerInputRef}
+                        id="banner-upload"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        disabled={assetUploading}
+                        onChange={handleBannerPick}
+                      />
+                      {hasBanners ? (
+                        <div className="flex flex-wrap gap-3">
+                          {bannerUrls.map((url, index) => (
+                            <div key={`saved-${url}-${index}`} className="relative">
+                              <img
+                                src={getFileUrl(url)}
+                                alt={`Banner ${index + 1}`}
+                                className="h-20 w-28 rounded border object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeExistingBanner(index)}
+                                aria-label={`Remove banner ${index + 1}`}
+                                className="absolute -top-2 -right-2 rounded-full bg-red-600 p-1 text-white"
+                              >
+                                <Trash2 className="h-3 w-3" aria-hidden />
+                              </button>
+                            </div>
+                          ))}
+                          {bannerPreviewUrls.map((url, index) => (
+                            <div key={`pending-${index}`} className="relative">
+                              <img
+                                src={url}
+                                alt={`New banner ${index + 1}`}
+                                className="h-20 w-28 rounded border object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removePendingBanner(index)}
+                                aria-label={`Remove new banner ${index + 1}`}
+                                className="absolute -top-2 -right-2 rounded-full bg-red-600 p-1 text-white"
+                              >
+                                <Trash2 className="h-3 w-3" aria-hidden />
+                              </button>
+                            </div>
+                          ))}
+                          {bannerUrls.length + pendingAssets.banners.length < 12 ? (
+                            <button
+                              type="button"
+                              disabled={assetUploading}
+                              onClick={() => bannerInputRef.current?.click()}
+                              aria-label="Add banner image"
+                              className="border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50 flex h-20 w-28 flex-col items-center justify-center gap-1 rounded border border-dashed text-xs transition-colors disabled:opacity-50"
+                            >
+                              <Plus className="h-4 w-4" aria-hidden />
+                              Add
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={assetUploading}
+                          onClick={() => bannerInputRef.current?.click()}
+                          className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                        >
+                          <ImageIcon className="h-8 w-8 opacity-60" aria-hidden />
+                          <span className="text-foreground text-sm font-medium">
+                            Upload campus photos
+                          </span>
+                        </button>
+                      )}
+                    </Field>
+                  </div>
+                )}
+
+                {editorTab === 'academic' && (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {(
+                      [
+                        ['grades', 'Grades', 'e.g. Class 3–12…'],
+                        ['ageRange', 'Age Range', 'e.g. 8–18 years…'],
+                        ['enrollment', 'Enrollment', 'e.g. 3,500 students…'],
+                        ['studentTeacherRatio', 'Student-Teacher Ratio', 'e.g. 30:1…'],
+                        ['colors', 'Uniform Colors', 'e.g. White & Navy Blue…'],
+                        ['campusArea', 'Campus / Land Area', 'e.g. 12 acres…'],
+                        ['playgroundArea', 'Playground Area', 'e.g. 2 acres…'],
+                      ] as const
+                    ).map(([key, label, placeholder]) => (
+                      <Field
+                        key={key}
+                        id={`academic-${key}`}
+                        label={label}
+                        error={errors.academicProfile?.[key]?.message}
+                      >
+                        <Input
+                          id={`academic-${key}`}
+                          {...register(`academicProfile.${key}`)}
+                          placeholder={placeholder}
+                        />
+                      </Field>
+                    ))}
+
+                    <Field id="academic-medium" label="Medium" error={errors.medium?.message}>
+                      <select
+                        id="academic-medium"
+                        {...register('medium')}
+                        className={selectClassName}
+                      >
+                        <option value="">Select medium…</option>
+                        {SCHOOL_MEDIUMS.map((medium) => (
+                          <option key={medium} value={medium}>
+                            {medium}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field id="academic-board" label="Board" error={errors.board?.message}>
+                      <select
+                        id="academic-board"
+                        {...register('board')}
+                        className={selectClassName}
+                      >
+                        <option value="">Select board…</option>
+                        {SCHOOL_BOARDS.map((board) => (
+                          <option key={board} value={board}>
+                            {board}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field
+                      id="academic-ownership"
+                      label="Ownership"
+                      error={errors.ownership?.message}
+                    >
+                      <select
+                        id="academic-ownership"
+                        {...register('ownership')}
+                        className={selectClassName}
+                      >
+                        <option value="">Select ownership…</option>
+                        {SCHOOL_OWNERSHIPS.map((ownership) => (
+                          <option key={ownership} value={ownership}>
+                            {ownership}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field id="academic-gender" label="School For" error={errors.gender?.message}>
+                      <select
+                        id="academic-gender"
+                        {...register('gender')}
+                        className={selectClassName}
+                      >
+                        <option value="">Select…</option>
+                        {SCHOOL_GENDERS.map((gender) => (
+                          <option key={gender} value={gender}>
+                            {gender}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <div className="md:col-span-2">
+                      <Label className="text-foreground mb-2 block">Groups Available</Label>
+                      <div className="flex flex-wrap gap-4">
+                        {VALID_GROUPS.map((group) => {
+                          const checked = selectedGroups.includes(group);
+                          return (
+                            <label key={group} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  const next = checked
+                                    ? selectedGroups.filter((g) => g !== group)
+                                    : [...selectedGroups, group];
+                                  setValue('subjectGroups', next.join(', '), {
+                                    shouldValidate: true,
+                                  });
+                                }}
+                              />
+                              {group}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {errors.subjectGroups?.message ? (
+                        <p className="mt-1 text-xs text-red-600" role="alert">
+                          {errors.subjectGroups.message}
+                        </p>
+                      ) : null}
+                      <input type="hidden" {...register('subjectGroups')} />
+                    </div>
+                  </div>
+                )}
+
+                {editorTab === 'about' && (
+                  <div className="space-y-4">
+                    <Field id="descriptions-main" label="Main Description">
+                      <Textarea
+                        id="descriptions-main"
+                        {...register('descriptions.main')}
+                        rows={4}
+                        placeholder="Brief overview of history, mission, and academic excellence…"
+                      />
+                    </Field>
+                    <Field id="descriptions-sub" label="Sub Description">
+                      <Textarea
+                        id="descriptions-sub"
+                        {...register('descriptions.sub')}
+                        rows={3}
+                        placeholder="Short highlight shown under cards or side panels…"
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 -mx-6 mt-2 flex items-center justify-end gap-3 border-t px-6 py-4 backdrop-blur">
+                <Button type="submit" disabled={saving || assetUploading}>
+                  {saving || assetUploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {assetUploading
+                    ? 'Uploading…'
+                    : saving
+                      ? 'Saving…'
+                      : selectedSchoolId !== 'new'
+                        ? 'Update School'
+                        : 'Create School'}
                 </Button>
               </div>
-
-              {fetchingAdmins ? (
-                <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading admins...
-                </div>
-              ) : schoolAdmins.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No admins for this school yet.</p>
-              ) : (
-                <ul className="divide-y rounded-lg border">
-                  {schoolAdmins.map((admin) => (
-                    <li
-                      key={admin.id}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <div>
-                        <p className="font-medium">{admin.username}</p>
-                        <p className="text-muted-foreground text-xs capitalize">{admin.role}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAdmin(admin)}
-                        disabled={deletingAdminId === admin.id}
-                        className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2.5 py-1.5 text-xs text-red-600"
-                      >
-                        {deletingAdminId === admin.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                        Delete
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <form
-                onSubmit={handleAdminSubmit(onAddAdmin)}
-                className="grid grid-cols-1 gap-3 border-t pt-2 md:grid-cols-3"
-                noValidate
-              >
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Username</label>
-                  <input
-                    {...registerAdmin('username')}
-                    className="w-full rounded-md border px-3 py-2"
-                    placeholder="e.g. admin@school"
-                  />
-                  {adminErrors.username && (
-                    <p className="mt-1 text-xs text-red-600">{adminErrors.username.message}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Password</label>
-                  <input
-                    type="password"
-                    {...registerAdmin('password')}
-                    className="w-full rounded-md border px-3 py-2"
-                    placeholder="Min 6 characters"
-                  />
-                  {adminErrors.password && (
-                    <p className="mt-1 text-xs text-red-600">{adminErrors.password.message}</p>
-                  )}
-                </div>
-                <div className="flex items-end">
-                  <Button type="submit" disabled={addingAdmin || fetchingAdmins} className="w-full">
-                    {addingAdmin ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="mr-2 h-4 w-4" />
-                    )}
-                    Add Admin
-                  </Button>
-                </div>
-              </form>
-            </div>
+            </form>
           )}
         </SectionCard>
       </div>

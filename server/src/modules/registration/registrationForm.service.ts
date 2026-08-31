@@ -632,11 +632,9 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
         address: true,
         upazila: true,
         district: true,
-        website: true,
         customDomain: true,
         subdomain: true,
         logo: true,
-        headerLogo: true,
       },
     });
     if (!school) {
@@ -650,11 +648,11 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
         .map((s) => s?.trim())
         .filter(Boolean)
         .join(', ');
-    const schoolWebHost = schoolWebsiteHost(school.customDomain || school.website);
+    const schoolWebHost = schoolWebsiteHost(school.customDomain);
     const schoolWeb = schoolWebHost ? `https://${schoolWebHost}` : '';
 
     let logoBase64 = '';
-    const logoKey = school.headerLogo || school.logo;
+    const logoKey = school.logo;
     if (logoKey) {
       try {
         const logoBuffer = await resolveR2FileBuffer(logoKey, registration.school_id);
