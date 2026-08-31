@@ -282,7 +282,6 @@ jobs:
         if: needs.promote-meta.outputs.hit != 'true'
         run: |
           {
-            echo "VITE_BACKEND_URL=${{ secrets.LBP_VITE_BACKEND_URL }}"
             echo "VITE_CDN_URL=${{ secrets.LBP_VITE_CDN_URL }}"
             echo "VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}"
             if [ -n "${{ matrix.app.default_role }}" ]; then

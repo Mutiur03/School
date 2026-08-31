@@ -1,23 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { headers } from 'next/headers';
-import {
-  getDefaultTenantHost,
-  getDevTenantHost,
-  isBareLocalHost,
-  isTenantHost,
-  isTenantLocalDevHost,
-  isVercelAppHost,
-  resolveBackendBaseUrl,
-  serverBackendUrl,
-} from './resolveBackend';
 
 // Re-exported from cdn.ts so Server Components can still import from one place.
 export { cdn, getFileUrl } from './cdn';
-export { resolveClientAxiosBaseUrl } from './resolveBackend';
 
-const envBackend = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/+$/, '') || '';
 const debugApi = process.env.NEXT_PUBLIC_API_DEBUG === 'true';
 
 /** Per-attempt deadline. Serverless + Cloudflare often reset idle keepalives; fail fast and retry. */
@@ -188,6 +175,20 @@ type RequestContext = {
   tenantHost?: string;
 };
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function isBareLocalHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1';
+}
+
+function isTenantLocalHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host.endsWith('.localhost');
+}
+
 /** True when Next threw because headers() was used during static generation. */
 function isDynamicServerUsageError(error: unknown): boolean {
   return (
@@ -228,27 +229,11 @@ const getRequestContext = cache(async (): Promise<RequestContext> => {
 async function getRequestOrigin() {
   const { host, proto } = await getRequestContext();
   if (!host || !proto) return undefined;
+
+  const hostname = host.split(':')[0]?.toLowerCase() || host.toLowerCase();
+  if (isBareLocalHost(hostname)) return undefined;
+
   return `${proto}://${host}`;
-}
-
-export async function getBackendBaseUrl(): Promise<string> {
-  const origin = await getRequestOrigin();
-
-  if (!origin) {
-    return envBackend || serverBackendUrl();
-  }
-
-  try {
-    const { hostname, protocol } = new URL(origin);
-    const effectiveHostname =
-      isVercelAppHost(hostname) && !isTenantHost(hostname)
-        ? (getDefaultTenantHost() ?? hostname)
-        : hostname;
-
-    return resolveBackendBaseUrl(effectiveHostname, protocol.replace(':', ''));
-  } catch {
-    return envBackend || serverBackendUrl();
-  }
 }
 
 async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
@@ -271,31 +256,15 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
     const resolvedProto = protocol.replace(':', '');
 
     if (isBareLocalHost(hostname)) {
-      const resolvedTenantHost = getDevTenantHost();
-      return {
-        Origin: `${resolvedProto}://${resolvedTenantHost}`,
-        'x-forwarded-host': resolvedTenantHost,
-        'x-tenant-host': resolvedTenantHost,
-      };
+      return undefined;
     }
 
-    if (isTenantLocalDevHost(hostname) || isTenantHost(hostname)) {
+    if (isTenantLocalHost(hostname)) {
       return {
         Origin: `${resolvedProto}://${hostname}`,
         'x-forwarded-host': hostname,
         'x-tenant-host': hostname,
       };
-    }
-
-    if (isVercelAppHost(hostname)) {
-      const defaultTenantHost = getDefaultTenantHost();
-      if (defaultTenantHost) {
-        return {
-          Origin: `https://${defaultTenantHost}`,
-          'x-forwarded-host': defaultTenantHost,
-          'x-tenant-host': defaultTenantHost,
-        };
-      }
     }
 
     return {
@@ -328,15 +297,15 @@ function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
 
 async function get<T>(url: string, options?: any) {
   const { params, revalidate = 120, cache: fetchCache } = options || {};
-  const backend = await getBackendBaseUrl();
+  const origin = await getRequestOrigin();
   const { host, tenantHost } = await getRequestContext();
   // Same backend URL is shared across tenants; key cache by tenant host.
   const tenantKey = (tenantHost || host || 'default').toLowerCase();
 
-  if (!backend) {
-    logApiRequest('GET', url, backend, {
+  if (!origin) {
+    logApiRequest('GET', url, '', {
       skipped: true,
-      reason: 'backend base URL is not set',
+      reason: 'request origin is not available',
       params,
     });
     return normalizeApiResponse<T>(null);
@@ -352,12 +321,12 @@ async function get<T>(url: string, options?: any) {
     sanitizedParams && Object.keys(sanitizedParams).length > 0
       ? '?' + new URLSearchParams(sanitizedParams as Record<string, string>).toString()
       : '';
-  const requestUrl = `${backend}${url}${query}`;
+  const requestUrl = `${trimTrailingSlash(origin)}${url}${query}`;
   const apiHeaders = await getApiFetchHeaders();
   // Serializable so unstable_cache revalidation does not reuse another tenant's closure.
   const headersJson = JSON.stringify(apiHeaders ?? {});
 
-  logApiRequest('GET', requestUrl, backend, {
+  logApiRequest('GET', requestUrl, origin, {
     params: sanitizedParams,
     revalidate,
     cache: fetchCache,

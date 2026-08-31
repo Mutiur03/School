@@ -37,8 +37,6 @@ pnpm --filter client-next deploy:cf
 
 Mirror Vercel vars (Workers → Settings → Variables/Secrets, or Workers Builds → Build variables):
 
-- `NEXT_PUBLIC_BACKEND_URL` / `API_URL` / `BACKEND_URL`
-- `NEXT_PUBLIC_DEFAULT_TENANT_HOST`
 - `NEXT_PUBLIC_CDN_URL`
 - other `NEXT_PUBLIC_*`
 
@@ -50,9 +48,7 @@ Workflow: `.github/workflows/deploy-client-next-cf.yml`
 - Runs on **ubuntu-latest** (avoids OpenNext Windows bundler bugs)
 - Reuses secrets: `CF_API_TOKEN`, `CF_ACCOUNT_ID`
 - Build env secrets:
-  - `CLIENT_NEXT_BACKEND_URL` (fallback: `LBP_VITE_BACKEND_URL`)
   - `CLIENT_NEXT_CDN_URL` (fallback: `LBP_VITE_CDN_URL`)
-  - `CLIENT_NEXT_DEFAULT_TENANT_HOST` (optional)
 
 After first successful run, Worker **`school-client`** appears in the Cloudflare dashboard (`*.workers.dev`). Attach a custom hostname when ready.
 

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getDevTenantHost, isBareLocalHost } from '@/lib/resolveBackend';
+
+function isBareLocalHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1';
+}
 
 /**
  * Edge middleware (not Next 16 `proxy.ts` / Node middleware).
@@ -16,10 +20,13 @@ export function middleware(request: NextRequest) {
   let response: NextResponse;
 
   if (isBareLocalHost(hostname) && pathname.startsWith('/api/')) {
-    const tenantHost = getDevTenantHost();
-    headers.set('x-forwarded-host', tenantHost);
-    headers.set('x-tenant-host', tenantHost);
-    headers.set('origin', `http://${tenantHost}`);
+    return new NextResponse('Tenant host required', { status: 404 });
+  }
+
+  if (hostname.endsWith('.localhost') && pathname.startsWith('/api/')) {
+    headers.set('x-forwarded-host', hostname);
+    headers.set('x-tenant-host', hostname);
+    headers.set('origin', `http://${hostname}`);
     response = NextResponse.next({ request: { headers } });
   } else {
     response = NextResponse.next({ request: { headers } });

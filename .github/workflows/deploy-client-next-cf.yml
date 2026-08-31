@@ -182,24 +182,12 @@ jobs:
         if: github.event_name != 'pull_request' && needs.promote-meta.outputs.hit != 'true'
         working-directory: client-next
         env:
-          BACKEND_URL: ${{ secrets.CLIENT_NEXT_BACKEND_URL || secrets.LBP_VITE_BACKEND_URL }}
           CDN_URL: ${{ secrets.CLIENT_NEXT_CDN_URL || secrets.LBP_VITE_CDN_URL }}
-          DEFAULT_TENANT_HOST: ${{ secrets.CLIENT_NEXT_DEFAULT_TENANT_HOST }}
         run: |
           set -euo pipefail
-          if [ -z "${BACKEND_URL:-}" ]; then
-            echo "::error::Set GitHub secret CLIENT_NEXT_BACKEND_URL (or LBP_VITE_BACKEND_URL)."
-            exit 1
-          fi
           {
-            echo "API_URL=${BACKEND_URL}"
-            echo "BACKEND_URL=${BACKEND_URL}"
-            echo "NEXT_PUBLIC_BACKEND_URL=${BACKEND_URL}"
             if [ -n "${CDN_URL:-}" ]; then
               echo "NEXT_PUBLIC_CDN_URL=${CDN_URL}"
-            fi
-            if [ -n "${DEFAULT_TENANT_HOST:-}" ]; then
-              echo "NEXT_PUBLIC_DEFAULT_TENANT_HOST=${DEFAULT_TENANT_HOST}"
             fi
             echo "OPEN_NEXT=1"
             echo "WRANGLER_BUILD_CONDITIONS="
@@ -213,12 +201,7 @@ jobs:
         run: pnpm exec turbo run build:cf --filter=client-next --force
         env:
           OPEN_NEXT: '1'
-          # Also expose for Next config / tooling that reads process.env in CI.
-          API_URL: ${{ secrets.CLIENT_NEXT_BACKEND_URL || secrets.LBP_VITE_BACKEND_URL }}
-          BACKEND_URL: ${{ secrets.CLIENT_NEXT_BACKEND_URL || secrets.LBP_VITE_BACKEND_URL }}
-          NEXT_PUBLIC_BACKEND_URL: ${{ secrets.CLIENT_NEXT_BACKEND_URL || secrets.LBP_VITE_BACKEND_URL }}
           NEXT_PUBLIC_CDN_URL: ${{ secrets.CLIENT_NEXT_CDN_URL || secrets.LBP_VITE_CDN_URL }}
-          NEXT_PUBLIC_DEFAULT_TENANT_HOST: ${{ secrets.CLIENT_NEXT_DEFAULT_TENANT_HOST }}
 
       - name: Verify OpenNext output
         if: |

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import backend from '../lib/backend';
 
 type ClassSlug = 'class-6' | 'class-8' | 'class-9';
 type PreviewMode = 'stored' | 'live';
@@ -13,17 +12,14 @@ type Props = {
 export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' }: Props) {
   const [isLoading, setIsLoading] = useState(true);
 
-  const base = String(backend || '')
-    .trim()
-    .replace(/\/$/, '');
   const previewUrl = useMemo(() => {
     const params = new URLSearchParams();
 
     params.set('preview', mode === 'live' ? '1' : 'stored-inline');
 
     params.set('t', String(Date.now()));
-    return `${base}/api/reg/${classSlug}/form/${id}/pdf?${params.toString()}`;
-  }, [base, classSlug, id, mode]);
+    return `/api/reg/${classSlug}/form/${id}/pdf?${params.toString()}`;
+  }, [classSlug, id, mode]);
   const label = classSlug.replace('class-', 'Class ');
 
   return (

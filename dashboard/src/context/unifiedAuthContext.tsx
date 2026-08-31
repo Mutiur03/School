@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import toast from 'react-hot-toast';
-import backend from '@/lib/backend';
 import { syncSentryUser } from '@/lib/sentry';
 import { getErrorMessage } from '@/lib/utils';
 import envPreferredRole from '@/lib/role';
@@ -213,9 +212,8 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
         const isExternal = config.url?.startsWith('http');
-        const isBackend = !isExternal || (!!backend && config.url?.startsWith(backend));
 
-        if (isBackend) {
+        if (!isExternal) {
           config.withCredentials = true; // Refresh cookie only; access token stays in memory.
           if (!config._skipAuthRefresh && accessTokenRef.current) {
             config.headers = config.headers || {};

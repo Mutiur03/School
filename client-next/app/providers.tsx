@@ -3,7 +3,6 @@
 import axios from 'axios';
 import { useLayoutEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { resolveClientAxiosBaseUrl } from '@/lib/resolveBackend';
 
 type ProvidersProps = {
   children: React.ReactNode;
@@ -11,12 +10,10 @@ type ProvidersProps = {
 
 export default function Providers({ children }: ProvidersProps) {
   useLayoutEffect(() => {
-    const baseURL = resolveClientAxiosBaseUrl();
-    axios.defaults.baseURL = baseURL;
-    // Custom domains call apisms cross-origin (no tenant-router). Host is the API
-    // box, so the school must be identified the same way SSR/tenant-router do.
-    if (baseURL) {
-      const tenantHost = window.location.hostname;
+    axios.defaults.baseURL = '';
+    // Always identify the school from the page the user is on (subdomain or custom domain).
+    const tenantHost = window.location.hostname;
+    if (tenantHost !== 'localhost' && tenantHost !== '127.0.0.1') {
       axios.defaults.headers.common['x-tenant-host'] = tenantHost;
       axios.defaults.headers.common['x-forwarded-host'] = tenantHost;
     }
