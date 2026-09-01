@@ -1,5 +1,5 @@
 import { prisma } from '@/config/prisma.js';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@/generated/prisma/client.js';
 import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
 import { getFileBuffer, headObjectEtag } from '@/config/r2.js';
 import logger from '@/utils/logger.js';
@@ -1050,7 +1050,7 @@ export class MarksService {
           include: { student: { select: { name: true } } },
         },
         subject: { select: { name: true, priority: true } },
-        exam: { select: { exam_name: true } },
+        exam: { select: { exam_name: true, is_year_end: true } },
       },
     });
 
@@ -1059,6 +1059,7 @@ export class MarksService {
     const grouped: any[] = [];
     const subjects: Record<string, any> = {};
     const totalMarksPerExam: Record<string, number> = {};
+    const yearEndExamName = marks.find((mark) => mark.exam.is_year_end)?.exam.exam_name ?? null;
 
     marks.forEach((mark: any) => {
       const subjectName = mark.subject.parent?.name || mark.subject.name;
@@ -1075,6 +1076,7 @@ export class MarksService {
           exam_breakdowns: {},
           priority: mark.subject.priority,
           final_merit: enrollment.final_merit,
+          year_end_exam_name: yearEndExamName,
         };
         grouped.push(subjects[subjectName]);
       }
@@ -1090,6 +1092,7 @@ export class MarksService {
     // Add totals to every entry for the frontend to consume
     grouped.forEach((entry) => {
       entry.total_marks_per_exam = totalMarksPerExam;
+      entry.year_end_exam_name = yearEndExamName;
     });
 
     return grouped.sort((a, b) => a.priority - b.priority);

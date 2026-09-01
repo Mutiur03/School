@@ -1,29 +1,54 @@
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../src/generated/prisma/client.js';
 
-const prisma = new PrismaClient();
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not set');
+}
+
+const url = new URL(process.env.DATABASE_URL);
+for (const key of [
+  'connection_limit',
+  'pool_timeout',
+  'connect_timeout',
+  'socket_timeout',
+  'pgbouncer',
+  'schema',
+]) {
+  url.searchParams.delete(key);
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({
+    connectionString: url.toString(),
+    connectionTimeoutMillis: 5000,
+  }),
+});
 
 async function main() {
-  const schools = await prisma.school.findMany({
-    select: { id: true },
-    orderBy: { id: 'asc' },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.is_super_admin', '1', true)`;
 
-  if (schools.length === 0) {
-    console.warn('⚠️ No school found. Skipping tenant seed data.');
-    return;
-  }
+    const schools = await tx.school.findMany({
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
 
-  const defaultCategories = ['Event', 'Campus', 'Labs', 'Achievement'];
-  const data = schools.flatMap((school) =>
-    defaultCategories.map((category) => ({
-      category,
-      school_id: school.id,
-    })),
-  );
+    if (schools.length === 0) {
+      console.warn('⚠️ No school found. Skipping tenant seed data.');
+      return;
+    }
 
-  await prisma.categories.createMany({
-    data,
-    skipDuplicates: true,
+    const defaultCategories = ['Event', 'Campus', 'Labs', 'Achievement'];
+    await tx.categories.createMany({
+      data: schools.flatMap((school) =>
+        defaultCategories.map((category) => ({
+          category,
+          school_id: school.id,
+        })),
+      ),
+      skipDuplicates: true,
+    });
   });
 }
 

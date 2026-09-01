@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model School {
@@ -72,11 +72,12 @@ model School {
   head_msgs          head_msg[]
   sms_logs           sms_logs[]
   sms_settings       sms_settings?
-  exam_class_stats   exam_class_stats[]
-  marksheet_files    marksheet_files[]
-  marksheet_bundles  marksheet_bundles[]
-  marksheet_sessions marksheet_sessions[]
-  attendance_sheets  attendance_sheets[]
+  exam_class_stats      exam_class_stats[]
+  marksheet_files       marksheet_files[]
+  marksheet_bundles     marksheet_bundles[]
+  marksheet_sessions    marksheet_sessions[]
+  attendance_sheets     attendance_sheets[]
+  exam_type_assignments school_exam_types[]
 
   @@index([name])
   @@index([subdomain])
@@ -213,6 +214,28 @@ model attendence {
   @@index([school_id])
 }
 
+model exam_types {
+  id                    Int                 @id @default(autoincrement())
+  name                  String              @unique @db.VarChar(100)
+  is_year_end           Boolean             @default(false)
+  sort_order            Int                 @default(0)
+  assign_to_new_schools Boolean             @default(false)
+  assignments           school_exam_types[]
+  exams                 exams[]
+}
+
+model school_exam_types {
+  id           Int        @id @default(autoincrement())
+  school_id    Int        @default(dbgenerated("app.current_school_id()"))
+  exam_type_id Int
+  school       School     @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  exam_type    exam_types @relation(fields: [exam_type_id], references: [id], onDelete: Cascade)
+
+  @@unique([school_id, exam_type_id])
+  @@index([school_id])
+  @@index([exam_type_id])
+}
+
 model exams {
   id           Int                @id @default(autoincrement())
   exam_name    String             @db.VarChar(100)
@@ -227,13 +250,17 @@ model exams {
   routine      String?
   download_url String?
   public_id    String?
+  exam_type_id Int
+  is_year_end  Boolean            @default(false)
   marks        marks[]
   class_stats  exam_class_stats[]
+  exam_type    exam_types         @relation(fields: [exam_type_id], references: [id])
   school_id    Int                @default(dbgenerated("app.current_school_id()"))
   school       School             @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
-  @@unique([exam_name, exam_year, levels, school_id])
+  @@unique([exam_type_id, exam_year, school_id])
   @@index([school_id])
+  @@index([exam_year, is_year_end])
 }
 
 model exam_class_stats {

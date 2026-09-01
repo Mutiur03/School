@@ -279,6 +279,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          command_timeout: 30m
           script: |
             set -e
             # Set target directory relative to home
@@ -299,12 +300,15 @@ jobs:
             # Export ENV_FILE for docker compose interpolation
             export ENV_FILE="$ENV_FILE"
 
+            echo "Backing up database to Google Drive..."
+            bash ~/docker_db_to_gdrive.sh
+
             echo "Running database migrations..."
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma migrate deploy; else pnpm exec prisma migrate deploy; fi'
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$DIRECT_URL" ]; then DATABASE_URL="$DIRECT_URL" pnpm exec prisma migrate deploy; else pnpm exec prisma migrate deploy; fi'
 
             echo "Seeding database..."
             # Seed is idempotent (skipDuplicates); don't block deploy if the runner image lacks seed tooling.
-            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$MIGRATION_DATABASE_URL" ]; then DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm exec prisma db seed; else pnpm exec prisma db seed; fi' || echo "Seeding completed or skipped"
+            docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f backend-run.yml run --rm --entrypoint "" school_backend sh -c 'if [ -n "$DIRECT_URL" ]; then DATABASE_URL="$DIRECT_URL" pnpm exec prisma db seed; else pnpm exec prisma db seed; fi' || echo "Seeding completed or skipped"
 
             # Final restart with orphans cleanup
             ./restart.sh $ENV_FILE --no-build --no-logs

@@ -38,29 +38,7 @@ const WORKER_USER = { role: 'admin' as const };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * An exam is "frozen" once its result_date (a YYYY-MM-DD string) is strictly in
- * the past. Marksheets for a frozen exam pin the signatories that were in place
- * when they were finalized, so a later head/class-teacher reassignment no longer
- * regenerates or re-stamps them. Marks and class-highest stay live regardless.
- * A missing/unparseable result_date is treated as NOT frozen (still open).
- */
-export function isExamFrozen(resultDate: string | null | undefined): boolean {
-  if (!resultDate) return false;
-  // result_date is a plain calendar date (VarChar(10), "YYYY-MM-DD"). Compare it
-  // as a date string against today's local calendar date so the frozen boundary
-  // is timezone-agnostic — never parse it to a Date (that pins UTC midnight and
-  // misclassifies the boundary day on non-UTC servers).
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(resultDate.trim());
-  if (!m) return false;
-  const resultDay = `${m[1]}-${m[2]}-${m[3]}`;
-  const now = new Date();
-  const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-    2,
-    '0',
-  )}-${String(now.getDate()).padStart(2, '0')}`;
-  return resultDay < todayLocal;
-}
+export { isExamFrozen } from '@/modules/exam/exam-year-end.js';
 
 /**
  * Bump when marksheet PDF layout / draw code changes.

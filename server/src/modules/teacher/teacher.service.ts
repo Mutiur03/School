@@ -9,7 +9,7 @@ import { ApiError } from '@/utils/ApiError.js';
 import EmailService from '@/utils/email.service.js';
 import { env } from '@/config/env.js';
 import { redis } from '@/config/redis.js';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@/generated/prisma/client.js';
 
 const headMsgCacheKey = (schoolId?: number | null) =>
   `head_msg_cache_${schoolId ?? getRlsContext()?.schoolId ?? 'global'}`;

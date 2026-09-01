@@ -51,16 +51,11 @@ export async function getRequestSiteUrl() {
   }
 }
 
-const siteUrlFallback = () =>
-  process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:3000';
-
 export function getSchoolSiteUrl(school: SchoolConfig, requestUrl?: string): string {
   return (
     normalizeUrl(requestUrl) ||
     normalizeUrl(school.seo?.canonicalUrl) ||
     normalizeUrl(school.contact.website) ||
-    normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    siteUrlFallback() ||
     'http://localhost:3000'
   );
 }
@@ -75,8 +70,6 @@ export function getCanonicalSiteUrl(school: SchoolConfig, requestUrl?: string): 
     normalizeUrl(school.seo?.canonicalUrl) ||
     normalizeUrl(school.contact.website) ||
     normalizeUrl(requestUrl) ||
-    normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
-    siteUrlFallback() ||
     'http://localhost:3000'
   );
 }

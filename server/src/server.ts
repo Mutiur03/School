@@ -12,6 +12,7 @@ import compression from 'compression';
 import { detailedRequestLogger } from './middlewares/requestLogger.js';
 import logger from './utils/logger.js';
 import examRouter from './modules/exam/exam.route.js';
+import { superAdminExamTypeRouter, tenantExamTypeRouter } from './modules/exam/exam-type.route.js';
 import marksRouter from './modules/marks/marks.route.js';
 import promotionRouter from './modules/promotion/promotion.route.js';
 import {
@@ -191,6 +192,7 @@ app.get('/api/resetLimit', AuthMiddleware.authenticate(['admin']), (_req, res) =
 
 app.use(superAdminAuthRouter);
 app.use(superAdminSchoolRouter);
+app.use(superAdminExamTypeRouter);
 app.use(schoolContextMiddleware);
 app.use(syncRlsSchoolContextMiddleware);
 app.use(sharedAuthSessionRouter);
@@ -199,6 +201,7 @@ app.use(requireSchoolContextMiddleware);
 app.use(studentRouter);
 app.use(tenantSchoolRouter);
 app.use(examRouter);
+app.use(tenantExamTypeRouter);
 app.use(subjectRouter);
 app.use(marksRouter);
 app.use(promotionRouter);

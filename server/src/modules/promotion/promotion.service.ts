@@ -1,6 +1,8 @@
 import { prisma } from '@/config/prisma.js';
 import { SubjectService } from '@/modules/result/subject/subject.service.js';
 import { MarksService } from '@/modules/marks/marks.service.js';
+import { ExamService } from '@/modules/exam/exam.service.js';
+import { yearEndExamIdForClass } from '@/modules/exam/exam-year-end.js';
 import logger from '@/utils/logger.js';
 
 type StudentWithMerit = Awaited<
@@ -37,13 +39,16 @@ export class PromotionService {
 
     const classBonusStatus: Record<number, boolean> = {};
     const classes = [...new Set(students.map((s) => s.class))];
+    const yearEndExams = await ExamService.assertYearEndCoverage(year, classes);
 
     for (const c of classes) {
       classBonusStatus[c] = await MarksService.shouldApplyFourthSubjectBonus(c, year);
     }
 
     for (const student of students) {
-      const processedMarks = MarksService.aggregatePaperMarks(student.marks);
+      const yearEndExamId = yearEndExamIdForClass(yearEndExams, student.class);
+      const yearEndMarks = student.marks.filter((mark) => mark.exam_id === yearEndExamId);
+      const processedMarks = MarksService.aggregatePaperMarks(yearEndMarks);
       const { isFailed } = MarksService.calculateGPA(
         processedMarks,
         student.fourth_subject_id || null,
@@ -115,6 +120,9 @@ export class PromotionService {
 
     const classBonusStatus: Record<string, boolean> = {};
     const classYears = new Set(students.map((s) => `${s.class}-${s.year}`));
+    const yearEndExams = students.length
+      ? await ExamService.assertYearEndCoverage(year, [...new Set(students.map((s) => s.class))])
+      : [];
 
     for (const cy of classYears) {
       const [c, y] = cy.split('-');
@@ -126,7 +134,9 @@ export class PromotionService {
 
     const studentsWithMerit: StudentWithMerit[] = students.map((student) => {
       const applyBonus = classBonusStatus[`${student.class}-${student.year}`];
-      const processedMarks = MarksService.aggregatePaperMarks(student.marks);
+      const yearEndExamId = yearEndExamIdForClass(yearEndExams, student.class);
+      const yearEndMarks = student.marks.filter((mark) => mark.exam_id === yearEndExamId);
+      const processedMarks = MarksService.aggregatePaperMarks(yearEndMarks);
       const { gpa, totalMarks } = MarksService.calculateGPA(
         processedMarks,
         student.fourth_subject_id || null,

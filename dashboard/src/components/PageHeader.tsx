@@ -32,7 +32,11 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           <p className="text-muted-foreground text-sm dark:text-gray-400">{description}</p>
         )}
       </div>
-      {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+      {children && (
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+          {children}
+        </div>
+      )}
     </div>
   );
 };

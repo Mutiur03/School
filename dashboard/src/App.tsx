@@ -60,6 +60,7 @@ const GalleryModeration = lazy(() => import('./pages/Admin/GalleryModeration'));
 const ClassRegForm = lazy(() => import('./pages/Admin/ClassRegForm'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdmin/Dashboard'));
 const SchoolManagement = lazy(() => import('./pages/SuperAdmin/SchoolManagement'));
+const ExamTypes = lazy(() => import('./pages/SuperAdmin/ExamTypes'));
 
 /** Sidebar hover warms these chunks. Add/remove paths here anytime. */
 registerRoutePrefetchers({
@@ -106,6 +107,7 @@ registerRoutePrefetchers({
   '/student/result': Result,
   '/super_admin/dashboard': SuperAdminDashboard,
   '/super_admin/settings/school': SchoolManagement,
+  '/super_admin/settings/exams': ExamTypes,
 });
 
 function App() {
@@ -490,6 +492,7 @@ function App() {
                           <Routes>
                             <Route path="/dashboard" element={<SuperAdminDashboard />} />
                             <Route path="/settings/school" element={<SchoolManagement />} />
+                            <Route path="/settings/exams" element={<ExamTypes />} />
                             <Route path="*" element={<Navigate to="/super_admin/dashboard" />} />
                           </Routes>
                         </div>

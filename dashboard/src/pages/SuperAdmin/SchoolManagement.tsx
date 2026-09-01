@@ -48,7 +48,7 @@ import {
 } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
-import { PageHeader, SectionCard } from '@/components';
+import { PageHeader, SectionCard, SchoolLogo } from '@/components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1114,17 +1114,7 @@ function SchoolManagement() {
                         : 'border-border hover:border-primary/50',
                     )}
                   >
-                    <span className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border">
-                      {school.logo ? (
-                        <img
-                          src={getFileUrl(school.logo)}
-                          alt=""
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <Building2 className="text-muted-foreground h-5 w-5" aria-hidden />
-                      )}
-                    </span>
+                    <SchoolLogo logo={school.logo} className="h-10 w-10" />
                     <span className="min-w-0 flex-1">
                       <p className="truncate font-medium">{school.name || 'Untitled School'}</p>
                       <p className="text-muted-foreground truncate text-xs">{domainLabel}</p>
@@ -1622,10 +1612,10 @@ function SchoolManagement() {
                         />
                         {hasLogo ? (
                           <div className="border-border bg-background flex items-center gap-3 rounded-lg border p-3">
-                            <img
-                              src={logoPreviewUrl || getFileUrl(String(logoValue))}
-                              alt="Logo preview"
-                              className="h-16 w-16 shrink-0 rounded border object-contain"
+                            <SchoolLogo
+                              logo={logoPreviewUrl ? undefined : String(logoValue)}
+                              src={logoPreviewUrl}
+                              className="h-16 w-16"
                             />
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium">Logo selected</p>

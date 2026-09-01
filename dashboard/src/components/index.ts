@@ -7,6 +7,7 @@ export { default as StatsCard } from './StatsCard';
 export { default as StatusBadge } from './StatusBadge';
 export { default as TabNav } from './TabNav';
 export { default as SectionCard } from './SectionCard';
+export { SchoolLogo } from './SchoolLogo';
 export {
   FilterSelection,
   FilterField,

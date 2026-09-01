@@ -10,6 +10,7 @@
     "logs/**",
     "**/*.log",
     "prisma/migrations/**",
+    "src/generated/**",
     "../packages/**/node_modules/**"
   ]
 }

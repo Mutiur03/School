@@ -402,6 +402,14 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         id: 'school-settings',
         roles: ['super_admin'],
       },
+      {
+        label: 'Exams',
+        icon: ClipboardList,
+        dropdown: false,
+        link: '/super_admin/settings/exams',
+        id: 'exam-types',
+        roles: ['super_admin'],
+      },
     ] as SidebarItem[],
   };
 

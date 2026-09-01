@@ -8,7 +8,7 @@ import { ApiError } from '@/utils/ApiError.js';
 import PDFDocument from 'pdfkit';
 import EmailService from '@/utils/email.service.js';
 import { env } from '@/config/env.js';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@/generated/prisma/client.js';
 import path from 'path';
 import fs from 'fs';
 import QRCode from 'qrcode';

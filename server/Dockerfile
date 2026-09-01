@@ -71,6 +71,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 COPY --from=builder /app/packages/shared-schemas/dist /app/packages/shared-schemas/dist
 COPY --from=builder /app/server/dist /app/server/dist
 COPY --from=builder /app/server/prisma /app/server/prisma
+COPY --from=builder /app/server/prisma.config.ts /app/server/prisma.config.ts
 COPY --from=builder /app/server/public /app/server/public
 COPY --from=builder /app/server/setup-network.sh /app/server/setup-network.sh
 

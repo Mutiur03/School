@@ -12,7 +12,7 @@
  *   pnpm exec tsx src/scripts/backfill-class68-reg-pdfs.ts --class=8 --limit=20 --force
  */
 import 'dotenv/config';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@/generated/prisma/client.js';
 import { prisma } from '@/config/prisma.js';
 import { runWithRlsContext } from '@/config/rlsContextStore.js';
 import { RegistrationFormClass6Service } from '@/modules/registration/class-6/Form/registrationFormClass6.service.js';

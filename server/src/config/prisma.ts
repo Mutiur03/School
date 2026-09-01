@@ -1,18 +1,39 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/generated/prisma/client.js';
 import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
 import logger from '@/utils/logger.js';
 import { recordSlowQueryBreadcrumb } from '@/config/sentry.js';
 
-type QueryLoggingPrismaClient = PrismaClient<
-  {
-    log: [
-      { emit: 'event'; level: 'query' },
-      { emit: 'stdout'; level: 'warn' },
-      { emit: 'stdout'; level: 'error' },
-    ];
-  },
-  'query'
->;
+const PRISMA_URL_PARAMS = [
+  'connection_limit',
+  'pool_timeout',
+  'connect_timeout',
+  'socket_timeout',
+  'pgbouncer',
+  'schema',
+] as const;
+
+function createAdapter() {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) {
+    throw new Error('DATABASE_URL is not set');
+  }
+
+  const url = new URL(raw);
+  const connectionLimit = url.searchParams.get('connection_limit');
+  const connectTimeout = url.searchParams.get('connect_timeout');
+  for (const key of PRISMA_URL_PARAMS) {
+    url.searchParams.delete(key);
+  }
+
+  return new PrismaPg({
+    connectionString: url.toString(),
+    max: connectionLimit ? Number(connectionLimit) : undefined,
+    connectionTimeoutMillis: connectTimeout ? Number(connectTimeout) * 1000 : 5000,
+  });
+}
+
+type QueryLoggingPrismaClient = PrismaClient<'query' | 'warn' | 'error'>;
 
 /** @type {Object} */
 const globalForPrisma = global as unknown as {
@@ -31,6 +52,7 @@ const prismaLogConfig = [
 const basePrisma: QueryLoggingPrismaClient =
   globalForPrisma.prisma ||
   new PrismaClient({
+    adapter: createAdapter(),
     log: [...prismaLogConfig],
   });
 

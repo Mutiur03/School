@@ -20,6 +20,7 @@ interface MarksheetEntry {
   exam_marks: ExamMarks;
   total_marks_per_exam?: ExamMarks;
   final_merit?: number;
+  year_end_exam_name?: string | null;
 }
 
 function ShowMarkSheet() {
@@ -69,6 +70,7 @@ function ShowMarkSheet() {
     marksheet && marksheet.length > 0 && marksheet[0]?.exam_marks
       ? Object.keys(marksheet[0].exam_marks)
       : [];
+  const yearEndExamName = marksheet?.[0]?.year_end_exam_name ?? null;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -151,8 +153,16 @@ function ShowMarkSheet() {
                     Subject
                   </th>
                   {examNames.map((exam) => (
-                    <th key={exam} className="px-4 py-3 text-center font-semibold">
+                    <th
+                      key={exam}
+                      className={`px-4 py-3 text-center font-semibold ${
+                        exam === yearEndExamName ? 'bg-primary/10 text-primary' : ''
+                      }`}
+                    >
                       {exam}
+                      {exam === yearEndExamName ? (
+                        <span className="mt-1 block text-xs font-medium">Year end</span>
+                      ) : null}
                     </th>
                   ))}
                 </tr>
@@ -164,7 +174,12 @@ function ShowMarkSheet() {
                       {entry.subject}
                     </td>
                     {Object.keys(entry.exam_marks || {}).map((exam, idx) => (
-                      <td key={idx} className="px-4 py-3 text-center">
+                      <td
+                        key={idx}
+                        className={`px-4 py-3 text-center ${
+                          exam === yearEndExamName ? 'bg-primary/5 font-medium' : ''
+                        }`}
+                      >
                         {entry.exam_marks[exam]}
                       </td>
                     ))}
@@ -176,7 +191,12 @@ function ShowMarkSheet() {
                   </td>
                   {marksheet[0]?.total_marks_per_exam &&
                     Object.keys(marksheet[0].total_marks_per_exam).map((exam) => (
-                      <td key={exam} className="px-4 py-3 text-center">
+                      <td
+                        key={exam}
+                        className={`px-4 py-3 text-center ${
+                          exam === yearEndExamName ? 'bg-primary/5' : ''
+                        }`}
+                      >
                         {marksheet[0].total_marks_per_exam?.[exam]}
                       </td>
                     ))}
@@ -193,7 +213,16 @@ function ShowMarkSheet() {
                 <dl className="grid grid-cols-2 gap-2 text-sm">
                   {Object.entries(entry.exam_marks || {}).map(([exam, marks]) => (
                     <div key={exam}>
-                      <dt className="text-muted-foreground text-xs">{exam}</dt>
+                      <dt
+                        className={`text-xs ${
+                          exam === yearEndExamName
+                            ? 'text-primary font-medium'
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        {exam}
+                        {exam === yearEndExamName ? ' (Year end)' : ''}
+                      </dt>
                       <dd className="font-medium tabular-nums">{marks}</dd>
                     </div>
                   ))}
@@ -206,7 +235,14 @@ function ShowMarkSheet() {
                 <dl className="grid grid-cols-2 gap-2 text-sm">
                   {Object.entries(marksheet[0].total_marks_per_exam).map(([exam, marks]) => (
                     <div key={exam}>
-                      <dt className="text-muted-foreground text-xs font-normal">{exam}</dt>
+                      <dt
+                        className={`text-xs font-normal ${
+                          exam === yearEndExamName ? 'text-primary' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {exam}
+                        {exam === yearEndExamName ? ' (Year end)' : ''}
+                      </dt>
                       <dd className="tabular-nums">{marks}</dd>
                     </div>
                   ))}

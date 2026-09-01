@@ -1,11 +1,18 @@
 import { Router } from 'express';
 import { ExamController } from './exam.controller.js';
 import AuthMiddleware from '@/middlewares/auth.middleware.js';
+import { validate } from '@/middlewares/validate.middleware.js';
+import { addExamsSchema, createExamSchema } from '@school/shared-schemas';
 
 const router = Router();
 
 router.get('/getExams', ExamController.getExams);
-router.post('/addExam', AuthMiddleware.authenticate(['admin']), ExamController.addExam);
+router.post(
+  '/addExam',
+  AuthMiddleware.authenticate(['admin']),
+  validate(addExamsSchema),
+  ExamController.addExam,
+);
 router.put(
   '/updateVisibility/:examId',
   AuthMiddleware.authenticate(['admin']),
@@ -14,6 +21,7 @@ router.put(
 router.put(
   '/updateExam/:examId',
   AuthMiddleware.authenticate(['admin']),
+  validate(createExamSchema),
   ExamController.updateExam,
 );
 router.delete(

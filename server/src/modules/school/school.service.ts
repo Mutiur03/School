@@ -17,8 +17,19 @@ function sheetToBuffer(rows: Record<string, unknown>[], sheetName: string): Buff
 
 export class SchoolService {
   static async createSchool(data: any) {
-    return prisma.school.create({
-      data,
+    return prisma.$transaction(async (tx) => {
+      const school = await tx.school.create({ data });
+      const defaults = await tx.exam_types.findMany({
+        where: { assign_to_new_schools: true },
+        select: { id: true },
+      });
+      if (defaults.length) {
+        await tx.school_exam_types.createMany({
+          data: defaults.map((type) => ({ school_id: school.id, exam_type_id: type.id })),
+          skipDuplicates: true,
+        });
+      }
+      return school;
     });
   }
 

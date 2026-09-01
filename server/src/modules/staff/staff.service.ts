@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@/generated/prisma/client.js';
 import { prisma } from '@/config/prisma.js';
 import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
