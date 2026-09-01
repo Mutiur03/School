@@ -2,7 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useSearchParams } from 'react-router-dom';
 import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
-import { Building2, ChevronRight, ClipboardList, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import {
+  Building2,
+  ChevronRight,
+  ClipboardList,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import {
   PageHeader,
   SectionCard,
@@ -416,7 +426,11 @@ export default function ExamTypes() {
           />
 
           {loading ? (
-            <ul className="mt-3 divide-y rounded-lg border" aria-busy="true" aria-label="Loading exam types">
+            <ul
+              className="mt-3 divide-y rounded-lg border"
+              aria-busy="true"
+              aria-label="Loading exam types"
+            >
               {Array.from({ length: 4 }).map((_, index) => (
                 <ExamTypeRowSkeleton key={index} />
               ))}
@@ -511,7 +525,11 @@ export default function ExamTypes() {
           />
 
           {loading ? (
-            <ul className="mt-3 max-h-[32rem] space-y-2 overflow-y-auto pr-1" aria-busy="true" aria-label="Loading schools">
+            <ul
+              className="mt-3 max-h-[32rem] space-y-2 overflow-y-auto pr-1"
+              aria-busy="true"
+              aria-label="Loading schools"
+            >
               {Array.from({ length: 5 }).map((_, index) => (
                 <SchoolListItemSkeleton key={index} />
               ))}

@@ -79,6 +79,7 @@ model School {
   marksheet_sessions    marksheet_sessions[]
   attendance_sheets     attendance_sheets[]
   exam_type_assignments school_exam_types[]
+  promotion_pass_rules  promotion_pass_rules[]
 
   @@index([name])
   @@index([subdomain])
@@ -161,6 +162,21 @@ model students {
   @@index([batch, available])
   @@index([father_phone])
   @@index([mother_phone])
+  @@index([school_id])
+}
+
+model promotion_pass_rules {
+  id         Int      @id @default(autoincrement())
+  year       Int
+  class      Int
+  max_failed Int      @default(0)
+  school_id  Int      @default(dbgenerated("app.current_school_id()"))
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([school_id, year, class])
+  @@index([year])
   @@index([school_id])
 }
 

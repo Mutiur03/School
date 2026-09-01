@@ -90,7 +90,7 @@ const GuardianSection: React.FC<GuardianSectionProps> = ({
       setValue('guardian_upazila', permanentAddress.upazila);
       setValue('guardian_post_office', sentenceCaseAddressInput(permanentAddress.post_office));
       setValue('guardian_post_code', permanentAddress.post_code);
-      setValue('guardian_village_road', permanentAddress.village_road);
+      setValue('guardian_village_road', sentenceCaseAddressInput(permanentAddress.village_road));
     }
   }, [
     guardian_address_same_as_permanent,

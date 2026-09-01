@@ -30,23 +30,37 @@ export type StudentsListResponse = {
   meta: StudentsListMeta;
 };
 
-export const useStudents = (params: {
-  year: number;
-  page: number;
-  limit: number;
-  level?: number;
-  section?: string;
-  religion?: string;
-  roll?: number;
-  search?: string;
-}) => {
-  const { year, page, limit, level, section, religion, roll, search } = params;
+export const useStudents = (
+  params: {
+    year: number;
+    page: number;
+    limit: number;
+    level?: number;
+    section?: string;
+    religion?: string;
+    roll?: number;
+    search?: string;
+    group?: string;
+  },
+  options?: { enabled?: boolean; keepPreviousPage?: boolean },
+) => {
+  const { year, page, limit, level, section, religion, roll, search, group } = params;
 
   return useQuery<StudentsListResponse>({
-    queryKey: ['students', year, { page, limit, level, section, religion, roll, search }],
+    queryKey: ['students', year, { page, limit, level, section, religion, roll, search, group }],
     queryFn: async () => {
       const response = await axios.get(`/api/students`, {
-        params: { year, page, limit, level, section, religion, roll, search },
+        params: {
+          year,
+          page,
+          limit,
+          ...(level != null && !Number.isNaN(level) ? { level } : {}),
+          ...(section ? { section } : {}),
+          ...(religion ? { religion } : {}),
+          ...(roll != null && !Number.isNaN(roll) ? { roll } : {}),
+          ...(search ? { search } : {}),
+          ...(group ? { group } : {}),
+        },
       });
 
       const payload = response.data?.data as StudentsListResponse | undefined;
@@ -67,7 +81,8 @@ export const useStudents = (params: {
 
       return { data: list, meta } satisfies StudentsListResponse;
     },
-    placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
+    placeholderData: options?.keepPreviousPage ? keepPreviousData : undefined,
   });
 };
 

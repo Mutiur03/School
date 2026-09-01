@@ -24,4 +24,6 @@ export interface Student {
   final_merit?: number;
   next_year_roll?: number;
   next_year_section?: string;
+  status?: 'Passed' | 'Failed' | 'Pending' | string;
+  fail_count?: number;
 }

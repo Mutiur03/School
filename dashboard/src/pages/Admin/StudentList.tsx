@@ -545,15 +545,18 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     isLoading: loading,
     error: studentsError,
     refetch: refetchStudents,
-  } = useStudents({
-    year,
-    page,
-    limit,
-    level: classFilter ? Number(classFilter) : undefined,
-    section: sectionFilter || undefined,
-    roll: rollFilter ? Number(rollFilter) : undefined,
-    search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
-  });
+  } = useStudents(
+    {
+      year,
+      page,
+      limit,
+      level: classFilter ? Number(classFilter) : undefined,
+      section: sectionFilter || undefined,
+      roll: rollFilter ? Number(rollFilter) : undefined,
+      search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
+    },
+    { keepPreviousPage: true },
+  );
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
 
   const showSeniorColumns = useMemo(() => {
@@ -1397,7 +1400,22 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium">Village</label>
-                      <Input type="text" placeholder="Village" {...register('village')} />
+                      <Input
+                        type="text"
+                        placeholder="Village"
+                        {...register('village', {
+                          setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
+                          onBlur: (e) => {
+                            e.target.value = sentenceCaseAddressInput(e.target.value);
+                          },
+                        })}
+                        onInput={(e) => {
+                          e.currentTarget.value = sentenceCaseAddressInput(
+                            e.currentTarget.value,
+                            false,
+                          );
+                        }}
+                      />
                       {errors.village && <ErrorMessage message={errors.village.message} />}
                     </div>
                     <div className="space-y-1.5">
@@ -1411,6 +1429,12 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                             e.target.value = sentenceCaseAddressInput(e.target.value);
                           },
                         })}
+                        onInput={(e) => {
+                          e.currentTarget.value = sentenceCaseAddressInput(
+                            e.currentTarget.value,
+                            false,
+                          );
+                        }}
                       />
                       {errors.post_office && <ErrorMessage message={errors.post_office.message} />}
                     </div>

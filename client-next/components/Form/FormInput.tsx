@@ -34,6 +34,10 @@ function inferAutoComplete(name: string, type: string): string | undefined {
   return 'off';
 }
 
+function isEnglishRegistrationName(name: string) {
+  return /^(student|father|mother)_name_en$/.test(name);
+}
+
 const FormInput: React.FC<FormInputProps> = ({
   label,
   name,
@@ -59,9 +63,12 @@ const FormInput: React.FC<FormInputProps> = ({
     numeric: filterNumericInput,
     address: filterAddressInput,
   };
+  const uppercaseEnglishName = filterType === 'english' && isEnglishRegistrationName(name);
+  const applySentenceCase = sentenceCase || filterType === 'address';
   const normalizeValue = (value: string) => {
     const filtered = filterType && filterMap[filterType] ? filterMap[filterType](value) : value;
-    const normalized = sentenceCase ? sentenceCaseAddressInput(filtered) : filtered;
+    let normalized = applySentenceCase ? sentenceCaseAddressInput(filtered) : filtered;
+    if (uppercaseEnglishName) normalized = normalized.toUpperCase();
     return maxLength ? normalized.slice(0, maxLength) : normalized;
   };
 
@@ -96,14 +103,16 @@ const FormInput: React.FC<FormInputProps> = ({
         autoComplete={resolvedAutoComplete}
         spellCheck={disableSpellcheck ? false : undefined}
         onInput={(e) => {
-          if (filterType && filterMap[filterType]) {
-            const target = e.target as HTMLInputElement;
-            let val = filterMap[filterType](target.value);
-            if (maxLength) {
-              val = val.slice(0, maxLength);
-            }
-            target.value = val;
-          }
+          if (!filterType && !applySentenceCase) return;
+          const target = e.target as HTMLInputElement;
+          let val =
+            filterType && filterMap[filterType]
+              ? filterMap[filterType](target.value)
+              : target.value;
+          if (applySentenceCase) val = sentenceCaseAddressInput(val, false);
+          if (uppercaseEnglishName) val = val.toUpperCase();
+          if (maxLength) val = val.slice(0, maxLength);
+          target.value = val;
         }}
         onBlur={(e) => {
           e.target.value = normalizeValue(e.target.value);

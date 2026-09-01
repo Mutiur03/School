@@ -250,7 +250,11 @@ export function ExamWorkbenchCard({
 
 export function ExamWorkbenchCardSkeleton() {
   return (
-    <article className="border-border bg-card rounded-xl border p-4" aria-busy="true" aria-label="Loading exam">
+    <article
+      className="border-border bg-card rounded-xl border p-4"
+      aria-busy="true"
+      aria-label="Loading exam"
+    >
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Skeleton className="h-5 w-44 max-w-full" />

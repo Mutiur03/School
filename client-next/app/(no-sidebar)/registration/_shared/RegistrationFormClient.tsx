@@ -336,7 +336,7 @@ export default function RegistrationFormClient({
       setValue('present_upazila', permanent_upazila);
       setValue('present_post_office', sentenceCaseAddressInput(permanent_post_office));
       setValue('present_post_code', permanent_post_code);
-      setValue('present_village_road', permanent_village_road);
+      setValue('present_village_road', sentenceCaseAddressInput(permanent_village_road));
     }
   }, [
     sameAsPermanent,

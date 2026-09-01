@@ -44,12 +44,14 @@ export class StudentController {
     const religionValue = req.query.religion;
     const rollValue = req.query.roll;
 
+    const groupValue = req.query.group;
     const page = typeof pageValue === 'string' ? parseInt(pageValue, 10) : NaN;
     const limit = typeof limitValue === 'string' ? parseInt(limitValue, 10) : NaN;
     const roll = typeof rollValue === 'string' ? parseInt(rollValue, 10) : NaN;
     const search = typeof searchValue === 'string' ? searchValue : undefined;
     const section = typeof sectionValue === 'string' ? sectionValue : undefined;
     const religion = typeof religionValue === 'string' ? religionValue : undefined;
+    const group = typeof groupValue === 'string' ? groupValue : undefined;
 
     const isPaginatedRequest =
       (typeof pageValue === 'string' && pageValue.trim().length > 0) ||
@@ -57,7 +59,8 @@ export class StudentController {
       (typeof searchValue === 'string' && searchValue.trim().length > 0) ||
       (typeof sectionValue === 'string' && sectionValue.trim().length > 0) ||
       (typeof religionValue === 'string' && religionValue.trim().length > 0) ||
-      (typeof rollValue === 'string' && rollValue.trim().length > 0);
+      (typeof rollValue === 'string' && rollValue.trim().length > 0) ||
+      (typeof groupValue === 'string' && groupValue.trim().length > 0);
 
     if (isPaginatedRequest) {
       const result = await StudentService.getStudentsPaginated(
@@ -70,6 +73,7 @@ export class StudentController {
           search,
           religion,
           roll,
+          group,
         },
         req.user,
       );

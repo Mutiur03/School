@@ -29,7 +29,7 @@ export class StudentService {
     const currentYear = String(new Date().getFullYear());
     const students = await prisma.students.findMany({
       where: {
-        batch: { lt: currentYear },
+        OR: [{ batch: { lt: currentYear } }, { available: false, batch: { lte: currentYear } }],
       },
       omit: { password: true },
       orderBy: [{ batch: 'desc' }, { name: 'asc' }],
@@ -47,13 +47,14 @@ export class StudentService {
       search?: string;
       religion?: string;
       roll?: number;
+      group?: string;
     },
     _user?: {
       role?: string;
       levels?: Array<{ class_name: number; section: string; year: number }>;
     },
   ) {
-    const { year, page, limit, level, section, search, religion, roll } = params;
+    const { year, page, limit, level, section, search, religion, roll, group } = params;
 
     const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
     const normalizedLimit =
@@ -62,11 +63,13 @@ export class StudentService {
 
     const normalizedSection = section?.trim().toUpperCase();
     const normalizedSearch = search?.trim();
+    const normalizedGroup = group?.trim();
 
     const enrollmentWhere: Prisma.student_enrollmentsWhereInput = {
       year,
       ...(typeof level === 'number' && !Number.isNaN(level) ? { class: level } : {}),
       ...(normalizedSection ? { section: normalizedSection } : {}),
+      ...(normalizedGroup ? { group: normalizedGroup } : {}),
       ...(!Number.isNaN(roll as number) && roll !== undefined ? { roll } : {}),
     };
 

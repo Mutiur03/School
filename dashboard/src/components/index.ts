@@ -23,5 +23,6 @@ export {
   filterFieldWideClassName,
 } from './FilterSelection';
 export { default as ActionButton } from './ActionButton';
+export { TablePagination } from './TablePagination';
 export { default as DeleteConfirmation } from './DeleteConfimation';
 export type { TabItem } from './TabNav';

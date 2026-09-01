@@ -2208,10 +2208,11 @@ export class MarksService {
     fourthSubjectId: number | null,
     applyBonus: boolean,
     className?: number,
+    maxAllowedFails = 0,
   ) {
     let totalMarks = 0;
     let totalGP = 0;
-    let isFailed = false;
+    let failedSubjectCount = 0;
     let subjectCount = 0;
     const hasFourthSubject = fourthSubjectId !== null;
 
@@ -2251,11 +2252,14 @@ export class MarksService {
           // 4th subject doesn't increase subjectCount and doesn't cause failure
         } else {
           totalGP += grade.gp;
-          if (grade.lg === 'F') isFailed = true;
+          if (grade.lg === 'F') failedSubjectCount += 1;
           subjectCount++;
         }
       }
     });
+
+    const allowedFails = Math.max(0, maxAllowedFails);
+    const isFailed = failedSubjectCount > allowedFails;
 
     let gpaResult = 0.0;
     if (!isFailed) {
@@ -2275,6 +2279,7 @@ export class MarksService {
     return {
       gpa: Math.min(gpaResult, 5.0),
       totalMarks,
+      failedSubjectCount,
       isFailed: isFailed && subjectCount > 0,
     };
   }

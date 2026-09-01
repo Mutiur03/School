@@ -130,12 +130,12 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           id: 'view-marks',
         },
         {
-          label: 'Generate Result',
+          label: 'Year-End Promotion',
           link: '/admin/result/generate-result',
           id: 'generate-result',
         },
         {
-          label: 'Customize Result',
+          label: 'Override Pass/Fail',
           link: '/admin/result/customize-result',
           id: 'customize-result',
         },

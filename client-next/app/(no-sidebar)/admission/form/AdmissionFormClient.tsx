@@ -751,13 +751,17 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
     });
   };
 
-  const postOfficeRegistration = (field: keyof AdmissionFormData) =>
-    register(field, {
+  const addressTextInputProps = (field: keyof AdmissionFormData) => ({
+    ...register(field, {
       setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
       onBlur: (e) => {
         e.target.value = sentenceCaseAddressInput(e.target.value);
       },
-    });
+    }),
+    onInput: (e: React.FormEvent<HTMLInputElement>) => {
+      e.currentTarget.value = sentenceCaseAddressInput(e.currentTarget.value, false);
+    },
+  });
 
   const PRESENT_ADDRESS_FIELDS: Array<keyof AdmissionFormData> = [
     'present_district',
@@ -839,7 +843,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
       setValue('present_post_code', permanent_post_code, {
         shouldValidate: true,
       });
-      setValue('present_village_road', permanent_village_road, {
+      setValue('present_village_road', sentenceCaseAddressInput(permanent_village_road), {
         shouldValidate: true,
       });
     }
@@ -864,7 +868,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
       setValue('guardian_post_code', permanent_post_code, {
         shouldValidate: true,
       });
-      setValue('guardian_village_road', permanent_village_road, {
+      setValue('guardian_village_road', sentenceCaseAddressInput(permanent_village_road), {
         shouldValidate: true,
       });
     }
@@ -2102,7 +2106,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             <input
               type="text"
               id="permanent_post_office"
-              {...postOfficeRegistration('permanent_post_office')}
+              {...addressTextInputProps('permanent_post_office')}
               className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
               placeholder="Post Office Name"
             />
@@ -2137,7 +2141,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             <input
               type="text"
               id="permanent_village_road"
-              {...register('permanent_village_road')}
+              {...addressTextInputProps('permanent_village_road')}
               className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
               placeholder="Village/Road/House No"
             />
@@ -2205,7 +2209,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 error={errors.present_post_office}
               >
                 <input
-                  {...postOfficeRegistration('present_post_office')}
+                  {...addressTextInputProps('present_post_office')}
                   className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
                   placeholder="Post Office Name"
                 />
@@ -2235,7 +2239,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 error={errors.present_village_road}
               >
                 <input
-                  {...register('present_village_road')}
+                  {...addressTextInputProps('present_village_road')}
                   className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
                   placeholder="Village/Road/House No"
                 />
@@ -2438,7 +2442,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                     tooltip="Enter the name of your guardian's nearest post office"
                   >
                     <input
-                      {...postOfficeRegistration('guardian_post_office')}
+                      {...addressTextInputProps('guardian_post_office')}
                       className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
                       placeholder="Post Office Name"
                     />
@@ -2466,7 +2470,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                     tooltip="Enter your guardian's village name, road name, and house number"
                   >
                     <input
-                      {...register('guardian_village_road')}
+                      {...addressTextInputProps('guardian_village_road')}
                       className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
                       placeholder="Village/Road/House No"
                     />
