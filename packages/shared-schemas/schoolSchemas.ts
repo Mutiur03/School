@@ -94,36 +94,13 @@ const requiredImageKey = (label: string) =>
       });
     });
 
-const optionalUrl = (label: string) =>
-  z
-    .string()
-    .nullish()
-    .superRefine((raw, ctx) => {
-      const value = typeof raw === 'string' ? raw.trim() : '';
-      if (value.length === 0) return;
-      if (isUploadPath(value) || isR2Key(value) || isPendingUpload(value)) return;
-      try {
-        const url = new URL(value);
-        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
-      } catch {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `${label} must be a valid URL starting with http:// or https://`,
-        });
-      }
-    })
-    .transform((raw) => {
-      const value = typeof raw === 'string' ? raw.trim() : '';
-      return value.length === 0 ? null : value;
-    });
-
 const hasProtocol = (value: string) => /^[a-z][a-z0-9+.-]*:\/\//i.test(value);
 
 const withHttps = (value: string) => (hasProtocol(value) ? value : `https://${value}`);
 
 /**
  * For links opened in a browser (portals). Accepts an absolute http(s) link or a
- * same-site path like "/result"; unlike optionalUrl it rejects storage keys,
+ * same-site path like "/result"; rejects storage keys, which would render as a
  * which would otherwise render as a broken relative link on the public site.
  */
 const optionalExternalUrl = (label: string) =>

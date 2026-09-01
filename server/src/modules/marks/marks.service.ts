@@ -2926,7 +2926,7 @@ export class MarksService {
       doc.opacity(0.1);
       doc.image(grayscaleBuffer, 150, 236, { width: 300 });
       doc.restore();
-    } catch (e) {
+    } catch {
       doc.save();
       doc.opacity(0.1);
       doc.image(image, 150, 236, { width: 300 });
