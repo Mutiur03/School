@@ -5,7 +5,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PageHeader, FilterSelection, FilterField, filterSelectClassName } from '@/components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import Loading from '@/components/Loading';
 import {
   useAssignedExamTypes,
   useCreateExam,
@@ -16,7 +15,7 @@ import {
 } from '@/queries/exam.queries';
 import { ExamFormDialog, EXAM_CLASSES } from './exam-form-dialog';
 import { ExamSessionRail, yearEndGaps } from './exam-session-rail';
-import { ExamWorkbenchCard } from './exam-workbench-card';
+import { ExamWorkbenchCard, ExamWorkbenchCardSkeleton } from './exam-workbench-card';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -212,9 +211,13 @@ function ExamPDFRoutine() {
       ) : null}
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loading />
-        </div>
+        <ul className="space-y-3" aria-busy="true" aria-label="Loading exams">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <li key={index}>
+              <ExamWorkbenchCardSkeleton />
+            </li>
+          ))}
+        </ul>
       ) : filtered.length === 0 ? (
         <div className="border-border rounded-xl border px-6 py-16 text-center">
           <p className="text-foreground text-sm font-medium">

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Download, Eye, EyeOff, ExternalLink, FileUp, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import ActionButton from '@/components/ActionButton';
 import { MarksheetGenProgress } from '@/components/MarksheetGenProgress';
@@ -243,6 +244,25 @@ export function ExamWorkbenchCard({
           Uploading… {progress}%
         </p>
       ) : null}
+    </article>
+  );
+}
+
+export function ExamWorkbenchCardSkeleton() {
+  return (
+    <article className="border-border bg-card rounded-xl border p-4" aria-busy="true" aria-label="Loading exam">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="h-5 w-44 max-w-full" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-56 max-w-full" />
+        <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
+          <Skeleton className="h-8 w-full md:w-28" />
+          <Skeleton className="h-8 w-full md:w-28" />
+          <Skeleton className="h-8 w-full md:w-24" />
+        </div>
+      </div>
     </article>
   );
 }

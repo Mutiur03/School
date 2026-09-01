@@ -19,6 +19,8 @@ export function initSentry() {
     dsn: sentryDsn,
     environment: process.env.NODE_ENV ?? 'development',
     enabled: process.env.NODE_ENV === 'production',
+    // Prisma 7 generated ESM (`internal/class.js`) dies under import-in-the-middle.
+    registerEsmLoaderHooks: false,
     integrations: [
       Sentry.httpIntegration(),
       Sentry.expressIntegration(),

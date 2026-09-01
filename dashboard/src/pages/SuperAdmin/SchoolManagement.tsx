@@ -48,7 +48,7 @@ import {
 } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
-import { PageHeader, SectionCard, SchoolLogo } from '@/components';
+import { PageHeader, SectionCard, SchoolLogo, SchoolListItemSkeleton, EditorPanelSkeleton } from '@/components';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -519,7 +519,7 @@ function SchoolManagement() {
   );
 
   const [schools, setSchools] = useState<SchoolData[]>([]);
-  const [fetching, setFetching] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
   const [assetUploading, setAssetUploading] = useState(false);
   const [pendingAssets, setPendingAssets] = useState<PendingAssetFiles>({
@@ -1063,7 +1063,7 @@ function SchoolManagement() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <SectionCard
-          className="lg:col-span-4"
+          className={cn('lg:col-span-4', fetching && schools.length > 0 && 'opacity-60')}
           title="Schools"
           description={`${sortedSchools.length} tenant${sortedSchools.length === 1 ? '' : 's'}`}
           icon={<Building2 size={20} />}
@@ -1085,11 +1085,18 @@ function SchoolManagement() {
               placeholder="Search schools…"
               className="pl-9"
               aria-label="Search schools"
+              disabled={fetching && schools.length === 0}
             />
           </div>
 
           <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
-            {sortedSchools.length === 0 ? (
+            {fetching && schools.length === 0 ? (
+              <ul className="space-y-2" aria-busy="true" aria-label="Loading schools">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <SchoolListItemSkeleton key={index} />
+                ))}
+              </ul>
+            ) : sortedSchools.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
                 No schools yet — create one.
               </p>
@@ -1133,6 +1140,10 @@ function SchoolManagement() {
           }
           icon={<Building2 size={20} />}
         >
+          {fetching && schools.length === 0 ? (
+            <EditorPanelSkeleton />
+          ) : (
+            <>
           {selectedSchoolId !== 'new' && (
             <div className="mb-4 flex flex-wrap items-center gap-2 border-b pb-4">
               <Button
@@ -2082,6 +2093,8 @@ function SchoolManagement() {
                 </Button>
               </div>
             </form>
+          )}
+            </>
           )}
         </SectionCard>
       </div>

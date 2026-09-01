@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
-import { Building2, ChevronRight, ClipboardList, Pencil, Plus, Search, Trash2 } from 'lucide-react';
-import { PageHeader, SectionCard, SchoolLogo } from '@/components';
+import { Building2, ChevronRight, ClipboardList, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import {
+  PageHeader,
+  SectionCard,
+  SchoolLogo,
+  ExamTypeRowSkeleton,
+  SchoolListItemSkeleton,
+} from '@/components';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import Loading from '@/components/Loading';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { cn } from '@/lib/utils';
 import type { ExamType } from '@/queries/exam.queries';
@@ -51,11 +57,13 @@ function SearchField({
   value,
   placeholder,
   onChange,
+  disabled,
 }: {
   id: string;
   value: string;
   placeholder: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="relative">
@@ -68,6 +76,7 @@ function SearchField({
         value={value}
         placeholder={placeholder}
         className="h-9 pl-9"
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>
@@ -89,6 +98,8 @@ export default function ExamTypes() {
   const [types, setTypes] = useState<ExamType[]>([]);
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [typeForm, setTypeForm] = useState(emptyTypeForm);
@@ -104,8 +115,16 @@ export default function ExamTypes() {
   const usedTypeId = Number(searchParams.get('used')) || null;
   const usedType = types.find((type) => type.id === usedTypeId) ?? null;
 
+  const hasLoadedOnce = useRef(false);
+
   const load = useCallback(async () => {
-    setLoading(true);
+    const isInitial = !hasLoadedOnce.current;
+    if (isInitial) {
+      setLoading(true);
+      setLoadError(false);
+    } else {
+      setRefreshing(true);
+    }
     try {
       const [typeRes, schoolRes] = await Promise.all([
         axios.get('/api/exam-types'),
@@ -121,10 +140,14 @@ export default function ExamTypes() {
           logo: s.logo,
         })),
       );
+      hasLoadedOnce.current = true;
+      setLoadError(false);
     } catch (error) {
+      if (isInitial) setLoadError(true);
       toast.error(apiError(error, 'Could not load exam types'));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -325,13 +348,59 @@ export default function ExamTypes() {
         title="Exams"
         description="Global catalog and which types each school can create."
       >
-        <Button type="button" className="w-full sm:w-auto" onClick={startCreateType}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Create type
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => void load()}
+            disabled={loading || refreshing}
+          >
+            <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} aria-hidden="true" />
+            Refresh
+          </Button>
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={startCreateType}
+            disabled={loading}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Create type
+          </Button>
+        </div>
       </PageHeader>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      {loadError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Could not load exam data</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            <span>Check your connection and try again.</span>
+            <Button type="button" size="sm" variant="outline" onClick={() => void load()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div
+        className={cn(
+          'relative grid grid-cols-1 gap-6 lg:grid-cols-12',
+          refreshing && 'pointer-events-none opacity-60',
+        )}
+      >
+        {refreshing ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <span className="bg-background/90 text-muted-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs shadow-sm">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              Updating…
+            </span>
+          </div>
+        ) : null}
         <SectionCard
           className="lg:col-span-7"
           title="Exam types"
@@ -343,12 +412,19 @@ export default function ExamTypes() {
             value={typeQuery}
             placeholder="Search types…"
             onChange={setTypeQuery}
+            disabled={loading}
           />
 
           {loading ? (
-            <div className="flex justify-center py-10">
-              <Loading />
-            </div>
+            <ul className="mt-3 divide-y rounded-lg border" aria-busy="true" aria-label="Loading exam types">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <ExamTypeRowSkeleton key={index} />
+              ))}
+            </ul>
+          ) : loadError ? (
+            <p className="text-muted-foreground py-10 text-center text-sm">
+              Exam types could not be loaded.
+            </p>
           ) : visibleTypes.length === 0 ? (
             <p className="text-muted-foreground py-10 text-center text-sm">
               {types.length === 0
@@ -431,12 +507,19 @@ export default function ExamTypes() {
             value={schoolQuery}
             placeholder="Search schools…"
             onChange={setSchoolQuery}
+            disabled={loading}
           />
 
           {loading ? (
-            <div className="flex justify-center py-10">
-              <Loading />
-            </div>
+            <ul className="mt-3 max-h-[32rem] space-y-2 overflow-y-auto pr-1" aria-busy="true" aria-label="Loading schools">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <SchoolListItemSkeleton key={index} />
+              ))}
+            </ul>
+          ) : loadError ? (
+            <p className="text-muted-foreground py-10 text-center text-sm">
+              Schools could not be loaded.
+            </p>
           ) : visibleSchools.length === 0 ? (
             <p className="text-muted-foreground py-10 text-center text-sm">
               {schools.length === 0 ? 'No schools yet.' : 'No schools match that search.'}
@@ -561,7 +644,16 @@ export default function ExamTypes() {
                 Cancel
               </Button>
               <Button type="submit" disabled={saving}>
-                {saving ? 'Saving…' : editingId ? 'Save type' : 'Create type'}
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Saving…
+                  </>
+                ) : editingId ? (
+                  'Save type'
+                ) : (
+                  'Create type'
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -653,8 +745,15 @@ export default function ExamTypes() {
               <Button type="button" variant="outline" onClick={closeSchool}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={savingSchool || types.length === 0}>
-                {savingSchool ? 'Saving…' : 'Save types'}
+              <Button type="submit" disabled={savingSchool || types.length === 0 || loading}>
+                {savingSchool ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Saving…
+                  </>
+                ) : (
+                  'Save types'
+                )}
               </Button>
             </DialogFooter>
           </form>

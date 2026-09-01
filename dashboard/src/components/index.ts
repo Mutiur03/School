@@ -9,6 +9,11 @@ export { default as TabNav } from './TabNav';
 export { default as SectionCard } from './SectionCard';
 export { SchoolLogo } from './SchoolLogo';
 export {
+  EditorPanelSkeleton,
+  ExamTypeRowSkeleton,
+  SchoolListItemSkeleton,
+} from './super-admin-skeletons';
+export {
   FilterSelection,
   FilterField,
   filterSelectClassName,

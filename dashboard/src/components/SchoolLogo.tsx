@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { getFileUrl } from '@/lib/backend';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type SchoolLogoProps = {
   logo?: string | null;
@@ -14,16 +15,18 @@ type SchoolLogoProps = {
 
 export function SchoolLogo({ logo, src, className, imgClassName, alt = '' }: SchoolLogoProps) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const resolved =
     src?.trim() ||
     (logo?.trim() && !logo.trim().startsWith('pending:') ? getFileUrl(logo.trim()) : '');
 
   useEffect(() => {
     setFailed(false);
+    setLoaded(false);
   }, [resolved]);
 
   const boxClass = cn(
-    'bg-muted flex shrink-0 items-center justify-center overflow-hidden rounded-md border',
+    'bg-muted relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border',
     className,
   );
 
@@ -36,11 +39,17 @@ export function SchoolLogo({ logo, src, className, imgClassName, alt = '' }: Sch
   }
 
   return (
-    <span className={boxClass}>
+    <span className={boxClass} aria-busy={!loaded}>
+      {!loaded ? <Skeleton className="absolute inset-0 rounded-none" aria-hidden="true" /> : null}
       <img
         src={resolved}
         alt={alt}
-        className={cn('h-full w-full object-contain', imgClassName)}
+        className={cn(
+          'h-full w-full object-contain transition-opacity duration-200',
+          loaded ? 'opacity-100' : 'opacity-0',
+          imgClassName,
+        )}
+        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
     </span>
