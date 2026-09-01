@@ -18,7 +18,7 @@ import {
 } from '@/components';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import ActionButton from '@/components/ActionButton';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormRegister } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   studentFormSchema,
@@ -386,6 +386,23 @@ const demoExcelColumns = [
   'group',
   'has_stipend',
 ];
+
+function addressTextFieldProps(
+  name: 'village' | 'post_office' | 'upazila' | 'district',
+  register: UseFormRegister<StudentFormData>,
+) {
+  return {
+    ...register(name, {
+      setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
+      onBlur: (e) => {
+        e.target.value = sentenceCaseAddressInput(e.target.value);
+      },
+    }),
+    onInput: (e: React.FormEvent<HTMLInputElement>) => {
+      e.currentTarget.value = sentenceCaseAddressInput(e.currentTarget.value, false);
+    },
+  };
+}
 
 function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
@@ -1403,18 +1420,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       <Input
                         type="text"
                         placeholder="Village"
-                        {...register('village', {
-                          setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
-                          onBlur: (e) => {
-                            e.target.value = sentenceCaseAddressInput(e.target.value);
-                          },
-                        })}
-                        onInput={(e) => {
-                          e.currentTarget.value = sentenceCaseAddressInput(
-                            e.currentTarget.value,
-                            false,
-                          );
-                        }}
+                        {...addressTextFieldProps('village', register)}
                       />
                       {errors.village && <ErrorMessage message={errors.village.message} />}
                     </div>
@@ -1423,29 +1429,26 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       <Input
                         type="text"
                         placeholder="Post Office"
-                        {...register('post_office', {
-                          setValueAs: (value) => sentenceCaseAddressInput(String(value ?? '')),
-                          onBlur: (e) => {
-                            e.target.value = sentenceCaseAddressInput(e.target.value);
-                          },
-                        })}
-                        onInput={(e) => {
-                          e.currentTarget.value = sentenceCaseAddressInput(
-                            e.currentTarget.value,
-                            false,
-                          );
-                        }}
+                        {...addressTextFieldProps('post_office', register)}
                       />
                       {errors.post_office && <ErrorMessage message={errors.post_office.message} />}
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium">Upazila</label>
-                      <Input type="text" placeholder="Upazila" {...register('upazila')} />
+                      <Input
+                        type="text"
+                        placeholder="Upazila"
+                        {...addressTextFieldProps('upazila', register)}
+                      />
                       {errors.upazila && <ErrorMessage message={errors.upazila.message} />}
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium">District</label>
-                      <Input type="text" placeholder="District" {...register('district')} />
+                      <Input
+                        type="text"
+                        placeholder="District"
+                        {...addressTextFieldProps('district', register)}
+                      />
                       {errors.district && <ErrorMessage message={errors.district.message} />}
                     </div>
                   </div>
