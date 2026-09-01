@@ -6,7 +6,6 @@
   "main": "src/server.ts",
   "scripts": {
     "preinstall": "pnpm --filter @school/shared-schemas build",
-    "postinstall": "prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "prisma generate && tsc && tsc-alias",
     "db:migrate": "prisma generate && prisma migrate deploy",
