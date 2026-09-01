@@ -345,6 +345,9 @@ importers:
       pg:
         specifier: ^8.23.0
         version: 8.23.0
+      prisma:
+        specifier: '7'
+        version: 7.10.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@7.0.2)
       puppeteer:
         specifier: ^24.33.0
         version: 24.43.1(typescript@7.0.2)
@@ -397,9 +400,6 @@ importers:
       nodemon:
         specifier: ^3.1.11
         version: 3.1.14
-      prisma:
-        specifier: '7'
-        version: 7.10.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@7.0.2)
       tsc-alias:
         specifier: ^1.8.16
         version: 1.9.2

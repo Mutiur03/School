@@ -79,6 +79,4 @@ WORKDIR /app/server
 
 RUN mkdir -p logs && chmod +x setup-network.sh
 
-RUN pnpm exec prisma generate
-
 CMD ["node", "--import", "./dist/instrument.js", "dist/server.js"]
