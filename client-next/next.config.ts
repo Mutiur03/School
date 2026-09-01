@@ -65,7 +65,8 @@ const nextConfig: NextConfig = {
   images: {
     // Prefer optimizer on Vercel. On OpenNext/CF, use unoptimized unless a
     // custom loader is configured — CF Images binding is not wired yet.
-    ...(isOpenNextBuild ? { unoptimized: true } : {}),
+    // ...(isOpenNextBuild ? { unoptimized: true } : {}),
+    unoptimized: true,
     // Slightly lower default quality reduces LCP bytes on both platforms.
     qualities: [45, 50, 75],
     formats: ['image/avif', 'image/webp'],
