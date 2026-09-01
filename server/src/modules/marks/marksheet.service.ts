@@ -38,7 +38,7 @@ const WORKER_USER = { role: 'admin' as const };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export { isExamFrozen } from '@/modules/exam/exam-year-end.js';
+import { isExamFrozen } from '@/modules/exam/exam-year-end.js';
 
 /**
  * Bump when marksheet PDF layout / draw code changes.
