@@ -112,8 +112,8 @@ interface SmsLogsResponse {
 }
 
 interface SmsBalance {
-  balance?: number;
-  credits?: number;
+  estimatedSms?: number | null;
+  message?: string;
 }
 
 interface SmsSettings {
@@ -211,7 +211,6 @@ function SmsManagement() {
     absent_template?: string;
     run_awayed_template?: string;
   }>({});
-  const [addBalanceAmount, setAddBalanceAmount] = useState<string>('');
   const queryClient = useQueryClient();
   const [settingsDraft, setSettingsDraft] = useState<SmsSettings | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -331,20 +330,6 @@ function SmsManagement() {
     },
   });
 
-  const addBalanceMutation = useMutation({
-    mutationFn: async (amount: number) => {
-      await axios.post('/api/sms-settings/add-balance', { amount });
-    },
-    onSuccess: (_, amount) => {
-      toast.success(`${amount} credits added successfully`);
-      setAddBalanceAmount('');
-      queryClient.invalidateQueries({ queryKey: ['smsBalance'] });
-    },
-    onError: () => {
-      toast.error('Failed to add SMS balance');
-    },
-  });
-
   const testSmsMutation = useMutation({
     mutationFn: async (payload: { phoneNumber: string; message: string }) => {
       await axios.post('/api/sms-settings/test', payload);
@@ -455,15 +440,6 @@ function SmsManagement() {
   useEffect(() => {
     calculateEstimate('bulk', bulkMessage || '');
   }, [bulkMessage, calculateEstimate]);
-
-  const handleAddBalance = async () => {
-    const amount = parseInt(addBalanceAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    addBalanceMutation.mutate(amount);
-  };
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -663,18 +639,18 @@ function SmsManagement() {
           )}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <SectionCard
-              title="Account Balance"
+              title="Estimated SMS Remaining"
               icon={<CreditCard className="text-primary h-5 w-5" />}
               className="lg:col-span-1"
             >
               <div className="space-y-4">
                 <div className="border-border rounded-xl border bg-slate-50 p-4 dark:bg-slate-900">
-                  <div className="text-muted-foreground mb-1 text-sm">Available Credits</div>
+                  <div className="text-muted-foreground mb-1 text-sm">Estimated SMS Remaining</div>
                   <div className="flex items-center gap-2 text-3xl font-bold text-slate-900 dark:text-white">
                     {balanceLoading ? (
                       <Skeleton className="h-8 w-24" />
                     ) : (
-                      (balance?.credits ?? balance?.balance ?? '...')
+                      (balance?.estimatedSms ?? '...')
                     )}
                     <button
                       onClick={() => queryClient.invalidateQueries({ queryKey: ['smsBalance'] })}
@@ -687,30 +663,11 @@ function SmsManagement() {
                 </div>
                 <div className="text-muted-foreground flex items-center gap-1 text-xs">
                   <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                  Internal Database Balance
+                  {balance?.message || 'Estimated remaining SMS credits'}
                 </div>
-
-                <div className="border-border space-y-3 border-t pt-4">
-                  <Label htmlFor="add_credits">Add Credits</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="add_credits"
-                      type="number"
-                      placeholder="Amount"
-                      value={addBalanceAmount}
-                      onChange={(e) => setAddBalanceAmount(e.target.value)}
-                      disabled={balanceLoading}
-                    />
-                    <Button
-                      onClick={handleAddBalance}
-                      disabled={addBalanceMutation.isPending || !addBalanceAmount || balanceLoading}
-                      variant="outline"
-                      size="lg"
-                    >
-                      {addBalanceMutation.isPending ? '...' : 'Add'}
-                    </Button>
-                  </div>
-                </div>
+                <p className="text-muted-foreground text-xs">
+                  Crediting balance is managed by a super admin.
+                </p>
               </div>
             </SectionCard>
 

@@ -3,6 +3,8 @@ import { prisma } from '@/config/prisma.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
 import { calculateSMSCount } from '@school/shared-schemas';
 import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
+import { getProviderAdapter } from '@/utils/sms-providers/index.js';
+import { decryptSecret } from '@/utils/crypto.js';
 
 export interface SMSMessage {
   Number: string;
@@ -19,25 +21,63 @@ export interface SMSOptions {
   skipBalanceUpdate?: boolean;
 }
 
+/** A school with its own api_key runs entirely on its own account: its own sender IDs,
+ *  its own provider, its own balance. The shared .env credentials are never mixed in. */
+export function isSelfHosted(settings: { api_key: string | null }): boolean {
+  return !!settings.api_key;
+}
+
 export class SMSService {
   private static readonly FALLBACK_API_KEY = env.BULK_SMS_API_KEY;
   private static readonly FALLBACK_SENDER_IDS = (env.BULK_SMS_SENDER_IDS?.split(',') ?? [])
     .map((id) => id.trim())
     .filter(Boolean);
-  private static readonly DEFAULT_API_URL = 'https://sms.onecodesoft.com/api/send-bulk-sms';
 
-  private static resolveSenderIds(settingsSenderId?: string | null): string[] {
-    const fromSettings = (settingsSenderId?.split(',') ?? [])
-      .map((id) => id.trim())
-      .filter(Boolean);
-    if (fromSettings.length > 0) {
-      return fromSettings;
-    }
-    return this.FALLBACK_SENDER_IDS;
+  private static parseSenderIds(raw?: string | null): string[] {
+    return (raw?.split(',') ?? []).map((id) => id.trim()).filter(Boolean);
   }
 
   private static pickRandomSenderId(senderIds: string[]): string {
     return senderIds[Math.floor(Math.random() * senderIds.length)];
+  }
+
+  /** Resolves the api key, sender IDs, and provider to actually send with — either
+   *  fully from the school's own settings, or fully from the shared system defaults.
+   *  Never mixes the two. */
+  private static resolveSendConfig(settings: {
+    api_key: string | null;
+    sender_id: string | null;
+    api_url: string | null;
+    service_type: string | null;
+  }) {
+    if (isSelfHosted(settings)) {
+      const apiKey = decryptSecret(settings.api_key as string);
+      const senderIds = this.parseSenderIds(settings.sender_id);
+      if (senderIds.length === 0) {
+        throw new Error(
+          'This school has its own SMS API key configured but no sender ID — set one in SMS credentials.',
+        );
+      }
+      return {
+        selfHosted: true,
+        apiKey,
+        senderId: this.pickRandomSenderId(senderIds),
+        apiUrl: settings.api_url,
+        serviceType: settings.service_type,
+      };
+    }
+
+    const senderIds = this.FALLBACK_SENDER_IDS;
+    if (!this.FALLBACK_API_KEY || senderIds.length === 0) {
+      throw new Error('SMS configuration missing in database and environment.');
+    }
+    return {
+      selfHosted: false,
+      apiKey: this.FALLBACK_API_KEY,
+      senderId: this.pickRandomSenderId(senderIds),
+      apiUrl: null as string | null,
+      serviceType: null as string | null,
+    };
   }
 
   public static formatPhoneNumber(phoneNumber: string): string {
@@ -81,21 +121,16 @@ export class SMSService {
     options?: SMSOptions,
   ): Promise<SMSResponse> {
     const settings = await this.getSettings();
-    const apiKey = settings.api_key || this.FALLBACK_API_KEY;
-    const senderIds = this.resolveSenderIds(settings.sender_id);
-    const senderId = this.pickRandomSenderId(senderIds);
-    const apiUrl = settings.api_url || this.DEFAULT_API_URL;
+    const config = this.resolveSendConfig(settings);
 
-    if (!apiKey || senderIds.length === 0) {
-      throw new Error('SMS configuration missing in database and environment.');
-    }
-
-    const calc = this.calculateSMSCount(message);
-    if (settings.sms_balance < calc.count) {
-      return {
-        success: false,
-        message: `Insufficient SMS balance. Needed: ${calc.count} credits, Available: ${settings.sms_balance}`,
-      };
+    if (!config.selfHosted) {
+      const calc = this.calculateSMSCount(message);
+      if (settings.sms_balance < calc.count) {
+        return {
+          success: false,
+          message: `Insufficient SMS balance. Needed: ${calc.count} credits, Available: ${settings.sms_balance}`,
+        };
+      }
     }
 
     const messageParameters: SMSMessage[] = [
@@ -105,62 +140,25 @@ export class SMSService {
       },
     ];
 
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          api_key: apiKey,
-          senderid: senderId,
-          MessageParameters: messageParameters,
-        }),
-      });
-      const data: any = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        return {
-          success: false,
-          message: data?.message || `Failed to send SMS (${res.status})`,
-        };
-      }
-      console.log(data);
+    const adapter = getProviderAdapter(config.serviceType);
+    const result = await adapter.send(messageParameters, {
+      apiKey: config.apiKey,
+      apiUrl: config.apiUrl,
+      senderId: config.senderId,
+    });
 
-      let totalSmsUsed = 0;
-      if (data?.results && Array.isArray(data.results)) {
-        totalSmsUsed = data.results.reduce(
-          (sum: number, row: any) => sum + (row.sms_count || 0),
-          0,
-        );
-      }
-      if (totalSmsUsed === 0) {
-        totalSmsUsed = data?.total_sms || data?.sms_count || 1;
-      }
-
-      if (!options?.skipBalanceUpdate) {
-        await prisma.sms_settings.update({
-          where: { id: settings.id },
-          data: {
-            sms_balance: {
-              decrement: totalSmsUsed,
-            },
+    if (result.success && !config.selfHosted && !options?.skipBalanceUpdate) {
+      await prisma.sms_settings.update({
+        where: { id: settings.id },
+        data: {
+          sms_balance: {
+            decrement: result.unitsUsed || 1,
           },
-        });
-      }
-
-      return {
-        success: true,
-        data,
-        message: 'SMS sent successfully',
-      };
-    } catch (error: any) {
-      console.error('SMS sending error:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to send SMS',
-      };
+        },
+      });
     }
+
+    return result;
   }
 
   /**
@@ -168,14 +166,7 @@ export class SMSService {
    */
   static async sendBulkSMS(messages: SMSMessage[], options?: SMSOptions): Promise<SMSResponse> {
     const settings = await this.getSettings();
-    const apiKey = settings.api_key || this.FALLBACK_API_KEY;
-    const senderIds = this.resolveSenderIds(settings.sender_id);
-    const senderId = this.pickRandomSenderId(senderIds);
-    const apiUrl = settings.api_url || this.DEFAULT_API_URL;
-
-    if (!apiKey || senderIds.length === 0) {
-      throw new Error('SMS configuration missing.');
-    }
+    const config = this.resolveSendConfig(settings);
 
     // Calculate aggregate segments needed for the ENTIRE batch
     let totalSegmentsNeeded = 0;
@@ -185,7 +176,11 @@ export class SMSService {
     }
 
     // Balance may already be reserved by the caller when skipBalanceUpdate is set
-    if (!options?.skipBalanceUpdate && settings.sms_balance < totalSegmentsNeeded) {
+    if (
+      !config.selfHosted &&
+      !options?.skipBalanceUpdate &&
+      settings.sms_balance < totalSegmentsNeeded
+    ) {
       return {
         success: false,
         message: `Insufficient SMS balance. Needed: ${totalSegmentsNeeded} credits, Available: ${settings.sms_balance}`,
@@ -197,72 +192,87 @@ export class SMSService {
       Text: msg.Text,
     }));
 
-    try {
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          api_key: apiKey,
-          senderid: senderId,
-          MessageParameters: messageParameters,
-        }),
-      });
-      const data: any = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        return {
-          success: false,
-          message: data?.message || `Failed to send bulk SMS (${res.status})`,
-        };
-      }
-      console.log(data);
-      let totalSmsUsed = 0;
-      if (data?.results && Array.isArray(data.results)) {
-        totalSmsUsed = data.results.reduce(
-          (sum: number, row: any) => sum + (row.sms_count || 0),
-          0,
-        );
-      }
-      if (totalSmsUsed === 0) {
-        totalSmsUsed = data?.total_sms || data?.sms_count || totalSegmentsNeeded;
-      }
+    const adapter = getProviderAdapter(config.serviceType);
+    const result = await adapter.send(messageParameters, {
+      apiKey: config.apiKey,
+      apiUrl: config.apiUrl,
+      senderId: config.senderId,
+    });
 
-      if (!options?.skipBalanceUpdate) {
-        await prisma.sms_settings.update({
-          where: { id: settings.id },
-          data: {
-            sms_balance: {
-              decrement: totalSmsUsed,
-            },
+    if (result.success && !config.selfHosted && !options?.skipBalanceUpdate) {
+      await prisma.sms_settings.update({
+        where: { id: settings.id },
+        data: {
+          sms_balance: {
+            decrement: result.unitsUsed || totalSegmentsNeeded,
           },
-        });
-      }
+        },
+      });
+    }
 
-      return {
-        success: true,
-        data,
-        message: 'Bulk SMS sent successfully',
-      };
-    } catch (error: any) {
-      console.error('Bulk SMS sending error:', error);
+    return result;
+  }
+
+  /** Live balance of the shared platform account (env credentials), independent of any school. */
+  static async getSystemBalance(): Promise<SMSResponse> {
+    if (!this.FALLBACK_API_KEY) {
       return {
         success: false,
-        message: error.message || 'Failed to send bulk SMS',
+        message: 'Shared SMS account is not configured (BULK_SMS_API_KEY missing).',
       };
     }
+    const adapter = getProviderAdapter(null);
+    if (!adapter.getBalance) {
+      return { success: false, message: 'Balance check is not supported for this provider.' };
+    }
+    const result = await adapter.getBalance({ apiKey: this.FALLBACK_API_KEY, apiUrl: null });
+    return {
+      success: result.success,
+      message:
+        result.message ||
+        (result.success ? 'Live balance from the shared provider account' : undefined),
+      data: result.success ? { estimatedSms: result.estimatedSms } : undefined,
+    };
   }
 
   /**
-   * Get SMS Balance
+   * Get estimated SMS remaining — live from the provider for a self-hosted school,
+   * from our tracked counter for schools on the shared system account.
    */
   static async getBalance(): Promise<SMSResponse> {
     const settings = await this.getSettings();
+    return this.getBalanceForSettings(settings);
+  }
+
+  static async getBalanceForSettings(settings: {
+    api_key: string | null;
+    api_url: string | null;
+    service_type: string | null;
+    sms_balance: number;
+  }): Promise<SMSResponse> {
+    if (isSelfHosted(settings)) {
+      const adapter = getProviderAdapter(settings.service_type);
+      if (!adapter.getBalance) {
+        return {
+          success: false,
+          message: 'Balance check is not supported for this provider.',
+        };
+      }
+      const apiKey = decryptSecret(settings.api_key as string);
+      const result = await adapter.getBalance({ apiKey, apiUrl: settings.api_url });
+      return {
+        success: result.success,
+        message:
+          result.message ||
+          (result.success ? 'Estimated SMS remaining (from provider)' : undefined),
+        data: result.success ? { estimatedSms: result.estimatedSms } : undefined,
+      };
+    }
+
     return {
       success: true,
-      data: { balance: settings.sms_balance },
-      message: 'Balance retrieved from database',
+      data: { estimatedSms: settings.sms_balance },
+      message: 'Estimated SMS remaining (from database)',
     };
   }
 

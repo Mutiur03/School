@@ -410,6 +410,14 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         id: 'exam-types',
         roles: ['super_admin'],
       },
+      {
+        label: 'SMS Management',
+        icon: MessageSquare,
+        dropdown: false,
+        link: '/super_admin/settings/sms',
+        id: 'sms-overview',
+        roles: ['super_admin'],
+      },
     ] as SidebarItem[],
   };
 

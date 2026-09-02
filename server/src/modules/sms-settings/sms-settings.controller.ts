@@ -12,13 +12,14 @@ export class SmsSettingsController {
 
   static getPublicSettings = asyncHandler(async (_req: Request, res: Response) => {
     const settings = await SmsSettingsService.getSettings();
+    const { estimatedSms } = await SmsSettingsService.getBalance();
     const publicSettings = {
       is_active: settings.is_active,
       send_to_present: settings.send_to_present,
       send_to_absent: settings.send_to_absent,
       present_template: settings.present_template,
       absent_template: settings.absent_template,
-      sms_balance: settings.sms_balance,
+      sms_balance: estimatedSms,
     };
     return res
       .status(200)
@@ -35,12 +36,6 @@ export class SmsSettingsController {
     return res.status(200).json(new ApiResponse(200, balance, 'SMS balance retrieved'));
   });
 
-  static updateBalance = asyncHandler(async (req: Request, res: Response) => {
-    const { amount } = req.body;
-    const settings = await SmsSettingsService.updateBalance(amount);
-    return res.status(200).json(new ApiResponse(200, settings, 'SMS balance updated successfully'));
-  });
-
   static sendTestSMS = asyncHandler(async (req: Request, res: Response) => {
     const { phoneNumber, message } = req.body;
     const result = await SMSService.sendTestSMS(phoneNumber, message);
@@ -54,5 +49,35 @@ export class SmsSettingsController {
     }
     const result = SMSService.calculateSMSCount(text);
     return res.status(200).json(new ApiResponse(200, result, 'SMS count calculated'));
+  });
+
+  static getCredentials = asyncHandler(async (req: any, res: Response) => {
+    const schoolId = parseInt(req.params.id);
+    if (isNaN(schoolId))
+      return res.status(400).json(new ApiResponse(400, null, 'Invalid school id'));
+    const credentials = await SmsSettingsService.getCredentialsForSchool(schoolId);
+    return res.status(200).json(new ApiResponse(200, credentials, 'SMS credentials retrieved'));
+  });
+
+  static updateCredentials = asyncHandler(async (req: any, res: Response) => {
+    const schoolId = parseInt(req.params.id);
+    if (isNaN(schoolId))
+      return res.status(400).json(new ApiResponse(400, null, 'Invalid school id'));
+    const credentials = await SmsSettingsService.updateCredentialsForSchool(schoolId, req.body);
+    return res.status(200).json(new ApiResponse(200, credentials, 'SMS credentials updated'));
+  });
+
+  static getOverview = asyncHandler(async (_req: Request, res: Response) => {
+    const overview = await SmsSettingsService.getOverview();
+    return res.status(200).json(new ApiResponse(200, overview, 'SMS overview retrieved'));
+  });
+
+  static addBalanceForSchool = asyncHandler(async (req: any, res: Response) => {
+    const schoolId = parseInt(req.params.id);
+    if (isNaN(schoolId))
+      return res.status(400).json(new ApiResponse(400, null, 'Invalid school id'));
+    const { amount } = req.body;
+    const result = await SmsSettingsService.addBalanceForSchool(schoolId, amount);
+    return res.status(200).json(new ApiResponse(200, result, 'SMS balance updated successfully'));
   });
 }

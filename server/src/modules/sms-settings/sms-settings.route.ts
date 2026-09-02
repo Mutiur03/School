@@ -15,7 +15,6 @@ router.use(AuthMiddleware.authenticate(['admin']));
 router.get('/', SmsSettingsController.getSettings);
 router.patch('/', SmsSettingsController.updateSettings);
 router.get('/balance', SmsSettingsController.getBalance);
-router.post('/add-balance', SmsSettingsController.updateBalance);
 router.post('/test', SmsSettingsController.sendTestSMS);
 router.get('/calculate-count', SmsSettingsController.getCalculateCount);
 

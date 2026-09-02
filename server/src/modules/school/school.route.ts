@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { SchoolController } from './school.controller.js';
+import { SmsSettingsController } from '@/modules/sms-settings/sms-settings.controller.js';
 import AuthMiddleware from '../../middlewares/auth.middleware.js';
 import { validate } from '@/middlewares/validate.middleware.js';
 import { createSchoolSchema, updateSchoolSchema } from '@school/shared-schemas';
@@ -45,6 +46,26 @@ superAdminSchoolRouterInternal.get(
   '/:id/students/export',
   AuthMiddleware.authenticate(['super_admin']),
   SchoolController.exportStudents,
+);
+superAdminSchoolRouterInternal.get(
+  '/sms-overview',
+  AuthMiddleware.authenticate(['super_admin']),
+  SmsSettingsController.getOverview,
+);
+superAdminSchoolRouterInternal.get(
+  '/:id/sms-credentials',
+  AuthMiddleware.authenticate(['super_admin']),
+  SmsSettingsController.getCredentials,
+);
+superAdminSchoolRouterInternal.put(
+  '/:id/sms-credentials',
+  AuthMiddleware.authenticate(['super_admin']),
+  SmsSettingsController.updateCredentials,
+);
+superAdminSchoolRouterInternal.post(
+  '/:id/sms-balance',
+  AuthMiddleware.authenticate(['super_admin']),
+  SmsSettingsController.addBalanceForSchool,
 );
 
 export const tenantSchoolRouter = Router();

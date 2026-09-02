@@ -5,6 +5,10 @@ const envSchema = z.object({
   PORT: z.string().default('5000'),
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(1),
+  /** 32-byte key (64 hex chars) used to encrypt stored secrets like SMS API keys. Generate with `openssl rand -hex 32`. */
+  ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)'),
   //   REFRESH_TOKEN_SECRET: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   ALLOWED_ORIGINS: z.string().optional(),

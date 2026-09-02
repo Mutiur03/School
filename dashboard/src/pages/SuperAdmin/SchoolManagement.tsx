@@ -228,7 +228,28 @@ const EDITOR_TABS = [
   { id: 'academic', label: 'Academic' },
   { id: 'about', label: 'About' },
   { id: 'admins', label: 'Admins' },
+  { id: 'sms', label: 'SMS' },
 ] as const;
+
+const SMS_PROVIDERS = [{ value: 'onecode', label: 'OneCode SMS' }] as const;
+
+type SmsCredentials = {
+  api_key_masked: string | null;
+  api_url: string | null;
+  sender_id: string | null;
+  service_type: string | null;
+  estimated_sms: number | null;
+  balance_message: string | null;
+};
+
+const EMPTY_SMS_CREDENTIALS: SmsCredentials = {
+  api_key_masked: null,
+  estimated_sms: null,
+  balance_message: null,
+  api_url: '',
+  sender_id: '',
+  service_type: 'onecode',
+};
 
 type EditorTab = (typeof EDITOR_TABS)[number]['id'];
 
@@ -542,6 +563,12 @@ function SchoolManagement() {
   const [fetchingAdmins, setFetchingAdmins] = useState(false);
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [deletingAdminId, setDeletingAdminId] = useState<number | null>(null);
+  const [smsCredentials, setSmsCredentials] = useState<SmsCredentials>(EMPTY_SMS_CREDENTIALS);
+  const [smsApiKeyDraft, setSmsApiKeyDraft] = useState('');
+  const [fetchingSms, setFetchingSms] = useState(false);
+  const [savingSms, setSavingSms] = useState(false);
+  const [addBalanceAmount, setAddBalanceAmount] = useState('');
+  const [addingBalance, setAddingBalance] = useState(false);
   const [rotatingId, setRotatingId] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
   const [schoolQuery, setSchoolQuery] = useState('');
@@ -683,6 +710,79 @@ function SchoolManagement() {
       setSchoolAdmins([]);
     }
   }, [selectedSchoolId, fetchSchoolAdmins, resetAdminForm]);
+
+  const fetchSmsCredentials = useCallback(async (schoolId: number) => {
+    setFetchingSms(true);
+    try {
+      const res = await axios.get(`/api/schools/${schoolId}/sms-credentials`);
+      setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
+      setSmsApiKeyDraft('');
+    } catch (error) {
+      console.error('Failed to fetch SMS credentials', error);
+      toast.error('Failed to load SMS credentials');
+    } finally {
+      setFetchingSms(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof selectedSchoolId === 'number') {
+      fetchSmsCredentials(selectedSchoolId);
+    } else {
+      setSmsCredentials(EMPTY_SMS_CREDENTIALS);
+      setSmsApiKeyDraft('');
+    }
+  }, [selectedSchoolId, fetchSmsCredentials]);
+
+  const onSaveSmsCredentials = async () => {
+    if (selectedSchoolId === 'new') return;
+    setSavingSms(true);
+    try {
+      const { api_key_masked: _ignored, ...rest } = smsCredentials;
+      const payload = smsApiKeyDraft ? { ...rest, api_key: smsApiKeyDraft } : rest;
+      const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, payload);
+      setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
+      setSmsApiKeyDraft('');
+      toast.success('SMS credentials updated');
+    } catch (error) {
+      console.error('Failed to save SMS credentials', error);
+      toast.error(
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to save SMS credentials'
+          : 'Failed to save SMS credentials',
+      );
+    } finally {
+      setSavingSms(false);
+    }
+  };
+
+  const onAddSmsBalance = async () => {
+    if (selectedSchoolId === 'new') return;
+    const amount = parseInt(addBalanceAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+    setAddingBalance(true);
+    try {
+      const res = await axios.post(`/api/schools/${selectedSchoolId}/sms-balance`, { amount });
+      setSmsCredentials((prev) => ({
+        ...prev,
+        estimated_sms: res.data?.data?.sms_balance ?? prev.estimated_sms,
+      }));
+      setAddBalanceAmount('');
+      toast.success('SMS balance updated');
+    } catch (error) {
+      console.error('Failed to add SMS balance', error);
+      toast.error(
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to add SMS balance'
+          : 'Failed to add SMS balance',
+      );
+    } finally {
+      setAddingBalance(false);
+    }
+  };
 
   const selectSchool = (school: SchoolData) => {
     clearPendingPreviews();
@@ -1363,6 +1463,145 @@ function SchoolManagement() {
                         </Button>
                       </div>
                     </form>
+                  </div>
+                )
+              ) : editorTab === 'sms' ? (
+                selectedSchoolId === 'new' ? (
+                  <p
+                    role="tabpanel"
+                    id="panel-sms"
+                    aria-labelledby="tab-sms"
+                    className="text-muted-foreground py-8 text-center text-sm"
+                  >
+                    Save the school first, then configure SMS credentials.
+                  </p>
+                ) : (
+                  <div
+                    role="tabpanel"
+                    id="panel-sms"
+                    aria-labelledby="tab-sms"
+                    className="space-y-4"
+                  >
+                    <p className="text-muted-foreground text-xs">
+                      Setting an API key switches this school fully onto its own provider account
+                      (own sender ID, own provider, own balance) — the platform default is never
+                      used as a fallback once a key is set. Clear the key to go back to the shared
+                      default account.
+                    </p>
+                    {fetchingSms ? (
+                      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading SMS credentials…
+                      </div>
+                    ) : (
+                      <>
+                        <div className="border-border rounded-xl border bg-slate-50 p-4 dark:bg-slate-900">
+                          <div className="text-muted-foreground mb-1 text-sm">
+                            Estimated SMS Remaining
+                          </div>
+                          <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {smsCredentials.estimated_sms ?? '...'}
+                          </div>
+                          {smsCredentials.balance_message && (
+                            <div className="text-muted-foreground mt-1 text-xs">
+                              {smsCredentials.balance_message}
+                            </div>
+                          )}
+                          {smsCredentials.api_key_masked ? (
+                            <p className="text-muted-foreground mt-3 text-xs">
+                              Self-hosted account — top up directly with the provider.
+                            </p>
+                          ) : (
+                            <div className="mt-3 flex gap-2">
+                              <Input
+                                type="number"
+                                placeholder="Amount"
+                                value={addBalanceAmount}
+                                onChange={(e) => setAddBalanceAmount(e.target.value)}
+                                disabled={addingBalance}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onAddSmsBalance}
+                                disabled={addingBalance || !addBalanceAmount}
+                              >
+                                {addingBalance ? 'Adding…' : 'Add Balance'}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <Field id="sms-provider" label="Provider">
+                            <select
+                              id="sms-provider"
+                              className={selectClassName}
+                              value={smsCredentials.service_type ?? 'onecode'}
+                              onChange={(e) =>
+                                setSmsCredentials((prev) => ({
+                                  ...prev,
+                                  service_type: e.target.value,
+                                }))
+                              }
+                            >
+                              {SMS_PROVIDERS.map((p) => (
+                                <option key={p.value} value={p.value}>
+                                  {p.label}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field
+                            id="sms-sender-id"
+                            label="Sender ID(s)"
+                            hint="Comma-separated for multiple; one is picked at random per message."
+                          >
+                            <Input
+                              id="sms-sender-id"
+                              value={smsCredentials.sender_id ?? ''}
+                              onChange={(e) =>
+                                setSmsCredentials((prev) => ({
+                                  ...prev,
+                                  sender_id: e.target.value,
+                                }))
+                              }
+                              placeholder="e.g. 8809…, 8801…"
+                            />
+                          </Field>
+                          <Field
+                            id="sms-api-key"
+                            label="API Key"
+                            hint={
+                              smsCredentials.api_key_masked
+                                ? `Currently set (${smsCredentials.api_key_masked}). Leave blank to keep it.`
+                                : 'No API key set yet.'
+                            }
+                          >
+                            <Input
+                              id="sms-api-key"
+                              type="password"
+                              value={smsApiKeyDraft}
+                              onChange={(e) => setSmsApiKeyDraft(e.target.value)}
+                              placeholder="Enter a new API key to replace it…"
+                            />
+                          </Field>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-end border-t pt-4">
+                      <Button
+                        type="button"
+                        onClick={onSaveSmsCredentials}
+                        disabled={savingSms || fetchingSms}
+                      >
+                        {savingSms ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        Save SMS Credentials
+                      </Button>
+                    </div>
                   </div>
                 )
               ) : (
