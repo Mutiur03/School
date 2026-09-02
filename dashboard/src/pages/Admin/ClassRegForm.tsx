@@ -141,7 +141,7 @@ const CONFIG = {
     qSettings: 'class9RegSettings',
     qRegs: 'class9Registrations',
     settingsYearField: 'ssc_year',
-    listYearParam: 'ssc_batch',
+    listYearParam: 'ssc_year',
     recordYearKey: 'ssc_batch',
     preview: '/preview/class9/',
     exportPrefix: 'Class_9_',
@@ -199,9 +199,10 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
   const [filters, setFilters] = useState({
     status: 'all',
     section: '',
-    year: currentYear,
+    year: variant === 9 ? '' : currentYear,
     search: '',
   });
+  const [filterYearTouched, setFilterYearTouched] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const deferredFilters = useDeferredValue(filters);
@@ -263,6 +264,17 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
     yearField: cfg.settingsYearField,
     extraYearValues: [settingsYearValue, filters.year],
   });
+  const latestRegistrationYear = latestSettingsData
+    ? String((latestSettingsData as Record<string, unknown>)[cfg.settingsYearField] ?? '')
+    : latestSettingsLoading
+      ? ''
+      : currentYear;
+  const effectiveFilterYear =
+    !filterYearTouched && latestRegistrationYear ? latestRegistrationYear : filters.year;
+  const effectiveDeferredFilters = useMemo(
+    () => ({ ...deferredFilters, year: effectiveFilterYear }),
+    [deferredFilters, effectiveFilterYear],
+  );
 
   useEffect(() => {
     if (settingsData) {
@@ -280,29 +292,39 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
   const {
     data: registrationsResponse,
     isLoading: registrationsLoading,
+    isFetching: registrationsFetching,
+    isPlaceholderData: registrationsPlaceholderData,
     error: registrationsError,
   } = useQuery({
-    queryKey: [cfg.qRegs, { page, limit, ...deferredFilters }],
+    queryKey: [cfg.qRegs, { page, limit, ...effectiveDeferredFilters }],
     queryFn: async () => {
       const res = await axios.get(`${cfg.apiBase}/form`, {
         params: {
           page,
           limit,
-          [cfg.listYearParam]: deferredFilters.year,
-          status: deferredFilters.status,
-          section: deferredFilters.section,
-          search: deferredFilters.search.trim() || undefined,
+          [cfg.listYearParam]: effectiveDeferredFilters.year,
+          status: effectiveDeferredFilters.status,
+          section: effectiveDeferredFilters.section,
+          search: effectiveDeferredFilters.search.trim() || undefined,
         },
       });
       return res.data.success ? res.data.data : [];
     },
+    enabled: !latestSettingsLoading && Boolean(effectiveDeferredFilters.year),
     placeholderData: keepPreviousData,
+    // refetchOnMount: 'always',
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: true,
   });
 
   const registrations = useMemo(() => registrationsResponse?.data ?? [], [registrationsResponse]);
   const meta = registrationsResponse?.meta;
+  const registrationsInitialLoading =
+    latestSettingsLoading ||
+    !effectiveFilterYear ||
+    (!registrationsResponse && registrationsLoading);
+  const registrationsPageChanging = registrationsPlaceholderData && registrationsFetching;
+  const registrationsBusy = registrationsInitialLoading || registrationsFetching;
 
   const errorMessage = registrationsError
     ? variant === 6
@@ -319,7 +341,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [deferredFilters]);
+  }, [effectiveDeferredFilters]);
 
   const stats = useMemo(
     () => ({
@@ -328,15 +350,6 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
     }),
     [meta],
   );
-
-  useEffect(() => {
-    const latestYear = (latestSettingsData as Record<string, unknown> | undefined)?.[
-      cfg.settingsYearField
-    ];
-    if (latestYear) {
-      setFilters((prev) => ({ ...prev, year: String(latestYear) }));
-    }
-  }, [latestSettingsData, cfg.settingsYearField]);
 
   const settingsMutation = useMutation({
     mutationFn: async (updatedSettings: SettingsData) => {
@@ -446,7 +459,8 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
 
   const handleExport = useCallback(
     async (type: 'sheet' | 'photos') => {
-      const { status, section, year } = filters;
+      const { status, section } = filters;
+      const year = effectiveFilterYear;
       const endpoint = type === 'sheet' ? 'export' : 'export-photos';
       const url = `${cfg.apiBase}/form/${endpoint}?status=${status}&section=${section}&${cfg.listYearParam}=${year}`;
 
@@ -488,15 +502,13 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
         }
       }
     },
-    [filters, cfg],
+    [filters, effectiveFilterYear, cfg],
   );
 
-  const handleFilterChange = useCallback(
-    (key: string, value: string) => {
-      setFilters((prev) => ({ ...prev, [key]: value }));
-    },
-    variant === 6 ? [setFilters] : [],
-  );
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    if (key === 'year') setFilterYearTouched(true);
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   // StatusBadge is now handled by the <StatusBadge> component from @/components
 
@@ -731,14 +743,14 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
             <StatsCard
               label="Total Registrations"
               value={stats.total}
-              loading={registrationsLoading}
+              loading={registrationsBusy}
             />
             {stats.pending > 0 && (
               <StatsCard
                 label="Pending"
                 value={stats.pending}
                 color="amber"
-                loading={registrationsLoading}
+                loading={registrationsBusy}
               />
             )}
           </div>
@@ -802,29 +814,25 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
             </FilterField>
             <FilterField label={cfg.filterYearLabel}>
               <select
-                value={filters.year}
+                value={effectiveFilterYear}
                 onChange={(e) => handleFilterChange('year', e.target.value)}
                 className={filterSelectClassName}
               >
                 {(() => {
-                  const currentBatchYear =
-                    variant === 9
-                      ? Number(
-                          (latestSettingsData as { ssc_year?: number; ssc_batch?: string })
-                            ?.ssc_year ||
-                            (latestSettingsData as { ssc_batch?: string })?.ssc_batch ||
-                            new Date().getFullYear(),
-                        )
-                      : Number(
-                          (latestSettingsData as Record<string, unknown>)?.[
-                            cfg.settingsYearField
-                          ] || new Date().getFullYear(),
-                        );
+                  const currentBatchYear = Number(
+                    (latestSettingsData as Record<string, unknown> | undefined)?.[
+                      cfg.settingsYearField
+                    ] || new Date().getFullYear(),
+                  );
                   const years = [];
                   for (let i = 0; i < 6; i++) years.push(currentBatchYear - i);
 
-                  const selectedYear = Number(filters.year);
-                  if (filters.year && !isNaN(selectedYear) && !years.includes(selectedYear)) {
+                  const selectedYear = Number(effectiveFilterYear);
+                  if (
+                    effectiveFilterYear &&
+                    !isNaN(selectedYear) &&
+                    !years.includes(selectedYear)
+                  ) {
                     years.push(selectedYear);
                     years.sort((a, b) => b - a);
                   }
@@ -864,13 +872,15 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                   </tr>
                 </thead>
                 <tbody className="divide-border divide-y">
-                  {registrationsLoading ? (
+                  {registrationsBusy ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Loader2 className="text-primary h-8 w-8 animate-spin" />
                           <p className="text-muted-foreground text-sm dark:text-gray-400">
-                            Loading registrations...
+                            {registrationsPageChanging
+                              ? 'Loading selected page...'
+                              : 'Loading registrations...'}
                           </p>
                         </div>
                       </td>
@@ -947,11 +957,13 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
               </table>
             </div>
             <div className="lg:hidden">
-              {registrationsLoading ? (
+              {registrationsBusy ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-12">
                   <Loader2 className="text-primary h-8 w-8 animate-spin" />
                   <p className="text-muted-foreground text-sm dark:text-gray-400">
-                    Loading registrations...
+                    {registrationsPageChanging
+                      ? 'Loading selected page...'
+                      : 'Loading registrations...'}
                   </p>
                 </div>
               ) : registrations.length > 0 ? (
@@ -1030,6 +1042,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                   <select
                     className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
                     value={limit}
+                    disabled={registrationsBusy}
                     onChange={(e) => {
                       setLimit(Number(e.target.value));
                       setPage(1);
@@ -1053,7 +1066,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         type="button"
                         variant={i + 1 === currentPage ? 'default' : 'outline'}
                         onClick={() => setPage(i + 1)}
-                        disabled={registrationsLoading}
+                        disabled={registrationsBusy}
                       >
                         {i + 1}
                       </Button>
@@ -1088,7 +1101,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         type="button"
                         variant={p === currentPage ? 'default' : 'outline'}
                         onClick={() => setPage(p as number)}
-                        disabled={registrationsLoading}
+                        disabled={registrationsBusy}
                       >
                         {p}
                       </Button>
