@@ -82,9 +82,10 @@ interface Student {
 
 interface SmsLog {
   id: number;
-  student: Student;
+  student: Student | null;
   phone_number: string;
-  attendance_date: string;
+  attendance_date: string | null;
+  category: 'attendance' | 'password_reset' | 'test';
   status: 'sent' | 'failed' | 'pending';
   sms_count: number | null;
   retry_count: number;
@@ -92,6 +93,12 @@ interface SmsLog {
   error_reason: string | null;
   created_at: string;
 }
+
+const CATEGORY_LABELS: Record<SmsLog['category'], string> = {
+  attendance: 'Attendance',
+  password_reset: 'Password Reset',
+  test: 'Test',
+};
 
 interface Stats {
   sent?: number;
@@ -102,6 +109,7 @@ interface Stats {
 interface Filters {
   status: string;
   date: string;
+  category: string;
   limit: number;
 }
 
@@ -114,6 +122,7 @@ interface SmsLogsResponse {
 interface SmsBalance {
   estimatedSms?: number | null;
   message?: string;
+  selfHosted?: boolean;
 }
 
 interface SmsSettings {
@@ -184,6 +193,7 @@ function SmsManagement() {
   const [filters, setFilters] = useState<Filters>({
     status: 'all',
     date: formatIsoToDisplayDate(new Date().toISOString()),
+    category: 'attendance',
     limit: 50,
   });
 
@@ -265,11 +275,12 @@ function SmsManagement() {
   }, []);
 
   const smsLogsQuery = useQuery<SmsLogsResponse>({
-    queryKey: ['smsLogs', currentPage, filters.limit, filters.date],
+    queryKey: ['smsLogs', currentPage, filters.limit, filters.date, filters.category],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: filters.limit.toString(),
+        category: filters.category,
         date: toDateInputValue(filters.date) || filters.date,
       });
       const response = await axios.get(`/api/sms/sms-logs?${params}`);
@@ -665,9 +676,11 @@ function SmsManagement() {
                   <div className="h-2 w-2 rounded-full bg-blue-500"></div>
                   {balance?.message || 'Estimated remaining SMS credits'}
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  Crediting balance is managed by a super admin.
-                </p>
+                {!balance?.selfHosted && (
+                  <p className="text-muted-foreground text-xs">
+                    Crediting balance is managed by a super admin.
+                  </p>
+                )}
               </div>
             </SectionCard>
 
@@ -1452,6 +1465,23 @@ function SmsManagement() {
               </div>
             }
           >
+            <FilterField label="Type" htmlFor="category-filter">
+              <Select
+                value={filters.category}
+                onValueChange={(value) => handleFilterChange('category', value)}
+              >
+                <SelectTrigger id="category-filter" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="attendance">Attendance</SelectItem>
+                  <SelectItem value="password_reset">Password Reset</SelectItem>
+                  <SelectItem value="test">Test</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterField>
+
             <FilterField label="Status" htmlFor="status-filter">
               <Select
                 value={filters.status}
@@ -1551,6 +1581,11 @@ function SmsManagement() {
                         <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Phone
                         </th>
+                        {filters.category === 'all' && (
+                          <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
+                            Type
+                          </th>
+                        )}
                         <th className="text-muted-foreground p-3 text-left font-medium dark:text-slate-400">
                           Date
                         </th>
@@ -1608,8 +1643,17 @@ function SmsManagement() {
                           <td className="p-3 text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white">
                             {log.phone_number}
                           </td>
+                          {filters.category === 'all' && (
+                            <td className="p-3">
+                              <span className="border-border text-muted-foreground inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium">
+                                {CATEGORY_LABELS[log.category]}
+                              </span>
+                            </td>
+                          )}
                           <td className="p-3 text-slate-900 group-hover:text-slate-900 dark:text-white dark:group-hover:text-white">
-                            {formatIsoToDisplayDate(log.attendance_date)}
+                            {log.attendance_date
+                              ? formatIsoToDisplayDate(log.attendance_date)
+                              : '—'}
                           </td>
                           <td className="p-3">
                             <Badge className={`text-white ${statusColors[log.status]}`}>
@@ -1700,6 +1744,16 @@ function SmsManagement() {
                           </div>
 
                           <div className="space-y-2 text-sm">
+                            {filters.category === 'all' && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground dark:text-slate-400">
+                                  Type:
+                                </span>
+                                <span className="text-slate-900 dark:text-white">
+                                  {CATEGORY_LABELS[log.category]}
+                                </span>
+                              </div>
+                            )}
                             <div className="flex justify-between">
                               <span className="text-muted-foreground dark:text-slate-400">
                                 Class Info:
@@ -1721,7 +1775,9 @@ function SmsManagement() {
                                 Date:
                               </span>
                               <span className="text-slate-900 dark:text-white">
-                                {formatIsoToDisplayDate(log.attendance_date)}
+                                {log.attendance_date
+                                  ? formatIsoToDisplayDate(log.attendance_date)
+                                  : '—'}
                               </span>
                             </div>
                             <div className="flex justify-between">

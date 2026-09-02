@@ -10,6 +10,8 @@ type UserContext = {
 type LogFilters = {
   status?: string;
   date?: string;
+  /** 'attendance' | 'password_reset' | 'test' | 'all'. Defaults to 'attendance' for backward compat. */
+  category?: string;
   page?: number;
   limit?: number;
 };
@@ -93,19 +95,32 @@ const finalizeBulkSend = async (
 
 export class SmsLogsService {
   static async getSmsLogs(filters: LogFilters, user?: UserContext) {
-    const { status, date, page = 1, limit = 50 } = filters;
+    const { status, date, category = 'attendance', page = 1, limit = 50 } = filters;
     const safePage = Math.max(1, Number.isFinite(page) ? Number(page) : 1);
     const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Number(limit) : 50));
     const offset = (safePage - 1) * safeLimit;
 
+    // Defaults to 'attendance' so existing clients/behavior are unchanged;
+    // pass category=all|password_reset|test to see other send types.
     const whereClause: any = {};
+    if (category && category !== 'all') {
+      whereClause.category = category;
+    }
 
     if (status && status !== 'all') {
       whereClause.status = status;
     }
 
     if (date) {
-      whereClause.attendance_date = date;
+      if (category === 'attendance') {
+        whereClause.attendance_date = date;
+      } else {
+        // password_reset/test/all rows have no attendance_date — filter by the day
+        // they were actually sent instead (Asia/Dhaka, fixed UTC+6, no DST).
+        const start = new Date(`${date}T00:00:00+06:00`);
+        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+        whereClause.created_at = { gte: start, lt: end };
+      }
     }
 
     const studentFilter = await buildTeacherStudentFilter(user);
@@ -352,7 +367,12 @@ export class SmsLogsService {
           },
         });
 
-        if (!smsLog) {
+        if (
+          !smsLog ||
+          !smsLog.student ||
+          smsLog.attendance_date === null ||
+          smsLog.student_id === null
+        ) {
           results.push({
             smsLogId,
             status: 'error',

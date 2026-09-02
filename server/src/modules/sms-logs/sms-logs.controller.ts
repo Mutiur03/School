@@ -6,11 +6,12 @@ type AuthedRequest = Request & { user?: any };
 
 export class SmsLogsController {
   static getSmsLogs = asyncHandler(async (req: AuthedRequest, res: Response) => {
-    const { status, date, page, limit } = req.query;
+    const { status, date, category, page, limit } = req.query;
     const data = await SmsLogsService.getSmsLogs(
       {
         status: status as string | undefined,
         date: date as string | undefined,
+        category: category as string | undefined,
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
       },

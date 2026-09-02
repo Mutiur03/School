@@ -96,7 +96,7 @@ export class SmsSettingsService {
 
   static async updateCredentialsForSchool(
     schoolId: number,
-    data: { api_key?: string; api_url?: string; sender_id?: string; service_type?: string },
+    data: { api_key?: string | null; api_url?: string; sender_id?: string; service_type?: string },
   ) {
     if (data.service_type) {
       getProviderAdapter(data.service_type); // throws if unrecognized
@@ -107,16 +107,39 @@ export class SmsSettingsService {
       await prisma.sms_settings.create({ data: { ...DEFAULT_SMS_TEMPLATES, school_id: schoolId } });
     }
 
-    // An empty/omitted api_key means "leave the stored key unchanged" —
-    // the UI never sees the plaintext to send back.
+    // api_key omitted/undefined: leave the stored key unchanged (the UI never sees the
+    // plaintext to send back). api_key === null: explicitly clear it (switch to shared
+    // account). A non-empty string: set a new key (self-host with this key).
     const { api_key, ...rest } = data;
-    const updateData = api_key ? { ...rest, api_key: encryptSecret(api_key) } : rest;
+    let updateData: Record<string, unknown> = rest;
+    if (api_key === null) {
+      updateData = { ...rest, api_key: null };
+    } else if (api_key) {
+      updateData = { ...rest, api_key: encryptSecret(api_key) };
+    }
 
     await prisma.sms_settings.update({
       where: { school_id: schoolId },
       data: updateData,
     });
     return this.getCredentialsForSchool(schoolId);
+  }
+
+  /** Sends a test SMS and records it in sms_logs (category 'test', no student). */
+  static async sendTestSms(phoneNumber: string, message: string) {
+    const result = await SMSService.sendTestSMS(phoneNumber, message);
+    await prisma.sms_logs
+      .create({
+        data: {
+          category: 'test',
+          phone_number: phoneNumber,
+          message,
+          status: result.success ? 'sent' : 'failed',
+          error_reason: result.success ? null : result.message,
+        },
+      })
+      .catch((e) => console.error('Failed to write sms_logs entry:', e));
+    return result;
   }
 
   /**
@@ -294,10 +317,12 @@ export class SmsSettingsService {
 
   /** Live from the provider for self-hosted schools, tracked counter otherwise. */
   static async getBalance() {
-    const result = await SMSService.getBalance();
+    const settings = await this.getSettings();
+    const result = await SMSService.getBalanceForSettings(settings);
     return {
       estimatedSms: result.data?.estimatedSms ?? null,
       message: result.message,
+      selfHosted: isSelfHosted(settings),
     };
   }
 }

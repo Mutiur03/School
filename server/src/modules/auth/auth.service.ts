@@ -613,11 +613,45 @@ export class AuthService {
     await redis.incr(rateLimitKey);
     await redis.expire(rateLimitKey, 3600);
 
+    let result;
     try {
-      await SMSService.sendPasswordResetCode(student.father_phone, resetCode, student.name);
+      result = await SMSService.sendPasswordResetCode(
+        student.father_phone,
+        resetCode,
+        student.name,
+      );
     } catch (smsError) {
       console.error('Failed to send reset SMS:', smsError);
+      await prisma.sms_logs
+        .create({
+          data: {
+            category: 'password_reset',
+            student_id: student.id,
+            phone_number: student.father_phone,
+            message: 'Password reset code sent',
+            status: 'failed',
+            error_reason: smsError instanceof Error ? smsError.message : 'Unknown error',
+          },
+        })
+        .catch((e) => console.error('Failed to write sms_logs entry:', e));
       throw new ApiError(500, 'Failed to send reset code. Please try again.');
+    }
+
+    await prisma.sms_logs
+      .create({
+        data: {
+          category: 'password_reset',
+          student_id: student.id,
+          phone_number: student.father_phone,
+          message: 'Password reset code sent',
+          status: result.success ? 'sent' : 'failed',
+          error_reason: result.success ? null : result.message,
+        },
+      })
+      .catch((e) => console.error('Failed to write sms_logs entry:', e));
+
+    if (!result.success) {
+      throw new ApiError(500, result.message || 'Failed to send reset code. Please try again.');
     }
 
     return { message: 'Reset code sent to your phone number.' };

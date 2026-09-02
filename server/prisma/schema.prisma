@@ -900,27 +900,30 @@ model admission_result {
 }
 
 model sms_logs {
-  id              Int      @id @default(autoincrement())
-  student_id      Int
-  phone_number    String   @db.VarChar(15)
+  id              Int       @id @default(autoincrement())
+  /** 'attendance' (default, existing behavior) | 'password_reset' | 'test' */
+  category        String    @default("attendance") @db.VarChar(30)
+  student_id      Int?
+  phone_number    String    @db.VarChar(15)
   message         String
-  status          String   @default("pending")
+  status          String    @default("pending")
   error_reason    String?
-  attendance_date String   @db.VarChar(10)
-  retry_count     Int      @default(0)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  request_id      String?  @db.VarChar(50)
-  message_id      String?  @db.VarChar(100)
+  attendance_date String?   @db.VarChar(10)
+  retry_count     Int       @default(0)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  request_id      String?   @db.VarChar(50)
+  message_id      String?   @db.VarChar(100)
   sms_count       Int?
-  student         students @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id       Int      @default(dbgenerated("app.current_school_id()"))
-  school          School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  student         students? @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id       Int       @default(dbgenerated("app.current_school_id()"))
+  school          School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([attendance_date])
   @@index([student_id])
   @@index([school_id])
+  @@index([category])
 }
 
 model class6_reg {

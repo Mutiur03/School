@@ -38,7 +38,7 @@ export class SmsSettingsController {
 
   static sendTestSMS = asyncHandler(async (req: Request, res: Response) => {
     const { phoneNumber, message } = req.body;
-    const result = await SMSService.sendTestSMS(phoneNumber, message);
+    const result = await SmsSettingsService.sendTestSms(phoneNumber, message);
     return res.status(200).json(new ApiResponse(200, result, 'Test SMS sent'));
   });
 

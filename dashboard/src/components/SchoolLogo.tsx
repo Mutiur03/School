@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { getFileUrl } from '@/lib/backend';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ type SchoolLogoProps = {
 export function SchoolLogo({ logo, src, className, imgClassName, alt = '' }: SchoolLogoProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const timerRef = useRef<number | null>(null);
   const resolved =
     src?.trim() ||
     (logo?.trim() && !logo.trim().startsWith('pending:') ? getFileUrl(logo.trim()) : '');
@@ -23,7 +24,23 @@ export function SchoolLogo({ logo, src, className, imgClassName, alt = '' }: Sch
   useEffect(() => {
     setFailed(false);
     setLoaded(false);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    if (!resolved) return;
+    // Some broken/unreachable image URLs never fire load or error (e.g. blocked
+    // cross-origin requests) — without this the skeleton spins forever instead
+    // of falling back to the icon.
+    timerRef.current = window.setTimeout(() => setFailed(true), 6000);
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
   }, [resolved]);
+
+  const clearLoadTimer = () => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   const boxClass = cn(
     'bg-muted relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border',
@@ -49,8 +66,14 @@ export function SchoolLogo({ logo, src, className, imgClassName, alt = '' }: Sch
           loaded ? 'opacity-100' : 'opacity-0',
           imgClassName,
         )}
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
+        onLoad={() => {
+          clearLoadTimer();
+          setLoaded(true);
+        }}
+        onError={() => {
+          clearLoadTimer();
+          setFailed(true);
+        }}
       />
     </span>
   );

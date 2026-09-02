@@ -784,6 +784,35 @@ function SchoolManagement() {
     }
   };
 
+  const onSwitchToSharedAccount = async () => {
+    if (selectedSchoolId === 'new') return;
+    const confirmed = await confirm({
+      title: 'Switch to shared account?',
+      msg: 'This clears the API key, so the school stops using its own provider account and goes back to the shared platform account (own sender ID/provider settings are left in place but unused).',
+      confirmLabel: 'Switch to Shared',
+    });
+    if (!confirmed) return;
+
+    setSavingSms(true);
+    try {
+      const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, {
+        api_key: null,
+      });
+      setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
+      setSmsApiKeyDraft('');
+      toast.success('Switched to the shared SMS account');
+    } catch (error) {
+      console.error('Failed to switch to shared account', error);
+      toast.error(
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Failed to switch to shared account'
+          : 'Failed to switch to shared account',
+      );
+    } finally {
+      setSavingSms(false);
+    }
+  };
+
   const selectSchool = (school: SchoolData) => {
     clearPendingPreviews();
     reset(toFormValues(school));
@@ -1508,9 +1537,20 @@ function SchoolManagement() {
                             </div>
                           )}
                           {smsCredentials.api_key_masked ? (
-                            <p className="text-muted-foreground mt-3 text-xs">
-                              Self-hosted account — top up directly with the provider.
-                            </p>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-muted-foreground text-xs">
+                                Self-hosted account — top up directly with the provider.
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={onSwitchToSharedAccount}
+                                disabled={savingSms || fetchingSms}
+                              >
+                                Switch to Shared Account
+                              </Button>
+                            </div>
                           ) : (
                             <div className="mt-3 flex gap-2">
                               <Input
