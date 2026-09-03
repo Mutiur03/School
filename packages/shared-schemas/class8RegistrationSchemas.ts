@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { REGISTRATION_NO } from './regex.js';
 import {
   registrationObjectShape,
   registrationSuperRefine,
@@ -7,8 +6,8 @@ import {
 } from './class6RegistrationSchemas.js';
 
 /**
- * Class 8 Registration Schema - extends the common Class 6 registration shape
- * but omits class-specific passing/roll info and adds Class 8 specific fields.
+ * Class 8 Registration Schema — same Class Six prev-school split as
+ * Junior Scholarship (reg year / board / reg / roll).
  */
 export const registrationSchemaClass8 = registrationObjectShape
   .omit({
@@ -17,14 +16,17 @@ export const registrationSchemaClass8 = registrationObjectShape
     roll_in_prev_school: true,
   })
   .extend({
-    registration_no: z
+    class6_reg_year: z.string().min(1, 'Class Six Registration Year is required').default(''),
+    class6_board: z.string().min(1, 'Class Six Board is required').default(''),
+    class6_reg_no: z
       .string()
-      .min(1, 'Registration Number is required')
-      .regex(REGISTRATION_NO, 'Invalid registration number')
+      .min(1, 'Class Six Registration Number is required')
+      .refine((val) => val.length === 10, 'Registration Number must be exactly 10 digits')
       .default(''),
-    class6_academic_session: z
+    class6_roll_no: z
       .string()
-      .min(1, 'Class Six Academic Session is required')
+      .min(1, 'Class Six ID/Roll Number is required')
+      .refine((val) => val.length === 6, 'Class Six ID/Roll Number must be exactly 6 digits')
       .default(''),
     class8_year: z.union([z.string(), z.number()]).optional(),
   })
@@ -95,8 +97,10 @@ export const registrationDefaultValuesClass8: Class8Registration = {
   prev_school_district: '',
   prev_school_upazila: '',
   nearby_student_info: '',
-  registration_no: '',
-  class6_academic_session: '',
+  class6_reg_year: '',
+  class6_board: '',
+  class6_reg_no: '',
+  class6_roll_no: '',
   scout_status: '',
   photo: '',
   class8_year: '',

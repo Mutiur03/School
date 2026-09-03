@@ -1086,8 +1086,10 @@ model student_registration_class8 {
   photo                   String   @db.VarChar(255)
   class8_year             Int
   nearby_student_info     String?  @db.VarChar(200)
-  registration_no         String   @db.VarChar(50)
-  class6_academic_session String   @db.VarChar(50)
+  class6_reg_year         String   @db.VarChar(4)
+  class6_board            String   @db.VarChar(50)
+  class6_reg_no           String   @db.VarChar(10)
+  class6_roll_no          String   @db.VarChar(20)
   scout_status            String?   @db.VarChar(10)
   school_id               Int       @default(dbgenerated("app.current_school_id()"))
   school                  School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
@@ -1174,7 +1176,7 @@ model student_registration_junior_scholarship {
   photo                   String   @db.VarChar(255)
   jse_year                Int
   nearby_student_info     String?  @db.VarChar(200)
-  class6_passing_year     String   @db.VarChar(4)
+  class6_reg_year         String   @db.VarChar(4)
   class6_board            String   @db.VarChar(50)
   class6_reg_no           String   @db.VarChar(10)
   class6_roll_no          String   @db.VarChar(20)

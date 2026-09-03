@@ -288,9 +288,23 @@ function Class8Details({
             {renderOptionalRow("Guardian's Address:", guardianAddress)}
 
             {sectionHeader('Previous School Information (Class Six)')}
-            {renderOptionalRow('Registration No:', registration.registration_no)}
-            {renderOptionalRow('Class Six Academic Session:', registration.class6_academic_session)}
             {renderOptionalRow('Name of Previous School:', registration.prev_school_name)}
+            {renderOptionalRow(
+              'Previous School Address:',
+              joinAddr(
+                '',
+                '',
+                '',
+                registration.prev_school_upazila,
+                registration.prev_school_district,
+              ),
+            )}
+
+            {sectionHeader('Class Six Information')}
+            {renderOptionalRow('Class Six Registration Year:', registration.class6_reg_year)}
+            {renderOptionalRow('Class Six Board:', registration.class6_board)}
+            {renderOptionalRow('Class Six Registration Number:', registration.class6_reg_no)}
+            {renderOptionalRow('Class Six ID/Roll Number:', registration.class6_roll_no)}
 
             {sectionHeader('Student Information Reference')}
             {renderOptionalRow(
@@ -400,7 +414,7 @@ function JuniorScholarshipDetails({
             )}
 
             {sectionHeader('Class Six Information')}
-            {renderOptionalRow('Class Six Passing Year:', registration.class6_passing_year)}
+            {renderOptionalRow('Class Six Registration Year:', registration.class6_reg_year)}
             {renderOptionalRow('Class Six Board:', registration.class6_board)}
             {renderOptionalRow('Class Six Registration Number:', registration.class6_reg_no)}
             {renderOptionalRow('Class Six ID/Roll Number:', registration.class6_roll_no)}

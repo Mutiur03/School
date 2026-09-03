@@ -1547,31 +1547,13 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                             </span>
                           </td>
                         </tr>
-                        {variant === 8 && (
+                        {(variant === 8 || variant === 'jse') && (
                           <>
                             <tr>
                               <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Registration No
+                                Class 6 Registration Year
                               </td>
-                              <td className="px-4 py-2.5 font-mono">
-                                {selectedReg.registration_no}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Class 6 Session
-                              </td>
-                              <td className="px-4 py-2.5">{selectedReg.class6_academic_session}</td>
-                            </tr>
-                          </>
-                        )}
-                        {variant === 'jse' && (
-                          <>
-                            <tr>
-                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Class 6 Passing Year
-                              </td>
-                              <td className="px-4 py-2.5">{selectedReg.class6_passing_year}</td>
+                              <td className="px-4 py-2.5">{selectedReg.class6_reg_year}</td>
                             </tr>
                             <tr>
                               <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">

@@ -154,109 +154,6 @@ export function Class6ExtraFields({
   );
 }
 
-export function Class8ExtraFields({
-  register,
-  errors,
-  setValue,
-  isRequired,
-  settings,
-  schoolConfig,
-  prevSchoolUpazilas,
-  prev_school_district,
-  prevSchoolOption,
-  handlePrevSchoolOptionChange,
-}: ExtraFieldsProps) {
-  return (
-    <>
-      <SectionHeader title="Previous School Information (Class Six)">
-        <FormInput
-          label="Registration No (Class Six)"
-          name="registration_no"
-          register={register}
-          errors={errors}
-          isRequired
-          filterType="numeric"
-          maxLength={10}
-          placeholder="10 Digits"
-        />
-        <FieldRow
-          label="Class Six Academic Session:"
-          isRequired
-          error={errors.class6_academic_session}
-        >
-          <select
-            {...register('class6_academic_session')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-          >
-            <option value="">Select Session</option>
-            {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i - 2)).map(
-              (y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ),
-            )}
-          </select>
-        </FieldRow>
-        <FieldRow label="Name of Previous School :" isRequired error={errors.prev_school_name}>
-          <div className="space-y-3">
-            <select
-              value={prevSchoolOption}
-              onChange={(e) => handlePrevSchoolOptionChange?.(e.target.value)}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-            >
-              <option value={schoolConfig!.name.en}>{schoolConfig!.name.en}</option>
-              <option value="Others">Others</option>
-            </select>
-
-            {prevSchoolOption === 'Others' && (
-              <input
-                {...register('prev_school_name')}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-                placeholder="Enter the name of your previous school"
-              />
-            )}
-          </div>
-        </FieldRow>
-
-        <AddressFields
-          prefix="prev_school"
-          register={register}
-          setValue={setValue}
-          errors={errors}
-          upazilas={prevSchoolUpazilas}
-          districtValue={prev_school_district}
-          isRequired={isRequired}
-          showPostFields={false}
-        />
-      </SectionHeader>
-      <SectionHeader title="Student Information Reference">
-        <FieldRow
-          label="বাসার নিকটবর্তী অষ্টম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
-          isRequired
-          error={errors.nearby_student_info}
-        >
-          <select
-            {...register('nearby_student_info')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
-          >
-            <option value="">Select Name</option>
-            {(settings?.classmates ?? '')
-              .split(/\n|,/)
-              .map((name: string) => name.trim())
-              .filter(Boolean)
-              .map((trimmedName: string, idx: number) => (
-                <option key={idx} value={trimmedName}>
-                  {trimmedName}
-                </option>
-              ))}
-          </select>
-        </FieldRow>
-      </SectionHeader>
-    </>
-  );
-}
-
 export function JuniorScholarshipExtraFields({
   register,
   errors,
@@ -318,9 +215,9 @@ export function JuniorScholarshipExtraFields({
 
       <SectionHeader title="Class Six Information">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <FieldRow label="Class Six Passing Year:" isRequired error={errors.class6_passing_year}>
+          <FieldRow label="Class Six Registration Year:" isRequired error={errors.class6_reg_year}>
             <select
-              {...register('class6_passing_year')}
+              {...register('class6_reg_year')}
               className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
             >
               <option value="">Select Year</option>
@@ -404,6 +301,8 @@ export function JuniorScholarshipExtraFields({
     </>
   );
 }
+
+export const Class8ExtraFields = JuniorScholarshipExtraFields;
 
 const subjectOptionsByGroup = {
   Science: {

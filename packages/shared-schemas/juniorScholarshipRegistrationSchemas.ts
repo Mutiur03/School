@@ -7,7 +7,7 @@ import {
 
 /**
  * Junior Scholarship Examination form — Class 8 clone with Class Six
- * prev-school split matching SSC (year / board / reg / roll).
+ * prev-school split matching SSC (reg year / board / reg / roll).
  */
 export const registrationSchemaJuniorScholarship = registrationObjectShape
   .omit({
@@ -16,7 +16,7 @@ export const registrationSchemaJuniorScholarship = registrationObjectShape
     roll_in_prev_school: true,
   })
   .extend({
-    class6_passing_year: z.string().min(1, 'Class Six Passing Year is required').default(''),
+    class6_reg_year: z.string().min(1, 'Class Six Registration Year is required').default(''),
     class6_board: z.string().min(1, 'Class Six Board is required').default(''),
     class6_reg_no: z
       .string()
@@ -97,7 +97,7 @@ export const registrationDefaultValuesJuniorScholarship: JuniorScholarshipRegist
   prev_school_district: '',
   prev_school_upazila: '',
   nearby_student_info: '',
-  class6_passing_year: '',
+  class6_reg_year: '',
   class6_board: '',
   class6_reg_no: '',
   class6_roll_no: '',

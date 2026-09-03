@@ -1169,7 +1169,6 @@ export const class8FormConfig: RegistrationFormConfig = {
   buildPdfDetailRows: (registration, h) => [
     ['ছাত্রের নাম (বাংলায়):', h.wrapBnEn(registration.student_name_bn || '')],
     ["Student's Name:", h.wrapBnEn(registration.student_name_en.toUpperCase() || '')],
-    ['Registration Number:', h.wrapBnEn(registration.registration_no || '')],
     ['Birth Registration Number:', h.wrapBnEn(registration.birth_reg_no || '')],
     [
       'Date of Birth:',
@@ -1202,6 +1201,19 @@ export const class8FormConfig: RegistrationFormConfig = {
           registration.prev_school_name,
           registration.prev_school_upazila,
           registration.prev_school_district,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      ),
+    ],
+    [
+      'Information of Class Six:',
+      h.wrapBnEn(
+        [
+          registration.class6_reg_no ? `Reg No: ${registration.class6_reg_no}` : '',
+          registration.class6_roll_no ? `Roll No: ${registration.class6_roll_no}` : '',
+          registration.class6_reg_year ? `Reg Year: ${registration.class6_reg_year}` : '',
+          registration.class6_board ? `${registration.class6_board}` : '',
         ]
           .filter(Boolean)
           .join(', '),
@@ -1285,7 +1297,7 @@ export const juniorScholarshipFormConfig: RegistrationFormConfig = {
         [
           registration.class6_reg_no ? `Reg No: ${registration.class6_reg_no}` : '',
           registration.class6_roll_no ? `Roll No: ${registration.class6_roll_no}` : '',
-          registration.class6_passing_year ? `${registration.class6_passing_year}` : '',
+          registration.class6_reg_year ? `Reg Year: ${registration.class6_reg_year}` : '',
           registration.class6_board ? `${registration.class6_board}` : '',
         ]
           .filter(Boolean)
