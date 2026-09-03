@@ -11,6 +11,15 @@ import cors from 'cors';
 import compression from 'compression';
 import { detailedRequestLogger } from './middlewares/requestLogger.js';
 import logger from './utils/logger.js';
+import { ApiError } from './utils/ApiError.js';
+import { Prisma } from './generated/prisma/client.js';
+
+const isRawDatabaseError = (error: any) =>
+  error instanceof Prisma.PrismaClientKnownRequestError ||
+  error instanceof Prisma.PrismaClientUnknownRequestError ||
+  error instanceof Prisma.PrismaClientRustPanicError ||
+  error instanceof Prisma.PrismaClientInitializationError ||
+  error instanceof Prisma.PrismaClientValidationError;
 import examRouter from './modules/exam/exam.route.js';
 import { superAdminExamTypeRouter, tenantExamTypeRouter } from './modules/exam/exam-type.route.js';
 import marksRouter from './modules/marks/marks.route.js';
@@ -241,8 +250,11 @@ app.use('*', (_req, res) => {
   });
 });
 app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  const statusCode = error.statusCode || 500;
-  const message = error.message || 'Internal server error';
+  const isApiError = error instanceof ApiError;
+  const statusCode = isApiError ? error.statusCode : 500;
+  const message = isRawDatabaseError(error)
+    ? 'Internal server error'
+    : error.message || 'Internal server error';
 
   const logMethod = statusCode >= 500 ? 'error' : 'warn';
   const logTitle = statusCode >= 500 ? 'Unhandled server error' : 'Client error response';
@@ -270,7 +282,7 @@ app.use((error: any, req: express.Request, res: express.Response, _next: express
   res.status(statusCode).json({
     success: false,
     message: message,
-    errors: error.errors || [],
+    errors: isApiError ? error.errors || [] : [],
     error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
   });
 });

@@ -114,7 +114,6 @@ export class AdmissionFormController {
         res.status(500).json({
           success: false,
           message: 'Failed to create archive',
-          error: err.message,
         });
       }
     });

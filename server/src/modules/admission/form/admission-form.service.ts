@@ -125,7 +125,15 @@ export class AdmissionFormService {
     const photoPath = body.photo_path || null;
     const dataToCreate = { ...payload, photo_path: photoPath };
 
-    const rec = await prisma.admission_form.create({ data: dataToCreate });
+    let rec;
+    try {
+      rec = await prisma.admission_form.create({ data: dataToCreate });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        throw new ApiError(409, 'An admission form with this information already exists');
+      }
+      throw error;
+    }
 
     return {
       id: rec.id,

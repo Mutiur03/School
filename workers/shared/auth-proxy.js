@@ -165,7 +165,12 @@ export async function tryHandleAuthSession({
 
     if (backendResponse.status === 401) {
       attachClearedCookies(corsHeaders);
-      return jsonResponse({ success: false }, 401, corsHeaders);
+      const data = await parseJson(backendResponse);
+      return jsonResponse(
+        { success: false, message: data?.message || 'Invalid credentials' },
+        401,
+        corsHeaders,
+      );
     }
 
     if (!backendResponse.ok) {
