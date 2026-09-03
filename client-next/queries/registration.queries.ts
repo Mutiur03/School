@@ -4,6 +4,8 @@ import type {
   Class6RegistrationSettingsData,
   Class8RegistrationRecord,
   Class8RegistrationSettingsData,
+  JuniorScholarshipRegistrationRecord,
+  JuniorScholarshipRegistrationSettingsData,
   Class9RegistrationRecord,
   Class9RegistrationSettingsData,
 } from '@school/shared-schemas';
@@ -63,6 +65,15 @@ const class8Defaults: Class8RegistrationSettingsData & {
   class8_year: new Date().getFullYear(),
 };
 
+const juniorScholarshipDefaults: JuniorScholarshipRegistrationSettingsData & {
+  notice?: string | null;
+  reg_open?: boolean;
+  classmates?: string | null;
+} = {
+  reg_open: false,
+  jse_year: new Date().getFullYear(),
+};
+
 const class9Defaults: Class9RegistrationSettingsData & {
   notice?: string | null;
   reg_open?: boolean;
@@ -76,6 +87,7 @@ const class9Defaults: Class9RegistrationSettingsData & {
 
 export type Class6RegistrationSettings = typeof class6Defaults;
 export type Class8RegistrationSettings = typeof class8Defaults;
+export type JuniorScholarshipRegistrationSettings = typeof juniorScholarshipDefaults;
 export type Class9RegistrationSettings = typeof class9Defaults;
 
 const class6 = makeRegistrationQueries<Class6RegistrationSettings, Class6RegistrationRecord>(
@@ -86,6 +98,10 @@ const class8 = makeRegistrationQueries<Class8RegistrationSettings, Class8Registr
   'class-8',
   class8Defaults,
 );
+const juniorScholarship = makeRegistrationQueries<
+  JuniorScholarshipRegistrationSettings,
+  JuniorScholarshipRegistrationRecord
+>('junior-scholarship', juniorScholarshipDefaults);
 const class9 = makeRegistrationQueries<Class9RegistrationSettings, Class9RegistrationRecord>(
   'class-9',
   class9Defaults,
@@ -99,6 +115,10 @@ export const getClass8RegistrationSettings = class8.getSettings;
 export const getClass8RegistrationRecord = class8.getRecord;
 export const getClass8RegistrationYears = class8.getYears;
 export const getClass8RegistrationSettingsForYear = class8.getSettingsForYear;
+export const getJuniorScholarshipRegistrationSettings = juniorScholarship.getSettings;
+export const getJuniorScholarshipRegistrationRecord = juniorScholarship.getRecord;
+export const getJuniorScholarshipRegistrationYears = juniorScholarship.getYears;
+export const getJuniorScholarshipRegistrationSettingsForYear = juniorScholarship.getSettingsForYear;
 export const getClass9RegistrationSettings = class9.getSettings;
 export const getClass9RegistrationRecord = class9.getRecord;
 export const getClass9RegistrationYears = class9.getYears;

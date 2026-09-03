@@ -1,4 +1,5 @@
 export { default as RegistrationPdfPreview } from './pages/RegistrationPdfPreview';
 export { default as Class6PdfPreview } from './pages/Class6PdfPreview';
 export { default as Class8PdfPreview } from './pages/Class8PdfPreview';
+export { default as JuniorScholarshipPdfPreview } from './pages/JuniorScholarshipPdfPreview';
 export { default as Class9PdfPreview } from './pages/Class9PdfPreview';

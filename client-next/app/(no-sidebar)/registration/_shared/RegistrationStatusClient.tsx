@@ -29,7 +29,7 @@ type YearSettings = {
 };
 
 type Props = {
-  classSlug: 'class-6' | 'class-8' | 'class-9';
+  classSlug: 'class-6' | 'class-8' | 'junior-scholarship' | 'class-9';
   title: string;
   /** Last 3 years (most recent first) that have registration settings configured. */
   years: Array<string | number>;

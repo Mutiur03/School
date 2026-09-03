@@ -6,7 +6,11 @@ import { Toaster } from 'react-hot-toast';
 import RoleRoute from './components/RoleRoute.tsx';
 import { RegistrationPdfPreview } from '@school/common-ui';
 
-function ClassPdfPreviewPage({ classSlug }: { classSlug: 'class-6' | 'class-8' | 'class-9' }) {
+function ClassPdfPreviewPage({
+  classSlug,
+}: {
+  classSlug: 'class-6' | 'class-8' | 'junior-scholarship' | 'class-9';
+}) {
   const { id } = useParams();
   if (!id) return <Navigate to="/" replace />;
   return <RegistrationPdfPreview classSlug={classSlug} id={id} mode="live" />;
@@ -79,6 +83,7 @@ registerRoutePrefetchers({
   '/admin/result/customize-result': UpdateStatus,
   '/admin/registration/class-6': ClassRegForm,
   '/admin/registration/class-8': ClassRegForm,
+  '/admin/registration/junior-scholarship': ClassRegForm,
   '/admin/registration/class-9': ClassRegForm,
   '/admin/admission/form': Admission,
   '/admin/admission/settings': AdmissionSettings,
@@ -197,6 +202,10 @@ function App() {
             <Route
               path="/preview/class8/:id"
               element={<ClassPdfPreviewPage classSlug="class-8" />}
+            />
+            <Route
+              path="/preview/junior-scholarship/:id"
+              element={<ClassPdfPreviewPage classSlug="junior-scholarship" />}
             />
             <Route
               path="/preview/class9/:id"
@@ -458,6 +467,10 @@ function App() {
                             <Route
                               path="/registration/class-8"
                               element={<ClassRegForm key="class-8" variant={8} />}
+                            />
+                            <Route
+                              path="/registration/junior-scholarship"
+                              element={<ClassRegForm key="jse" variant="jse" />}
                             />
                             <Route path="*" element={<Navigate to="/admin/dashboard" />} />
                           </Routes>

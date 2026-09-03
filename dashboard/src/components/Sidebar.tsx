@@ -159,6 +159,11 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           id: 'class-8-registration',
         },
         {
+          label: 'Junior Scholarship Exam',
+          link: '/admin/registration/junior-scholarship',
+          id: 'junior-scholarship-registration',
+        },
+        {
           label: 'Class Nine Registration',
           link: '/admin/registration/class-9',
           id: 'class-9-registration',

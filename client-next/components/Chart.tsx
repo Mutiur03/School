@@ -277,6 +277,9 @@ export function Chart({ school }: ChartProps) {
                         <Link href="/registration/class-8">অষ্টম শ্রেণি</Link>
                       </li>
                       <li>
+                        <Link href="/registration/junior-scholarship">জুনিয়র বৃত্তি</Link>
+                      </li>
+                      <li>
                         <Link href="/registration/class-9">নবম শ্রেণি</Link>
                       </li>
                     </ul>

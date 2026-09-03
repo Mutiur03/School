@@ -56,10 +56,13 @@ const UI_ONLY_KEYS = [
 
 export type RegistrationFormConfig = {
   studentModel:
-    'student_registration_class6' | 'student_registration_class8' | 'student_registration_ssc';
-  settingsModel: 'class6_reg' | 'class8_reg' | 'ssc_reg';
-  yearField: 'class6_year' | 'class8_year' | 'ssc_batch';
-  settingsYearField: 'class6_year' | 'class8_year' | 'ssc_year';
+    | 'student_registration_class6'
+    | 'student_registration_class8'
+    | 'student_registration_junior_scholarship'
+    | 'student_registration_ssc';
+  settingsModel: 'class6_reg' | 'class8_reg' | 'junior_scholarship_reg' | 'ssc_reg';
+  yearField: 'class6_year' | 'class8_year' | 'jse_year' | 'ssc_batch';
+  settingsYearField: 'class6_year' | 'class8_year' | 'jse_year' | 'ssc_year';
   yearKind: 'int' | 'string';
   photoField: 'photo' | 'photo_path';
   photoKeyStyle: 'section-roll' | 'timestamp';
@@ -629,7 +632,6 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
       where: { id: registration.school_id },
       select: {
         name: true,
-        address: true,
         upazila: true,
         district: true,
         customDomain: true,
@@ -642,12 +644,10 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     }
 
     const schoolName = school.name?.trim() || 'School';
-    const schoolAddr =
-      school.address?.trim() ||
-      [school.upazila, school.district]
-        .map((s) => s?.trim())
-        .filter(Boolean)
-        .join(', ');
+    const schoolAddr = [school.upazila, school.district]
+      .map((s) => s?.trim())
+      .filter(Boolean)
+      .join(', ');
     const schoolWebHost = schoolWebsiteHost(school.customDomain);
     const schoolWeb = schoolWebHost ? `https://${schoolWebHost}` : '';
 
@@ -1215,6 +1215,91 @@ export const class8FormConfig: RegistrationFormConfig = {
   ],
 };
 
+export const juniorScholarshipFormConfig: RegistrationFormConfig = {
+  studentModel: 'student_registration_junior_scholarship',
+  settingsModel: 'junior_scholarship_reg',
+  yearField: 'jse_year',
+  settingsYearField: 'jse_year',
+  yearKind: 'int',
+  photoField: 'photo',
+  photoKeyStyle: 'timestamp',
+  photoYearFallback: 'unknown',
+  r2ClassSlug: 'junior-scholarship',
+  previewPath: '/preview/junior-scholarship/',
+  alwaysPaginate: true,
+  label: 'Junior Scholarship',
+  nearbyLabelBn: 'অষ্টম',
+  nearbyField: 'nearby_student_info',
+  pdfTitle: (year) => `Student's Information for Junior Scholarship Examination ${year}`,
+  pdfDocTitle: 'Junior Scholarship Exam Form',
+  documentsHeaderBn: '* প্রিন্টকৃত ফরমের সাথে সাথে যেসব স্পষ্ট কাগজপত্র সংযুক্ত করেত হবে:',
+  importClassNumber: 8,
+  yearRequiredMessage: 'Exam year is required',
+  bodyYearKeys: ['jse_year'],
+  queryYearKeys: ['jse_year'],
+  deletePdfOnUpdate: true,
+  mapIncoming: (data) => stripAliasYears(data, 'jse_year', ['jse_year']),
+  buildPdfDetailRows: (registration, h) => [
+    ['ছাত্রের নাম (বাংলায়):', h.wrapBnEn(registration.student_name_bn || '')],
+    ["Student's Name:", h.wrapBnEn(registration.student_name_en.toUpperCase() || '')],
+    ['Birth Registration Number:', h.wrapBnEn(registration.birth_reg_no || '')],
+    [
+      'Date of Birth:',
+      h.wrapBnEn(
+        registration.birth_date
+          ? `${registration.birth_date} (${formatDateLong(registration.birth_date)})`
+          : '',
+      ),
+    ],
+    ['Email Address:', h.wrapBnEn(registration.email || 'No')],
+    ['পিতার নাম:', h.wrapBnEn(registration.father_name_bn || '')],
+    ["Father's Name:", h.wrapBnEn(registration.father_name_en.toUpperCase() || '')],
+    ["Father's National ID Number:", h.wrapBnEn(registration.father_nid || '')],
+    ['মাতার নাম:', h.wrapBnEn(registration.mother_name_bn || '')],
+    ["Mother's Name:", h.wrapBnEn(registration.mother_name_en.toUpperCase() || '')],
+    ["Mother's National ID Number:", h.wrapBnEn(registration.mother_nid || '')],
+    [
+      'Mobile Numbers:',
+      h.wrapBnEn(
+        [registration.father_phone || '', registration.mother_phone || '']
+          .filter(Boolean)
+          .join(', ') || 'No',
+      ),
+    ],
+    ...sharedAddressRows(registration, h),
+    [
+      'Previous School Name & Address:',
+      h.wrapBnEn(
+        [
+          registration.prev_school_name,
+          registration.prev_school_upazila,
+          registration.prev_school_district,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      ),
+    ],
+    [
+      'Information of Class Six:',
+      h.wrapBnEn(
+        [
+          registration.class6_reg_no ? `Reg No: ${registration.class6_reg_no}` : '',
+          registration.class6_roll_no ? `Roll No: ${registration.class6_roll_no}` : '',
+          registration.class6_passing_year ? `${registration.class6_passing_year}` : '',
+          registration.class6_board ? `${registration.class6_board}` : '',
+        ]
+          .filter(Boolean)
+          .join(', '),
+      ),
+    ],
+    ...sharedGuardianRows(registration, h),
+    [
+      'বাসার নিকটবর্তী অষ্টম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:',
+      h.wrapBnEn(registration.nearby_student_info || 'Not Applicable'),
+    ],
+  ],
+};
+
 export const class9FormConfig: RegistrationFormConfig = {
   studentModel: 'student_registration_ssc',
   settingsModel: 'ssc_reg',
@@ -1336,4 +1421,7 @@ export const class9FormConfig: RegistrationFormConfig = {
 
 export const RegistrationFormClass6Service = createRegistrationFormService(class6FormConfig);
 export const RegistrationFormClass8Service = createRegistrationFormService(class8FormConfig);
+export const RegistrationFormJuniorScholarshipService = createRegistrationFormService(
+  juniorScholarshipFormConfig,
+);
 export const RegistrationFormClass9Service = createRegistrationFormService(class9FormConfig);

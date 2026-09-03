@@ -7,12 +7,14 @@ import { ApiResponse } from '@/utils/ApiResponse.js';
 import {
   class6RegistrationSettingsSchema,
   class8RegistrationSettingsSchema,
+  juniorScholarshipRegistrationSettingsSchema,
   class9RegistrationSettingsSchema,
   registrationNoticeUploadSchema,
 } from '@school/shared-schemas';
 import {
   class6SettingsConfig,
   class8SettingsConfig,
+  juniorScholarshipSettingsConfig,
   class9SettingsConfig,
   createRegistrationSettingsService,
   type RegistrationSettingsConfig,
@@ -92,6 +94,14 @@ export const registrationSettingsClass8Router = makeRegistrationSettingsRouter({
   config: class8SettingsConfig,
   updateSuccessMessage: 'Class Eight Registration updated successfully',
   fetchSuccessMessage: 'Class Eight Registration fetched successfully',
+});
+
+export const registrationSettingsJuniorScholarshipRouter = makeRegistrationSettingsRouter({
+  mountPath: '/api/reg/junior-scholarship',
+  settingsSchema: juniorScholarshipRegistrationSettingsSchema,
+  config: juniorScholarshipSettingsConfig,
+  updateSuccessMessage: 'Junior Scholarship settings updated successfully',
+  fetchSuccessMessage: 'Junior Scholarship settings fetched successfully',
 });
 
 export const registrationSettingsClass9Router = makeRegistrationSettingsRouter({

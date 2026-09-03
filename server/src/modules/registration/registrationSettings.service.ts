@@ -11,9 +11,10 @@ import {
 
 export type RegistrationSettingsConfig = {
   studentClass: 6 | 8 | 9;
-  model: 'class6_reg' | 'class8_reg' | 'ssc_reg';
-  yearField: 'class6_year' | 'class8_year' | 'ssc_year';
-  uniqueWhereKey: 'school_id_class6_year' | 'school_id_class8_year' | 'school_id_ssc_year';
+  model: 'class6_reg' | 'class8_reg' | 'junior_scholarship_reg' | 'ssc_reg';
+  yearField: 'class6_year' | 'class8_year' | 'jse_year' | 'ssc_year';
+  uniqueWhereKey:
+    'school_id_class6_year' | 'school_id_class8_year' | 'school_id_jse_year' | 'school_id_ssc_year';
   bodyYearKeys: string[];
   queryYearKeys: string[];
   yearRequiredMessage: string;
@@ -201,6 +202,18 @@ export const class8SettingsConfig: RegistrationSettingsConfig = {
   queryYearKeys: ['class8_year', 'year'],
   yearRequiredMessage: 'Academic year is required for Class 8 registration settings',
   noticeKeyPrefix: 'notice-class-8',
+  enrollmentYearFromStored: (y) => y,
+};
+
+export const juniorScholarshipSettingsConfig: RegistrationSettingsConfig = {
+  studentClass: 8,
+  model: 'junior_scholarship_reg',
+  yearField: 'jse_year',
+  uniqueWhereKey: 'school_id_jse_year',
+  bodyYearKeys: ['jse_year'],
+  queryYearKeys: ['jse_year', 'year'],
+  yearRequiredMessage: 'Exam year is required for Junior Scholarship settings',
+  noticeKeyPrefix: 'notice-junior-scholarship',
   enrollmentYearFromStored: (y) => y,
 };
 

@@ -65,6 +65,8 @@ model School {
   class6_forms       student_registration_class6[]
   class8_reg         class8_reg[]
   class8_forms       student_registration_class8[]
+  junior_scholarship_reg   junior_scholarship_reg[]
+  junior_scholarship_forms student_registration_junior_scholarship[]
   enrollments        student_enrollments[]
   attendances        attendence[]
   levels             levels[]
@@ -1095,6 +1097,96 @@ model student_registration_class8 {
 
   @@unique([school_id, class8_year, section, roll], map: "student_registration_class8_school_year_section_roll_key")
   @@unique([school_id, class8_year, birth_reg_no], map: "student_registration_class8_school_year_birth_reg_key")
+  @@index([birth_reg_no])
+  @@index([father_nid])
+  @@index([mother_nid])
+  @@index([status])
+  @@index([submission_date])
+  @@index([school_id])
+}
+
+model junior_scholarship_reg {
+  id                     Int      @id @default(autoincrement())
+  reg_open               Boolean? @default(false)
+  a_sec_roll             String?
+  b_sec_roll             String?
+  notice                 String?
+  jse_year               Int
+  instruction_for_a      String?  @default("Please follow the instructions carefully")
+  instruction_for_b      String?  @default("Please follow the instructions carefully")
+  attachment_instruction String?  @default("Please attach all required documents")
+  classmates             String?
+  classmates_source      String   @default("default") // 'default' or 'manual'
+  school_id              Int      @default(dbgenerated("app.current_school_id()"))
+  school                 School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@unique([school_id, jse_year])
+  @@index([school_id])
+}
+
+model student_registration_junior_scholarship {
+  id                      String   @id @default(uuid())
+  section                 String   @db.VarChar(10)
+  roll                    String   @db.VarChar(20)
+  religion                String   @db.VarChar(50)
+  student_name_bn         String   @db.VarChar(100)
+  student_name_en         String   @db.VarChar(100)
+  birth_reg_no            String   @db.VarChar(17)
+  father_name_bn          String   @db.VarChar(100)
+  father_name_en          String   @db.VarChar(100)
+  father_nid              String?  @db.VarChar(17)
+  father_phone            String?  @db.VarChar(11)
+  mother_name_bn          String   @db.VarChar(100)
+  mother_name_en          String   @db.VarChar(100)
+  mother_nid              String?  @db.VarChar(17)
+  mother_phone            String?  @db.VarChar(11)
+  birth_date              String   @db.VarChar(10)
+  birth_year              String   @db.VarChar(4)
+  birth_month             String   @db.VarChar(2)
+  birth_day               String   @db.VarChar(2)
+  email                   String?  @db.VarChar(100)
+  present_district        String   @db.VarChar(50)
+  present_upazila         String   @db.VarChar(50)
+  present_post_office     String   @db.VarChar(100)
+  present_post_code       String   @db.VarChar(4)
+  present_village_road    String   @db.VarChar(200)
+  permanent_district      String   @db.VarChar(50)
+  permanent_upazila       String   @db.VarChar(50)
+  permanent_post_office   String   @db.VarChar(100)
+  permanent_post_code     String   @db.VarChar(4)
+  permanent_village_road  String   @db.VarChar(200)
+  guardian_name           String?  @db.VarChar(100)
+  guardian_phone          String?  @db.VarChar(11)
+  guardian_relation       String?  @db.VarChar(50)
+  guardian_nid            String?  @db.VarChar(17)
+  guardian_district       String?  @db.VarChar(50)
+  guardian_upazila        String?  @db.VarChar(50)
+  guardian_post_office    String?  @db.VarChar(100)
+  guardian_post_code      String?  @db.VarChar(4)
+  guardian_village_road   String?  @db.VarChar(200)
+  prev_school_name        String   @db.VarChar(200)
+  prev_school_district    String   @db.VarChar(50)
+  prev_school_upazila     String   @db.VarChar(50)
+  status                  String   @default("pending") @db.VarChar(20)
+  submission_date         DateTime @default(now())
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  photo                   String   @db.VarChar(255)
+  jse_year                Int
+  nearby_student_info     String?  @db.VarChar(200)
+  class6_passing_year     String   @db.VarChar(4)
+  class6_board            String   @db.VarChar(50)
+  class6_reg_no           String   @db.VarChar(10)
+  class6_roll_no          String   @db.VarChar(20)
+  scout_status            String?  @db.VarChar(10)
+  school_id               Int      @default(dbgenerated("app.current_school_id()"))
+  school                  School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  pdf_path                String?  @db.VarChar(255)
+  pdf_settings_snapshot   Json?
+  pdf_generated_at        DateTime?
+
+  @@unique([school_id, jse_year, section, roll], map: "student_registration_jse_school_year_section_roll_key")
+  @@unique([school_id, jse_year, birth_reg_no], map: "student_registration_jse_school_year_birth_reg_key")
   @@index([birth_reg_no])
   @@index([father_nid])
   @@index([mother_nid])

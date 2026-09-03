@@ -41,10 +41,12 @@ import admissionResultRouter from './modules/admission/result/admission-result.r
 import smsRouter from './modules/sms-logs/sms-logs.route.js';
 import registrationFormClass6Router from './modules/registration/class-6/Form/registrationFormClass6.route.js';
 import registrationFormClass8Router from './modules/registration/class-8/Form/registrationFormClass8.route.js';
+import registrationFormJuniorScholarshipRouter from './modules/registration/junior-scholarship/Form/registrationFormJuniorScholarship.route.js';
 import registrationFormClass9Router from './modules/registration/class-9/Form/registrationFormClass9.route.js';
 import {
   registrationSettingsClass6Router,
   registrationSettingsClass8Router,
+  registrationSettingsJuniorScholarshipRouter,
   registrationSettingsClass9Router,
 } from './modules/registration/registrationSettings.route.js';
 import { check } from './config/redis.js';
@@ -225,6 +227,8 @@ app.use(registrationSettingsClass6Router);
 app.use(registrationFormClass6Router);
 app.use(registrationSettingsClass8Router);
 app.use(registrationFormClass8Router);
+app.use(registrationSettingsJuniorScholarshipRouter);
+app.use(registrationFormJuniorScholarshipRouter);
 app.use(admissionRouter);
 app.use(admissionFormRouter);
 app.use(admissionResultRouter);

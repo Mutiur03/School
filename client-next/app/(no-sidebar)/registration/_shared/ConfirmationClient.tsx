@@ -9,6 +9,7 @@ import { getFileUrl } from '@/lib/cdn';
 import type {
   Class6RegistrationRecord,
   Class8RegistrationRecord,
+  JuniorScholarshipRegistrationRecord,
   Class9RegistrationRecord,
 } from '@school/shared-schemas';
 import type { SchoolConfig } from '@/types';
@@ -204,7 +205,13 @@ function Class6Details({ registration }: { registration: Class6RegistrationRecor
   );
 }
 
-function Class8Details({ registration }: { registration: Class8RegistrationRecord }) {
+function Class8Details({
+  registration,
+  year,
+}: {
+  registration: Class8RegistrationRecord;
+  year?: number | null;
+}) {
   const guardianAddress = joinAddr(
     registration.guardian_village_road ?? '',
     registration.guardian_post_office ?? '',
@@ -216,7 +223,7 @@ function Class8Details({ registration }: { registration: Class8RegistrationRecor
   return (
     <>
       <div className="flex flex-wrap gap-x-4 gap-y-1 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800">
-        {registration.class8_year ? <span>Year: {registration.class8_year}</span> : null}
+        {year ? <span>Year: {year}</span> : null}
         {registration.section ? <span>Section: {registration.section}</span> : null}
         {registration.roll ? <span>Roll: {registration.roll}</span> : null}
         {registration.religion ? <span>Religion: {registration.religion}</span> : null}
@@ -284,6 +291,119 @@ function Class8Details({ registration }: { registration: Class8RegistrationRecor
             {renderOptionalRow('Registration No:', registration.registration_no)}
             {renderOptionalRow('Class Six Academic Session:', registration.class6_academic_session)}
             {renderOptionalRow('Name of Previous School:', registration.prev_school_name)}
+
+            {sectionHeader('Student Information Reference')}
+            {renderOptionalRow(
+              'বাসার নিকটবর্তী অষ্টম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:',
+              registration.nearby_student_info,
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function JuniorScholarshipDetails({
+  registration,
+  year,
+}: {
+  registration: JuniorScholarshipRegistrationRecord;
+  year?: number | null;
+}) {
+  const guardianAddress = joinAddr(
+    registration.guardian_village_road ?? '',
+    registration.guardian_post_office ?? '',
+    registration.guardian_post_code ?? '',
+    registration.guardian_upazila ?? '',
+    registration.guardian_district ?? '',
+  );
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800">
+        {year ? <span>Year: {year}</span> : null}
+        {registration.section ? <span>Section: {registration.section}</span> : null}
+        {registration.roll ? <span>Roll: {registration.roll}</span> : null}
+        {registration.religion ? <span>Religion: {registration.religion}</span> : null}
+      </div>
+
+      <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+        <table className="w-full table-auto text-sm md:table-fixed" style={{ minWidth: '600px' }}>
+          <tbody>
+            {sectionHeader('Personal Information')}
+            {renderOptionalRow('Section:', registration.section)}
+            {renderOptionalRow('Roll:', registration.roll)}
+            {renderOptionalRow('Religion:', registration.religion)}
+            {renderOptionalRow('ছাত্রের নাম (বাংলায়):', registration.student_name_bn)}
+            {renderOptionalRow(
+              "Student's Name (in English):",
+              registration.student_name_en?.toUpperCase(),
+            )}
+            {renderOptionalRow('Birth Registration No:', registration.birth_reg_no)}
+            {renderOptionalRow('Date of Birth:', formatDateLong(registration.birth_date))}
+            {renderOptionalRow('Email:', registration.email)}
+            {renderOptionalRow('পিতার নাম (বাংলায়):', registration.father_name_bn)}
+            {renderOptionalRow(
+              "Father's Name (in English):",
+              registration.father_name_en?.toUpperCase(),
+            )}
+            {renderOptionalRow("Father's NID:", registration.father_nid)}
+            {renderOptionalRow("Father's Mobile Number:", registration.father_phone)}
+            {renderOptionalRow('মাতার নাম (বাংলায়):', registration.mother_name_bn)}
+            {renderOptionalRow(
+              "Mother's Name (in English):",
+              registration.mother_name_en?.toUpperCase(),
+            )}
+            {renderOptionalRow("Mother's NID:", registration.mother_nid)}
+            {renderOptionalRow("Mother's Mobile Number:", registration.mother_phone)}
+
+            {sectionHeader('Address Information')}
+            {renderOptionalRow(
+              'Permanent Address:',
+              joinAddr(
+                registration.permanent_village_road,
+                registration.permanent_post_office,
+                registration.permanent_post_code,
+                registration.permanent_upazila,
+                registration.permanent_district,
+              ),
+            )}
+            {renderOptionalRow(
+              'Present Address:',
+              joinAddr(
+                registration.present_village_road,
+                registration.present_post_office,
+                registration.present_post_code,
+                registration.present_upazila,
+                registration.present_district,
+              ),
+            )}
+
+            {sectionHeader('Guardian Information')}
+            {renderOptionalRow("Guardian's Name:", registration.guardian_name)}
+            {renderOptionalRow('Relationship with Guardian:', registration.guardian_relation)}
+            {renderOptionalRow("Guardian's Mobile Number:", registration.guardian_phone)}
+            {renderOptionalRow("Guardian's Address:", guardianAddress)}
+
+            {sectionHeader('Previous School Information (Class Six)')}
+            {renderOptionalRow('Name of Previous School:', registration.prev_school_name)}
+            {renderOptionalRow(
+              'Previous School Address:',
+              joinAddr(
+                '',
+                '',
+                '',
+                registration.prev_school_upazila,
+                registration.prev_school_district,
+              ),
+            )}
+
+            {sectionHeader('Class Six Information')}
+            {renderOptionalRow('Class Six Passing Year:', registration.class6_passing_year)}
+            {renderOptionalRow('Class Six Board:', registration.class6_board)}
+            {renderOptionalRow('Class Six Registration Number:', registration.class6_reg_no)}
+            {renderOptionalRow('Class Six ID/Roll Number:', registration.class6_roll_no)}
 
             {sectionHeader('Student Information Reference')}
             {renderOptionalRow(
@@ -455,7 +575,7 @@ function Class9Details({ registration }: { registration: Class9RegistrationRecor
   );
 }
 
-type ConfirmationKind = 'class-6' | 'class-8' | 'class-9';
+type ConfirmationKind = 'class-6' | 'class-8' | 'junior-scholarship' | 'class-9';
 
 type ConfirmationClientProps =
   | {
@@ -467,6 +587,12 @@ type ConfirmationClientProps =
   | {
       kind: 'class-8';
       registration: Class8RegistrationRecord;
+      schoolConfig: SchoolConfig;
+      pdfUrl: string;
+    }
+  | {
+      kind: 'junior-scholarship';
+      registration: JuniorScholarshipRegistrationRecord;
       schoolConfig: SchoolConfig;
       pdfUrl: string;
     }
@@ -493,6 +619,10 @@ const CONFIRM_META: Record<
     title: 'Registration Confirmation (Class 8)',
     downloadFilename: (name) => `Class8_Reg_${name?.replace(/\s+/g, '_')}.pdf`,
   },
+  'junior-scholarship': {
+    title: 'Junior Scholarship Examination Confirmation',
+    downloadFilename: (name) => `JuniorScholarship_${name?.replace(/\s+/g, '_')}.pdf`,
+  },
   'class-9': {
     title: 'SSC Registration Confirmation',
     pdfTitle2: 'Download Your SSC Registration Form',
@@ -503,13 +633,20 @@ const CONFIRM_META: Record<
 
 function getPhoto(
   kind: ConfirmationKind,
-  registration: Class6RegistrationRecord | Class8RegistrationRecord | Class9RegistrationRecord,
+  registration:
+    | Class6RegistrationRecord
+    | Class8RegistrationRecord
+    | JuniorScholarshipRegistrationRecord
+    | Class9RegistrationRecord,
 ): string | null {
   if (kind === 'class-9') {
     const r = registration as Class9RegistrationRecord;
     return r.photo_path || (typeof r.photo === 'string' ? r.photo : null);
   }
-  const photo = (registration as Class6RegistrationRecord | Class8RegistrationRecord).photo;
+  const photo = (
+    registration as
+      Class6RegistrationRecord | Class8RegistrationRecord | JuniorScholarshipRegistrationRecord
+  ).photo;
   return typeof photo === 'string' && photo ? photo : null;
 }
 
@@ -562,7 +699,16 @@ export default function ConfirmationClient(props: ConfirmationClientProps) {
   if (kind === 'class-6') {
     details = <Class6Details registration={props.registration} />;
   } else if (kind === 'class-8') {
-    details = <Class8Details registration={props.registration} />;
+    details = (
+      <Class8Details registration={props.registration} year={props.registration.class8_year} />
+    );
+  } else if (kind === 'junior-scholarship') {
+    details = (
+      <JuniorScholarshipDetails
+        registration={props.registration}
+        year={props.registration.jse_year}
+      />
+    );
   } else {
     details = <Class9Details registration={props.registration} />;
   }

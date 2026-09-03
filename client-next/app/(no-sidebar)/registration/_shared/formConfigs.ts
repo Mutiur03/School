@@ -1,12 +1,15 @@
 import {
   Class6Registration,
   Class8Registration,
+  JuniorScholarshipRegistration,
   Class9Registration,
   registrationSchema,
   registrationSchemaClass8,
+  registrationSchemaJuniorScholarship,
   registrationSchemaClass9,
   registrationDefaultValues,
   registrationDefaultValuesClass8,
+  registrationDefaultValuesJuniorScholarship,
   registrationDefaultValuesClass9,
   registrationMetadata,
 } from '@school/shared-schemas';
@@ -14,12 +17,13 @@ import { REG_PHOTO_SIZE_LABEL } from '@/lib/registrationPhoto';
 import {
   Class6ExtraFields,
   Class8ExtraFields,
+  JuniorScholarshipExtraFields,
   Class9ExtraFields,
   type ExtraFieldsProps,
 } from './ExtraFields';
 import type { ComponentType } from 'react';
 
-export type FormKind = 'class-6' | 'class-8' | 'class-9';
+export type FormKind = 'class-6' | 'class-8' | 'junior-scholarship' | 'class-9';
 
 const class6Metadata = {
   section: {
@@ -181,8 +185,12 @@ const CLASS6_REQUIRED: ReadonlyArray<keyof Class6Registration> = [
 export type RegistrationFormConfig = {
   kind: FormKind;
   schema:
-    typeof registrationSchema | typeof registrationSchemaClass8 | typeof registrationSchemaClass9;
-  defaultValues: Class6Registration | Class8Registration | Class9Registration;
+    | typeof registrationSchema
+    | typeof registrationSchemaClass8
+    | typeof registrationSchemaJuniorScholarship
+    | typeof registrationSchemaClass9;
+  defaultValues:
+    Class6Registration | Class8Registration | JuniorScholarshipRegistration | Class9Registration;
   metadata: any;
   ExtraFields: ComponentType<ExtraFieldsProps>;
   needsSchoolConfig: boolean;
@@ -270,6 +278,40 @@ export const FORM_CONFIGS: Record<FormKind, RegistrationFormConfig> = {
         : `Student's Information for Registration of Class Eight ${settings?.class8_year}`,
     yearForUpload: (settings) => ({ class8_year: settings?.class8_year }),
     yearForSubmit: (settings) => ({ class8_year: settings?.class8_year }),
+    applyCreateDefaults: (setValue, _settings, schoolConfig) => {
+      setValue('prev_school_name', schoolConfig.name.en, { shouldValidate: true });
+      setValue('prev_school_district', schoolConfig.contact.district, { shouldValidate: true });
+    },
+    getPhotoPreview: (data) => (typeof data.photo === 'string' && data.photo ? data.photo : null),
+    isRequired: () => true,
+  },
+  'junior-scholarship': {
+    kind: 'junior-scholarship',
+    schema: registrationSchemaJuniorScholarship,
+    defaultValues: registrationDefaultValuesJuniorScholarship,
+    metadata: registrationMetadata,
+    ExtraFields: JuniorScholarshipExtraFields,
+    needsSchoolConfig: true,
+    sameSchoolAutofill: true,
+    showScoutInPersonal: true,
+    scoutLabel: 'Scout:',
+    studentNameEnLabel: "Student's Name (in English)",
+    fatherNameEnLabel: "Father's Name (in English)",
+    motherNameEnLabel: "Mother's Name (in English)",
+    showNickName: false,
+    showBloodGroup: false,
+    photoHelp: 'p',
+    loadingText: 'Preparing Form Data',
+    passGuardianMetadata: true,
+    clearBirthMonthDay: false,
+    clearPhotoOnFail: false,
+    validationErrorMessage: false,
+    title: (isEdit, settings) =>
+      isEdit
+        ? `Edit Your Information for Junior Scholarship Examination ${settings?.jse_year}`
+        : `Student's Information for Junior Scholarship Examination ${settings?.jse_year}`,
+    yearForUpload: (settings) => ({ jse_year: settings?.jse_year }),
+    yearForSubmit: (settings) => ({ jse_year: settings?.jse_year }),
     applyCreateDefaults: (setValue, _settings, schoolConfig) => {
       setValue('prev_school_name', schoolConfig.name.en, { shouldValidate: true });
       setValue('prev_school_district', schoolConfig.contact.district, { shouldValidate: true });

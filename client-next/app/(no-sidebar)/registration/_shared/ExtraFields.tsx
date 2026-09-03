@@ -257,6 +257,154 @@ export function Class8ExtraFields({
   );
 }
 
+export function JuniorScholarshipExtraFields({
+  register,
+  errors,
+  setValue,
+  isRequired,
+  settings,
+  schoolConfig,
+  prevSchoolUpazilas,
+  prev_school_district,
+  prevSchoolOption,
+  handlePrevSchoolOptionChange,
+}: ExtraFieldsProps) {
+  const class6Meta = {
+    class6_reg_no: {
+      tooltip: 'Write your Class Six Registration Number',
+      instruction: 'ষষ্ঠ শ্রেণির রেজিস্ট্রেশন নম্বর লিখুন',
+    },
+    class6_roll_no: {
+      tooltip: 'Write your Class Six ID/Roll Number',
+      instruction: 'ষষ্ঠ শ্রেণির আইডি/রোল নম্বর লিখুন',
+    },
+  };
+
+  return (
+    <>
+      <SectionHeader title="Previous School Information (Class Six)">
+        <FieldRow label="Name of Previous School :" isRequired error={errors.prev_school_name}>
+          <div className="space-y-3">
+            <select
+              value={prevSchoolOption}
+              onChange={(e) => handlePrevSchoolOptionChange?.(e.target.value)}
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            >
+              <option value={schoolConfig!.name.en}>{schoolConfig!.name.en}</option>
+              <option value="Others">Others</option>
+            </select>
+
+            {prevSchoolOption === 'Others' && (
+              <input
+                {...register('prev_school_name')}
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                placeholder="Enter the name of your previous school"
+              />
+            )}
+          </div>
+        </FieldRow>
+
+        <AddressFields
+          prefix="prev_school"
+          register={register}
+          setValue={setValue}
+          errors={errors}
+          upazilas={prevSchoolUpazilas}
+          districtValue={prev_school_district}
+          isRequired={isRequired}
+          showPostFields={false}
+        />
+      </SectionHeader>
+
+      <SectionHeader title="Class Six Information">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FieldRow label="Class Six Passing Year:" isRequired error={errors.class6_passing_year}>
+            <select
+              {...register('class6_passing_year')}
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            >
+              <option value="">Select Year</option>
+              {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i - 2)).map(
+                (y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ),
+              )}
+            </select>
+          </FieldRow>
+          <FieldRow label="Class Six Board:" isRequired error={errors.class6_board}>
+            <select
+              {...register('class6_board')}
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            >
+              <option value="">Select Board</option>
+              <option value="Rajshahi">Rajshahi</option>
+              <option value="Dhaka">Dhaka</option>
+              <option value="Cumilla">Cumilla</option>
+              <option value="Chattogram">Chattogram</option>
+              <option value="Barishal">Barishal</option>
+              <option value="Sylhet">Sylhet</option>
+              <option value="Dinajpur">Dinajpur</option>
+              <option value="Jashore">Jashore</option>
+              <option value="Mymensingh">Mymensingh</option>
+              <option value="Madrasah">Madrasah</option>
+            </select>
+          </FieldRow>
+          <FormInput
+            label="Class Six Registration Number"
+            name="class6_reg_no"
+            register={register}
+            errors={errors}
+            isRequired
+            filterType="numeric"
+            maxLength={10}
+            placeholder="10 Digits"
+            tooltip={class6Meta.class6_reg_no.tooltip}
+            instruction={class6Meta.class6_reg_no.instruction}
+          />
+          <FormInput
+            label="Class Six ID/Roll Number"
+            name="class6_roll_no"
+            register={register}
+            errors={errors}
+            isRequired
+            filterType="numeric"
+            maxLength={6}
+            placeholder="6 Digits"
+            tooltip={class6Meta.class6_roll_no.tooltip}
+            instruction={class6Meta.class6_roll_no.instruction}
+          />
+        </div>
+      </SectionHeader>
+
+      <SectionHeader title="Student Information Reference">
+        <FieldRow
+          label="বাসার নিকটবর্তী অষ্টম শ্রেণিতে অধ্যয়নরত ছাত্রের তথ্য:"
+          isRequired
+          error={errors.nearby_student_info}
+        >
+          <select
+            {...register('nearby_student_info')}
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+          >
+            <option value="">Select Name</option>
+            {(settings?.classmates ?? '')
+              .split(/\n|,/)
+              .map((name: string) => name.trim())
+              .filter(Boolean)
+              .map((trimmedName: string, idx: number) => (
+                <option key={idx} value={trimmedName}>
+                  {trimmedName}
+                </option>
+              ))}
+          </select>
+        </FieldRow>
+      </SectionHeader>
+    </>
+  );
+}
+
 const subjectOptionsByGroup = {
   Science: {
     main: [

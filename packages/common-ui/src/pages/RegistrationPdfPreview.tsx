@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-type ClassSlug = 'class-6' | 'class-8' | 'class-9';
+type ClassSlug = 'class-6' | 'class-8' | 'junior-scholarship' | 'class-9';
 type PreviewMode = 'stored' | 'live';
 
 type Props = {
@@ -20,7 +20,10 @@ export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' 
     params.set('t', String(Date.now()));
     return `/api/reg/${classSlug}/form/${id}/pdf?${params.toString()}`;
   }, [classSlug, id, mode]);
-  const label = classSlug.replace('class-', 'Class ');
+  const label =
+    classSlug === 'junior-scholarship'
+      ? 'Junior Scholarship'
+      : classSlug.replace('class-', 'Class ');
 
   return (
     <div style={{ width: '100%', height: '100vh', background: '#fff', position: 'relative' }}>

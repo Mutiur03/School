@@ -267,6 +267,11 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       dropdown: [
         { id: 'menu-item-3547', href: '/registration/class-9', text: 'Class Nine' },
         { id: 'menu-item-3548', href: '/registration/class-8', text: 'Class Eight' },
+        {
+          id: 'menu-item-jse',
+          href: '/registration/junior-scholarship',
+          text: 'Junior Scholarship',
+        },
         { id: 'menu-item-3549', href: '/registration/class-6', text: 'Class Six' },
       ],
     },

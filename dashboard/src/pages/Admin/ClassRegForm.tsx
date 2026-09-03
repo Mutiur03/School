@@ -46,12 +46,15 @@ import type {
   Class6RegistrationSettingsData,
   Class8RegistrationRecord,
   Class8RegistrationSettingsData,
+  JuniorScholarshipRegistrationRecord,
+  JuniorScholarshipRegistrationSettingsData,
   Class9RegistrationRecord,
   Class9RegistrationSettingsData,
 } from '@school/shared-schemas';
 import {
   class6RegistrationSettingsSchema,
   class8RegistrationSettingsSchema,
+  juniorScholarshipRegistrationSettingsSchema,
   class9RegistrationSettingsSchema,
 } from '@school/shared-schemas';
 import { useRegistrationSettingsYear } from '@/hooks/useRegistrationSettingsYear';
@@ -60,10 +63,11 @@ import {
   RegistrationSettingsYearStatus,
 } from '@/components/RegistrationSettingsYearControls';
 
-type Variant = 6 | 8 | 9;
+type Variant = 6 | 8 | 9 | 'jse';
 
 type Registration = Partial<Class6RegistrationRecord> &
   Partial<Class8RegistrationRecord> &
+  Partial<JuniorScholarshipRegistrationRecord> &
   Partial<Class9RegistrationRecord> & {
     id: string;
     birth_date: string;
@@ -75,12 +79,16 @@ type Registration = Partial<Class6RegistrationRecord> &
   };
 
 type SettingsData =
-  Class6RegistrationSettingsData | Class8RegistrationSettingsData | Class9RegistrationSettingsData;
+  | Class6RegistrationSettingsData
+  | Class8RegistrationSettingsData
+  | JuniorScholarshipRegistrationSettingsData
+  | Class9RegistrationSettingsData;
 
 const SCHEMAS = {
   6: class6RegistrationSettingsSchema,
   8: class8RegistrationSettingsSchema,
   9: class9RegistrationSettingsSchema,
+  jse: juniorScholarshipRegistrationSettingsSchema,
 } as const;
 
 const CONFIG = {
@@ -130,6 +138,32 @@ const CONFIG = {
     createHint: (year: string) =>
       `No settings for ${year} yet. Fill in the fields and create them.`,
     filterYearLabel: 'Academic Year',
+    classmatesEnrollmentLabel: 'Automatically uses names from the Class 8 enrollment list.',
+    approveLabel: 'Approve Now',
+    confirmDelete: true,
+    richExport404: false,
+    editModalSize: 'md' as const,
+  },
+  jse: {
+    apiBase: '/api/reg/junior-scholarship',
+    qSettings: 'juniorScholarshipRegSettings',
+    qRegs: 'juniorScholarshipRegistrations',
+    settingsYearField: 'jse_year',
+    listYearParam: 'jse_year',
+    recordYearKey: 'jse_year',
+    preview: '/preview/junior-scholarship/',
+    exportPrefix: 'JuniorScholarship_',
+    pdfPrefix: 'JuniorScholarship_',
+    title: 'Junior Scholarship Examination Management',
+    description: 'Manage Junior Scholarship Examination form fillup and notification settings.',
+    yearLabel: 'Exam Year',
+    settingsCardDesc: 'Settings are saved separately for each exam year.',
+    yearHeaderId: 'jse-settings-year',
+    yearHeaderStatusId: 'jse-settings-year-status',
+    loadingLabel: 'Loading selected year settings…',
+    createHint: (year: string) =>
+      `No settings for ${year} yet. Fill in the fields and create them.`,
+    filterYearLabel: 'Exam Year',
     classmatesEnrollmentLabel: 'Automatically uses names from the Class 8 enrollment list.',
     approveLabel: 'Approve Now',
     confirmDelete: true,
@@ -227,7 +261,9 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
         ? { class6_year: currentYear }
         : variant === 8
           ? { class8_year: currentYear }
-          : { ssc_year: currentYear }),
+          : variant === 'jse'
+            ? { jse_year: currentYear }
+            : { ssc_year: currentYear }),
       reg_open: false,
       instruction_for_a: '',
       instruction_for_b: '',
@@ -590,7 +626,8 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                   <Input
                     type="text"
                     {...register(
-                      cfg.settingsYearField as 'class6_year' | 'class8_year' | 'ssc_year',
+                      cfg.settingsYearField as
+                        'class6_year' | 'class8_year' | 'jse_year' | 'ssc_year',
                     )}
                     readOnly
                   />
@@ -1525,6 +1562,36 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                 Class 6 Session
                               </td>
                               <td className="px-4 py-2.5">{selectedReg.class6_academic_session}</td>
+                            </tr>
+                          </>
+                        )}
+                        {variant === 'jse' && (
+                          <>
+                            <tr>
+                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
+                                Class 6 Passing Year
+                              </td>
+                              <td className="px-4 py-2.5">{selectedReg.class6_passing_year}</td>
+                            </tr>
+                            <tr>
+                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
+                                Class 6 Board
+                              </td>
+                              <td className="px-4 py-2.5">{selectedReg.class6_board}</td>
+                            </tr>
+                            <tr>
+                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
+                                Class 6 Reg No
+                              </td>
+                              <td className="px-4 py-2.5 font-mono">{selectedReg.class6_reg_no}</td>
+                            </tr>
+                            <tr>
+                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
+                                Class 6 ID/Roll
+                              </td>
+                              <td className="px-4 py-2.5 font-mono">
+                                {selectedReg.class6_roll_no}
+                              </td>
                             </tr>
                           </>
                         )}

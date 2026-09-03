@@ -4,6 +4,7 @@ export * from './adminSchemas.js';
 export * from './subjectSchemas.js';
 export * from './class6RegistrationSchemas.js';
 export * from './class8RegistrationSchemas.js';
+export * from './juniorScholarshipRegistrationSchemas.js';
 export * from './class9RegistrationSchemas.js';
 export * from './registrationMetadata.js';
 export * from './regex.js';
