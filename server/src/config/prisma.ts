@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@/generated/prisma/client.js';
+import { PrismaClient, Prisma } from '@/generated/prisma/client.js';
 import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
 import logger from '@/utils/logger.js';
 import { recordSlowQueryBreadcrumb } from '@/config/sentry.js';
@@ -176,3 +176,36 @@ const extendedPrisma = basePrisma.$extends({
 export const prisma = extendedPrisma as unknown as PrismaClient;
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma;
+
+/**
+ * Run a real single interactive transaction with the RLS GUCs set once on that
+ * connection. Using bare `prisma.$transaction` instead makes the RLS extension
+ * open a nested transaction per query on a different pooled connection: the
+ * writes escape the outer transaction and the outer one idles until it expires
+ * ("A commit cannot be executed on an expired transaction").
+ */
+export const rlsTransaction = <T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: {
+    maxWait?: number;
+    timeout?: number;
+    isolationLevel?: Prisma.TransactionIsolationLevel;
+  },
+): Promise<T> => {
+  const rls = getRlsContext();
+  return basePrisma.$transaction(async (tx) => {
+    if (rls) {
+      await tx.$executeRaw`
+        SELECT
+          set_config('app.is_super_admin', ${rls.isSuperAdmin ? '1' : '0'}, true),
+          set_config('app.school_id', ${rls.schoolId ? String(rls.schoolId) : ''}, true)
+      `;
+    }
+    patchRlsContext({ inRlsTransaction: true });
+    try {
+      return await fn(tx);
+    } finally {
+      patchRlsContext({ inRlsTransaction: false });
+    }
+  }, options);
+};

@@ -1,4 +1,4 @@
-import { prisma } from '@/config/prisma.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { SMSService } from '@/utils/sms.service.js';
 import { SmsSettingsService } from '../sms-settings/sms-settings.service.js';
 import { SmsLogsService, SmsLogInfo } from '../sms-logs/sms-logs.service.js';
@@ -64,70 +64,100 @@ export class AttendenceService {
   }
 
   static async addAttendence(records: any[]) {
-    const result = await prisma.$transaction(async (tx) => {
-      const innerProcessed: {
-        studentId: number;
-        date: string;
-        status: string;
-      }[] = [];
-      let innerAbsentCount = 0;
-      let innerPresentCount = 0;
+    const result = await rlsTransaction(
+      async (tx) => {
+        const innerProcessed: {
+          studentId: number;
+          date: string;
+          status: string;
+        }[] = [];
+        let innerAbsentCount = 0;
+        let innerPresentCount = 0;
 
-      const prepared = records.map((record) => {
-        const { studentId, date, status } = record;
-        const formattedDate = new Date(date).toLocaleDateString('en-CA', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          timeZone: 'Asia/Dhaka',
+        const prepared = records.map((record) => {
+          const { studentId, date, status } = record;
+          const formattedDate = new Date(date).toLocaleDateString('en-CA', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            timeZone: 'Asia/Dhaka',
+          });
+          return { studentId, status, formattedDate };
         });
-        return { studentId, status, formattedDate };
-      });
 
-      // Pre-fetch every existing row for these students/dates in one query
-      // instead of a findFirst per record. Keyed by student+date; written
-      // back after each mutation so repeated pairs in the same batch behave
-      // exactly as the previous sequential lookups did.
-      const studentIds = [...new Set(prepared.map((p) => p.studentId))];
-      const dates = [...new Set(prepared.map((p) => p.formattedDate))];
-      const existingRows = await tx.attendence.findMany({
-        where: { student_id: { in: studentIds }, date: { in: dates } },
-      });
-      const existingByKey = new Map<string, any>(
-        existingRows.map((row) => [`${row.student_id}|${row.date}`, row]),
-      );
+        // Pre-fetch every existing row for these students/dates in one query
+        // instead of a findFirst per record. Keyed by student+date; written
+        // back after each mutation so repeated pairs in the same batch behave
+        // exactly as the previous sequential lookups did.
+        const studentIds = [...new Set(prepared.map((p) => p.studentId))];
+        const dates = [...new Set(prepared.map((p) => p.formattedDate))];
+        const existingRows = await tx.attendence.findMany({
+          where: { student_id: { in: studentIds }, date: { in: dates } },
+        });
+        const existingByKey = new Map<string, any>(
+          existingRows.map((row) => [`${row.student_id}|${row.date}`, row]),
+        );
 
-      for (const { studentId, status, formattedDate } of prepared) {
-        const key = `${studentId}|${formattedDate}`;
-        const existingRecord = existingByKey.get(key);
+        // Batch the writes: one updateMany per (status, send_msg-reset) bucket
+        // and one createMany, instead of a query per record. A class of 60
+        // students used to mean 60 sequential round trips, which blew the 5s
+        // interactive transaction timeout.
+        const updateBuckets = new Map<string, number[]>();
+        const toCreate = new Map<string, { student_id: number; date: string; status: string }>();
+        const seen = new Set<string>();
 
-        if (existingRecord) {
-          const hasStatusChanged = existingRecord.status !== status;
-          const updated = await tx.attendence.update({
-            where: { id: existingRecord.id },
-            data: {
+        for (const { studentId, status, formattedDate } of prepared) {
+          const key = `${studentId}|${formattedDate}`;
+          const existingRecord = existingByKey.get(key);
+
+          // Last write for a repeated student+date wins, as before.
+          if (seen.has(key)) {
+            for (const ids of updateBuckets.values()) {
+              const i = ids.indexOf(existingRecord?.id);
+              if (i !== -1) ids.splice(i, 1);
+            }
+            toCreate.delete(key);
+          }
+          seen.add(key);
+
+          if (existingRecord) {
+            const bucket = `${status}|${existingRecord.status !== status}`;
+            const ids = updateBuckets.get(bucket) ?? [];
+            ids.push(existingRecord.id);
+            updateBuckets.set(bucket, ids);
+          } else {
+            toCreate.set(key, {
+              student_id: studentId,
+              date: formattedDate,
               status,
-              ...(hasStatusChanged ? { send_msg: false } : {}),
-            },
-          });
-          existingByKey.set(key, updated);
-        } else {
-          const created = await tx.attendence.create({
-            data: { student_id: studentId, date: formattedDate, status },
-          });
-          existingByKey.set(key, created);
+            });
+          }
+
+          innerProcessed.push({ studentId, date: formattedDate, status });
+          if (status === 'absent') innerAbsentCount++;
+          else if (status === 'present') innerPresentCount++;
         }
 
-        innerProcessed.push({ studentId, date: formattedDate, status });
-        if (status === 'absent') innerAbsentCount++;
-        else if (status === 'present') innerPresentCount++;
-      }
-      return {
-        processed: innerProcessed,
-        absentCount: innerAbsentCount,
-        presentCount: innerPresentCount,
-      };
-    });
+        for (const [bucket, ids] of updateBuckets) {
+          if (!ids.length) continue;
+          const [status, changed] = bucket.split('|');
+          await tx.attendence.updateMany({
+            where: { id: { in: ids } },
+            data: { status, ...(changed === 'true' ? { send_msg: false } : {}) },
+          });
+        }
+
+        if (toCreate.size) {
+          await tx.attendence.createMany({ data: [...toCreate.values()] });
+        }
+        return {
+          processed: innerProcessed,
+          absentCount: innerAbsentCount,
+          presentCount: innerPresentCount,
+        };
+      },
+      { timeout: 15000 },
+    );
 
     const { processed, absentCount, presentCount } = result;
 
