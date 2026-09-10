@@ -1,5 +1,7 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
+  "regions": ["bom1"],
   "installCommand": "pnpm install",
   "buildCommand": "pnpm -w run check:client-next && pnpm --filter @school/shared-schemas build && pnpm --filter @school/common-ui build && pnpm --filter client-next build"
 }
