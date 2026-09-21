@@ -298,29 +298,36 @@ export default function SchoolBillingEditor({ schoolId }: { schoolId: number }) 
     <div className="space-y-6" role="tabpanel" id="panel-billing" aria-labelledby="tab-billing">
       <div className="flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-100">
         <CalendarClock className="mt-0.5 h-5 w-5 shrink-0" />
-        <p>
-          Changing status fills the dates that status needs.{' '}
-          {trialNoGrace
-            ? 'Trial has no grace period — access locks when the trial ends.'
-            : isPastDue
-              ? 'Past due means the annual period is already over (also auto-set when an active period ends). Grace only for 10 days, then status becomes expired and locks — never full “active” access.'
-              : isActive
-                ? 'Active schools have full access until the period ends. Then: past due (10-day grace) → expired (locked). Both steps are automatic.'
-                : form.status === 'expired'
-                  ? 'Expired means grace is over and access is locked (also auto-set after past-due grace ends). Cancelled stays manual only.'
+        <div className="min-w-0 space-y-1">
+          <p>
+            <strong>
+              {immediateLock
+                ? 'Locks access immediately.'
+                : trialNoGrace
+                  ? `Trial locks on ${formatBillingDate(accessEndValue ? `${accessEndValue}T23:59:59.999Z` : null)}.`
                   : graceEligible
-                    ? 'After the annual period ends, schools get a 10-day grace period, then lock automatically.'
-                    : 'This status does not use the annual grace window.'}{' '}
-          <strong>
-            {immediateLock
-              ? 'This status locks access immediately.'
-              : trialNoGrace
-                ? `Locks on: ${formatBillingDate(accessEndValue ? `${accessEndValue}T23:59:59.999Z` : null)}.`
-                : graceEligible
-                  ? `Calculated lock date: ${formatBillingDate(calculatedGraceEnd)}.`
-                  : `Access ends: ${formatBillingDate(accessEndValue ? `${accessEndValue}T23:59:59.999Z` : null)}.`}
-          </strong>
-        </p>
+                    ? `Access locks on ${formatBillingDate(calculatedGraceEnd)}.`
+                    : `Access ends ${formatBillingDate(accessEndValue ? `${accessEndValue}T23:59:59.999Z` : null)}.`}
+            </strong>{' '}
+            {isActive
+              ? 'After period end → past due (10-day grace) → expired.'
+              : isPastDue
+                ? 'Grace only — never full active access.'
+                : form.status === 'expired'
+                  ? 'Grace is over.'
+                  : trialNoGrace
+                    ? 'No grace on trial.'
+                    : null}
+          </p>
+          <details className="text-xs opacity-90">
+            <summary className="cursor-pointer font-medium">How access works</summary>
+            <p className="mt-1 leading-5">
+              Changing status fills the dates that status needs. Active auto-becomes past due when
+              the period ends, then expired after the 10-day grace. Cancelled and suspended stay
+              manual.
+            </p>
+          </details>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

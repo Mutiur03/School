@@ -397,7 +397,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
     student: studentRoutes,
     super_admin: [
       {
-        label: 'Dashboard',
+        label: 'Overview',
         icon: Home,
         dropdown: false,
         link: '/super_admin/dashboard',
@@ -405,7 +405,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         roles: ['super_admin'],
       },
       {
-        label: 'School Management',
+        label: 'Schools',
         icon: Building2,
         dropdown: false,
         link: '/super_admin/settings/school',
@@ -413,7 +413,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         roles: ['super_admin'],
       },
       {
-        label: 'Exams',
+        label: 'Exam types',
         icon: ClipboardList,
         dropdown: false,
         link: '/super_admin/settings/exams',
@@ -421,7 +421,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         roles: ['super_admin'],
       },
       {
-        label: 'SMS Management',
+        label: 'SMS',
         icon: MessageSquare,
         dropdown: false,
         link: '/super_admin/settings/sms',

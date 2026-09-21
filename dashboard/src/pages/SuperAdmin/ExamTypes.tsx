@@ -355,7 +355,7 @@ export default function ExamTypes() {
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       {dialog}
       <PageHeader
-        title="Exams"
+        title="Exam types"
         description="Global catalog and which types each school can create."
       >
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">

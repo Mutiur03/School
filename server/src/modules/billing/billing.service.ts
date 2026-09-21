@@ -1,4 +1,5 @@
 import type { UpdateSubscriptionData } from '@school/shared-schemas';
+import type { SubscriptionStatus } from '@/generated/prisma/client.js';
 import { prisma } from '@/config/prisma.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { redis } from '@/config/redis.js';
@@ -37,13 +38,16 @@ async function persistLifecycleIfNeeded<T extends AccessFields>(
     (subscription.status === 'past_due' && effective === 'expired');
   if (!canAuto) return subscription;
 
+  const fromStatus = subscription.status as SubscriptionStatus;
+  const toStatus = effective as SubscriptionStatus;
+
   const result = await prisma.school_subscriptions.updateMany({
-    where: { school_id: schoolId, status: subscription.status },
-    data: { status: effective, status_changed_at: new Date() },
+    where: { school_id: schoolId, status: fromStatus },
+    data: { status: toStatus, status_changed_at: new Date() },
   });
   await redis.del(subscriptionCacheKey(schoolId)).catch(() => {});
   if (result.count === 0) return subscription;
-  return { ...subscription, status: effective };
+  return { ...subscription, status: toStatus };
 }
 
 export class BillingService {

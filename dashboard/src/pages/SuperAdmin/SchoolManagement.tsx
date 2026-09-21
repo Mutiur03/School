@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Eye,
+  EyeOff,
   GripVertical,
   ImageIcon,
   KeyRound,
@@ -263,14 +265,47 @@ type EditorTab = (typeof EDITOR_TABS)[number]['id'];
 
 const EDITOR_TAB_IDS = new Set<string>(EDITOR_TABS.map((tab) => tab.id));
 
-const parseSchoolId = (raw: string | null): number | 'new' => {
-  if (!raw || raw === 'new') return 'new';
+/** Tabs available while creating a school (billing/SMS/admins come after save). */
+const CREATE_TABS = new Set<EditorTab>([
+  'identity',
+  'contact',
+  'domains',
+  'branding',
+  'academic',
+  'about',
+]);
+
+const LAST_SCHOOL_KEY = 'superadmin:lastSchoolId';
+
+type SelectedSchoolId = number | 'new' | null;
+
+const parseSchoolId = (raw: string | null): SelectedSchoolId => {
+  if (raw === 'new') return 'new';
+  if (!raw) return null;
   const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : 'new';
+  return Number.isInteger(id) && id > 0 ? id : null;
 };
 
 const parseEditorTab = (raw: string | null): EditorTab =>
   raw && EDITOR_TAB_IDS.has(raw) ? (raw as EditorTab) : 'identity';
+
+const rememberSchool = (id: number) => {
+  try {
+    localStorage.setItem(LAST_SCHOOL_KEY, String(id));
+  } catch {
+    /* ignore */
+  }
+};
+
+const rememberedSchoolId = (): number | null => {
+  try {
+    const raw = localStorage.getItem(LAST_SCHOOL_KEY);
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+};
 
 const FIELD_TAB: Record<string, EditorTab> = {
   name: 'identity',
@@ -536,7 +571,6 @@ function SchoolManagement() {
           const next = new URLSearchParams(prev);
           if (patch.school !== undefined) next.set('school', String(patch.school));
           if (patch.tab !== undefined) next.set('tab', patch.tab);
-          if (!next.get('school')) next.set('school', 'new');
           if (!next.get('tab')) next.set('tab', 'identity');
           return next;
         },
@@ -590,7 +624,7 @@ function SchoolManagement() {
     reset: resetAdminForm,
     getValues: getAdminValues,
     trigger: validateAdminForm,
-    formState: { errors: adminErrors },
+    formState: { errors: adminErrors, isDirty: adminIsDirty },
   } = useForm<AdminFormValues>({
     resolver: zodResolver(addAdminSchema),
     defaultValues: { username: '', password: '' },
@@ -605,7 +639,7 @@ function SchoolManagement() {
     setValue,
     setError,
     clearErrors,
-    formState: { errors },
+    formState: { errors, isDirty: schoolIsDirty },
   } = useForm<SchoolFormValues>({
     resolver: zodResolver(updateSchoolSchema),
     defaultValues: createEmptySchool(),
@@ -613,6 +647,9 @@ function SchoolManagement() {
     reValidateMode: 'onChange',
   });
   const [trialEndsAt, setTrialEndsAt] = useState(defaultTrialEnd);
+  const initialTrialEndsAtRef = useRef(trialEndsAt);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [showSmsApiKey, setShowSmsApiKey] = useState(false);
 
   const district = watch('district');
   const schoolName = watch('name');
@@ -671,9 +708,35 @@ function SchoolManagement() {
       setSchools(list);
 
       const schoolId = selectedSchoolIdRef.current;
-      if (schoolId !== 'new' && !list.some((school: SchoolData) => school.id === schoolId)) {
-        patchQuery({ school: 'new' });
+      if (schoolId === 'new') return;
+
+      if (typeof schoolId === 'number') {
+        if (!list.some((school: SchoolData) => school.id === schoolId)) {
+          const fallback = rememberedSchoolId();
+          const pick =
+            (fallback && list.some((s: SchoolData) => s.id === fallback) ? fallback : null) ??
+            list[0]?.id ??
+            null;
+          if (typeof pick === 'number') {
+            rememberSchool(pick);
+            patchQuery({ school: pick, tab: 'identity' });
+          } else {
+            patchQuery({ school: 'new', tab: 'identity' });
+          }
+        }
+        return;
       }
+
+      // No school in URL yet — prefer last visited, else first, else create.
+      if (list.length === 0) {
+        patchQuery({ school: 'new', tab: 'identity' });
+        return;
+      }
+      const last = rememberedSchoolId();
+      const pick =
+        (last && list.some((s: SchoolData) => s.id === last) ? last : null) ?? list[0].id!;
+      rememberSchool(pick);
+      patchQuery({ school: pick });
     } catch (error) {
       console.error('Failed to fetch schools', error);
       toast.error('Failed to load schools');
@@ -683,20 +746,26 @@ function SchoolManagement() {
   }, [patchQuery]);
 
   useEffect(() => {
-    if (!searchParams.get('school') || !searchParams.get('tab')) {
-      patchQuery({ school: selectedSchoolId, tab: editorTab });
+    if (!searchParams.get('tab')) {
+      patchQuery({ tab: 'identity' });
     }
-  }, [searchParams, selectedSchoolId, editorTab, patchQuery]);
+  }, [searchParams, patchQuery]);
 
   useEffect(() => {
     fetchSchools();
   }, [fetchSchools]);
 
   useEffect(() => {
-    if (selectedSchoolId === 'new') return;
+    if (selectedSchoolId === 'new' || selectedSchoolId === null) return;
     const current = schools.find((school) => school.id === selectedSchoolId);
     if (current) reset(toFormValues(current));
   }, [selectedSchoolId, schools, reset]);
+
+  useEffect(() => {
+    if (selectedSchoolId === 'new' && !CREATE_TABS.has(editorTab)) {
+      patchQuery({ tab: 'identity' });
+    }
+  }, [selectedSchoolId, editorTab, patchQuery]);
 
   const fetchSchoolAdmins = useCallback(async (schoolId: number) => {
     setFetchingAdmins(true);
@@ -827,6 +896,9 @@ function SchoolManagement() {
   const selectSchool = (school: SchoolData) => {
     clearPendingPreviews();
     reset(toFormValues(school));
+    setShowAdminPassword(false);
+    setShowSmsApiKey(false);
+    if (typeof school.id === 'number') rememberSchool(school.id);
     patchQuery({ school: school.id ?? 'new', tab: 'identity' });
   };
 
@@ -835,8 +907,47 @@ function SchoolManagement() {
     reset(createEmptySchool());
     setSchoolAdmins([]);
     resetAdminForm({ username: '', password: '' });
-    setTrialEndsAt(defaultTrialEnd());
+    const trial = defaultTrialEnd();
+    setTrialEndsAt(trial);
+    initialTrialEndsAtRef.current = trial;
+    setShowAdminPassword(false);
     patchQuery({ school: 'new', tab: 'identity' });
+  };
+
+  const hasUnsavedSchoolChanges = () => {
+    const pending =
+      Boolean(pendingAssets.logo) ||
+      Boolean(pendingAssets.header) ||
+      pendingAssets.banners.length > 0;
+    if (pending || schoolIsDirty) return true;
+    if (selectedSchoolId === 'new') {
+      return adminIsDirty || trialEndsAt !== initialTrialEndsAtRef.current;
+    }
+    return false;
+  };
+
+  const requestSelectSchool = async (school: SchoolData) => {
+    if (hasUnsavedSchoolChanges()) {
+      const ok = await confirm({
+        title: 'Discard unsaved changes?',
+        msg: 'You have edits that will be lost if you switch schools.',
+        confirmLabel: 'Discard',
+      });
+      if (!ok) return;
+    }
+    selectSchool(school);
+  };
+
+  const requestStartNewSchool = async () => {
+    if (hasUnsavedSchoolChanges()) {
+      const ok = await confirm({
+        title: 'Discard unsaved changes?',
+        msg: 'You have edits that will be lost if you start a new school.',
+        confirmLabel: 'Discard',
+      });
+      if (!ok) return;
+    }
+    startNewSchool();
   };
 
   const handleLogoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1046,12 +1157,12 @@ function SchoolManagement() {
       if (selectedSchoolId === 'new') {
         const adminIsValid = await validateAdminForm();
         if (!adminIsValid) {
-          setEditorTab('admins');
+          setEditorTab('identity');
           toast.error('Add the initial school admin credentials');
           return;
         }
         if (!trialEndsAt) {
-          setEditorTab('admins');
+          setEditorTab('identity');
           toast.error('Choose when the free trial ends');
           return;
         }
@@ -1090,6 +1201,7 @@ function SchoolManagement() {
         const createdId = res.data?.data?.id;
         if (typeof createdId === 'number') {
           selectedSchoolIdRef.current = createdId;
+          rememberSchool(createdId);
           patchQuery({ school: createdId });
         }
       }
@@ -1126,7 +1238,7 @@ function SchoolManagement() {
   };
 
   const onAddAdmin = async (values: AdminFormValues) => {
-    if (selectedSchoolId === 'new') {
+    if (typeof selectedSchoolId !== 'number') {
       toast.error('Save the school before adding admins');
       return;
     }
@@ -1150,7 +1262,7 @@ function SchoolManagement() {
   };
 
   const handleDeleteAdmin = async (admin: SchoolAdmin) => {
-    if (selectedSchoolId === 'new') return;
+    if (typeof selectedSchoolId !== 'number') return;
 
     const confirmed = await confirm({
       title: 'Delete admin?',
@@ -1233,7 +1345,7 @@ function SchoolManagement() {
           description={`${sortedSchools.length} tenant${sortedSchools.length === 1 ? '' : 's'}`}
           icon={<Building2 size={20} />}
           headerAction={
-            <Button type="button" size="sm" onClick={startNewSchool}>
+            <Button type="button" size="sm" onClick={() => void requestStartNewSchool()}>
               <Plus className="mr-1 h-3.5 w-3.5" />
               New
             </Button>
@@ -1277,7 +1389,7 @@ function SchoolManagement() {
                   <button
                     key={school.id}
                     type="button"
-                    onClick={() => selectSchool(school)}
+                    onClick={() => void requestSelectSchool(school)}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
                       'focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2',
@@ -1301,7 +1413,11 @@ function SchoolManagement() {
         <SectionCard
           className="lg:col-span-8"
           title={
-            selectedSchoolId !== 'new' ? `Edit: ${schoolName || 'School'}` : 'Create New School'
+            selectedSchoolId === 'new'
+              ? 'Create New School'
+              : selectedSchoolId
+                ? `Edit: ${schoolName || 'School'}`
+                : 'School'
           }
           icon={<Building2 size={20} />}
         >
@@ -1309,37 +1425,42 @@ function SchoolManagement() {
             <EditorPanelSkeleton />
           ) : (
             <>
-              {selectedSchoolId !== 'new' && (
-                <div className="mb-4 flex flex-wrap items-center gap-2 border-b pb-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleExportStudents(selectedSchoolId, schoolName)}
-                    disabled={exportingId === selectedSchoolId}
-                  >
-                    {exportingId === selectedSchoolId ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="mr-2 h-4 w-4" />
-                    )}
-                    Download All Students
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRotatePassword(selectedSchoolId, schoolName)}
-                    disabled={rotatingId === selectedSchoolId}
-                  >
-                    {rotatingId === selectedSchoolId ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <KeyRound className="mr-2 h-4 w-4" />
-                    )}
-                    Rotate passwords
-                  </Button>
-                </div>
+              {typeof selectedSchoolId === 'number' && (
+                <details className="border-border mb-4 rounded-lg border">
+                  <summary className="text-muted-foreground cursor-pointer px-3 py-2 text-sm font-medium">
+                    Tools &amp; danger zone
+                  </summary>
+                  <div className="flex flex-wrap items-center gap-2 border-t px-3 py-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExportStudents(selectedSchoolId, schoolName)}
+                      disabled={exportingId === selectedSchoolId}
+                    >
+                      {exportingId === selectedSchoolId ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      Download All Students
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRotatePassword(selectedSchoolId, schoolName)}
+                      disabled={rotatingId === selectedSchoolId}
+                    >
+                      {rotatingId === selectedSchoolId ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <KeyRound className="mr-2 h-4 w-4" />
+                      )}
+                      Rotate passwords
+                    </Button>
+                  </div>
+                </details>
               )}
 
               <div
@@ -1347,7 +1468,10 @@ function SchoolManagement() {
                 aria-label="School editor sections"
                 className="-mx-1 mb-4 flex gap-1 overflow-x-auto border-b"
               >
-                {EDITOR_TABS.map((tab) => {
+                {(selectedSchoolId === 'new'
+                  ? EDITOR_TABS.filter((tab) => CREATE_TABS.has(tab.id))
+                  : EDITOR_TABS
+                ).map((tab) => {
                   const selected = editorTab === tab.id;
                   const hasError = tabsWithErrors.has(tab.id);
                   return (
@@ -1400,59 +1524,10 @@ function SchoolManagement() {
               ) : null}
 
               {editorTab === 'admins' ? (
-                selectedSchoolId === 'new' ? (
-                  <div
-                    role="tabpanel"
-                    id="panel-admins"
-                    aria-labelledby="tab-admins"
-                    className="space-y-5"
-                  >
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
-                      These credentials and the free trial are created together with the school, so
-                      its admin can sign in immediately.
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <Field
-                        id="initial-admin-username"
-                        label="Initial admin username"
-                        error={adminErrors.username?.message}
-                      >
-                        <Input
-                          id="initial-admin-username"
-                          {...registerAdmin('username')}
-                          placeholder="e.g. school.admin"
-                          autoComplete="username"
-                        />
-                      </Field>
-                      <Field
-                        id="initial-admin-password"
-                        label="Initial admin password"
-                        error={adminErrors.password?.message}
-                      >
-                        <Input
-                          id="initial-admin-password"
-                          type="password"
-                          {...registerAdmin('password')}
-                          placeholder="At least 6 characters"
-                          autoComplete="new-password"
-                        />
-                      </Field>
-                      <Field id="trial-ends-at" label="Free trial ends">
-                        <Input
-                          id="trial-ends-at"
-                          type="date"
-                          min={new Date().toISOString().slice(0, 10)}
-                          value={trialEndsAt}
-                          onChange={(event) => setTrialEndsAt(event.target.value)}
-                          required
-                        />
-                      </Field>
-                    </div>
-                    <p className="text-muted-foreground text-xs">
-                      The school starts on a free trial of the Annual plan. You can manage every
-                      billing date and status after creation.
-                    </p>
-                  </div>
+                selectedSchoolId === 'new' || selectedSchoolId === null ? (
+                  <p className="text-muted-foreground py-8 text-center text-sm">
+                    Save the school first, then manage admins here.
+                  </p>
                 ) : (
                   <div
                     role="tabpanel"
@@ -1543,13 +1618,28 @@ function SchoolManagement() {
                         label="Password"
                         error={adminErrors.password?.message}
                       >
-                        <Input
-                          id="admin-password"
-                          type="password"
-                          {...registerAdmin('password')}
-                          placeholder="Min 6 characters…"
-                          autoComplete="new-password"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="admin-password"
+                            type={showAdminPassword ? 'text' : 'password'}
+                            {...registerAdmin('password')}
+                            placeholder="Min 6 characters…"
+                            autoComplete="new-password"
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAdminPassword((v) => !v)}
+                            aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+                            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5"
+                          >
+                            {showAdminPassword ? (
+                              <EyeOff className="h-4 w-4" aria-hidden="true" />
+                            ) : (
+                              <Eye className="h-4 w-4" aria-hidden="true" />
+                            )}
+                          </button>
+                        </div>
                       </Field>
                       <div className="flex items-end">
                         <Button
@@ -1569,18 +1659,13 @@ function SchoolManagement() {
                   </div>
                 )
               ) : editorTab === 'billing' ? (
-                selectedSchoolId === 'new' ? (
-                  <div
-                    role="tabpanel"
-                    id="panel-billing"
-                    aria-labelledby="tab-billing"
-                    className="text-muted-foreground py-8 text-center text-sm"
-                  >
-                    The Annual free-trial subscription will be created with the school. Set its
-                    initial end date in the Admins tab.
-                  </div>
-                ) : (
+                typeof selectedSchoolId === 'number' ? (
                   <SchoolBillingEditor schoolId={selectedSchoolId} />
+                ) : (
+                  <p className="text-muted-foreground py-8 text-center text-sm">
+                    The Annual free-trial starts when you create the school. Set the trial end date
+                    on the Identity tab.
+                  </p>
                 )
               ) : editorTab === 'sms' ? (
                 selectedSchoolId === 'new' ? (
@@ -1705,13 +1790,28 @@ function SchoolManagement() {
                                 : 'No API key set yet.'
                             }
                           >
-                            <Input
-                              id="sms-api-key"
-                              type="password"
-                              value={smsApiKeyDraft}
-                              onChange={(e) => setSmsApiKeyDraft(e.target.value)}
-                              placeholder="Enter a new API key to replace it…"
-                            />
+                            <div className="relative">
+                              <Input
+                                id="sms-api-key"
+                                type={showSmsApiKey ? 'text' : 'password'}
+                                value={smsApiKeyDraft}
+                                onChange={(e) => setSmsApiKeyDraft(e.target.value)}
+                                placeholder="Enter a new API key to replace it…"
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowSmsApiKey((v) => !v)}
+                                aria-label={showSmsApiKey ? 'Hide API key' : 'Show API key'}
+                                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5"
+                              >
+                                {showSmsApiKey ? (
+                                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                                ) : (
+                                  <Eye className="h-4 w-4" aria-hidden="true" />
+                                )}
+                              </button>
+                            </div>
                           </Field>
                         </div>
                       </>
@@ -1746,6 +1846,71 @@ function SchoolManagement() {
                   >
                     {editorTab === 'identity' && (
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {selectedSchoolId === 'new' ? (
+                          <div className="border-border bg-muted/30 md:col-span-2 space-y-4 rounded-xl border p-4">
+                            <p className="text-sm font-medium">
+                              Initial admin &amp; free trial
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              Created with the school so the admin can sign in immediately. Trial
+                              has no grace — access locks when it ends.
+                            </p>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <Field
+                                id="initial-admin-username"
+                                label="Initial admin username"
+                                error={adminErrors.username?.message}
+                              >
+                                <Input
+                                  id="initial-admin-username"
+                                  {...registerAdmin('username')}
+                                  placeholder="e.g. school.admin"
+                                  autoComplete="username"
+                                />
+                              </Field>
+                              <Field
+                                id="initial-admin-password"
+                                label="Initial admin password"
+                                error={adminErrors.password?.message}
+                              >
+                                <div className="relative">
+                                  <Input
+                                    id="initial-admin-password"
+                                    type={showAdminPassword ? 'text' : 'password'}
+                                    {...registerAdmin('password')}
+                                    placeholder="At least 6 characters"
+                                    autoComplete="new-password"
+                                    className="pr-10"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowAdminPassword((v) => !v)}
+                                    aria-label={
+                                      showAdminPassword ? 'Hide password' : 'Show password'
+                                    }
+                                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5"
+                                  >
+                                    {showAdminPassword ? (
+                                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" aria-hidden="true" />
+                                    )}
+                                  </button>
+                                </div>
+                              </Field>
+                              <Field id="trial-ends-at" label="Free trial ends">
+                                <Input
+                                  id="trial-ends-at"
+                                  type="date"
+                                  min={new Date().toISOString().slice(0, 10)}
+                                  value={trialEndsAt}
+                                  onChange={(event) => setTrialEndsAt(event.target.value)}
+                                  required
+                                />
+                              </Field>
+                            </div>
+                          </div>
+                        ) : null}
                         <Field
                           id="name"
                           label="School Name (English)"
@@ -2486,7 +2651,12 @@ function SchoolManagement() {
                     )}
                   </div>
 
-                  <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 -mx-6 mt-2 flex items-center justify-end gap-3 border-t px-6 py-4 backdrop-blur">
+                  <div className="bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 -mx-6 mt-2 flex flex-col gap-2 border-t px-6 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-muted-foreground text-xs">
+                      {selectedSchoolId === 'new'
+                        ? 'Creates the school, initial admin, and free trial. Billing & SMS come after.'
+                        : 'Saves school profile only. Billing, SMS, and Admins have their own save buttons.'}
+                    </p>
                     <Button type="submit" disabled={saving || assetUploading}>
                       {saving || assetUploading ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2497,9 +2667,9 @@ function SchoolManagement() {
                         ? 'Uploading…'
                         : saving
                           ? 'Saving…'
-                          : selectedSchoolId !== 'new'
-                            ? 'Update School'
-                            : 'Create School'}
+                          : selectedSchoolId === 'new'
+                            ? 'Create School'
+                            : 'Update School'}
                     </Button>
                   </div>
                 </form>

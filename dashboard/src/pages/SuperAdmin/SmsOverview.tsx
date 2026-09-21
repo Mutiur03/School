@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import StatusBadge from '@/components/StatusBadge';
 import { cn } from '@/lib/utils';
 
 interface SchoolSmsRow {
@@ -87,9 +86,6 @@ function SmsRowSkeleton() {
       <td className="px-4 py-3 text-right">
         <Skeleton className="ml-auto h-4 w-12" />
       </td>
-      <td className="px-4 py-3">
-        <Skeleton className="h-5 w-16 rounded-full" />
-      </td>
       <td className="px-4 py-3" />
     </tr>
   );
@@ -150,7 +146,7 @@ export default function SmsOverview() {
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="SMS Management"
-        description="Shared account balance and every school's SMS provider status."
+        description="Shared account balance and every school's SMS mode (not configured / shared / self-hosted)."
       >
         <Button
           type="button"
@@ -239,7 +235,6 @@ export default function SmsOverview() {
                 <th className="px-4 py-3 font-medium">Mode</th>
                 <th className="px-4 py-3 font-medium">Sender ID</th>
                 <th className="px-4 py-3 text-right font-medium">Est. SMS</th>
-                <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -248,7 +243,7 @@ export default function SmsOverview() {
                 Array.from({ length: 6 }).map((_, i) => <SmsRowSkeleton key={i} />)
               ) : filteredSchools.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-muted-foreground px-4 py-10 text-center text-sm">
+                  <td colSpan={5} className="text-muted-foreground px-4 py-10 text-center text-sm">
                     {search ? 'No schools match your search.' : 'No schools found.'}
                   </td>
                 </tr>
@@ -283,9 +278,6 @@ export default function SmsOverview() {
                         )}
                       >
                         {row.estimated_sms ?? '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={row.is_active ? 'active' : 'inactive'} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <ChevronRight
