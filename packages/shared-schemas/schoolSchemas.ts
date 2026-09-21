@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { districts, upazilas } from './location.js';
-import { PHONE_NUMBER, VALID_GROUPS, formatSubjectGroups } from './regex.js';
+import { PHONE_NUMBER, USERNAME, VALID_GROUPS, formatSubjectGroups } from './regex.js';
 
 const currentYear = new Date().getFullYear();
 const districtIds = new Set(districts.map((d) => d.id));
@@ -477,7 +477,25 @@ const schoolBaseSchema = z
     }
   });
 
-export const createSchoolSchema = schoolBaseSchema;
+export const createSchoolSchema = schoolBaseSchema.and(
+  z.object({
+    initialAdmin: z.object({
+      username: z
+        .string()
+        .trim()
+        .min(3, 'Admin username must be at least 3 characters')
+        .max(50, 'Admin username must be at most 50 characters')
+        .regex(USERNAME, 'Admin username contains invalid characters'),
+      password: z
+        .string()
+        .min(6, 'Admin password must be at least 6 characters')
+        .max(100, 'Admin password must be at most 100 characters'),
+    }),
+    trialEndsAt: z.coerce.date().refine((date) => date.getTime() > Date.now(), {
+      message: 'Trial end must be in the future',
+    }),
+  }),
+);
 export const updateSchoolSchema = schoolBaseSchema;
 
 export type CreateSchoolSchemaData = z.infer<typeof createSchoolSchema>;

@@ -903,7 +903,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                     <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
                       Date
                     </th>
-                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                    <th className="text-foreground/70 w-1 px-6 py-3 text-right text-xs font-semibold tracking-wider whitespace-nowrap uppercase">
                       Actions
                     </th>
                   </tr>
@@ -968,8 +968,8 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         <td className="text-muted-foreground px-6 py-4 text-sm">
                           {formatDateWithTime(reg.created_at)}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-end gap-2">
+                        <td className="w-1 px-6 py-4 text-right whitespace-nowrap">
+                          <div className="inline-flex justify-end gap-2">
                             <ActionButton
                               action="view"
                               onClick={() => {

@@ -234,6 +234,16 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
       async (error) => {
         const originalRequest = error.config;
 
+        // Subscription lock is not an auth failure — keep the session.
+        if (error.response?.status === 402) {
+          if (error.response?.data?.data) {
+            window.dispatchEvent(
+              new CustomEvent('subscription-locked', { detail: error.response.data.data }),
+            );
+          }
+          return Promise.reject(error);
+        }
+
         // Detect network errors (server unreachable)
         if (isNetworkError(error) && !originalRequest?._skipOfflineDetect) {
           setServerOffline(true);
@@ -293,9 +303,9 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             const message = getResponseMessage(refreshError);
             console.error(`Refresh failed with status ${status}:`, message);
 
-            if (status === 429) {
-              notifyRateLimited();
-              // Keep existing session; do not force logout on rate limit
+            if (status === 429 || status === 402) {
+              if (status === 429) notifyRateLimited();
+              // Keep existing session; rate limit / lock are not auth failures
               return Promise.reject(refreshError);
             }
           }
@@ -357,10 +367,10 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
           const message = getResponseMessage(error);
           console.warn(`No active session found (Status ${status}):`, message);
 
-          if (status === 429) {
-            notifyRateLimited();
+          if (status === 429 || status === 402) {
+            if (status === 429) notifyRateLimited();
             setServerOffline(false);
-            // Keep existing session; rate limit is not an auth failure
+            // Keep existing session; rate limit / subscription lock are not auth failures
           } else {
             setUser(null);
             setAccessToken(null);
@@ -413,9 +423,10 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             // Still unreachable — keep polling
             return;
           }
-          if (getErrorStatus(error) === 429) {
-            notifyRateLimited();
-            // Pause offline polling so we do not dig into a rate-limit hole
+          const status = getErrorStatus(error);
+          if (status === 429 || status === 402) {
+            if (status === 429) notifyRateLimited();
+            // Pause offline polling; keep session (lock ≠ logged out)
             setServerOffline(false);
             return;
           }

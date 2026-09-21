@@ -20,3 +20,4 @@ export * from './staffSchemas.js';
 export * from './marksSchemas.js';
 export * from './examSchemas.js';
 export * from './registrationLookupSchema.js';
+export * from './billingSchemas.js';

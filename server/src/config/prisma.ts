@@ -110,6 +110,7 @@ const TENANT_MODELS = new Set([
   'notices',
   'sms_logs',
   'sms_settings',
+  'school_subscriptions',
   'ssc_reg',
   'staffs',
   'student_enrollments',

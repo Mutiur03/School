@@ -1,10 +1,11 @@
 import bcrypt from 'bcrypt';
 import * as XLSX from 'xlsx';
 import { getRlsContext, patchRlsContext } from '../../config/rlsContextStore.js';
-import { prisma } from '../../config/prisma.js';
+import { prisma, rlsTransaction } from '../../config/prisma.js';
 import { redis } from '../../config/redis.js';
 import generatePassword from '../../utils/pwgenerator.js';
 import { ApiError } from '../../utils/ApiError.js';
+import { DEFAULT_SMS_TEMPLATES } from '../../constants/smsTemplates.js';
 
 const schoolInfoKey = (id: number) => `school:info:${id}`;
 
@@ -17,8 +18,42 @@ function sheetToBuffer(rows: Record<string, unknown>[], sheetName: string): Buff
 
 export class SchoolService {
   static async createSchool(data: any) {
-    return prisma.$transaction(async (tx) => {
-      const school = await tx.school.create({ data });
+    const { initialAdmin, trialEndsAt, ...schoolData } = data;
+    const now = new Date();
+    if (trialEndsAt <= now) {
+      throw new ApiError(400, 'Trial end must be in the future');
+    }
+
+    const hashedPassword = await bcrypt.hash(initialAdmin.password, 10);
+
+    return rlsTransaction(async (tx) => {
+      const school = await tx.school.create({ data: schoolData });
+
+      await Promise.all([
+        tx.admin.create({
+          data: {
+            username: initialAdmin.username,
+            password: hashedPassword,
+            role: 'admin',
+            school_id: school.id,
+          },
+        }),
+        tx.sms_settings.create({
+          data: { ...DEFAULT_SMS_TEMPLATES, school_id: school.id },
+        }),
+        tx.school_subscriptions.create({
+          data: {
+            school_id: school.id,
+            status: 'trialing',
+            plan_name: 'Annual',
+            billing_interval: 'annual',
+            currency: 'BDT',
+            trial_started_at: now,
+            trial_ends_at: trialEndsAt,
+          },
+        }),
+      ]);
+
       const defaults = await tx.exam_types.findMany({
         where: { assign_to_new_schools: true },
         select: { id: true },
@@ -29,12 +64,16 @@ export class SchoolService {
           skipDuplicates: true,
         });
       }
-      return school;
+      return tx.school.findUniqueOrThrow({
+        where: { id: school.id },
+        include: { subscription: true },
+      });
     });
   }
 
   static async getSchools() {
     return prisma.school.findMany({
+      include: { subscription: true },
       orderBy: { createdAt: 'desc' },
     });
   }

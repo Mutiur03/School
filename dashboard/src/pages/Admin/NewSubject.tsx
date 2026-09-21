@@ -119,8 +119,8 @@ const SubjectTableRow = React.memo(
       </td>
       <td className="px-4 py-3 text-sm font-medium">{subject.full_mark}</td>
       <td className="px-4 py-3 text-sm font-medium text-emerald-600">{subject.pass_mark}</td>
-      <td className="px-4 py-3 text-right whitespace-nowrap">
-        <div className="flex flex-wrap justify-end gap-1.5">
+      <td className="w-1 px-4 py-3 text-right whitespace-nowrap">
+        <div className="inline-flex flex-wrap justify-end gap-1.5">
           <ActionButton action="view" onClick={() => onShowInfo(subject)} />
           <ActionButton action="edit" onClick={() => onEdit(subject)} />
           <DeleteConfirmation
@@ -1531,7 +1531,7 @@ const NewSubject: React.FC = () => {
                 {['Subject', 'Type', 'Class', 'Full Mark', 'Pass Mark', 'Actions'].map((h) => (
                   <th
                     key={h}
-                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${h === 'Actions' ? 'text-center' : ''} ${h === 'Subject' ? 'bg-muted/50' : ''}`}
+                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${h === 'Actions' ? 'w-1 text-right whitespace-nowrap' : ''} ${h === 'Subject' ? 'bg-muted/50' : ''}`}
                   >
                     {h}
                   </th>

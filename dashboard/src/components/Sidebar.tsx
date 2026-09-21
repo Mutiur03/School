@@ -207,6 +207,11 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           id: 'add-exam',
         },
         {
+          label: 'Billing',
+          link: '/admin/settings/billing',
+          id: 'billing',
+        },
+        {
           label: 'Syllabus',
           link: '/admin/syllabus',
           id: 'syllabus',
@@ -585,10 +590,10 @@ const Sidebar = ({
         }}
         ref={sidebarRef}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="bg-sidebar border-border fixed top-[calc(3.5rem-1px)] right-auto bottom-0 z-40 flex w-[250px] flex-col overscroll-contain border-r pb-[env(safe-area-inset-bottom,0px)] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.08)] md:w-auto"
+        className="bg-sidebar border-border fixed bottom-0 right-auto top-[calc(3.5rem-1px)] z-40 flex w-[250px] flex-col overscroll-contain border-r pb-[env(safe-area-inset-bottom,0px)] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.08)] md:w-auto"
       >
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <nav className="min-h-0 flex-1 [scrollbar-width:none] overflow-x-hidden overflow-y-auto overscroll-contain py-4 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+          <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-4 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <ul className="space-y-1 px-2">
               {sidebarItems.map((item) => (
                 <li key={item.id}>
@@ -645,7 +650,7 @@ const Sidebar = ({
                             <motion.span
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="overflow-hidden text-left text-ellipsis whitespace-nowrap"
+                              className="overflow-hidden text-ellipsis whitespace-nowrap text-left"
                             >
                               {item.label}
                             </motion.span>

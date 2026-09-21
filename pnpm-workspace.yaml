@@ -4,3 +4,13 @@ packages:
   - server
   - packages/*
   - workers/*
+allowBuilds:
+  '@prisma/engines': true
+  bcrypt: true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true
+  puppeteer: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true

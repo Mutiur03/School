@@ -157,8 +157,8 @@ const StudentRow = React.memo(
           </td>
         )}
 
-        <td className="px-2 py-2 text-right text-sm whitespace-nowrap sm:px-4 sm:py-3">
-          <div className="flex flex-wrap justify-end gap-1.5">
+        <td className="w-1 px-2 py-2 text-right text-sm whitespace-nowrap sm:px-4 sm:py-3">
+          <div className="inline-flex flex-wrap justify-end gap-1.5">
             {!readOnly && (
               <>
                 <ActionButton action="photo" asLabel htmlFor={`file-upload-${student.id}`} />
@@ -1882,7 +1882,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   .map((header) => (
                     <th
                       key={header}
-                      className={`text-foreground/70 px-4 py-3 text-xs font-semibold tracking-wider uppercase ${header === 'Actions' ? 'text-center' : 'text-center sm:text-left'}`}
+                      className={`text-foreground/70 px-4 py-3 text-xs font-semibold tracking-wider uppercase ${header === 'Actions' ? 'w-1 text-right whitespace-nowrap' : 'text-center sm:text-left'}`}
                     >
                       {header}
                     </th>

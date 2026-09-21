@@ -2,7 +2,7 @@
   "name": "school",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
     "dev": "turbo run dev --filter=server --filter=school-auth-bff --filter=@school/shared-schemas --filter=@school/common-ui --filter=dashboard",
     "dev:full": "turbo run dev --filter=server --filter=school-auth-bff --filter=@school/shared-schemas --filter=@school/common-ui --filter=dashboard --filter=client-next",

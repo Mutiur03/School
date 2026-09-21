@@ -3,10 +3,25 @@ import { SchoolController } from './school.controller.js';
 import { SmsSettingsController } from '@/modules/sms-settings/sms-settings.controller.js';
 import AuthMiddleware from '../../middlewares/auth.middleware.js';
 import { validate } from '@/middlewares/validate.middleware.js';
-import { createSchoolSchema, updateSchoolSchema } from '@school/shared-schemas';
+import {
+  createSchoolSchema,
+  updateSchoolSchema,
+  updateSubscriptionSchema,
+} from '@school/shared-schemas';
+import { BillingController } from '@/modules/billing/billing.controller.js';
 
 const tenantSchoolRouterInternal = Router();
 tenantSchoolRouterInternal.get('/public', SchoolController.getSchoolPublicInfo);
+tenantSchoolRouterInternal.get(
+  '/subscription-access',
+  AuthMiddleware.authenticate(['admin', 'teacher', 'student']),
+  BillingController.getCurrentAccess,
+);
+tenantSchoolRouterInternal.get(
+  '/billing',
+  AuthMiddleware.authenticate(['admin']),
+  BillingController.getCurrent,
+);
 tenantSchoolRouterInternal.put(
   '/:id',
   AuthMiddleware.authenticate(['super_admin']),
@@ -30,6 +45,17 @@ superAdminSchoolRouterInternal.get(
   '/',
   AuthMiddleware.authenticate(['super_admin']),
   SchoolController.getSchools,
+);
+superAdminSchoolRouterInternal.get(
+  '/:id/billing',
+  AuthMiddleware.authenticate(['super_admin']),
+  BillingController.getForSchool,
+);
+superAdminSchoolRouterInternal.put(
+  '/:id/billing',
+  AuthMiddleware.authenticate(['super_admin']),
+  validate(updateSubscriptionSchema),
+  BillingController.updateForSchool,
 );
 superAdminSchoolRouterInternal.put(
   '/:id',

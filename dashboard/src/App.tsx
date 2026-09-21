@@ -21,6 +21,7 @@ import envPreferredRole from './lib/role.ts';
 import { SentryRoutes } from './lib/sentry.ts';
 import Loading from './components/Loading.tsx';
 import TopLoadingBar from './components/TopLoadingBar.tsx';
+import SubscriptionGate from './components/SubscriptionGate.tsx';
 import ServerOffline from './pages/Common/ServerOffline.tsx';
 import Login from './pages/Common/Login.tsx';
 import NotFound from './pages/Common/not-found.tsx';
@@ -51,6 +52,7 @@ const UpdateStatus = lazy(() => import('./pages/Admin/UpdateStatus'));
 const Attendence = lazy(() => import('./pages/Admin/Attendence'));
 const StayCheck = lazy(() => import('./pages/Admin/StayCheck'));
 const SmsManagement = lazy(() => import('./pages/Admin/SmsManagement'));
+const Billing = lazy(() => import('./pages/Admin/Billing'));
 const Notice = lazy(() => import('./pages/Admin/Notice'));
 const Holidays = lazy(() => import('./pages/Admin/Holidays'));
 const Admission = lazy(() => import('./pages/Admin/Admission'));
@@ -95,6 +97,7 @@ registerRoutePrefetchers({
   '/admin/attendance': Attendence,
   '/admin/attendance-double': StayCheck,
   '/admin/sms-management': SmsManagement,
+  '/admin/settings/billing': Billing,
   '/admin/notice': Notice,
   '/admin/holiday': Holidays,
   '/admin/events': Events,
@@ -327,32 +330,34 @@ function App() {
                   <RoleRoute
                     role="teacher"
                     element={
-                      <div className="flex min-h-0 flex-1 flex-col">
-                        <Navbar
-                          ref={navbarRef}
-                          onBurgerClick={() => setSidebarOpen((prev) => !prev)}
-                          sidebarOpen={sidebarOpen}
-                        />
-                        <Sidebar
-                          sidebarExpanded={sidebarExpanded}
-                          setSidebarExpanded={setSidebarExpanded}
-                          open={sidebarOpen}
-                          onClose={() => setSidebarOpen(false)}
-                          navbarRef={navbarRef}
-                        />
-                        <div className={contentShellClass}>
-                          <Routes>
-                            <Route path="/dashboard" element={<TeacherDashboard />} />
-                            <Route path="/settings" element={<TeacherSettings />} />
-                            <Route path="/students" element={<StudentList readOnly />} />
-                            <Route path="/mark-management" element={<AddMarks />} />
-                            <Route path="/result/view-marks" element={<ViewMarks />} />
-                            <Route path="/attendance" element={<Attendence />} />
-                            <Route path="/attendance-double" element={<StayCheck />} />
-                            <Route path="*" element={<Navigate to="/teacher/dashboard" />} />
-                          </Routes>
+                      <SubscriptionGate role="teacher">
+                        <div className="flex min-h-0 flex-1 flex-col">
+                          <Navbar
+                            ref={navbarRef}
+                            onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                            sidebarOpen={sidebarOpen}
+                          />
+                          <Sidebar
+                            sidebarExpanded={sidebarExpanded}
+                            setSidebarExpanded={setSidebarExpanded}
+                            open={sidebarOpen}
+                            onClose={() => setSidebarOpen(false)}
+                            navbarRef={navbarRef}
+                          />
+                          <div className={contentShellClass}>
+                            <Routes>
+                              <Route path="/dashboard" element={<TeacherDashboard />} />
+                              <Route path="/settings" element={<TeacherSettings />} />
+                              <Route path="/students" element={<StudentList readOnly />} />
+                              <Route path="/mark-management" element={<AddMarks />} />
+                              <Route path="/result/view-marks" element={<ViewMarks />} />
+                              <Route path="/attendance" element={<Attendence />} />
+                              <Route path="/attendance-double" element={<StayCheck />} />
+                              <Route path="*" element={<Navigate to="/teacher/dashboard" />} />
+                            </Routes>
+                          </div>
                         </div>
-                      </div>
+                      </SubscriptionGate>
                     }
                   />
                 }
@@ -367,28 +372,30 @@ function App() {
                   <RoleRoute
                     role="student"
                     element={
-                      <div className="flex min-h-0 flex-1 flex-col">
-                        <Navbar
-                          ref={navbarRef}
-                          onBurgerClick={() => setSidebarOpen((prev) => !prev)}
-                          sidebarOpen={sidebarOpen}
-                        />
-                        <Sidebar
-                          sidebarExpanded={sidebarExpanded}
-                          setSidebarExpanded={setSidebarExpanded}
-                          open={sidebarOpen}
-                          onClose={() => setSidebarOpen(false)}
-                          navbarRef={navbarRef}
-                        />
-                        <div className={contentShellClass}>
-                          <Routes>
-                            <Route path="/dashboard" element={<StudentDashboard />} />
-                            <Route path="/profile" element={<StudentProfile />} />
-                            <Route path="/result" element={<Result />} />
-                            <Route path="*" element={<Navigate to="/student/dashboard" />} />
-                          </Routes>
+                      <SubscriptionGate role="student">
+                        <div className="flex min-h-0 flex-1 flex-col">
+                          <Navbar
+                            ref={navbarRef}
+                            onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                            sidebarOpen={sidebarOpen}
+                          />
+                          <Sidebar
+                            sidebarExpanded={sidebarExpanded}
+                            setSidebarExpanded={setSidebarExpanded}
+                            open={sidebarOpen}
+                            onClose={() => setSidebarOpen(false)}
+                            navbarRef={navbarRef}
+                          />
+                          <div className={contentShellClass}>
+                            <Routes>
+                              <Route path="/dashboard" element={<StudentDashboard />} />
+                              <Route path="/profile" element={<StudentProfile />} />
+                              <Route path="/result" element={<Result />} />
+                              <Route path="*" element={<Navigate to="/student/dashboard" />} />
+                            </Routes>
+                          </div>
                         </div>
-                      </div>
+                      </SubscriptionGate>
                     }
                   />
                 }
@@ -403,79 +410,85 @@ function App() {
                   <RoleRoute
                     role="admin"
                     element={
-                      <div className="flex min-h-0 flex-1 flex-col">
-                        <Navbar
-                          ref={navbarRef}
-                          onBurgerClick={() => setSidebarOpen((prev) => !prev)}
-                          sidebarOpen={sidebarOpen}
-                        />
-                        <Sidebar
-                          sidebarExpanded={sidebarExpanded}
-                          setSidebarExpanded={setSidebarExpanded}
-                          open={sidebarOpen}
-                          onClose={() => setSidebarOpen(false)}
-                          navbarRef={navbarRef}
-                        />
-                        <div className={contentShellClass}>
-                          <Routes>
-                            <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/result/view-marks" element={<ViewMarks />} />
-                            <Route path="/students/student-list" element={<StudentList />} />
-                            <Route path="/students/alumni-list" element={<AlumniList />} />
-                            <Route path="/administration/teacher-list" element={<TeacherList />} />
-                            <Route path="/administration/staff-list" element={<StaffList />} />
-                            <Route path="/administration/head" element={<Head />} />
-                            <Route path="/citizencharter" element={<CitizenCharter />} />
-                            <Route path="/result/generate-result" element={<GenerateResult />} />
-                            <Route
-                              path="/finalmarkSheet/:studentId/:year"
-                              element={<ShowMarkSheet />}
-                            />
-                            <Route path="/settings/add-exam" element={<ExamPDFRoutine />} />
-                            <Route path="/result/add-marks" element={<AddMarks />} />
-                            <Route path="/result/add-subject" element={<NewSubject />} />
-                            <Route path="/result/assigned-teachers" element={<AddLevel />} />
-                            <Route path="/result/customize-result" element={<UpdateStatus />} />
-                            <Route path="/attendance" element={<Attendence />} />
-                            <Route path="/attendance-double" element={<StayCheck />} />
-                            <Route path="/sms-management" element={<SmsManagement />} />
-                            <Route path="/notice" element={<Notice />} />
-                            <Route path="/holiday" element={<Holidays />} />
-                            <Route path="/admission/form" element={<Admission />} />
-                            <Route path="/admission/settings" element={<AdmissionSettings />} />
-                            <Route path="/admission/result" element={<AdmissionResult />} />
-                            <Route path="/syllabus" element={<Syllabus />} />
-                            <Route path="/classRoutine" element={<ClassRoutinePDF />} />
-                            <Route path="/events" element={<Events />} />
-                            <Route path="/gallery/upload" element={<Gallery />} />
-                            <Route
-                              path="/gallery/pending"
-                              element={<GalleryModeration mode="pending" />}
-                            />
-                            <Route
-                              path="/gallery/rejected"
-                              element={<GalleryModeration mode="rejected" />}
-                            />
-                            <Route
-                              path="/registration/class-9"
-                              element={<ClassRegForm key="class-9" variant={9} />}
-                            />
-                            <Route
-                              path="/registration/class-6"
-                              element={<ClassRegForm key="class-6" variant={6} />}
-                            />
-                            <Route
-                              path="/registration/class-8"
-                              element={<ClassRegForm key="class-8" variant={8} />}
-                            />
-                            <Route
-                              path="/registration/junior-scholarship"
-                              element={<ClassRegForm key="jse" variant="jse" />}
-                            />
-                            <Route path="*" element={<Navigate to="/admin/dashboard" />} />
-                          </Routes>
+                      <SubscriptionGate role="admin">
+                        <div className="flex min-h-0 flex-1 flex-col">
+                          <Navbar
+                            ref={navbarRef}
+                            onBurgerClick={() => setSidebarOpen((prev) => !prev)}
+                            sidebarOpen={sidebarOpen}
+                          />
+                          <Sidebar
+                            sidebarExpanded={sidebarExpanded}
+                            setSidebarExpanded={setSidebarExpanded}
+                            open={sidebarOpen}
+                            onClose={() => setSidebarOpen(false)}
+                            navbarRef={navbarRef}
+                          />
+                          <div className={contentShellClass}>
+                            <Routes>
+                              <Route path="/dashboard" element={<Dashboard />} />
+                              <Route path="/result/view-marks" element={<ViewMarks />} />
+                              <Route path="/students/student-list" element={<StudentList />} />
+                              <Route path="/students/alumni-list" element={<AlumniList />} />
+                              <Route
+                                path="/administration/teacher-list"
+                                element={<TeacherList />}
+                              />
+                              <Route path="/administration/staff-list" element={<StaffList />} />
+                              <Route path="/administration/head" element={<Head />} />
+                              <Route path="/citizencharter" element={<CitizenCharter />} />
+                              <Route path="/result/generate-result" element={<GenerateResult />} />
+                              <Route
+                                path="/finalmarkSheet/:studentId/:year"
+                                element={<ShowMarkSheet />}
+                              />
+                              <Route path="/settings/add-exam" element={<ExamPDFRoutine />} />
+                              <Route path="/result/add-marks" element={<AddMarks />} />
+                              <Route path="/result/add-subject" element={<NewSubject />} />
+                              <Route path="/result/assigned-teachers" element={<AddLevel />} />
+                              <Route path="/result/customize-result" element={<UpdateStatus />} />
+                              <Route path="/attendance" element={<Attendence />} />
+                              <Route path="/attendance-double" element={<StayCheck />} />
+                              <Route path="/sms-management" element={<SmsManagement />} />
+                              <Route path="/settings/billing" element={<Billing />} />
+                              <Route path="/notice" element={<Notice />} />
+                              <Route path="/holiday" element={<Holidays />} />
+                              <Route path="/admission/form" element={<Admission />} />
+                              <Route path="/admission/settings" element={<AdmissionSettings />} />
+                              <Route path="/admission/result" element={<AdmissionResult />} />
+                              <Route path="/syllabus" element={<Syllabus />} />
+                              <Route path="/classRoutine" element={<ClassRoutinePDF />} />
+                              <Route path="/events" element={<Events />} />
+                              <Route path="/gallery/upload" element={<Gallery />} />
+                              <Route
+                                path="/gallery/pending"
+                                element={<GalleryModeration mode="pending" />}
+                              />
+                              <Route
+                                path="/gallery/rejected"
+                                element={<GalleryModeration mode="rejected" />}
+                              />
+                              <Route
+                                path="/registration/class-9"
+                                element={<ClassRegForm key="class-9" variant={9} />}
+                              />
+                              <Route
+                                path="/registration/class-6"
+                                element={<ClassRegForm key="class-6" variant={6} />}
+                              />
+                              <Route
+                                path="/registration/class-8"
+                                element={<ClassRegForm key="class-8" variant={8} />}
+                              />
+                              <Route
+                                path="/registration/junior-scholarship"
+                                element={<ClassRegForm key="jse" variant="jse" />}
+                              />
+                              <Route path="*" element={<Navigate to="/admin/dashboard" />} />
+                            </Routes>
+                          </div>
                         </div>
-                      </div>
+                      </SubscriptionGate>
                     }
                   />
                 }

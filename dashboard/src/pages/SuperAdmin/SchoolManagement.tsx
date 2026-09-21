@@ -33,7 +33,7 @@ import { downloadBlob } from '@school/common-ui/blob';
 import { useSearchParams } from 'react-router-dom';
 import {
   addAdminSchema,
-  createSchoolSchema,
+  updateSchoolSchema,
   districts,
   getUpazilasByDistrict,
   SCHOOL_BOARDS,
@@ -60,6 +60,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import SchoolBillingEditor from './SchoolBillingEditor';
 
 interface SchoolData {
   id?: number;
@@ -116,7 +117,13 @@ type AdminFormValues = {
 
 const currentYear = new Date().getFullYear();
 
-type SchoolFormValues = z.input<typeof createSchoolSchema>;
+const defaultTrialEnd = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 30);
+  return date.toISOString().slice(0, 10);
+};
+
+type SchoolFormValues = z.input<typeof updateSchoolSchema>;
 
 const MB = 1024 * 1024;
 
@@ -228,6 +235,7 @@ const EDITOR_TABS = [
   { id: 'academic', label: 'Academic' },
   { id: 'about', label: 'About' },
   { id: 'admins', label: 'Admins' },
+  { id: 'billing', label: 'Billing' },
   { id: 'sms', label: 'SMS' },
 ] as const;
 
@@ -580,6 +588,8 @@ function SchoolManagement() {
     register: registerAdmin,
     handleSubmit: handleAdminSubmit,
     reset: resetAdminForm,
+    getValues: getAdminValues,
+    trigger: validateAdminForm,
     formState: { errors: adminErrors },
   } = useForm<AdminFormValues>({
     resolver: zodResolver(addAdminSchema),
@@ -597,11 +607,12 @@ function SchoolManagement() {
     clearErrors,
     formState: { errors },
   } = useForm<SchoolFormValues>({
-    resolver: zodResolver(createSchoolSchema),
+    resolver: zodResolver(updateSchoolSchema),
     defaultValues: createEmptySchool(),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
   });
+  const [trialEndsAt, setTrialEndsAt] = useState(defaultTrialEnd);
 
   const district = watch('district');
   const schoolName = watch('name');
@@ -824,6 +835,7 @@ function SchoolManagement() {
     reset(createEmptySchool());
     setSchoolAdmins([]);
     resetAdminForm({ username: '', password: '' });
+    setTrialEndsAt(defaultTrialEnd());
     patchQuery({ school: 'new', tab: 'identity' });
   };
 
@@ -1031,6 +1043,20 @@ function SchoolManagement() {
         return;
       }
 
+      if (selectedSchoolId === 'new') {
+        const adminIsValid = await validateAdminForm();
+        if (!adminIsValid) {
+          setEditorTab('admins');
+          toast.error('Add the initial school admin credentials');
+          return;
+        }
+        if (!trialEndsAt) {
+          setEditorTab('admins');
+          toast.error('Choose when the free trial ends');
+          return;
+        }
+      }
+
       setAssetUploading(true);
       const uploadedLogoKey = pendingAssets.logo
         ? await uploadAssetFile('logo', pendingAssets.logo)
@@ -1054,7 +1080,11 @@ function SchoolManagement() {
         await axios.put(`/api/schools/${selectedSchoolId}`, payload);
         toast.success('School updated successfully');
       } else {
-        const res = await axios.post('/api/schools', payload);
+        const res = await axios.post('/api/schools', {
+          ...payload,
+          initialAdmin: getAdminValues(),
+          trialEndsAt: new Date(`${trialEndsAt}T23:59:59.999Z`).toISOString(),
+        });
         toast.success('School created successfully');
 
         const createdId = res.data?.data?.id;
@@ -1211,7 +1241,7 @@ function SchoolManagement() {
         >
           <div className="relative mb-3">
             <Search
-              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+              className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
               aria-hidden
             />
             <Input
@@ -1250,7 +1280,7 @@ function SchoolManagement() {
                     onClick={() => selectSchool(school)}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                      'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+                      'focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2',
                       isSelected
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50',
@@ -1331,7 +1361,7 @@ function SchoolManagement() {
                       onClick={() => setEditorTab(tab.id)}
                       className={cn(
                         'shrink-0 px-3 py-2 text-sm font-medium transition-colors',
-                        'focus-visible:ring-ring rounded-t-md focus-visible:ring-2 focus-visible:outline-none',
+                        'focus-visible:ring-ring rounded-t-md focus-visible:outline-none focus-visible:ring-2',
                         selected
                           ? 'border-primary text-foreground border-b-2'
                           : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent',
@@ -1371,14 +1401,58 @@ function SchoolManagement() {
 
               {editorTab === 'admins' ? (
                 selectedSchoolId === 'new' ? (
-                  <p
+                  <div
                     role="tabpanel"
                     id="panel-admins"
                     aria-labelledby="tab-admins"
-                    className="text-muted-foreground py-8 text-center text-sm"
+                    className="space-y-5"
                   >
-                    Save the school first, then add admins.
-                  </p>
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
+                      These credentials and the free trial are created together with the school, so
+                      its admin can sign in immediately.
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <Field
+                        id="initial-admin-username"
+                        label="Initial admin username"
+                        error={adminErrors.username?.message}
+                      >
+                        <Input
+                          id="initial-admin-username"
+                          {...registerAdmin('username')}
+                          placeholder="e.g. school.admin"
+                          autoComplete="username"
+                        />
+                      </Field>
+                      <Field
+                        id="initial-admin-password"
+                        label="Initial admin password"
+                        error={adminErrors.password?.message}
+                      >
+                        <Input
+                          id="initial-admin-password"
+                          type="password"
+                          {...registerAdmin('password')}
+                          placeholder="At least 6 characters"
+                          autoComplete="new-password"
+                        />
+                      </Field>
+                      <Field id="trial-ends-at" label="Free trial ends">
+                        <Input
+                          id="trial-ends-at"
+                          type="date"
+                          min={new Date().toISOString().slice(0, 10)}
+                          value={trialEndsAt}
+                          onChange={(event) => setTrialEndsAt(event.target.value)}
+                          required
+                        />
+                      </Field>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      The school starts on a free trial of the Annual plan. You can manage every
+                      billing date and status after creation.
+                    </p>
+                  </div>
                 ) : (
                   <div
                     role="tabpanel"
@@ -1493,6 +1567,20 @@ function SchoolManagement() {
                       </div>
                     </form>
                   </div>
+                )
+              ) : editorTab === 'billing' ? (
+                selectedSchoolId === 'new' ? (
+                  <div
+                    role="tabpanel"
+                    id="panel-billing"
+                    aria-labelledby="tab-billing"
+                    className="text-muted-foreground py-8 text-center text-sm"
+                  >
+                    The Annual free-trial subscription will be created with the school. Set its
+                    initial end date in the Admins tab.
+                  </div>
+                ) : (
+                  <SchoolBillingEditor schoolId={selectedSchoolId} />
                 )
               ) : editorTab === 'sms' ? (
                 selectedSchoolId === 'new' ? (
@@ -1962,7 +2050,7 @@ function SchoolManagement() {
                                 type="button"
                                 disabled={assetUploading}
                                 onClick={() => logoInputRef.current?.click()}
-                                className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                                className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
                               >
                                 <ImageIcon className="h-8 w-8 opacity-60" aria-hidden />
                                 <span className="text-foreground text-sm font-medium">
@@ -2017,7 +2105,7 @@ function SchoolManagement() {
                                 type="button"
                                 disabled={assetUploading}
                                 onClick={() => headerInputRef.current?.click()}
-                                className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                                className="border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
                               >
                                 <ImageIcon className="h-8 w-8 opacity-60" aria-hidden />
                                 <span className="text-foreground text-sm font-medium">
@@ -2194,7 +2282,7 @@ function SchoolManagement() {
                                   disabled={assetUploading}
                                   onClick={() => bannerInputRef.current?.click()}
                                   aria-label="Add carousel slide"
-                                  className="border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/40 focus-visible:ring-ring flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                                  className="border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/40 focus-visible:ring-ring flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
                                 >
                                   <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
                                     <Plus className="h-5 w-5" aria-hidden />
@@ -2214,7 +2302,7 @@ function SchoolManagement() {
                               type="button"
                               disabled={assetUploading}
                               onClick={() => bannerInputRef.current?.click()}
-                              className="border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-muted/30 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                              className="border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-muted/30 focus-visible:ring-ring flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
                             >
                               <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
                                 <ImageIcon className="h-6 w-6 opacity-70" aria-hidden />

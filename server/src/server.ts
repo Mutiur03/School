@@ -80,6 +80,7 @@ import {
 } from './middlewares/rlsContext.middleware.js';
 import { captureServerException } from './config/sentry.js';
 import { getDatabasePoolStats } from './utils/dbMetrics.js';
+import { enforceSubscriptionAccess } from './middlewares/subscription-access.middleware.js';
 
 const app = express();
 const PORT = env.PORT || 5000;
@@ -208,6 +209,7 @@ app.use(schoolContextMiddleware);
 app.use(syncRlsSchoolContextMiddleware);
 app.use(sharedAuthSessionRouter);
 app.use(requireSchoolContextMiddleware);
+app.use(enforceSubscriptionAccess);
 
 app.use(studentRouter);
 app.use(tenantSchoolRouter);
