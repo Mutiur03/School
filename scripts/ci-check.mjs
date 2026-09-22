@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scope = process.argv[2];
 const prettierBin = path.join(root, 'node_modules/prettier/bin/prettier.cjs');
-const tscBin = path.join(root, 'node_modules/typescript/bin/tsc');
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 /** @type {Record<string, { paths: string[] }>} */
@@ -106,7 +105,9 @@ if (scope === 'client-next') {
 }
 
 for (const { cwd, project } of TYPECHECK_PROJECTS[scope] ?? []) {
-  run(`Typecheck (${cwd})`, process.execPath, [tscBin, '--noEmit', '-p', project], {
+  // Use the package's own typescript via pnpm — TS 7 no longer exports bin/tsc for
+  // require.resolve, and pnpm does not hoist typescript to the monorepo root.
+  run(`Typecheck (${cwd})`, pnpmCommand, ['exec', 'tsc', '--noEmit', '-p', project], {
     cwd: path.join(root, cwd),
   });
 }
