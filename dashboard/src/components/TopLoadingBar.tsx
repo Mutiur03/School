@@ -12,7 +12,7 @@ const TopLoadingBar = () => {
           times: [0, 0.1, 0.3, 1],
         },
       }}
-      className="bg-primary fixed top-0 left-0 z-9999 h-1 shadow-[0_0_10px_#3b82f6]"
+      className="bg-primary z-9999 fixed left-0 top-0 h-1 shadow-[0_0_10px_#3b82f6]"
       style={{
         background: 'linear-gradient(90deg, var(--primary) 0%, #60a5fa 100%)',
       }}

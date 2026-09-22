@@ -103,7 +103,7 @@ export function StudentProfileView({ student, compact = false }: StudentProfileV
 
       <div className={`grid gap-4 ${compact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
         <section className="border-border rounded-lg border p-4">
-          <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+          <h3 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
             Personal
           </h3>
           <InfoRow label="Date of birth" value={dobLabel} />
@@ -113,7 +113,7 @@ export function StudentProfileView({ student, compact = false }: StudentProfileV
         </section>
 
         <section className="border-border rounded-lg border p-4">
-          <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+          <h3 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
             Contact
           </h3>
           <InfoRow label="Father's phone" value={student.father_phone || 'N/A'} />
@@ -124,7 +124,7 @@ export function StudentProfileView({ student, compact = false }: StudentProfileV
           <section
             className={`border-border rounded-lg border p-4 ${compact ? '' : 'md:col-span-2'}`}
           >
-            <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+            <h3 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
               Address
             </h3>
             <InfoRow label="Village" value={student.village} />

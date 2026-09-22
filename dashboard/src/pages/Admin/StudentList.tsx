@@ -83,7 +83,7 @@ const StudentRow = React.memo(
         style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 3.5rem' }}
       >
         {!readOnly && (
-          <td className="px-2 py-2 text-center text-sm whitespace-nowrap sm:px-4 sm:py-3">
+          <td className="whitespace-nowrap px-2 py-2 text-center text-sm sm:px-4 sm:py-3">
             <input
               type="checkbox"
               checked={isSelected}
@@ -93,7 +93,7 @@ const StudentRow = React.memo(
             />
           </td>
         )}
-        <td className="flex items-center gap-3 px-2 py-2 text-sm font-medium whitespace-nowrap sm:px-4 sm:py-3">
+        <td className="flex items-center gap-3 whitespace-nowrap px-2 py-2 text-sm font-medium sm:px-4 sm:py-3">
           {student.image ? (
             <img
               src={getFileUrl(student.image)}
@@ -108,22 +108,22 @@ const StudentRow = React.memo(
           <div className="flex flex-col">
             <span>{student.name}</span>
             {!student.available && (
-              <span className="text-destructive bg-destructive/10 mt-0.5 w-fit rounded-sm px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+              <span className="text-destructive bg-destructive/10 mt-0.5 w-fit rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                 Inactive
               </span>
             )}
           </div>
         </td>
-        <td className="px-2 py-2 text-sm whitespace-nowrap sm:px-4 sm:py-3">{student.roll}</td>
-        <td className="px-2 py-2 text-sm whitespace-nowrap sm:px-4 sm:py-3">{student.class}</td>
-        <td className="px-2 py-2 text-sm whitespace-nowrap sm:px-4 sm:py-3">{student.section}</td>
+        <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.roll}</td>
+        <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.class}</td>
+        <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.section}</td>
         {showSeniorColumns && (
-          <td className="px-2 py-2 text-sm whitespace-nowrap sm:px-4 sm:py-3">
+          <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">
             {student.group || ''}
           </td>
         )}
         {showSeniorColumns && (
-          <td className="px-2 py-2 text-sm whitespace-nowrap sm:px-4 sm:py-3">
+          <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">
             {Number(student.class) >= 9 ? (
               readOnly ? (
                 <span>
@@ -157,7 +157,7 @@ const StudentRow = React.memo(
           </td>
         )}
 
-        <td className="w-1 px-2 py-2 text-right text-sm whitespace-nowrap sm:px-4 sm:py-3">
+        <td className="w-1 whitespace-nowrap px-2 py-2 text-right text-sm sm:px-4 sm:py-3">
           <div className="inline-flex flex-wrap justify-end gap-1.5">
             {!readOnly && (
               <>
@@ -254,7 +254,7 @@ const StudentCard = React.memo(
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-foreground truncate font-medium">{student.name}</p>
               {!student.available && (
-                <span className="text-destructive bg-destructive/10 rounded-sm px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                <span className="text-destructive bg-destructive/10 rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                   Inactive
                 </span>
               )}
@@ -1243,7 +1243,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 <div className="border-border bg-muted/40 rounded-lg border p-4">
                   <div className="flex flex-col items-center justify-center">
                     <p className="mb-2 text-sm font-medium">Student Image</p>
-                    <label className="border-border flex aspect-7/9 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border bg-white transition-colors hover:border-blue-500 sm:w-32 dark:border-gray-600 dark:bg-gray-700">
+                    <label className="border-border aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border bg-white transition-colors hover:border-blue-500 sm:w-32 dark:border-gray-600 dark:bg-gray-700">
                       {preview ? (
                         <img src={preview} alt="Preview" className="h-full w-full object-cover" />
                       ) : isEditing && selectedStudent?.image ? (
@@ -1346,7 +1346,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                       </label>
                       <select
                         {...register('religion')}
-                        className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                        className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                       >
                         <option value="">Select Religion</option>
                         {RELIGION.map((religion: string) => (
@@ -1395,7 +1395,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                         <select
                           {...register('group')}
                           disabled={!(watchedClass === 9 || watchedClass === 10)}
-                          className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                          className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <option value="">Select Group</option>
                           {(VALID_GROUPS as readonly string[]).map((group: string) => (
@@ -1616,7 +1616,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
       <FilterSelection className="mb-6">
         <FilterField label="Search" wide>
           <div className="relative">
-            <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
+            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
             <Input
               type="text"
               placeholder="Search by name or phone…"
@@ -1710,7 +1710,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 <div>
                   <label className="mb-1 block text-sm font-medium">Class</label>
                   <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                     value={bulkFourthClass}
                     onChange={(e) => {
                       setBulkFourthClass(e.target.value as '9' | '10' | '');
@@ -1727,7 +1727,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                     Group <span className="text-destructive">*</span>
                   </label>
                   <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                     value={bulkFourthGroup}
                     onChange={(e) => {
                       setBulkFourthGroup(e.target.value);
@@ -1745,7 +1745,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 <div>
                   <label className="mb-1 block text-sm font-medium">4th Subject</label>
                   <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                     value={bulkFourthSubjectId}
                     onChange={(e) => setBulkFourthSubjectId(e.target.value)}
                     disabled={!bulkFourthClass || !bulkFourthGroup}
@@ -1882,7 +1882,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   .map((header) => (
                     <th
                       key={header}
-                      className={`text-foreground/70 px-4 py-3 text-xs font-semibold tracking-wider uppercase ${header === 'Actions' ? 'w-1 text-right whitespace-nowrap' : 'text-center sm:text-left'}`}
+                      className={`text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider ${header === 'Actions' ? 'w-1 whitespace-nowrap text-right' : 'text-center sm:text-left'}`}
                     >
                       {header}
                     </th>
@@ -1996,7 +1996,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">Rows</span>
               <select
-                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));

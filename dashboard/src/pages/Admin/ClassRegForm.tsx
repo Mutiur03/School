@@ -706,7 +706,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                   </label>
                   <select
                     {...register('classmates_source')}
-                    className="bg-card border-border text-foreground focus:ring-primary/30 block w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                    className="bg-card border-border text-foreground focus:ring-primary/30 block w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                   >
                     <option value="default">Default (Current Student List)</option>
                     <option value="custom">Manual (Custom List)</option>
@@ -816,7 +816,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
               <div className="relative">
                 <Search
                   size={16}
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+                  className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
                 />
                 <Input
                   type="text"
@@ -888,22 +888,22 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="bg-muted border-border border-b">
-                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                       Section
                     </th>
-                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                       Roll
                     </th>
-                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="text-foreground/70 w-1 px-6 py-3 text-right text-xs font-semibold tracking-wider whitespace-nowrap uppercase">
+                    <th className="text-foreground/70 w-1 whitespace-nowrap px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -968,7 +968,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         <td className="text-muted-foreground px-6 py-4 text-sm">
                           {formatDateWithTime(reg.created_at)}
                         </td>
-                        <td className="w-1 px-6 py-4 text-right whitespace-nowrap">
+                        <td className="w-1 whitespace-nowrap px-6 py-4 text-right">
                           <div className="inline-flex justify-end gap-2">
                             <ActionButton
                               action="view"
@@ -1077,7 +1077,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground text-sm">Rows</span>
                   <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                    className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                     value={limit}
                     disabled={registrationsBusy}
                     onChange={(e) => {
@@ -1153,7 +1153,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
 
       {showDetails && selectedReg && (
         <Popup open onOpenChange={(o) => !o && setShowDetails(false)}>
-          <div className="border-border flex items-center justify-between rounded-t-xl border-b bg-linear-to-r from-blue-600 to-blue-500 p-6 text-white dark:border-gray-700">
+          <div className="border-border bg-linear-to-r flex items-center justify-between rounded-t-xl border-b from-blue-600 to-blue-500 p-6 text-white dark:border-gray-700">
             <div>
               <h3 className="text-xl font-bold">Registration Details</h3>
               <p className="mt-1 text-sm opacity-90">Full student information preview</p>
@@ -1170,7 +1170,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
             <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-4">
               <div className="md:col-span-1">
                 <div className="bg-muted/50 border-border sticky top-20 flex flex-col items-center rounded-xl border p-4 dark:border-gray-700 dark:bg-gray-900/50">
-                  <h4 className="text-muted-foreground mb-3 text-xs font-bold tracking-wider uppercase">
+                  <h4 className="text-muted-foreground mb-3 text-xs font-bold uppercase tracking-wider">
                     Student Photo
                   </h4>
                   {(variant === 9 ? selectedReg.photo : selectedReg.photo) ? (
@@ -1186,13 +1186,13 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                       }}
                     />
                   ) : (
-                    <div className="border-border flex aspect-3/4 w-full items-center justify-center rounded-lg border-2 border-dashed bg-gray-200 dark:border-gray-600 dark:bg-gray-700">
+                    <div className="border-border aspect-3/4 flex w-full items-center justify-center rounded-lg border-2 border-dashed bg-gray-200 dark:border-gray-600 dark:bg-gray-700">
                       <Users size={48} className="text-gray-400" />
                     </div>
                   )}
                   <div className="mt-4 w-full">
                     <div className="bg-card rounded-lg border border-gray-100 p-3 text-center shadow-sm dark:border-gray-700">
-                      <p className="text-muted-foreground mb-1 text-[10px] font-bold tracking-wider uppercase">
+                      <p className="text-muted-foreground mb-1 text-[10px] font-bold uppercase tracking-wider">
                         Status
                       </p>
                       <div className="flex justify-center">
@@ -1241,7 +1241,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           <tr>
                             <td
                               colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                             >
                               Personal Information (ব্যক্তিগত তথ্য)
                             </td>
@@ -1250,7 +1250,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                             <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
                               Student Name (EN)
                             </td>
-                            <td className="dark:text-primary/70 px-4 py-2.5 font-bold text-blue-700 uppercase">
+                            <td className="dark:text-primary/70 px-4 py-2.5 font-bold uppercase text-blue-700">
                               {selectedReg.student_name_en}
                               {selectedReg.student_nick_name_bn && (
                                 <span className="text-muted-foreground ml-2 text-sm font-normal lowercase">
@@ -1297,7 +1297,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           <tr>
                             <td
                               colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                             >
                               Parent Information (পিতা-মাতার তথ্য)
                             </td>
@@ -1333,7 +1333,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           <tr>
                             <td
                               colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                             >
                               Address Details (ঠিকানা)
                             </td>
@@ -1371,7 +1371,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           <tr>
                             <td
                               colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                             >
                               SSC & JSC Information (শিক্ষাগত তথ্য)
                             </td>
@@ -1381,7 +1381,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                               Class 9 Academic
                             </td>
                             <td className="px-4 py-2.5">
-                              <p className="text-xs font-bold text-gray-800 uppercase dark:text-gray-200">
+                              <p className="text-xs font-bold uppercase text-gray-800 dark:text-gray-200">
                                 Group: {selectedReg.group_class_nine || '-'}
                               </p>
                               <div className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
@@ -1421,7 +1421,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           <tr>
                             <td
                               colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                             >
                               Guardian Info (অভিভাবক)
                             </td>
@@ -1431,7 +1431,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                               Prev. School
                             </td>
                             <td className="px-4 py-2.5">
-                              <p className="text-xs font-bold text-gray-800 uppercase dark:text-gray-200">
+                              <p className="text-xs font-bold uppercase text-gray-800 dark:text-gray-200">
                                 {selectedReg.prev_school_name || '-'}
                               </p>
                               <p className="text-muted-foreground mt-1 text-xs dark:text-gray-400">
@@ -1466,7 +1466,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                   {(selectedReg.guardian_village_road ||
                                     selectedReg.guardian_district) && (
                                     <div className="mt-1 border-t border-gray-100 pt-1 dark:border-gray-700/50">
-                                      <p className="mb-0.5 text-[10px] font-bold text-gray-400 uppercase">
+                                      <p className="mb-0.5 text-[10px] font-bold uppercase text-gray-400">
                                         Guardian Address
                                       </p>
                                       <p className="text-muted-foreground text-xs leading-relaxed dark:text-gray-400">
@@ -1480,7 +1480,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-gray-400 italic">
+                                <span className="italic text-gray-400">
                                   Parent (No separate guardian specified)
                                 </span>
                               )}
@@ -1506,7 +1506,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         <tr>
                           <td
                             colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                           >
                             Personal Information (ব্যক্তিগত তথ্য)
                           </td>
@@ -1515,7 +1515,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
                             Student Name (EN)
                           </td>
-                          <td className="dark:text-primary/70 px-4 py-2.5 font-bold text-blue-700 uppercase">
+                          <td className="dark:text-primary/70 px-4 py-2.5 font-bold uppercase text-blue-700">
                             {selectedReg.student_name_en}
                           </td>
                         </tr>
@@ -1591,7 +1591,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         <tr>
                           <td
                             colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                           >
                             Parent Information (পিতা-মাতার তথ্য)
                           </td>
@@ -1626,7 +1626,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         <tr>
                           <td
                             colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                           >
                             Address Details (ঠিকানা)
                           </td>
@@ -1663,7 +1663,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                         <tr>
                           <td
                             colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold tracking-tight text-gray-700 uppercase dark:bg-gray-900/50 dark:text-gray-200"
+                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
                           >
                             Guardian Info (অভিভাবক)
                           </td>
@@ -1673,7 +1673,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                             Prev. School
                           </td>
                           <td className="px-4 py-2.5">
-                            <p className="text-xs font-bold text-gray-800 uppercase dark:text-gray-200">
+                            <p className="text-xs font-bold uppercase text-gray-800 dark:text-gray-200">
                               {selectedReg.prev_school_name}
                             </p>
                             <p className="text-muted-foreground mt-1 text-xs dark:text-gray-400">
@@ -1682,7 +1682,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                             {variant === 6 && (
                               <div className="mt-2 grid grid-cols-3 gap-2 border-t border-gray-100 pt-2 dark:border-gray-700">
                                 <div>
-                                  <p className="text-[9px] leading-none font-bold text-gray-400 uppercase">
+                                  <p className="text-[9px] font-bold uppercase leading-none text-gray-400">
                                     Section
                                   </p>
                                   <p className="text-xs font-semibold">
@@ -1690,7 +1690,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-[9px] leading-none font-bold text-gray-400 uppercase">
+                                  <p className="text-[9px] font-bold uppercase leading-none text-gray-400">
                                     Roll
                                   </p>
                                   <p className="text-xs font-semibold">
@@ -1698,7 +1698,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-[9px] leading-none font-bold text-gray-400 uppercase">
+                                  <p className="text-[9px] font-bold uppercase leading-none text-gray-400">
                                     Year
                                   </p>
                                   <p className="text-xs font-semibold">
@@ -1735,7 +1735,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                 {(selectedReg.guardian_village_road ||
                                   selectedReg.guardian_district) && (
                                   <div className="mt-1 border-t border-gray-100 pt-1 dark:border-gray-700/50">
-                                    <p className="mb-0.5 text-[10px] font-bold text-gray-400 uppercase">
+                                    <p className="mb-0.5 text-[10px] font-bold uppercase text-gray-400">
                                       Guardian Address
                                     </p>
                                     <p className="text-muted-foreground text-xs leading-relaxed dark:text-gray-400">
@@ -1749,7 +1749,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-gray-400 italic">
+                              <span className="italic text-gray-400">
                                 Parent (No separate guardian specified)
                               </span>
                             )}
@@ -1882,7 +1882,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                               <AlertCircle size={18} />
                             )}
                           </div>
-                          <span className="text-sm font-semibold text-gray-900 capitalize dark:text-white">
+                          <span className="text-sm font-semibold capitalize text-gray-900 dark:text-white">
                             {s}
                           </span>
                         </div>
@@ -1951,7 +1951,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                               <AlertCircle size={20} />
                             )}
                           </div>
-                          <span className="font-semibold text-gray-900 capitalize dark:text-white">
+                          <span className="font-semibold capitalize text-gray-900 dark:text-white">
                             {s}
                           </span>
                         </div>

@@ -61,7 +61,7 @@ const TabNav: React.FC<TabNavProps> = ({ tabs, activeTab, onTabChange, className
               {tab.icon}
               {tab.label}
               {tab.badge !== undefined && (
-                <span className="inline-flex items-center justify-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 tabular-nums dark:bg-blue-900/30 dark:text-blue-300">
+                <span className="inline-flex items-center justify-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                   {tab.badge}
                 </span>
               )}

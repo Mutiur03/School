@@ -139,7 +139,7 @@ function Result() {
             </Label>
             <select
               id="year"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               value={selectedYear.toString()}
               onChange={(event) => {
                 setSelectedYear(Number(event.target.value));
@@ -162,7 +162,7 @@ function Result() {
             </Label>
             <select
               id="exam"
-              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={examName}
               onChange={(event) => {
                 setExamName(event.target.value);
@@ -200,7 +200,7 @@ function Result() {
           </div>
         ) : sortedPublishedExams.length > 0 ? (
           <div className="mt-5">
-            <p className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase">
+            <p className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
               <Sparkles className="h-3.5 w-3.5" />
               Quick open
             </p>

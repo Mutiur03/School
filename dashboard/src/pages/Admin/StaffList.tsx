@@ -268,7 +268,7 @@ const StaffList = () => {
                   />
                   <label
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-card border-border hover:border-primary/50 flex aspect-7/9 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors sm:w-32"
+                    className="bg-card border-border hover:border-primary/50 aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors sm:w-32"
                   >
                     {image ? (
                       <img
@@ -401,7 +401,7 @@ const StaffList = () => {
       <FilterSelection className="mb-6">
         <FilterField label="Search" wide>
           <div className="relative">
-            <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
+            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
             <Input
               type="text"
               placeholder="Search by name, phone, email or designation..."
@@ -422,7 +422,7 @@ const StaffList = () => {
                 {['Staff', 'Email', 'Designation', 'Actions'].map((header) => (
                   <th
                     key={header}
-                    className={`text-foreground/70 px-4 py-3 text-xs font-semibold tracking-wider uppercase ${header === 'Actions' ? 'text-right' : 'text-left'}`}
+                    className={`text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider ${header === 'Actions' ? 'text-right' : 'text-left'}`}
                   >
                     {header}
                   </th>
@@ -554,7 +554,7 @@ const StaffList = () => {
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">Rows</span>
               <select
-                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
@@ -648,7 +648,7 @@ const StaffList = () => {
                     className="border-border aspect-7/9 w-20 rounded-sm border object-cover shadow"
                   />
                 ) : (
-                  <div className="border-border bg-muted text-muted-foreground flex aspect-7/9 w-20 items-center justify-center rounded-sm border text-4xl font-bold">
+                  <div className="border-border bg-muted text-muted-foreground aspect-7/9 flex w-20 items-center justify-center rounded-sm border text-4xl font-bold">
                     {popup.staff.name.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -661,7 +661,7 @@ const StaffList = () => {
               </div>
 
               <div className="space-y-1.5 px-5 py-4">
-                <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">
+                <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
                   Contact & Details
                 </p>
                 {[

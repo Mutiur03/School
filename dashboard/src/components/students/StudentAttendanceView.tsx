@@ -221,7 +221,7 @@ export function StudentAttendanceView({
           {WEEKDAYS.map((day) => (
             <div
               key={day}
-              className="text-muted-foreground py-2 text-center text-[11px] font-semibold tracking-wide uppercase"
+              className="text-muted-foreground py-2 text-center text-[11px] font-semibold uppercase tracking-wide"
             >
               {day}
             </div>
@@ -259,7 +259,7 @@ export function StudentAttendanceView({
                 >
                   <span className="text-xs font-semibold">{cell.day}</span>
                   {meta ? (
-                    <span className="text-[10px] font-bold tracking-wide uppercase">
+                    <span className="text-[10px] font-bold uppercase tracking-wide">
                       {meta.short}
                     </span>
                   ) : (

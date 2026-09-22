@@ -242,7 +242,7 @@ const NoticeUploadPage = () => {
                           <button
                             type="button"
                             onClick={() => fileref.current?.click()}
-                            className="ml-1 shrink-0 rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold whitespace-nowrap text-[#2D5BFF] transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-[#4A7DFF] dark:hover:bg-slate-700"
+                            className="ml-1 shrink-0 whitespace-nowrap rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-[#2D5BFF] transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-[#4A7DFF] dark:hover:bg-slate-700"
                           >
                             Choose File
                           </button>
@@ -256,7 +256,7 @@ const NoticeUploadPage = () => {
                             href={getFileUrl(formFile)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group hover:bg-primary/5 mr-2 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors"
+                            className="hover:bg-primary/5 group mr-2 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors"
                           >
                             <FileText className="group-hover:text-primary h-5 w-5 text-slate-400 transition-colors" />
                             <span className="group-hover:text-primary hidden text-sm font-bold text-slate-600 transition-colors sm:inline dark:text-slate-400">
@@ -270,7 +270,7 @@ const NoticeUploadPage = () => {
                         )}
                       </div>
                       {errors.file && (
-                        <p className="text-destructive mt-1 ml-1 text-xs font-medium">
+                        <p className="text-destructive ml-1 mt-1 text-xs font-medium">
                           {errors.file.message as string}
                         </p>
                       )}
@@ -313,7 +313,7 @@ const NoticeUploadPage = () => {
         noPadding
         headerAction={
           <div className="relative w-full max-w-sm">
-            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
             <Input
               type="text"
               placeholder="Search notices..."
@@ -351,13 +351,13 @@ const NoticeUploadPage = () => {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-border bg-muted/20 border-b">
-                    <th className="text-muted-foreground w-[60%] p-4 pl-6 text-left text-xs font-bold tracking-wider uppercase">
+                    <th className="text-muted-foreground w-[60%] p-4 pl-6 text-left text-xs font-bold uppercase tracking-wider">
                       Notice Title
                     </th>
-                    <th className="text-muted-foreground p-4 text-left text-xs font-bold tracking-wider uppercase">
+                    <th className="text-muted-foreground p-4 text-left text-xs font-bold uppercase tracking-wider">
                       Published Date
                     </th>
-                    <th className="text-muted-foreground p-4 pr-6 text-right text-xs font-bold tracking-wider uppercase">
+                    <th className="text-muted-foreground p-4 pr-6 text-right text-xs font-bold uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -441,10 +441,10 @@ const NoticeUploadPage = () => {
                         <FileText size={20} />
                       </div>
                       <div className="flex-1 space-y-1">
-                        <h4 className="line-clamp-2 text-sm leading-snug font-bold">
+                        <h4 className="line-clamp-2 text-sm font-bold leading-snug">
                           {notice.title}
                         </h4>
-                        <div className="text-muted-foreground flex items-center gap-2 text-[10px] font-medium tracking-wider uppercase">
+                        <div className="text-muted-foreground flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider">
                           <Calendar className="h-3 w-3" />
                           {notice.created_at.split('T')[0]}
                         </div>
@@ -479,7 +479,7 @@ const NoticeUploadPage = () => {
                         href={getFileUrl(notice.file)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary flex items-center gap-1 text-[10px] font-bold tracking-tight uppercase hover:underline"
+                        className="text-primary flex items-center gap-1 text-[10px] font-bold uppercase tracking-tight hover:underline"
                       >
                         DIRECT Link <ExternalLink size={10} />
                       </a>

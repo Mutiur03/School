@@ -82,7 +82,7 @@ export function TablePagination({
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-sm">Rows</span>
           <select
-            className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+            className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
             value={limit}
             disabled={loading}
             onChange={(e) => onLimitChange(Number(e.target.value))}

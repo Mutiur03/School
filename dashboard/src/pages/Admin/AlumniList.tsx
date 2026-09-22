@@ -72,7 +72,7 @@ function AlumniList() {
       <FilterSelection>
         <FilterField label="Search" wide>
           <div className="relative">
-            <Search size={18} className="text-muted-foreground absolute top-2.5 left-3" />
+            <Search size={18} className="text-muted-foreground absolute left-3 top-2.5" />
             <Input
               type="search"
               name="alumni-search"
@@ -151,7 +151,7 @@ function AlumniList() {
                       (header) => (
                         <th
                           key={header}
-                          className="text-foreground/70 px-4 py-3 text-xs font-semibold tracking-wider uppercase"
+                          className="text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider"
                         >
                           {header}
                         </th>
@@ -167,8 +167,8 @@ function AlumniList() {
                       <td className="px-4 py-3 tabular-nums">{student.roll}</td>
                       <td className="px-4 py-3">{student.batch}</td>
                       <td className="px-4 py-3">{student.section}</td>
-                      <td className="max-w-xs px-4 py-3 break-words">{student.address}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="max-w-xs break-words px-4 py-3">{student.address}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
                         {student.dob?.slice(0, 10) || '—'}
                       </td>
                     </tr>
@@ -181,7 +181,7 @@ function AlumniList() {
               {filteredStudents.map((student) => (
                 <li key={student.id} className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 flex-1 text-sm font-semibold wrap-break-word">
+                    <p className="wrap-break-word min-w-0 flex-1 text-sm font-semibold">
                       {student.name}
                     </p>
                     <span className="text-muted-foreground shrink-0 text-xs tabular-nums">

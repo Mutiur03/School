@@ -29,7 +29,7 @@ async function page() {
 
       <article className="head-msg-enter mx-auto w-full max-w-5xl">
         <header className="mb-6 text-center sm:mb-8">
-          <h1 className="text-2xl font-bold tracking-wide text-balance text-[#1b2430] sm:text-3xl md:text-4xl">
+          <h1 className="text-balance text-2xl font-bold tracking-wide text-[#1b2430] sm:text-3xl md:text-4xl">
             প্রধান শিক্ষকের বাণী
           </h1>
         </header>
@@ -43,9 +43,9 @@ async function page() {
 
           <div className="flex flex-col lg:flex-row">
             {/* Signature: vertical বাণী rail + portrait */}
-            <aside className="relative flex flex-col items-center gap-5 border-b border-[#d7e2c4] bg-[#e8f0dc]/55 px-5 py-7 sm:px-8 lg:w-[280px] lg:shrink-0 lg:border-r lg:border-b-0 lg:py-10">
+            <aside className="relative flex flex-col items-center gap-5 border-b border-[#d7e2c4] bg-[#e8f0dc]/55 px-5 py-7 sm:px-8 lg:w-[280px] lg:shrink-0 lg:border-b-0 lg:border-r lg:py-10">
               <p
-                className="hidden text-[11px] font-bold tracking-[0.35em] text-[#4f7c12]/80 uppercase lg:block lg:rotate-180 lg:[writing-mode:vertical-rl]"
+                className="hidden text-[11px] font-bold uppercase tracking-[0.35em] text-[#4f7c12]/80 lg:block lg:rotate-180 lg:[writing-mode:vertical-rl]"
                 aria-hidden
               >
                 বাণী
@@ -68,7 +68,7 @@ async function page() {
                 </div>
               </div>
 
-              <div className="max-w-full min-w-0 text-center">
+              <div className="min-w-0 max-w-full text-center">
                 {name ? (
                   <h2
                     className="truncate text-xl font-bold tracking-wide text-[#1b2430] sm:text-2xl"
@@ -81,14 +81,14 @@ async function page() {
                   <h2 className="text-xl font-bold text-[#1b2430]/60 sm:text-2xl">Headmaster</h2>
                 )}
                 <p className="mt-1 text-sm font-medium text-[#4f7c12]">প্রধান শিক্ষক</p>
-                <p className="mt-0.5 text-xs tracking-wide text-[#5c6b5a] uppercase">{role}</p>
+                <p className="mt-0.5 text-xs uppercase tracking-wide text-[#5c6b5a]">{role}</p>
               </div>
             </aside>
 
             {/* Letter body */}
             <section className="relative min-w-0 flex-1 px-5 py-7 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
               <span
-                className="pointer-events-none absolute top-3 left-4 text-7xl leading-none text-[#609513]/12 select-none sm:top-4 sm:left-6 sm:text-8xl"
+                className="text-[#609513]/12 pointer-events-none absolute left-4 top-3 select-none text-7xl leading-none sm:left-6 sm:top-4 sm:text-8xl"
                 aria-hidden
               >
                 “
@@ -96,7 +96,7 @@ async function page() {
 
               <div className="relative border-l-[3px] border-[#609513] pl-4 sm:pl-6">
                 {paragraphs.length > 0 ? (
-                  <div className="space-y-4 text-justify text-[15px] leading-8 text-pretty text-[#1b2430] sm:text-base sm:leading-8">
+                  <div className="space-y-4 text-pretty text-justify text-[15px] leading-8 text-[#1b2430] sm:text-base sm:leading-8">
                     {paragraphs.map((para, i) => (
                       <p key={i}>{para}</p>
                     ))}

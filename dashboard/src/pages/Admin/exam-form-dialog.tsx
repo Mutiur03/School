@@ -147,7 +147,7 @@ export function ExamFormDialog({
                     exam_type_id: e.target.value ? Number(e.target.value) : '',
                   }))
                 }
-                className="border-input bg-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                className="border-input bg-background focus-visible:ring-ring h-9 w-full rounded-md border px-3 text-sm focus-visible:outline-none focus-visible:ring-2"
               >
                 <option value="" disabled>
                   {types.length ? 'Select type…' : 'No types assigned'}

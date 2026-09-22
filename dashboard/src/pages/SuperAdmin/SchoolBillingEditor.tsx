@@ -44,10 +44,7 @@ const DATE_FIELD_LABELS: Record<SubscriptionDateField, string> = {
   cancelled_at: 'Cancelled on',
 };
 
-const END_DATE_FIELDS = new Set<SubscriptionDateField>([
-  'trial_ends_at',
-  'current_period_ends_at',
-]);
+const END_DATE_FIELDS = new Set<SubscriptionDateField>(['trial_ends_at', 'current_period_ends_at']);
 
 const todayInput = () => dateInputValue(new Date().toISOString());
 

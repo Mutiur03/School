@@ -52,7 +52,7 @@ const MarkInput: React.FC<{
         onChange={handleChange}
         disabled={disabled}
         placeholder={disabled ? '—' : `/${maxMark}`}
-        className={`border-border focus:ring-primary/20 w-14 rounded border p-1.5 text-center text-xs transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none sm:w-16 sm:p-2 sm:text-sm ${
+        className={`border-border focus:ring-primary/20 w-14 rounded border p-1.5 text-center text-xs transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:outline-none focus:ring-2 sm:w-16 sm:p-2 sm:text-sm ${
           disabled ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-card'
         }`}
       />

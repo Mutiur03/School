@@ -336,13 +336,13 @@ function Syllabus() {
           <table className="w-full min-w-[400px] table-fixed divide-y divide-gray-200 text-sm">
             <thead>
               <tr className="bg-muted/40">
-                <th className="w-1/4 px-3 py-3 text-center text-xs font-medium tracking-wider uppercase sm:px-6">
+                <th className="w-1/4 px-3 py-3 text-center text-xs font-medium uppercase tracking-wider sm:px-6">
                   Class
                 </th>
-                <th className="w-1/4 px-3 py-3 text-center text-xs font-medium tracking-wider uppercase sm:px-6">
+                <th className="w-1/4 px-3 py-3 text-center text-xs font-medium uppercase tracking-wider sm:px-6">
                   Year
                 </th>
-                <th className="w-2/4 px-3 py-3 text-center text-xs font-medium tracking-wider uppercase sm:px-6">
+                <th className="w-2/4 px-3 py-3 text-center text-xs font-medium uppercase tracking-wider sm:px-6">
                   Actions
                 </th>
               </tr>

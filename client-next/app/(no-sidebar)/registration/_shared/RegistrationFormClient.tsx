@@ -557,8 +557,8 @@ export default function RegistrationFormClient({
       <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-white/80 backdrop-blur-md">
         <div className="flex flex-col items-center">
           <div className="relative h-24 w-24">
-            <div className="absolute top-0 left-0 h-full w-full rounded-full border-4 border-blue-100"></div>
-            <div className="absolute top-0 left-0 h-full w-full animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+            <div className="absolute left-0 top-0 h-full w-full rounded-full border-4 border-blue-100"></div>
+            <div className="absolute left-0 top-0 h-full w-full animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
           </div>
           <div className="mt-6 text-xl font-bold tracking-tight text-gray-800">
             {config.loadingText}
@@ -613,7 +613,7 @@ export default function RegistrationFormClient({
           >
             <select
               {...register('section')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Section</option>
               <option value="A">A</option>
@@ -630,7 +630,7 @@ export default function RegistrationFormClient({
             <select
               {...register('roll')}
               disabled={!selectedSection || availableRolls.length === 0}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed disabled:bg-gray-100 sm:text-base"
             >
               <option value="">
                 {!selectedSection
@@ -654,7 +654,7 @@ export default function RegistrationFormClient({
           >
             <select
               {...register('religion')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               aria-invalid={kind === 'class-6' ? !!errors.religion : undefined}
             >
               <option value="">Select Religion</option>
@@ -672,7 +672,7 @@ export default function RegistrationFormClient({
             >
               <select
                 {...register('scout_status')}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                 aria-invalid={kind === 'class-6' ? !!errors.scout_status : undefined}
               >
                 <option value="">Select Option</option>
@@ -752,7 +752,7 @@ export default function RegistrationFormClient({
 
               <select
                 {...register('birth_month')}
-                className="w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:w-40 sm:text-base"
+                className="w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:w-40 sm:text-base"
                 disabled={disableMonth || !birth_year}
                 aria-invalid={kind === 'class-6' ? !!errors.birth_month : undefined}
               >
@@ -765,7 +765,7 @@ export default function RegistrationFormClient({
               </select>
               <select
                 {...register('birth_day')}
-                className="w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:w-28 sm:text-base"
+                className="w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:w-28 sm:text-base"
                 disabled={disableDay}
               >
                 <option value="">Day</option>
@@ -879,7 +879,7 @@ export default function RegistrationFormClient({
             <FieldRow label="Blood Group:" isRequired={false} error={errors.blood_group}>
               <select
                 {...register('blood_group')}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               >
                 <option value="">Select Blood Group</option>
                 <option value="A+">A+</option>
@@ -1039,7 +1039,7 @@ export default function RegistrationFormClient({
                     href="https://imageresizer.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center rounded bg-green-600 px-4 py-2 text-sm font-medium text-white! shadow hover:bg-green-700 sm:text-base"
+                    className="text-white! inline-flex items-center rounded bg-green-600 px-4 py-2 text-sm font-medium shadow hover:bg-green-700 sm:text-base"
                   >
                     Resize Now (300×330)
                   </a>

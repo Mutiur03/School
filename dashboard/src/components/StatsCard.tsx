@@ -71,7 +71,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
         <div>
           <p className={`mb-1 text-sm font-medium ${colors.label}`}>{label}</p>
           {loading ? (
-            <Skeleton className="mt-1 h-8 w-15" />
+            <Skeleton className="w-15 mt-1 h-8" />
           ) : (
             <h4 className={`text-2xl font-bold ${colors.value}`}>{value}</h4>
           )}

@@ -402,7 +402,7 @@ function Admission() {
           <div className="relative">
             <Search
               size={16}
-              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+              className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
             />
             <Input
               type="text"
@@ -537,22 +537,22 @@ function Admission() {
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="bg-muted border-border border-b">
-                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                   Student
                 </th>
-                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                   Class
                 </th>
-                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                   User ID
                 </th>
-                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                   Status
                 </th>
-                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                   Date
                 </th>
-                <th className="text-foreground/70 w-1 px-6 py-3 text-right text-xs font-semibold tracking-wider whitespace-nowrap uppercase">
+                <th className="text-foreground/70 w-1 whitespace-nowrap px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -611,7 +611,7 @@ function Admission() {
                     <td className="text-muted-foreground px-6 py-4 text-sm">
                       {formatDateWithTime(admission.created_at || admission.submission_date || '')}
                     </td>
-                    <td className="w-1 px-6 py-4 text-right whitespace-nowrap">
+                    <td className="w-1 whitespace-nowrap px-6 py-4 text-right">
                       <div className="inline-flex justify-end gap-2">
                         <ActionButton
                           action="view"
@@ -785,7 +785,7 @@ function Admission() {
           }}
         >
           <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white text-black shadow-xl">
-            <div className="border-border flex items-center justify-between rounded-t-xl border-b bg-linear-to-r from-blue-500 to-blue-400 p-6 text-white">
+            <div className="border-border bg-linear-to-r flex items-center justify-between rounded-t-xl border-b from-blue-500 to-blue-400 p-6 text-white">
               <div>
                 <h3 className="text-lg font-semibold">Admission Details</h3>
                 <p className="mt-1 text-sm opacity-90">Complete student information</p>

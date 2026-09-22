@@ -112,7 +112,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
   return (
     <div className="p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-pretty">
+        <h2 className="text-pretty text-lg font-semibold">
           {type === 'campus' ? 'Campus Gallery' : 'Event Gallery'}
         </h2>
         <Link
@@ -148,7 +148,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
 
       {selectedIndex !== null && images[selectedIndex] && (
         <div
-          className="fixed inset-0 z-1001 flex items-center justify-center bg-black/60 p-4"
+          className="z-1001 fixed inset-0 flex items-center justify-center bg-black/60 p-4"
           style={{ overscrollBehavior: 'contain' }}
           onClick={closeLightbox}
         >
@@ -250,7 +250,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                   goPrev();
                 }}
                 aria-label="Previous"
-                className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -276,7 +276,7 @@ export default function ImagesPage({ type, images }: ImagesPageProps) {
                   goNext();
                 }}
                 aria-label="Next"
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

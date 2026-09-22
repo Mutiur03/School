@@ -98,11 +98,11 @@ export default function ExamRoutineClient({
           </p>
         ) : null}
 
-        <div className="relative mb-6 max-w-full min-w-0 sm:max-w-md" ref={rootRef}>
+        <div className="relative mb-6 min-w-0 max-w-full sm:max-w-md" ref={rootRef}>
           <button
             ref={buttonRef}
             type="button"
-            className="border-border bg-background text-foreground focus:ring-primary focus:border-primary flex w-full items-center justify-between gap-3 rounded-xs border px-3 py-2.5 text-left text-base transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="border-border bg-background text-foreground focus:ring-primary focus:border-primary rounded-xs flex w-full items-center justify-between gap-3 border px-3 py-2.5 text-left text-base transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-controls={listboxId}
@@ -128,7 +128,7 @@ export default function ExamRoutineClient({
               id={listboxId}
               role="listbox"
               aria-label="Exams"
-              className="border-border bg-background absolute top-full right-0 left-0 z-40 mt-1 max-h-60 overflow-y-auto overscroll-contain rounded-xs border shadow-md"
+              className="border-border bg-background rounded-xs absolute left-0 right-0 top-full z-40 mt-1 max-h-60 overflow-y-auto overscroll-contain border shadow-md"
             >
               {exams.map((exam, index) => {
                 const selected = selectedExam?.id === exam.id;

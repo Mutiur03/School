@@ -56,7 +56,7 @@ export function GraduationPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="space-y-1 px-6 pt-6 pb-4">
+        <DialogHeader className="space-y-1 px-6 pb-4 pt-6">
           <DialogTitle>
             Class 10 graduation · {preview?.year ?? '…'} (SSC {preview?.sscBatch ?? '…'})
           </DialogTitle>

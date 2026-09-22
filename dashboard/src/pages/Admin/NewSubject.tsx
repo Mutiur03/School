@@ -90,7 +90,7 @@ const SubjectTableRow = React.memo(
                 </span>
               )}
               {subject.assessment_type === 'continuous' && (
-                <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-tighter text-blue-600 uppercase">
+                <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tighter text-blue-600">
                   CAS
                 </span>
               )}
@@ -100,9 +100,9 @@ const SubjectTableRow = React.memo(
       </td>
       <td className="px-4 py-3 text-xs">
         {subject.subject_type === 'main' ? (
-          <span className="text-primary font-bold tracking-wider uppercase">Main</span>
+          <span className="text-primary font-bold uppercase tracking-wider">Main</span>
         ) : subject.subject_type === 'paper' ? (
-          <span className="text-muted-foreground tracking-wider uppercase">Paper</span>
+          <span className="text-muted-foreground uppercase tracking-wider">Paper</span>
         ) : (
           <span className="text-muted-foreground/50 capitalize italic">Single</span>
         )}
@@ -111,7 +111,7 @@ const SubjectTableRow = React.memo(
         <div className="flex flex-col">
           <span>Class {subject.class}</span>
           {subject.group && (
-            <span className="text-primary text-[10px] font-bold tracking-wider uppercase">
+            <span className="text-primary text-[10px] font-bold uppercase tracking-wider">
               {subject.group}
             </span>
           )}
@@ -119,7 +119,7 @@ const SubjectTableRow = React.memo(
       </td>
       <td className="px-4 py-3 text-sm font-medium">{subject.full_mark}</td>
       <td className="px-4 py-3 text-sm font-medium text-emerald-600">{subject.pass_mark}</td>
-      <td className="w-1 px-4 py-3 text-right whitespace-nowrap">
+      <td className="w-1 whitespace-nowrap px-4 py-3 text-right">
         <div className="inline-flex flex-wrap justify-end gap-1.5">
           <ActionButton action="view" onClick={() => onShowInfo(subject)} />
           <ActionButton action="edit" onClick={() => onEdit(subject)} />
@@ -157,27 +157,27 @@ const SubjectMobileCard = React.memo(
             <p className="text-foreground truncate text-sm font-semibold">{subject.name}</p>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+            <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
               Class {subject.class}
             </span>
             {subject.group ? (
-              <span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">
+              <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
                 {subject.group}
               </span>
             ) : null}
             {subject.subject_type === 'main' ? (
-              <span className="text-primary text-[10px] font-bold tracking-wider uppercase">
+              <span className="text-primary text-[10px] font-bold uppercase tracking-wider">
                 Main
               </span>
             ) : subject.subject_type === 'paper' ? (
-              <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
+              <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
                 Paper
               </span>
             ) : (
               <span className="text-muted-foreground/50 text-[10px] capitalize italic">Single</span>
             )}
             {subject.assessment_type === 'continuous' ? (
-              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-tighter text-blue-600 uppercase">
+              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tighter text-blue-600">
                 CAS
               </span>
             ) : null}
@@ -194,19 +194,19 @@ const SubjectMobileCard = React.memo(
       </div>
       <dl className="grid grid-cols-3 gap-2 text-sm">
         <div>
-          <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+          <dt className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
             Full Mark
           </dt>
           <dd className="font-medium">{subject.full_mark}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+          <dt className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
             Pass Mark
           </dt>
           <dd className="font-medium text-emerald-600">{subject.pass_mark}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+          <dt className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
             Priority
           </dt>
           <dd className="font-medium">{subject.priority > 0 ? subject.priority : '—'}</dd>
@@ -302,7 +302,7 @@ const SubjectFilters = React.memo(
 
       <FilterField label="Search Subject" wide>
         <div className="relative">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <Input
             placeholder="Search by name..."
             value={searchTerm}
@@ -438,7 +438,7 @@ const SubjectForm = React.memo(
                 onChange(e);
                 register('subject_type').onChange(e);
               }}
-              className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+              className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
             >
               <option value="single">Single Subject</option>
               <option value="main">Main Subject (Group)</option>
@@ -453,7 +453,7 @@ const SubjectForm = React.memo(
               </label>
               <select
                 {...register('parent_id')}
-                className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
               >
                 <option value="">Select Parent Subject</option>
                 {subjects
@@ -517,7 +517,7 @@ const SubjectForm = React.memo(
               </label>
               <select
                 {...register('marking_scheme' as any)}
-                className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                 value={markingScheme}
                 onChange={(e) => {
                   setValue('marking_scheme' as any, e.target.value as any);
@@ -661,7 +661,7 @@ const SubjectForm = React.memo(
             <select
               {...register('group')}
               disabled={classNum < 9}
-              className="bg-card border-border text-foreground focus:ring-primary/30 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+              className="bg-card border-border text-foreground focus:ring-primary/30 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
             >
               <option value="">
                 {classNum >= 9 ? 'General (Common for all)' : 'Not Required for Class 6-8'}
@@ -1531,7 +1531,7 @@ const NewSubject: React.FC = () => {
                 {['Subject', 'Type', 'Class', 'Full Mark', 'Pass Mark', 'Actions'].map((h) => (
                   <th
                     key={h}
-                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${h === 'Actions' ? 'w-1 text-right whitespace-nowrap' : ''} ${h === 'Subject' ? 'bg-muted/50' : ''}`}
+                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold uppercase tracking-wider ${h === 'Actions' ? 'w-1 whitespace-nowrap text-right' : ''} ${h === 'Subject' ? 'bg-muted/50' : ''}`}
                   >
                     {h}
                   </th>
@@ -1598,7 +1598,7 @@ const NewSubject: React.FC = () => {
                     {selectedSubject.name}
                   </h3>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className="bg-primary text-primary-foreground rounded px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase">
+                    <span className="bg-primary text-primary-foreground rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
                       Class {selectedSubject.class}
                     </span>
                     <span className="text-muted-foreground text-sm">
@@ -1607,7 +1607,7 @@ const NewSubject: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-muted-foreground block text-[10px] font-bold tracking-widest uppercase">
+                  <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-widest">
                     Academic Year
                   </span>
                   <span className="text-lg font-bold">{selectedSubject.year}</span>
@@ -1616,13 +1616,13 @@ const NewSubject: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted/30 border-border rounded-xl border p-4">
-                  <span className="text-muted-foreground mb-1 block text-[10px] font-bold tracking-widest uppercase">
+                  <span className="text-muted-foreground mb-1 block text-[10px] font-bold uppercase tracking-widest">
                     Full Mark
                   </span>
                   <span className="text-2xl font-bold">{selectedSubject.full_mark}</span>
                 </div>
                 <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4">
-                  <span className="mb-1 block text-[10px] font-bold tracking-widest text-emerald-600 uppercase">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-emerald-600">
                     Pass Mark
                   </span>
                   <span className="text-2xl font-bold text-emerald-600">
@@ -1632,38 +1632,38 @@ const NewSubject: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-muted-foreground flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
+                <h4 className="text-muted-foreground flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
                   <span className="bg-primary h-4 w-1 rounded-full"></span>
                   Marks Distribution
                 </h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-muted/40 border-border/50 rounded-lg border p-3 text-center">
-                    <span className="text-muted-foreground block text-[9px] font-bold tracking-wider uppercase">
+                    <span className="text-muted-foreground block text-[9px] font-bold uppercase tracking-wider">
                       CQ
                     </span>
                     <span className="text-sm font-bold">{selectedSubject.cq_mark || 0}</span>
                     <div className="bg-border mx-2 my-1 h-px"></div>
-                    <span className="text-muted-foreground text-[8px] tracking-tighter uppercase">
+                    <span className="text-muted-foreground text-[8px] uppercase tracking-tighter">
                       Pass: {selectedSubject.cq_pass_mark || 0}
                     </span>
                   </div>
                   <div className="bg-muted/40 border-border/50 rounded-lg border p-3 text-center">
-                    <span className="text-muted-foreground block text-[9px] font-bold tracking-wider uppercase">
+                    <span className="text-muted-foreground block text-[9px] font-bold uppercase tracking-wider">
                       MCQ
                     </span>
                     <span className="text-sm font-bold">{selectedSubject.mcq_mark || 0}</span>
                     <div className="bg-border mx-2 my-1 h-px"></div>
-                    <span className="text-muted-foreground text-[8px] tracking-tighter uppercase">
+                    <span className="text-muted-foreground text-[8px] uppercase tracking-tighter">
                       Pass: {selectedSubject.mcq_pass_mark || 0}
                     </span>
                   </div>
                   <div className="bg-muted/40 border-border/50 rounded-lg border p-3 text-center">
-                    <span className="text-muted-foreground block text-[9px] font-bold tracking-wider uppercase">
+                    <span className="text-muted-foreground block text-[9px] font-bold uppercase tracking-wider">
                       Practical
                     </span>
                     <span className="text-sm font-bold">{selectedSubject.practical_mark || 0}</span>
                     <div className="bg-border mx-2 my-1 h-px"></div>
-                    <span className="text-muted-foreground text-[8px] tracking-tighter uppercase">
+                    <span className="text-muted-foreground text-[8px] uppercase tracking-tighter">
                       Pass: {selectedSubject.practical_pass_mark || 0}
                     </span>
                   </div>
@@ -1694,7 +1694,7 @@ const NewSubject: React.FC = () => {
 
           <div className="space-y-6">
             <div className="bg-muted/50 border-border rounded-xl border border-dashed p-5">
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
+              <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
                 <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full"></span>
                 Required Columns
               </h3>

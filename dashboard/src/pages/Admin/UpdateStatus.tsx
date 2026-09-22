@@ -226,16 +226,16 @@ function UpdateStatus() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-muted">
                 <tr>
-                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider">
                     Roll
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="p-3 text-left text-xs font-semibold tracking-wider uppercase">
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider">
                     Override
                   </th>
                 </tr>
@@ -279,7 +279,7 @@ function UpdateStatus() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold wrap-break-word">{student.name || 'N/A'}</p>
+                    <p className="wrap-break-word text-sm font-semibold">{student.name || 'N/A'}</p>
                     <p className="text-muted-foreground text-xs tabular-nums">
                       Roll {student.roll}
                     </p>

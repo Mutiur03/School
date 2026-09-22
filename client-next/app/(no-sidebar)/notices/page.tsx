@@ -23,7 +23,7 @@ async function Notice() {
 
   return (
     <div className="mx-auto px-4 py-6 sm:py-8">
-      <h1 className="mb-2 text-xl font-semibold text-balance sm:mb-4 sm:text-2xl">Notices</h1>
+      <h1 className="mb-2 text-balance text-xl font-semibold sm:mb-4 sm:text-2xl">Notices</h1>
       <p className="mb-4 text-sm text-gray-600">Total notices: {sorted.length}</p>
 
       {sorted.length === 0 ? (
@@ -38,9 +38,9 @@ async function Notice() {
               <li key={n.id} className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-gray-500 tabular-nums">#{idx + 1}</p>
+                    <p className="text-xs font-medium tabular-nums text-gray-500">#{idx + 1}</p>
                     <a
-                      className="mt-1 block text-sm leading-6 font-medium wrap-break-word text-gray-900"
+                      className="wrap-break-word mt-1 block text-sm font-medium leading-6 text-gray-900"
                       title={n?.title || ''}
                       href={getFileUrl(n.file)}
                       target="_blank"
@@ -65,7 +65,7 @@ async function Notice() {
           </ul>
 
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-xs bg-white shadow-sm ring-1 ring-gray-200 md:block">
+          <div className="rounded-xs hidden overflow-x-auto bg-white shadow-sm ring-1 ring-gray-200 md:block">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr className="text-left text-sm font-semibold text-gray-700">
@@ -78,10 +78,10 @@ async function Notice() {
               <tbody className="divide-y divide-gray-300">
                 {sorted.map((n, idx) => (
                   <tr key={n.id} className="divide-x divide-gray-300 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-700 tabular-nums">{idx + 1}</td>
+                    <td className="px-4 py-3 text-sm tabular-nums text-gray-700">{idx + 1}</td>
                     <td className="min-w-0 px-4 py-3 text-sm text-gray-900">
                       <a
-                        className="m-0 text-sm leading-6 wrap-break-word text-gray-900 transition-opacity duration-200"
+                        className="wrap-break-word m-0 text-sm leading-6 text-gray-900 transition-opacity duration-200"
                         title={n?.title || ''}
                         href={getFileUrl(n.file)}
                         target="_blank"
@@ -90,7 +90,7 @@ async function Notice() {
                         {n.title}
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-700">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">
                       {formatDate(n.created_at)}
                     </td>
                     <td className="px-4 py-3">

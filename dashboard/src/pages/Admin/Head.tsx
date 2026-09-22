@@ -46,7 +46,7 @@ function HeadMessagePreview({
       />
 
       <div className="flex flex-col sm:flex-row">
-        <div className="flex flex-col items-center gap-3 border-b border-[#d7e2c4] bg-[#e8f0dc]/55 px-4 py-5 sm:w-44 sm:shrink-0 sm:border-r sm:border-b-0">
+        <div className="flex flex-col items-center gap-3 border-b border-[#d7e2c4] bg-[#e8f0dc]/55 px-4 py-5 sm:w-44 sm:shrink-0 sm:border-b-0 sm:border-r">
           <div className="h-28 w-24 overflow-hidden rounded-sm border-2 border-[#609513]/50 bg-white">
             {imageUrl ? (
               <img
@@ -62,17 +62,17 @@ function HeadMessagePreview({
               </div>
             )}
           </div>
-          <div className="max-w-full min-w-0 text-center">
+          <div className="min-w-0 max-w-full text-center">
             <p className="truncate text-sm font-bold text-[#1b2430]" title={name || undefined}>
               {name || 'Headmaster name'}
             </p>
             <p className="text-xs font-medium text-[#4f7c12]">প্রধান শিক্ষক</p>
-            <p className="text-[10px] tracking-wide text-[#5c6b5a] uppercase">{role}</p>
+            <p className="text-[10px] uppercase tracking-wide text-[#5c6b5a]">{role}</p>
           </div>
         </div>
 
         <div className="min-w-0 flex-1 px-4 py-5">
-          <p className="mb-3 text-center text-[10px] font-semibold tracking-[0.16em] text-[#4f7c12] uppercase">
+          <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-[#4f7c12]">
             প্রধান শিক্ষকের বাণী
           </p>
           <div className="border-l-[3px] border-[#609513] pl-3">
@@ -298,7 +298,7 @@ function Head() {
                   setSuccess('');
                 }}
                 disabled={loading || saving}
-                className="min-h-[220px] resize-y leading-relaxed font-normal"
+                className="min-h-[220px] resize-y font-normal leading-relaxed"
               />
               <p className="text-muted-foreground text-xs leading-relaxed">
                 Blank line = new paragraph. One continuous block → site groups about two sentences

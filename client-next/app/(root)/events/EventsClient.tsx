@@ -133,12 +133,12 @@ export default function EventsClient({ events, loadError }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search..."
-          className="w-full rounded-xs border py-2 pr-3 pl-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none sm:w-64"
+          className="rounded-xs w-full border py-2 pl-3 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:w-64"
         />
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xs bg-white text-gray-900 shadow-sm ring-1 ring-gray-200">
+      <div className="rounded-xs overflow-hidden bg-white text-gray-900 shadow-sm ring-1 ring-gray-200">
         {events.length === 0 ? (
           <div className="p-6 text-center text-gray-600">No events available.</div>
         ) : (
@@ -268,7 +268,7 @@ export default function EventsClient({ events, loadError }: Props) {
             )}
 
             {/* Details text */}
-            <div className="text-sm whitespace-pre-line text-gray-700">
+            <div className="whitespace-pre-line text-sm text-gray-700">
               {selectedEvent.details || '-'}
             </div>
           </div>

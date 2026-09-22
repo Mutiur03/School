@@ -7,7 +7,7 @@ async function AdmissionFormNotice() {
   return (
     <div className="mx-auto max-w-4xl px-4">
       <div className="rounded-lg bg-white p-6 shadow-md">
-        <h1 className="mb-6 text-center text-2xl font-bold text-balance text-gray-800 sm:text-3xl">
+        <h1 className="mb-6 text-balance text-center text-2xl font-bold text-gray-800 sm:text-3xl">
           Admission Notice
         </h1>
         {preview_url ? (
@@ -41,7 +41,7 @@ async function AdmissionFormNotice() {
           {admission_open ? (
             <Link
               href="/admission/form"
-              className="inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold text-white! transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
+              className="text-white! inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
             >
               Proceed to Admission Form
             </Link>

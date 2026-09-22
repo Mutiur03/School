@@ -254,8 +254,8 @@ function Login() {
   return (
     <div className="bg-background text-foreground relative flex min-h-screen items-center justify-center overflow-hidden p-4 transition-colors duration-500">
       {/* Decorative Background Blobs mapping to brand palette */}
-      <div className="bg-primary/20 dark:bg-primary/10 pointer-events-none absolute top-[-15%] left-[-15%] h-[50%] w-[50%] animate-pulse rounded-full blur-[120px] duration-[10s]"></div>
-      <div className="bg-secondary/20 dark:bg-secondary/10 pointer-events-none absolute right-[-15%] bottom-[-15%] h-[50%] w-[50%] animate-pulse rounded-full blur-[120px] duration-[8s]"></div>
+      <div className="bg-primary/20 dark:bg-primary/10 pointer-events-none absolute left-[-15%] top-[-15%] h-[50%] w-[50%] animate-pulse rounded-full blur-[120px] duration-[10s]"></div>
+      <div className="bg-secondary/20 dark:bg-secondary/10 pointer-events-none absolute bottom-[-15%] right-[-15%] h-[50%] w-[50%] animate-pulse rounded-full blur-[120px] duration-[8s]"></div>
 
       <div className="relative z-10 w-full max-w-md">
         <div className="animate-in fade-in slide-in-from-top mb-10 text-center duration-1000">
@@ -264,14 +264,14 @@ function Login() {
               School Sync
             </span>
           </h1>
-          <div className="from-primary to-secondary mx-auto mb-4 h-1.5 w-16 rounded-full bg-linear-to-r shadow-[0_0_15px_rgba(15,23,42,0.2)]"></div>
-          <p className="text-muted-foreground text-[10px] font-bold tracking-[0.2em] uppercase opacity-80">
+          <div className="from-primary to-secondary bg-linear-to-r mx-auto mb-4 h-1.5 w-16 rounded-full shadow-[0_0_15px_rgba(15,23,42,0.2)]"></div>
+          <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
             Professional Enterprise Intelligence
           </p>
         </div>
 
         <Card className="border-b-primary/20 overflow-hidden rounded-3xl border border-white/40 bg-white/95 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.1)] backdrop-blur-3xl transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-500 dark:border-white/5 dark:bg-gray-900/90 dark:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)]">
-          <CardContent className="px-6 pt-10 pb-8 sm:px-10">
+          <CardContent className="px-6 pb-8 pt-10 sm:px-10">
             <div className="mb-8 flex justify-center">
               <div className="bg-muted/80 border-border flex w-full items-center justify-center gap-1 rounded-lg border p-1 dark:border-slate-700/30 dark:bg-slate-800/50">
                 {!showPasswordReset ? (
@@ -330,11 +330,11 @@ function Login() {
                       />
                     </svg>
                   </div>
-                  <span className="text-primary dark:text-primary-foreground/90 text-sm font-black tracking-widest uppercase">
+                  <span className="text-primary dark:text-primary-foreground/90 text-sm font-black uppercase tracking-widest">
                     Verify Identity
                   </span>
                 </div>
-                <p className="text-muted-foreground mx-auto max-w-[240px] text-xs leading-relaxed font-medium">
+                <p className="text-muted-foreground mx-auto max-w-[240px] text-xs font-medium leading-relaxed">
                   Enter your {role === 'student' ? 'Login ID' : 'email address'} to receive a
                   multi-factor verification code.
                 </p>
@@ -405,7 +405,7 @@ function Login() {
                     <div className="space-y-2">
                       <label
                         htmlFor="reset-identity"
-                        className="text-muted-foreground flex items-center text-xs font-black tracking-widest uppercase"
+                        className="text-muted-foreground flex items-center text-xs font-black uppercase tracking-widest"
                       >
                         {role === 'student' ? (
                           <>
@@ -477,7 +477,7 @@ function Login() {
                       {isResetting ? (
                         <div className="flex items-center justify-center">
                           <svg
-                            className="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
+                            className="-ml-1 mr-3 h-5 w-5 animate-spin text-white"
                             fill="none"
                             viewBox="0 0 24 24"
                             aria-hidden="true"
@@ -524,7 +524,7 @@ function Login() {
                           aria-label={`Digit ${index + 1}`}
                           onChange={(e) => handleCodeChange(index, e.target.value)}
                           onKeyDown={(e) => handleKeyDown(index, e)}
-                          className="border-border bg-input focus:border-primary focus:ring-primary/10 h-14 w-full rounded-md border-2 text-center text-2xl font-black shadow-sm transition-[border-color,box-shadow] outline-none focus:ring-4 dark:text-white"
+                          className="border-border bg-input focus:border-primary focus:ring-primary/10 h-14 w-full rounded-md border-2 text-center text-2xl font-black shadow-sm outline-none transition-[border-color,box-shadow] focus:ring-4 dark:text-white"
                         />
                       ))}
                     </div>
@@ -539,7 +539,7 @@ function Login() {
                       <button
                         type="button"
                         onClick={() => setResetStep('request')}
-                        className="text-muted-foreground hover:text-primary text-xs font-bold tracking-widest uppercase transition-colors"
+                        className="text-muted-foreground hover:text-primary text-xs font-bold uppercase tracking-widest transition-colors"
                       >
                         Resend Code
                       </button>
@@ -550,7 +550,7 @@ function Login() {
                     <div className="space-y-2">
                       <label
                         htmlFor="new-password"
-                        className="text-muted-foreground flex items-center text-xs font-black tracking-widest uppercase"
+                        className="text-muted-foreground flex items-center text-xs font-black uppercase tracking-widest"
                       >
                         New Password
                       </label>
@@ -570,7 +570,7 @@ function Login() {
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
                           aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                          className="text-muted-foreground hover:text-primary focus-visible:ring-primary absolute top-1/2 right-3 -translate-y-1/2 rounded transition-colors focus:outline-none focus-visible:ring-2"
+                          className="text-muted-foreground hover:text-primary focus-visible:ring-primary absolute right-3 top-1/2 -translate-y-1/2 rounded transition-colors focus:outline-none focus-visible:ring-2"
                         >
                           {showNewPassword ? (
                             <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -583,7 +583,7 @@ function Login() {
                     <div className="space-y-2">
                       <label
                         htmlFor="confirm-password"
-                        className="text-muted-foreground flex items-center text-xs font-black tracking-widest uppercase"
+                        className="text-muted-foreground flex items-center text-xs font-black uppercase tracking-widest"
                       >
                         Confirm Password
                       </label>
@@ -603,7 +603,7 @@ function Login() {
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                          className="text-muted-foreground hover:text-primary focus-visible:ring-primary absolute top-1/2 right-3 -translate-y-1/2 rounded transition-colors focus:outline-none focus-visible:ring-2"
+                          className="text-muted-foreground hover:text-primary focus-visible:ring-primary absolute right-3 top-1/2 -translate-y-1/2 rounded transition-colors focus:outline-none focus-visible:ring-2"
                         >
                           {showConfirmPassword ? (
                             <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -653,7 +653,7 @@ function Login() {
                       setResetMessage('');
                       setResetError('');
                     }}
-                    className="text-primary dark:text-primary flex items-center justify-center text-xs font-bold tracking-widest uppercase transition-colors hover:opacity-80"
+                    className="text-primary dark:text-primary flex items-center justify-center text-xs font-bold uppercase tracking-widest transition-colors hover:opacity-80"
                   >
                     <svg
                       className="mr-2 h-4 w-4"
@@ -731,7 +731,7 @@ function Login() {
                 <div className="space-y-2">
                   <label
                     htmlFor="login-identity"
-                    className="text-muted-foreground flex items-center text-xs font-black tracking-widest uppercase"
+                    className="text-muted-foreground flex items-center text-xs font-black uppercase tracking-widest"
                   >
                     {location.pathname.includes('/super_admin') ||
                     role === 'super_admin' ||
@@ -847,7 +847,7 @@ function Login() {
                 <div className="space-y-2">
                   <label
                     htmlFor="login-password"
-                    className="text-muted-foreground flex items-center text-xs font-black tracking-widest uppercase"
+                    className="text-muted-foreground flex items-center text-xs font-black uppercase tracking-widest"
                   >
                     <svg
                       className="text-primary mr-2 h-4 w-4"
@@ -881,7 +881,7 @@ function Login() {
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
                       aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
-                      className="text-muted-foreground hover:text-primary focus-visible:ring-primary absolute top-1/2 right-3 -translate-y-1/2 rounded transition-colors focus:outline-none focus-visible:ring-2"
+                      className="text-muted-foreground hover:text-primary focus-visible:ring-primary absolute right-3 top-1/2 -translate-y-1/2 rounded transition-colors focus:outline-none focus-visible:ring-2"
                     >
                       {showLoginPassword ? (
                         <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -898,7 +898,7 @@ function Login() {
                       <button
                         type="button"
                         onClick={() => setShowPasswordReset(true)}
-                        className="text-primary hover:text-primary/80 text-[10px] font-black tracking-widest uppercase transition-colors"
+                        className="text-primary hover:text-primary/80 text-[10px] font-black uppercase tracking-widest transition-colors"
                       >
                         Forgot Access Details?
                       </button>

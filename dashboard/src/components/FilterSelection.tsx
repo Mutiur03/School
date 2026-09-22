@@ -66,7 +66,7 @@ export function FilterSelection({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="hidden shrink-0 items-center gap-2 sm:flex">
           <Filter size={18} className="text-primary shrink-0" />
-          <span className="text-foreground text-sm font-semibold whitespace-nowrap">
+          <span className="text-foreground whitespace-nowrap text-sm font-semibold">
             Filter Selection
           </span>
         </div>
@@ -74,7 +74,7 @@ export function FilterSelection({
         <div className={cn(gridClassName, 'min-w-0 flex-1')}>{children}</div>
 
         {headerAction ? (
-          <div className="flex w-full shrink-0 gap-2 sm:w-auto [&_button]:min-w-0 [&_button]:flex-1 [&_button]:justify-center [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs sm:[&_button]:flex-initial sm:[&_button]:text-sm [&>*]:flex [&>*]:w-full [&>*]:flex-1 [&>*]:gap-2 sm:[&>*]:w-auto sm:[&>*]:flex-initial">
+          <div className="flex w-full shrink-0 gap-2 sm:w-auto [&>*]:flex [&>*]:w-full [&>*]:flex-1 [&>*]:gap-2 sm:[&>*]:w-auto sm:[&>*]:flex-initial [&_button]:min-w-0 [&_button]:flex-1 [&_button]:justify-center [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs sm:[&_button]:flex-initial sm:[&_button]:text-sm">
             {headerAction}
           </div>
         ) : null}

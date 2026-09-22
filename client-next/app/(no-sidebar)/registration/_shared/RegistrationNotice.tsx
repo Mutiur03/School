@@ -38,7 +38,7 @@ export default async function RegistrationNotice({
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-4xl px-4">
         <div className="rounded-lg bg-white p-4 shadow-md sm:p-6">
-          <h1 className="mb-6 text-center text-2xl font-bold text-balance text-gray-800 sm:text-3xl">
+          <h1 className="mb-6 text-balance text-center text-2xl font-bold text-gray-800 sm:text-3xl">
             {title}
           </h1>
 
@@ -79,7 +79,7 @@ export default async function RegistrationNotice({
             {data?.reg_open ? (
               <Link
                 href={formHref}
-                className="inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold text-white! transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
+                className="text-white! inline-block w-full max-w-sm rounded-lg bg-green-600 px-6 py-3 text-center text-base font-bold transition-colors duration-200 hover:bg-green-700 sm:w-auto sm:px-8 sm:text-lg"
               >
                 Registration Info Form
               </Link>

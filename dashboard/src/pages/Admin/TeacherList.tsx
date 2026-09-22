@@ -411,7 +411,7 @@ const TeacherList = () => {
                   />
                   <label
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-card border-border hover:border-primary/50 flex aspect-7/9 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors sm:w-32"
+                    className="bg-card border-border hover:border-primary/50 aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors sm:w-32"
                   >
                     {image ? (
                       <img
@@ -553,7 +553,7 @@ const TeacherList = () => {
                       Designation <span className="text-destructive">*</span>
                     </label>
                     <select
-                      className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       {...register('designation')}
                       defaultValue={isEditing ? popup.teacher?.designation : ''}
                     >
@@ -615,7 +615,7 @@ const TeacherList = () => {
       <FilterSelection className="mb-6">
         <FilterField label="Search" wide>
           <div className="relative">
-            <Search size={18} className="absolute top-2.5 left-3 text-gray-400" />
+            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
             <Input
               type="text"
               placeholder="Search by name, subject or email..."
@@ -639,7 +639,7 @@ const TeacherList = () => {
                 variant="outline"
                 onClick={() => setBulkRotateOpen(true)}
                 disabled={bulkRotateMutation.isPending}
-                className="w-full border-gray-200 bg-white text-black! hover:bg-gray-50 sm:w-auto"
+                className="text-black! w-full border-gray-200 bg-white hover:bg-gray-50 sm:w-auto"
               >
                 Rotate Passwords
               </Button>
@@ -678,7 +678,7 @@ const TeacherList = () => {
                 {['Teacher', 'Email', 'Designation', 'Actions'].map((header) => (
                   <th
                     key={header}
-                    className={`text-foreground/70 px-4 py-3 text-xs font-semibold tracking-wider uppercase ${header === 'Actions' ? 'text-right' : 'text-left'}`}
+                    className={`text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider ${header === 'Actions' ? 'text-right' : 'text-left'}`}
                   >
                     {header}
                   </th>
@@ -703,7 +703,7 @@ const TeacherList = () => {
                     key={teacher.id}
                     className={`transition-colors ${selectedTeacherIds.has(teacher.id) ? 'bg-sidebar-accent' : 'hover:bg-muted/50'}`}
                   >
-                    <td className="px-2 py-2 text-center text-sm whitespace-nowrap sm:px-4 sm:py-3">
+                    <td className="whitespace-nowrap px-2 py-2 text-center text-sm sm:px-4 sm:py-3">
                       <input
                         type="checkbox"
                         checked={selectedTeacherIds.has(teacher.id)}
@@ -830,7 +830,7 @@ const TeacherList = () => {
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">Rows</span>
               <select
-                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
@@ -943,7 +943,7 @@ const TeacherList = () => {
 
               {/* Info */}
               <div className="space-y-1.5 px-5 py-4">
-                <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">
+                <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
                   Contact & Details
                 </p>
                 {[

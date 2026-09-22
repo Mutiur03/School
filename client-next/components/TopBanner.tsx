@@ -6,7 +6,7 @@ export async function TopBanner() {
   const data = await fetchNotices(5);
   const duration = 5 * (data?.length ?? 0);
   return (
-    <div className="mt-2 w-full border-t border-b border-gray-100 bg-gray-50">
+    <div className="mt-2 w-full border-b border-t border-gray-100 bg-gray-50">
       <style>{`
         @keyframes marquee-scroll {
           0%   { transform: translateX(0); }

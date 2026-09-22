@@ -252,7 +252,7 @@ const Events: React.FC = () => {
                     setFormValues({ ...formValues, date: e.target.value || null });
                     setDateError(null);
                   }}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
                 />
                 {dateError && <p className="text-sm text-red-500">{dateError}</p>}
               </div>
@@ -343,7 +343,7 @@ const Events: React.FC = () => {
         </div>
       )}
       {popup.visible && popup.event && (
-        <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-50 p-4 backdrop-blur-2xl">
           <div className="bg-card max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-lg p-6 shadow-lg">
             {popup.type === 'view' && (
               <>
@@ -376,7 +376,7 @@ const Events: React.FC = () => {
                     {popup.event.details && (
                       <div>
                         <strong className="text-gray-700">Details:</strong>
-                        <p className="mt-1 text-gray-600 italic">"{popup.event.details}"</p>
+                        <p className="mt-1 italic text-gray-600">"{popup.event.details}"</p>
                       </div>
                     )}
                     <div className="flex justify-between">

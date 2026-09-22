@@ -34,7 +34,7 @@ const FieldRow: React.FC<{
 
   return (
     <div className="flex w-full flex-col items-start gap-1 py-2 lg:flex-row lg:gap-4">
-      <div className="mb-1 w-full shrink-0 text-left text-sm font-medium select-none lg:mb-0 lg:w-60">
+      <div className="mb-1 w-full shrink-0 select-none text-left text-sm font-medium lg:mb-0 lg:w-60">
         <span className="flex items-center gap-1">
           {controlId ? (
             <label htmlFor={controlId} className="cursor-pointer">

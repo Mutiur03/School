@@ -534,10 +534,10 @@ export default function ResultClient({
                 />
               </div>
 
-              <h2 className="text-2xl font-bold tracking-tight text-balance text-[#1b3a5c] sm:text-[1.65rem]">
+              <h2 className="text-balance text-2xl font-bold tracking-tight text-[#1b3a5c] sm:text-[1.65rem]">
                 Not Published Yet
               </h2>
-              <p className="mt-3 text-lg leading-relaxed text-pretty text-slate-600">
+              <p className="mt-3 text-pretty text-lg leading-relaxed text-slate-600">
                 Check back after the school releases the results.
               </p>
             </div>

@@ -78,7 +78,7 @@ function SearchField({
   return (
     <div className="relative">
       <Search
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+        className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
         aria-hidden="true"
       />
       <Input
@@ -554,7 +554,7 @@ export default function ExamTypes() {
                       onClick={() => openSchool(school.id)}
                       className={cn(
                         'flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors',
-                        'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+                        'focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2',
                         isOpen
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:border-primary/40 hover:bg-accent/30',

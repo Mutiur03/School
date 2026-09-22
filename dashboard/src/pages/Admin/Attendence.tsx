@@ -697,7 +697,7 @@ function Attendance() {
           </div>
         </div>
         <div className="max-w-full overflow-hidden">
-          <div className="bg-muted/30 border-border/50 scrollbar-thumb-primary/20 flex scrollbar-thin scrollbar-track-transparent flex-nowrap gap-1.5 overflow-x-auto rounded-lg border p-3">
+          <div className="bg-muted/30 border-border/50 scrollbar-thumb-primary/20 scrollbar-thin scrollbar-track-transparent flex flex-nowrap gap-1.5 overflow-x-auto rounded-lg border p-3">
             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
               <button
                 key={day}
@@ -705,7 +705,7 @@ function Attendance() {
                 onClick={() => toggleVisibleDay(day)}
                 aria-label={`Toggle day ${day}`}
                 aria-pressed={visibleDays.includes(day)}
-                className={`focus-visible:ring-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:ring-2 focus-visible:outline-none ${
+                className={`focus-visible:ring-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:outline-none focus-visible:ring-2 ${
                   visibleDays.includes(day)
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                     : 'bg-background text-muted-foreground border-input hover:border-primary/50'
@@ -748,21 +748,21 @@ function Attendance() {
           <table className="w-max min-w-full border-separate border-spacing-0">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                   Sec
                 </th>
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-16 z-20 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-16 z-20 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                   Roll
                 </th>
                 {visibleDays.map((day) => (
                   <th
                     key={day}
-                    className="text-muted-foreground min-w-[60px] px-2 py-3 text-center text-xs font-semibold tracking-wider uppercase tabular-nums"
+                    className="text-muted-foreground min-w-[60px] px-2 py-3 text-center text-xs font-semibold uppercase tabular-nums tracking-wider"
                   >
                     {day}
                   </th>
                 ))}
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-32 z-20 min-w-[150px] border-l px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]">
+                <th className="text-muted-foreground bg-background border-border/50 sticky left-32 z-20 min-w-[150px] border-l px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]">
                   Student Name
                 </th>
               </tr>
@@ -771,10 +771,10 @@ function Attendance() {
               {studentsLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td className="bg-background sticky left-0 z-10 w-16 max-w-16 min-w-16 px-4 py-3">
+                    <td className="bg-background sticky left-0 z-10 w-16 min-w-16 max-w-16 px-4 py-3">
                       <Skeleton className="h-4 w-8" />
                     </td>
-                    <td className="bg-background sticky left-16 z-10 w-16 max-w-16 min-w-16 px-4 py-3">
+                    <td className="bg-background sticky left-16 z-10 w-16 min-w-16 max-w-16 px-4 py-3">
                       <Skeleton className="h-4 w-8" />
                     </td>
                     {visibleDays.map((d) => (
@@ -802,10 +802,10 @@ function Attendance() {
                     key={student.id}
                     className={`hover:bg-muted/30 transition-colors ${!student.available ? 'bg-muted/20 opacity-60' : ''}`}
                   >
-                    <td className="bg-background border-border/50 sticky left-0 z-10 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-sm font-medium">
+                    <td className="bg-background border-border/50 sticky left-0 z-10 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-sm font-medium">
                       {student.section}
                     </td>
-                    <td className="text-muted-foreground bg-background border-border/50 sticky left-16 z-10 w-16 max-w-16 min-w-16 border-r px-4 py-3 text-sm">
+                    <td className="text-muted-foreground bg-background border-border/50 sticky left-16 z-10 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-sm">
                       {student.roll}
                     </td>
                     {visibleDays.map((day) => {
@@ -862,7 +862,7 @@ function Attendance() {
                       <div className="flex flex-col items-start gap-0.5">
                         <span>{student.name}</span>
                         {!student.available && (
-                          <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase">
+                          <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold uppercase tracking-tight text-red-500">
                             Inactive
                           </span>
                         )}
@@ -900,13 +900,13 @@ function Attendance() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold wrap-break-word">{student.name}</p>
+                      <p className="wrap-break-word text-sm font-semibold">{student.name}</p>
                       <p className="text-muted-foreground mt-0.5 text-xs">
                         Sec {student.section} · Roll {student.roll}
                       </p>
                     </div>
                     {!student.available && (
-                      <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold tracking-tight text-red-500 uppercase">
+                      <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold uppercase tracking-tight text-red-500">
                         Inactive
                       </span>
                     )}

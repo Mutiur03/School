@@ -186,7 +186,7 @@ function Dashboard() {
                                 className="h-3 w-3 rounded-full border-2 bg-white shadow-sm"
                                 style={{ borderColor: entry.color }}
                               />
-                              <span className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 {entry.value}
                               </span>
                             </div>
@@ -314,7 +314,7 @@ function Dashboard() {
                 headerAction={
                   <Link
                     to="/admin/notice"
-                    className="text-primary focus-visible:ring-primary rounded text-sm font-medium hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                    className="text-primary focus-visible:ring-primary rounded text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
                   >
                     View All
                   </Link>
@@ -327,7 +327,7 @@ function Dashboard() {
                         href={getFileUrl(notice.url)}
                         target="_blank"
                         key={notice.id}
-                        className="border-primary bg-muted/30 group hover:bg-muted/50 block cursor-pointer rounded-r-lg border-l-4 p-4 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
+                        className="border-primary bg-muted/30 hover:bg-muted/50 group block cursor-pointer rounded-r-lg border-l-4 p-4 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                       >
                         <div className="mb-2 flex items-start justify-between">
                           <h4 className="group-hover:text-primary line-clamp-1 text-sm font-semibold transition-colors sm:text-base">
@@ -353,7 +353,7 @@ function Dashboard() {
                 headerAction={
                   <Link
                     to="/admin/events"
-                    className="text-primary focus-visible:ring-primary rounded text-sm font-medium hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                    className="text-primary focus-visible:ring-primary rounded text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
                   >
                     View All
                   </Link>
@@ -372,7 +372,7 @@ function Dashboard() {
                               month: 'short',
                             })}
                           </span>
-                          <span className="text-lg leading-tight font-bold">
+                          <span className="text-lg font-bold leading-tight">
                             {new Date(event.date).getDate()}
                           </span>
                         </div>
@@ -409,7 +409,7 @@ function Dashboard() {
                   className="border-border hover:border-primary/50 bg-card block rounded-xl border p-5 transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md"
                 >
                   <div className="mb-3 flex items-start justify-between">
-                    <span className="bg-primary/10 text-primary rounded px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
+                    <span className="bg-primary/10 text-primary rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
                       Notice
                     </span>
                     <span className="text-muted-foreground text-xs">
@@ -431,7 +431,7 @@ function Dashboard() {
               {events.map((event) => (
                 <div
                   key={event.id}
-                  className="group border-border bg-card overflow-hidden rounded-xl border transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-lg"
+                  className="border-border bg-card group overflow-hidden rounded-xl border transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-lg"
                 >
                   <div className="bg-primary/5 border-border group-hover:bg-primary/10 flex h-32 items-center justify-center border-b transition-colors">
                     <Calendar className="text-primary h-12 w-12 opacity-20" />
@@ -461,16 +461,16 @@ function Dashboard() {
               <table className="w-full min-w-[640px]">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="bg-muted/50 border-border/50 sticky left-0 z-20 border-r px-6 py-4 text-left text-xs font-bold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                    <th className="bg-muted/50 border-border/50 sticky left-0 z-20 border-r px-6 py-4 text-left text-xs font-bold uppercase tracking-wider shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                       Exam Name
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold tracking-wider uppercase">
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
                       Start Date
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold tracking-wider uppercase">
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
                       End Date
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold tracking-wider uppercase">
+                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
                       Status
                     </th>
                   </tr>

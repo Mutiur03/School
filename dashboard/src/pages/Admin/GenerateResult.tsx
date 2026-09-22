@@ -810,10 +810,10 @@ const GenerateResult = () => {
           <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm">
             <thead className="sticky top-0 z-20">
               <tr className="bg-muted/50 border-border">
-                <th className="bg-muted/50 sticky left-0 z-30 w-14 min-w-14 border-r border-b px-3 py-4 text-center font-bold">
+                <th className="bg-muted/50 sticky left-0 z-30 w-14 min-w-14 border-b border-r px-3 py-4 text-center font-bold">
                   Merit
                 </th>
-                <th className="bg-muted/50 sticky left-14 z-30 min-w-44 border-r border-b px-3 py-4 font-bold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)]">
+                <th className="bg-muted/50 sticky left-14 z-30 min-w-44 border-b border-r px-3 py-4 font-bold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)]">
                   Student
                 </th>
                 <th className="w-32 border-b px-4 py-4 text-center font-bold">Status</th>

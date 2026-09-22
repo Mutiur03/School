@@ -94,7 +94,7 @@ export default function ConfirmDownloadPDF({
               <button
                 onClick={handleDownloadPDF}
                 disabled={downloadingPDF}
-                className={`inline-flex items-center justify-center gap-3 rounded px-8 py-4 text-lg leading-none font-semibold shadow transition-all duration-300 ${
+                className={`inline-flex items-center justify-center gap-3 rounded px-8 py-4 text-lg font-semibold leading-none shadow transition-all duration-300 ${
                   downloadingPDF
                     ? 'cursor-not-allowed bg-gray-300 text-gray-500'
                     : 'bg-gray-700 text-white hover:bg-gray-800'

@@ -136,7 +136,10 @@ if (process.argv[1]?.replace(/\\/g, '/').endsWith('/subscription-access.ts')) {
     now,
   );
 
-  console.assert(trial.access_state === 'locked' && trial.grace_ends_at === null, 'trial: no grace');
+  console.assert(
+    trial.access_state === 'locked' && trial.grace_ends_at === null,
+    'trial: no grace',
+  );
   console.assert(
     activeOk.access_state === 'active' && activeOk.status === 'active',
     'active: full access',

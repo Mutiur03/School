@@ -7,7 +7,7 @@ async function pages() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="mx-auto max-w-4xl px-4">
         <div className="rounded-lg bg-white p-6 shadow-md">
-          <h1 className="mb-6 text-center text-2xl font-bold text-balance text-gray-800 sm:text-3xl">
+          <h1 className="mb-6 text-balance text-center text-2xl font-bold text-gray-800 sm:text-3xl">
             Admission Notice
           </h1>
           {preview_url ? (

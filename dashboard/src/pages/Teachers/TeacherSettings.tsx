@@ -182,7 +182,7 @@ export default function TeacherSettings() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
-                      className="bg-primary ring-background absolute -right-3 -bottom-3 rounded-xl p-3 text-white shadow-lg ring-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-110 active:scale-95 disabled:opacity-50"
+                      className="bg-primary ring-background absolute -bottom-3 -right-3 rounded-xl p-3 text-white shadow-lg ring-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-110 active:scale-95 disabled:opacity-50"
                       title="Update Profile Picture"
                     >
                       <Camera size={20} />
@@ -194,10 +194,10 @@ export default function TeacherSettings() {
                       <Briefcase size={16} /> {teacher.designation || 'Staff Member'}
                     </p>
                     <div className="flex justify-center gap-2 pt-2">
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black tracking-wider text-emerald-700 uppercase dark:bg-emerald-900/30 dark:text-emerald-300">
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                         Active
                       </span>
-                      <span className="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-black tracking-wider text-blue-700 uppercase dark:bg-blue-900/30 dark:text-blue-300">
+                      <span className="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                         Teacher
                       </span>
                     </div>
@@ -230,7 +230,7 @@ export default function TeacherSettings() {
                   <Label className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-bold uppercase">
                     <MapPin size={14} className="text-primary" /> Permanent Address on File
                   </Label>
-                  <p className="text-muted-foreground border-primary/20 border-l-4 py-1 pl-4 leading-relaxed italic">
+                  <p className="text-muted-foreground border-primary/20 border-l-4 py-1 pl-4 italic leading-relaxed">
                     {teacher.address || 'Contact administrative office to update registry address.'}
                   </p>
                 </div>
@@ -265,7 +265,7 @@ export default function TeacherSettings() {
                     <button
                       onClick={() => signatureInputRef.current?.click()}
                       disabled={uploadingSignature}
-                      className="bg-primary absolute -right-2 -bottom-2 rounded-lg p-2 text-white shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-105 active:scale-95 disabled:opacity-50"
+                      className="bg-primary absolute -bottom-2 -right-2 rounded-lg p-2 text-white shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-105 active:scale-95 disabled:opacity-50"
                       title="Update Signature"
                     >
                       <PenTool size={14} />
@@ -282,7 +282,7 @@ export default function TeacherSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 text-[10px] font-black tracking-wider uppercase"
+                        className="h-8 text-[10px] font-black uppercase tracking-wider"
                         onClick={() => signatureInputRef.current?.click()}
                         disabled={uploadingSignature}
                       >
@@ -292,7 +292,7 @@ export default function TeacherSettings() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 text-[10px] font-black tracking-wider text-red-500 uppercase hover:bg-red-50 hover:text-red-600"
+                          className="h-8 text-[10px] font-black uppercase tracking-wider text-red-500 hover:bg-red-50 hover:text-red-600"
                           onClick={async () => {
                             const ok = await confirm({
                               title: 'Remove signature?',
@@ -373,7 +373,7 @@ function ProfileField({
         />
         <Lock
           size={12}
-          className="text-muted-foreground/30 absolute top-1/2 right-3 -translate-y-1/2"
+          className="text-muted-foreground/30 absolute right-3 top-1/2 -translate-y-1/2"
         />
       </div>
     </div>
@@ -450,7 +450,7 @@ function SecurityForm() {
             <button
               type="button"
               onClick={() => toggleView('current')}
-              className="hover:bg-muted text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-2 transition-colors"
+              className="hover:bg-muted text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors"
             >
               {view.current ? <XCircle size={16} /> : <ShieldCheck size={16} />}
             </button>
@@ -473,7 +473,7 @@ function SecurityForm() {
               <button
                 type="button"
                 onClick={() => toggleView('new')}
-                className="hover:bg-muted text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-2 transition-colors"
+                className="hover:bg-muted text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors"
               >
                 {view.new ? <XCircle size={16} /> : <ShieldCheck size={16} />}
               </button>
@@ -483,7 +483,7 @@ function SecurityForm() {
             {form.newPassword && (
               <div className="animate-in fade-in slide-in-from-top-1 space-y-2 px-1 pt-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-[10px] font-black tracking-widest uppercase">
+                  <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
                     Strength: {strengthLabel}
                   </span>
                   <div className="flex gap-1">
@@ -514,7 +514,7 @@ function SecurityForm() {
               <button
                 type="button"
                 onClick={() => toggleView('confirm')}
-                className="hover:bg-muted text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-2 transition-colors"
+                className="hover:bg-muted text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 transition-colors"
               >
                 {view.confirm ? <XCircle size={16} /> : <ShieldCheck size={16} />}
               </button>
@@ -550,7 +550,7 @@ function SecurityForm() {
       <div className="border-border flex flex-col items-center justify-between gap-4 border-t pt-6 sm:flex-row">
         <div className="flex max-w-sm items-center gap-3 rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
           <ShieldCheck className="shrink-0 text-amber-500" size={16} />
-          <p className="text-[10px] leading-tight font-medium text-amber-700 dark:text-amber-400">
+          <p className="text-[10px] font-medium leading-tight text-amber-700 dark:text-amber-400">
             Updating your password will invalidate all other active sessions for your protection.
           </p>
         </div>

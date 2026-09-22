@@ -109,13 +109,16 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Overview"
-        description="Fleet health across all school tenants."
-      />
+      <PageHeader title="Overview" description="Fleet health across all school tenants." />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard label="Schools" value={stats.total} color="blue" icon={<Building2 size={20} />} loading={loading} />
+        <StatsCard
+          label="Schools"
+          value={stats.total}
+          color="blue"
+          icon={<Building2 size={20} />}
+          loading={loading}
+        />
         <StatsCard
           label="On free trial"
           value={stats.trialing}

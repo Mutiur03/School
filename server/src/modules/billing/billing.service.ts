@@ -3,10 +3,7 @@ import type { SubscriptionStatus } from '@/generated/prisma/client.js';
 import { prisma } from '@/config/prisma.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { redis } from '@/config/redis.js';
-import {
-  calculateSubscriptionAccess,
-  effectiveSubscriptionStatus,
-} from './subscription-access.js';
+import { calculateSubscriptionAccess, effectiveSubscriptionStatus } from './subscription-access.js';
 
 const subscriptionCacheKey = (schoolId: number) => `school:subscription:${schoolId}`;
 
@@ -33,8 +30,7 @@ async function persistLifecycleIfNeeded<T extends AccessFields>(
   if (effective === subscription.status) return subscription;
 
   const canAuto =
-    (subscription.status === 'active' &&
-      (effective === 'past_due' || effective === 'expired')) ||
+    (subscription.status === 'active' && (effective === 'past_due' || effective === 'expired')) ||
     (subscription.status === 'past_due' && effective === 'expired');
   if (!canAuto) return subscription;
 

@@ -168,7 +168,7 @@ const AddLevel = () => {
                 <label className="text-sm font-medium">Class</label>
                 <select
                   {...register('class_name')}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
                   <option value="">Select Class</option>
                   {[6, 7, 8, 9, 10].map((cls) => (
@@ -184,7 +184,7 @@ const AddLevel = () => {
                 <label className="text-sm font-medium">Section</label>
                 <select
                   {...register('section')}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
                   <option value="">Select Section</option>
                   {['A', 'B'].map((sec) => (
@@ -200,7 +200,7 @@ const AddLevel = () => {
                 <label className="text-sm font-medium">Select Teacher</label>
                 <select
                   {...register('teacher_id')}
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 >
                   <option value="">Choose Teacher</option>
                   {teachers.map((teacher: any) => (
@@ -259,7 +259,7 @@ const AddLevel = () => {
       <FilterSelection className="mb-6">
         <FilterField label="Search" wide>
           <div className="relative">
-            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+            <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
             <Input
               placeholder="Search by teacher or class..."
               className={`${filterInputClassName} pl-10`}
@@ -298,7 +298,7 @@ const AddLevel = () => {
                 {['Class', 'Section', 'Assigned Teacher', 'Actions'].map((head) => (
                   <th
                     key={head}
-                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold tracking-wider uppercase ${head === 'Actions' ? 'text-right' : ''} ${head === 'Class' ? 'bg-muted border-border/50 sticky left-0 z-20 border-r shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]' : ''}`}
+                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold uppercase tracking-wider ${head === 'Actions' ? 'text-right' : ''} ${head === 'Class' ? 'bg-muted border-border/50 sticky left-0 z-20 border-r shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]' : ''}`}
                   >
                     {head}
                   </th>

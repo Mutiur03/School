@@ -164,14 +164,14 @@ export default function DateRangePickerF({ date, setDate, className }: DateRange
         />
         <Calendar
           size={20}
-          className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 transform"
+          className="text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 transform"
         />
       </div>
 
       {showCalendar && (
         <div
           ref={calendarRef}
-          className="border-border absolute right-0 -left-2 z-50 mt-2 flex min-w-[21rem] flex-col rounded-lg border bg-white p-4 shadow-lg sm:left-0 sm:min-w-[36rem] sm:flex-row sm:p-6 dark:border-gray-700 dark:bg-gray-800"
+          className="border-border absolute -left-2 right-0 z-50 mt-2 flex min-w-[21rem] flex-col rounded-lg border bg-white p-4 shadow-lg sm:left-0 sm:min-w-[36rem] sm:flex-row sm:p-6 dark:border-gray-700 dark:bg-gray-800"
         >
           <div className="flex w-full justify-between">
             {renderCalendar(visibleMonth1.getFullYear(), visibleMonth1.getMonth(), true)}

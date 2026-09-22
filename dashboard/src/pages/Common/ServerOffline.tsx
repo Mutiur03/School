@@ -7,11 +7,11 @@ export default function ServerOffline({ isOverlay = false }: { isOverlay?: boole
 
   return (
     <div
-      className={`${isOverlay ? 'bg-background/60 fixed inset-0 z-9999 backdrop-blur-md' : 'bg-background relative min-h-screen'} text-foreground flex items-center justify-center overflow-hidden p-4`}
+      className={`${isOverlay ? 'bg-background/60 z-9999 fixed inset-0 backdrop-blur-md' : 'bg-background relative min-h-screen'} text-foreground flex items-center justify-center overflow-hidden p-4`}
     >
       {/* Decorative blobs */}
-      <div className="bg-destructive/10 pointer-events-none absolute top-[-15%] left-[-15%] h-[50%] w-[50%] animate-pulse rounded-full blur-[120px] duration-[10s]"></div>
-      <div className="pointer-events-none absolute right-[-15%] bottom-[-15%] h-[50%] w-[50%] animate-pulse rounded-full bg-orange-500/10 blur-[120px] duration-[8s]"></div>
+      <div className="bg-destructive/10 pointer-events-none absolute left-[-15%] top-[-15%] h-[50%] w-[50%] animate-pulse rounded-full blur-[120px] duration-[10s]"></div>
+      <div className="pointer-events-none absolute bottom-[-15%] right-[-15%] h-[50%] w-[50%] animate-pulse rounded-full bg-orange-500/10 blur-[120px] duration-[8s]"></div>
 
       <div className="animate-in fade-in slide-in-from-bottom-4 relative z-10 mx-auto max-w-md space-y-8 text-center duration-700">
         {/* Icon */}
@@ -33,7 +33,7 @@ export default function ServerOffline({ isOverlay = false }: { isOverlay?: boole
         </div>
 
         {/* Reconnecting indicator */}
-        <div className="text-muted-foreground flex items-center justify-center gap-2 text-xs font-bold tracking-widest uppercase">
+        <div className="text-muted-foreground flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-orange-500"></span>

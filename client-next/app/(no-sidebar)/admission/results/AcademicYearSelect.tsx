@@ -28,7 +28,7 @@ function AcademicYearSelect({
         onChange={(event) => {
           router.push(`${basePath}?year=${event.target.value}`);
         }}
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-800 transition-all hover:border-gray-400 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-800 transition-all hover:border-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {years.map((year) => (
           <option key={year} value={year}>

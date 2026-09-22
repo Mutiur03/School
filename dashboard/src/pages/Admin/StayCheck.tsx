@@ -72,7 +72,7 @@ const StudentRow = memo(
             <span className="text-sm font-semibold">{student.name}</span>
             <div className="flex items-center gap-2">
               {isAbsent && (
-                <span className="rounded bg-red-100 px-1 py-0 text-[9px] font-bold tracking-tight text-red-600 uppercase">
+                <span className="rounded bg-red-100 px-1 py-0 text-[9px] font-bold uppercase tracking-tight text-red-600">
                   Initially Absent
                 </span>
               )}
@@ -107,10 +107,10 @@ const StudentCard = memo(
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold wrap-break-word">{student.name}</p>
+            <p className="wrap-break-word text-sm font-semibold">{student.name}</p>
             <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">Roll {student.roll}</p>
             {isAbsent && (
-              <span className="mt-1 inline-block rounded bg-red-100 px-1 py-0 text-[9px] font-bold tracking-tight text-red-600 uppercase">
+              <span className="mt-1 inline-block rounded bg-red-100 px-1 py-0 text-[9px] font-bold uppercase tracking-tight text-red-600">
                 Initially Absent
               </span>
             )}
@@ -398,13 +398,13 @@ function StayCheck() {
           <table className="w-full min-w-[640px] border-collapse">
             <thead>
               <tr className="bg-muted/50 border-border border-b">
-                <th className="text-muted-foreground bg-muted/50 border-border/50 sticky left-0 z-20 w-[80px] border-r px-6 py-4 text-left text-xs font-semibold tracking-wider uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                <th className="text-muted-foreground bg-muted/50 border-border/50 sticky left-0 z-20 w-[80px] border-r px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                   Roll
                 </th>
-                <th className="text-muted-foreground w-[100px] px-6 py-4 text-center text-xs font-semibold tracking-wider uppercase">
+                <th className="text-muted-foreground w-[100px] px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider">
                   Running Away?
                 </th>
-                <th className="text-muted-foreground px-6 py-4 text-left text-xs font-semibold tracking-wider uppercase">
+                <th className="text-muted-foreground px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">
                   Student Name
                 </th>
               </tr>

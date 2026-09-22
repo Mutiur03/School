@@ -451,7 +451,7 @@ export default function Gallery() {
                     className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 flex flex-col justify-end bg-linear-to-t from-black/70 via-black/30 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                  <div className="bg-linear-to-t absolute inset-0 flex flex-col justify-end from-black/70 via-black/30 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                     <h3 className="line-clamp-1 text-lg font-semibold text-white">
                       {img.student_name}
                     </h3>
@@ -761,7 +761,7 @@ export default function Gallery() {
                 {selectedGroup.length > 1 && (
                   <>
                     <button
-                      className="absolute top-1/2 left-4 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-3 text-white transition-colors hover:bg-black/80"
+                      className="absolute left-4 top-1/2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-3 text-white transition-colors hover:bg-black/80"
                       onClick={() => {
                         setDirection(-1);
                         setCurrentIndex((prev) =>
@@ -772,7 +772,7 @@ export default function Gallery() {
                       <ChevronLeft size={24} />
                     </button>
                     <button
-                      className="absolute top-1/2 right-4 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-3 text-white transition-colors hover:bg-black/80"
+                      className="absolute right-4 top-1/2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-3 text-white transition-colors hover:bg-black/80"
                       onClick={() => {
                         setDirection(1);
                         setCurrentIndex((prev) =>
@@ -785,7 +785,7 @@ export default function Gallery() {
                   </>
                 )}
                 <button
-                  className="absolute top-4 right-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
+                  className="absolute right-4 top-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
                   onClick={() => {
                     setSelectedGroup([]);
                     setCurrentIndex(null);
@@ -795,7 +795,7 @@ export default function Gallery() {
                   <X size={20} />
                 </button>
                 <button
-                  className="absolute top-4 left-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
+                  className="absolute left-4 top-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
                   onClick={() => {
                     const currentImage = selectedGroup[currentIndex];
                     setIsEditing(true);
@@ -870,7 +870,7 @@ export default function Gallery() {
                   </AnimatePresence>
                 </div>
                 {selectedGroup.length > 1 && (
-                  <div className="absolute right-0 bottom-4 left-0 z-10 flex justify-center gap-2">
+                  <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-2">
                     {selectedGroup.map((_, idx) => (
                       <button
                         key={idx}

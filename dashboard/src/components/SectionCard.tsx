@@ -43,12 +43,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
       className={`bg-card border-border rounded-xl border shadow-sm dark:border-gray-700 ${noPadding ? 'overflow-x-clip' : 'overflow-hidden'} ${className}`}
     >
       {hasHeader && (
-        <div className="flex flex-wrap items-start justify-between gap-4 px-6 pt-6 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-4 px-6 pb-4 pt-6">
           <div className="flex items-center gap-2">
             {icon && <span className="text-primary shrink-0">{icon}</span>}
             <div>
               {title && (
-                <h3 className="text-lg leading-tight font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-lg font-semibold leading-tight text-gray-900 dark:text-white">
                   {title}
                 </h3>
               )}

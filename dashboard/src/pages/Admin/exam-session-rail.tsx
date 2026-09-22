@@ -21,7 +21,7 @@ export function ExamSessionRail({
   return (
     <section aria-label="Session calendar" className="mb-4">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
           Session calendar
         </p>
         <p className="text-muted-foreground text-xs tabular-nums">
@@ -34,7 +34,7 @@ export function ExamSessionRail({
             <button
               type="button"
               onClick={() => onSelect(exam.id)}
-              className={`focus-visible:ring-ring flex max-w-52 min-w-40 flex-col items-start rounded-md border px-3 py-2 text-left transition-[border-color,background-color] focus-visible:ring-2 focus-visible:outline-none ${
+              className={`focus-visible:ring-ring flex min-w-40 max-w-52 flex-col items-start rounded-md border px-3 py-2 text-left transition-[border-color,background-color] focus-visible:outline-none focus-visible:ring-2 ${
                 exam.is_year_end
                   ? 'border-primary/40 bg-primary/5'
                   : exam.visible

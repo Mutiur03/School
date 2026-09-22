@@ -147,7 +147,7 @@ async function AdmissionResultList({ searchParams }: AdmissionResultsPageProps) 
 
                       <Link
                         href={`/admission/result/${classNum}?year=${admissionYear}`}
-                        className="block w-full rounded-md bg-blue-600 px-4 py-3 text-center font-medium text-white! transition-colors hover:bg-blue-700"
+                        className="text-white! block w-full rounded-md bg-blue-600 px-4 py-3 text-center font-medium transition-colors hover:bg-blue-700"
                       >
                         View Results
                       </Link>

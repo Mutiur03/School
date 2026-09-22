@@ -47,7 +47,7 @@ export function Class6ExtraFields({
         >
           <input
             {...register('prev_school_name')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             placeholder="Enter the name of your previous school"
             aria-invalid={!!errors.prev_school_name}
           />
@@ -60,7 +60,7 @@ export function Class6ExtraFields({
         >
           <select
             {...register('prev_school_passing_year')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             aria-invalid={!!errors.prev_school_passing_year}
           >
             <option value="">Select Year</option>
@@ -82,7 +82,7 @@ export function Class6ExtraFields({
         >
           <select
             {...register('section_in_prev_school')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             aria-invalid={!!errors.section_in_prev_school}
           >
             <option value="">Select Section</option>
@@ -108,7 +108,7 @@ export function Class6ExtraFields({
               const target = e.target as HTMLInputElement;
               target.value = filterNumericInput(target.value).slice(0, 6);
             }}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             placeholder="Roll Number"
             aria-invalid={!!errors.roll_in_prev_school}
           />
@@ -134,7 +134,7 @@ export function Class6ExtraFields({
         >
           <select
             {...register('nearby_student_info')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             aria-invalid={!!errors.nearby_student_info}
           >
             <option value="">Select Name</option>
@@ -185,7 +185,7 @@ export function JuniorScholarshipExtraFields({
             <select
               value={prevSchoolOption}
               onChange={(e) => handlePrevSchoolOptionChange?.(e.target.value)}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value={schoolConfig!.name.en}>{schoolConfig!.name.en}</option>
               <option value="Others">Others</option>
@@ -194,7 +194,7 @@ export function JuniorScholarshipExtraFields({
             {prevSchoolOption === 'Others' && (
               <input
                 {...register('prev_school_name')}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                 placeholder="Enter the name of your previous school"
               />
             )}
@@ -218,7 +218,7 @@ export function JuniorScholarshipExtraFields({
           <FieldRow label="Class Six Registration Year:" isRequired error={errors.class6_reg_year}>
             <select
               {...register('class6_reg_year')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Year</option>
               {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i - 2)).map(
@@ -233,7 +233,7 @@ export function JuniorScholarshipExtraFields({
           <FieldRow label="Class Six Board:" isRequired error={errors.class6_board}>
             <select
               {...register('class6_board')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Board</option>
               <option value="Rajshahi">Rajshahi</option>
@@ -283,7 +283,7 @@ export function JuniorScholarshipExtraFields({
         >
           <select
             {...register('nearby_student_info')}
-            className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+            className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
           >
             <option value="">Select Name</option>
             {(settings?.classmates ?? '')
@@ -398,7 +398,7 @@ export function Class9ExtraFields({
             <select
               value={prevSchoolOption}
               onChange={(e) => handlePrevSchoolOptionChange?.(e.target.value)}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value={schoolConfig!.name.en}>{schoolConfig!.name.en}</option>
               <option value="Others">Others</option>
@@ -407,7 +407,7 @@ export function Class9ExtraFields({
             {prevSchoolOption === 'Others' && (
               <input
                 {...register('prev_school_name')}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                 placeholder="Enter the name of your previous school"
               />
             )}
@@ -435,7 +435,7 @@ export function Class9ExtraFields({
           >
             <select
               {...register('jsc_passing_year')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Year</option>
               {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - i - 1)).map(
@@ -450,7 +450,7 @@ export function Class9ExtraFields({
           <FieldRow label="JSC/JDC/Class 8 Board:" isRequired error={errors.jsc_board}>
             <select
               {...register('jsc_board')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Board</option>
               <option value="Rajshahi">Rajshahi</option>
@@ -502,7 +502,7 @@ export function Class9ExtraFields({
                 setValue('main_subject', '');
                 setValue('fourth_subject', '');
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Group</option>
               <option value="Science">Science</option>
@@ -518,7 +518,7 @@ export function Class9ExtraFields({
           >
             <select
               {...register('main_subject')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               disabled={!group_class_nine}
             >
               <option value="">Select Main Subject</option>
@@ -540,7 +540,7 @@ export function Class9ExtraFields({
           >
             <select
               {...register('fourth_subject')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               disabled={!group_class_nine}
             >
               <option value="">Select 4th Subject</option>
@@ -565,7 +565,7 @@ export function Class9ExtraFields({
               <select
                 value={nearbyOption}
                 onChange={(e) => handleNearbyOptionChange?.(e.target.value)}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               >
                 <option value="">Select Student</option>
                 {nearbyOptions.map((opt: string) => (
@@ -579,7 +579,7 @@ export function Class9ExtraFields({
           <FieldRow label="উপবৃত্তি পায় কিনা (Stipend Status):" isRequired error={errors.upobritti}>
             <select
               {...register('upobritti')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Option</option>
               <option value="No">No</option>
@@ -593,7 +593,7 @@ export function Class9ExtraFields({
           >
             <select
               {...register('sorkari_brirti')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Option</option>
               <option value="No">No</option>
@@ -608,7 +608,7 @@ export function Class9ExtraFields({
           >
             <select
               {...register('scout_status')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Option</option>
               <option value="Yes">Yes</option>

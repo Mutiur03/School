@@ -92,16 +92,12 @@ function BillingContent({ subscription }: { subscription: SubscriptionDetails })
   const showAccessEnds = status !== 'suspended' && status !== 'cancelled';
 
   const dateRows: { label: string; value: string | null }[] = [
-    ...(showAccessEnds
-      ? [{ label: 'Access ends', value: subscription.access_ends_at }]
-      : []),
+    ...(showAccessEnds ? [{ label: 'Access ends', value: subscription.access_ends_at }] : []),
     ...visibleFields.map((field: SubscriptionDateField) => ({
       label: SUBSCRIPTION_DATE_FIELD_LABELS[field],
       value: subscription[field],
     })),
-    ...(showGrace
-      ? [{ label: 'Grace period ends', value: subscription.grace_ends_at }]
-      : []),
+    ...(showGrace ? [{ label: 'Grace period ends', value: subscription.grace_ends_at }] : []),
   ];
 
   // Avoid duplicating access ends when it matches the status end date already listed.

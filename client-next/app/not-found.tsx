@@ -29,11 +29,11 @@ export default function NotFound() {
             Page not found
           </div>
 
-          <h1 className="mt-6 font-serif text-5xl leading-none font-semibold text-[#2f2f2f] sm:text-6xl lg:text-7xl">
+          <h1 className="mt-6 font-serif text-5xl font-semibold leading-none text-[#2f2f2f] sm:text-6xl lg:text-7xl">
             404
           </h1>
 
-          <p className="mt-4 max-w-xl text-2xl leading-tight font-semibold text-[#683091] sm:text-3xl">
+          <p className="mt-4 max-w-xl text-2xl font-semibold leading-tight text-[#683091] sm:text-3xl">
             We could not find the page you requested.
           </p>
 
@@ -45,14 +45,14 @@ export default function NotFound() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/"
-              className="inline-flex min-h-11 items-center justify-center gap-2 bg-[#609513] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4f7f13] focus:ring-2 focus:ring-[#609513] focus:ring-offset-2 focus:outline-none"
+              className="inline-flex min-h-11 items-center justify-center gap-2 bg-[#609513] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4f7f13] focus:outline-none focus:ring-2 focus:ring-[#609513] focus:ring-offset-2"
             >
               <Home aria-hidden="true" size={18} />
               Back to Home
             </Link>
             <Link
               href="/notices"
-              className="inline-flex min-h-11 items-center justify-center gap-2 border border-[#683091] px-5 py-3 text-sm font-semibold text-[#683091] transition hover:bg-[#683091] hover:text-white focus:ring-2 focus:ring-[#683091] focus:ring-offset-2 focus:outline-none"
+              className="inline-flex min-h-11 items-center justify-center gap-2 border border-[#683091] px-5 py-3 text-sm font-semibold text-[#683091] transition hover:bg-[#683091] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#683091] focus:ring-offset-2"
             >
               <Megaphone aria-hidden="true" size={18} />
               View Notices
@@ -61,7 +61,7 @@ export default function NotFound() {
         </div>
 
         <div className="border-l-4 border-[#8bc643] bg-[#fbfbfb] p-5 shadow-sm">
-          <p className="text-sm font-semibold text-gray-500 uppercase">Useful sections</p>
+          <p className="text-sm font-semibold uppercase text-gray-500">Useful sections</p>
           <div className="mt-4 grid gap-3">
             {quickLinks.map((item) => {
               const Icon = item.icon;
@@ -70,7 +70,7 @@ export default function NotFound() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex min-h-14 items-center justify-between border border-gray-200 bg-white px-4 py-3 transition hover:border-[#8bc643] hover:bg-[#f8fcf3] focus:ring-2 focus:ring-[#8bc643] focus:ring-offset-2 focus:outline-none"
+                  className="group flex min-h-14 items-center justify-between border border-gray-200 bg-white px-4 py-3 transition hover:border-[#8bc643] hover:bg-[#f8fcf3] focus:outline-none focus:ring-2 focus:ring-[#8bc643] focus:ring-offset-2"
                 >
                   <span className="flex items-center gap-3 text-sm font-semibold text-gray-800">
                     <Icon aria-hidden="true" size={19} className="text-[#609513]" />

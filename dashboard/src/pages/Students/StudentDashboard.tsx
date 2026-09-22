@@ -125,7 +125,7 @@ function StudentDashboard() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Link
           to="/student/profile"
-          className="group border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl border p-5 transition-colors"
+          className="border-border hover:border-primary/40 hover:bg-primary/5 group rounded-xl border p-5 transition-colors"
         >
           <div className="flex items-start gap-3">
             <div className="bg-primary/10 text-primary rounded-lg p-2">
@@ -144,7 +144,7 @@ function StudentDashboard() {
 
         <Link
           to="/student/profile?tab=attendance"
-          className="group border-border hover:border-primary/40 hover:bg-primary/5 rounded-xl border p-5 transition-colors"
+          className="border-border hover:border-primary/40 hover:bg-primary/5 group rounded-xl border p-5 transition-colors"
         >
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400">

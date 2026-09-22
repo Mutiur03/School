@@ -772,7 +772,7 @@ export default function ConfirmationClient(props: ConfirmationClientProps) {
               <div className="flex flex-col justify-center gap-3 sm:flex-row">
                 <Link
                   href={`/registration/${kind}/form/${registration.id}`}
-                  className="flex cursor-pointer items-center justify-center rounded bg-gray-600 px-6 py-3 text-lg font-medium text-white! transition-all duration-200 hover:bg-gray-700 focus:outline-none"
+                  className="text-white! flex cursor-pointer items-center justify-center rounded bg-gray-600 px-6 py-3 text-lg font-medium transition-all duration-200 hover:bg-gray-700 focus:outline-none"
                 >
                   Edit registration info
                 </Link>

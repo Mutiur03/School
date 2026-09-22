@@ -578,24 +578,24 @@ const ViewMarks = () => {
           <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm">
             <thead className="sticky top-0 z-20">
               <tr className="bg-muted border-border">
-                <th className="bg-muted sticky left-0 z-30 w-16 min-w-16 border-r border-b px-3 py-3 text-center text-xs font-bold tracking-wider text-gray-900 uppercase dark:text-gray-100">
+                <th className="bg-muted sticky left-0 z-30 w-16 min-w-16 border-b border-r px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
                   Sec
                 </th>
-                <th className="bg-muted sticky left-16 z-30 w-16 min-w-16 border-r border-b px-3 py-3 text-center text-xs font-bold tracking-wider text-gray-900 uppercase dark:text-gray-100">
+                <th className="bg-muted sticky left-16 z-30 w-16 min-w-16 border-b border-r px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
                   Roll
                 </th>
-                <th className="bg-muted sticky left-32 z-30 min-w-48 border-r border-b px-4 py-3 text-xs font-bold tracking-wider text-gray-900 uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] dark:text-gray-100">
+                <th className="bg-muted sticky left-32 z-30 min-w-48 border-b border-r px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-900 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] dark:text-gray-100">
                   Student Name
                 </th>
                 {subjects.map((subject) => (
                   <th
                     key={subject}
-                    className="bg-muted min-w-28 border-b px-4 py-3 text-center text-xs font-semibold tracking-wider whitespace-nowrap text-gray-900 uppercase dark:text-gray-100"
+                    className="bg-muted min-w-28 whitespace-nowrap border-b px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-900 dark:text-gray-100"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className="bg-muted min-w-44 border-b px-4 py-3 text-center text-xs font-bold tracking-wider text-gray-900 uppercase dark:text-gray-100">
+                <th className="bg-muted min-w-44 border-b px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
                   Actions
                 </th>
               </tr>
@@ -640,7 +640,7 @@ const ViewMarks = () => {
                   return (
                     <tr
                       key={data.student_id}
-                      className="hover:bg-muted/30 group border-border border-b transition-colors"
+                      className="hover:bg-muted/30 border-border group border-b transition-colors"
                     >
                       <td className="bg-card sticky left-0 z-10 w-16 min-w-16 border-r px-3 py-3 text-center font-medium uppercase">
                         {data.section || '—'}
@@ -648,7 +648,7 @@ const ViewMarks = () => {
                       <td className="bg-card sticky left-16 z-10 w-16 min-w-16 border-r px-3 py-3 text-center font-medium tabular-nums">
                         {data.roll}
                       </td>
-                      <td className="group-hover:text-primary bg-card sticky left-32 z-10 min-w-48 border-r px-4 py-3 font-bold text-gray-800 uppercase shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] transition-colors dark:text-gray-200">
+                      <td className="group-hover:text-primary bg-card sticky left-32 z-10 min-w-48 border-r px-4 py-3 font-bold uppercase text-gray-800 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] transition-colors dark:text-gray-200">
                         {data.name}
                       </td>
                       {subjects.map((subject) => (
@@ -692,7 +692,7 @@ const ViewMarks = () => {
 
       <AnimatePresence>
         {showDetailsPopup && selectedStudent && (
-          <div className="bg-background/80 fixed inset-0 z-100 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-background/80 z-100 fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -706,7 +706,7 @@ const ViewMarks = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold tracking-tight">Detailed Marks</h3>
-                    <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+                    <p className="text-muted-foreground text-sm font-medium uppercase tracking-wide">
                       {selectedStudent.name} | Roll: {selectedStudent.roll}
                     </p>
                   </div>
@@ -721,7 +721,7 @@ const ViewMarks = () => {
 
               <div className="space-y-8 overflow-y-auto p-6">
                 <div>
-                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
+                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
                     <Info className="h-4 w-4" /> Student Snapshot
                   </h4>
                   <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
@@ -748,7 +748,7 @@ const ViewMarks = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold tracking-widest uppercase">
+                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
                     <FileSpreadsheet className="h-4 w-4" /> Performance Metrics
                   </h4>
                   <div className="border-border overflow-hidden rounded-xl border shadow-sm">
@@ -761,7 +761,7 @@ const ViewMarks = () => {
                             );
                             return (
                               <tr className="bg-muted/50 border-border border-b">
-                                <th className="px-4 py-3 font-bold text-gray-900 italic dark:text-gray-100">
+                                <th className="px-4 py-3 font-bold italic text-gray-900 dark:text-gray-100">
                                   Subject
                                 </th>
                                 {showBreakdown && (
@@ -801,7 +801,7 @@ const ViewMarks = () => {
 
                                   return (
                                     <tr key={index} className="hover:bg-muted/30 transition-colors">
-                                      <td className="px-4 py-3 text-xs font-bold tracking-tight uppercase">
+                                      <td className="px-4 py-3 text-xs font-bold uppercase tracking-tight">
                                         {mark.subject}
                                       </td>
                                       {showBreakdownTable && (

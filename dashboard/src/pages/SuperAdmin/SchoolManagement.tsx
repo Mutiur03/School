@@ -1631,7 +1631,7 @@ function SchoolManagement() {
                             type="button"
                             onClick={() => setShowAdminPassword((v) => !v)}
                             aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
-                            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5"
+                            className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5"
                           >
                             {showAdminPassword ? (
                               <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -1803,7 +1803,7 @@ function SchoolManagement() {
                                 type="button"
                                 onClick={() => setShowSmsApiKey((v) => !v)}
                                 aria-label={showSmsApiKey ? 'Hide API key' : 'Show API key'}
-                                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5"
+                                className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5"
                               >
                                 {showSmsApiKey ? (
                                   <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -1847,10 +1847,8 @@ function SchoolManagement() {
                     {editorTab === 'identity' && (
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         {selectedSchoolId === 'new' ? (
-                          <div className="border-border bg-muted/30 md:col-span-2 space-y-4 rounded-xl border p-4">
-                            <p className="text-sm font-medium">
-                              Initial admin &amp; free trial
-                            </p>
+                          <div className="border-border bg-muted/30 space-y-4 rounded-xl border p-4 md:col-span-2">
+                            <p className="text-sm font-medium">Initial admin &amp; free trial</p>
                             <p className="text-muted-foreground text-xs">
                               Created with the school so the admin can sign in immediately. Trial
                               has no grace — access locks when it ends.
@@ -1888,7 +1886,7 @@ function SchoolManagement() {
                                     aria-label={
                                       showAdminPassword ? 'Hide password' : 'Show password'
                                     }
-                                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5"
+                                    className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5"
                                   >
                                     {showAdminPassword ? (
                                       <EyeOff className="h-4 w-4" aria-hidden="true" />

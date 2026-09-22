@@ -430,7 +430,7 @@ const FieldRow: React.FC<{
   children: React.ReactNode;
 }> = ({ label, isRequired, instruction, error, tooltip, children }) => (
   <div className="flex w-full flex-col items-start gap-1 py-2 lg:flex-row lg:gap-4">
-    <div className="mb-1 w-full shrink-0 text-left text-sm font-medium select-none lg:mb-0 lg:w-60">
+    <div className="mb-1 w-full shrink-0 select-none text-left text-sm font-medium lg:mb-0 lg:w-60">
       <span className="flex items-center gap-1">
         <span>
           {label}
@@ -1552,7 +1552,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   clearClassDependentFields(e.target.value);
                 },
               })}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Class</option>
               {classListOptions.map((c) => (
@@ -1571,7 +1571,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('list_type')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select List Type</option>
               {listTypeOptions.map((lt) => (
@@ -1589,7 +1589,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('serial_no')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
             >
               <option value="">Select Serial No</option>
               {serialNoOptions.map((s) => (
@@ -1614,7 +1614,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 target.value = target.value.replace(/[^A-Za-z0-9]/g, '');
               }}
               placeholder={admission_class ? 'Type or select User ID' : 'Select class first'}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               autoComplete="off"
             />
             <datalist id="admission-userid-list">
@@ -1632,7 +1632,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('qouta')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
             >
               <option value="">Select Qouta</option>
               <option value="(GEN)">সাধারণ (GEN)</option>
@@ -1654,7 +1654,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('religion')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               aria-invalid={!!errors.religion}
             >
               <option value="">Select Religion</option>
@@ -1685,7 +1685,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterBanglaInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="ছাত্রের নাম (বাংলায়)"
               aria-invalid={!!errors.student_name_bn}
             />
@@ -1704,7 +1704,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterBanglaInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="ডাকনাম (এক শব্দে/বাংলায়)"
               aria-invalid={!!errors.student_nick_name_bn}
             />
@@ -1730,7 +1730,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterEnglishInput(target.value).toUpperCase();
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="Student Name (in English)"
               aria-invalid={!!errors.student_name_en}
             />
@@ -1753,7 +1753,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterNumericInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="20XXXXXXXXXXXXXXX"
               aria-invalid={!!errors.birth_reg_no}
             />
@@ -1782,7 +1782,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               <select
                 id="birth_month"
                 {...register('birth_month')}
-                className="w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:w-40 sm:text-base"
+                className="w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:w-40 sm:text-base"
                 disabled={disableMonth || !birth_year}
                 aria-invalid={!!errors.birth_month}
               >
@@ -1796,7 +1796,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               <select
                 id="birth_day"
                 {...register('birth_day')}
-                className="w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:w-28 sm:text-base"
+                className="w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:w-28 sm:text-base"
                 disabled={disableDay}
               >
                 <option value="">Day</option>
@@ -1828,7 +1828,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterBanglaInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="পিতার নাম (বাংলায়)"
               aria-invalid={!!errors.father_name_bn}
             />
@@ -1854,7 +1854,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterEnglishInput(target.value).toUpperCase();
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="Father's Name (in English)"
               aria-invalid={!!errors.father_name_en}
             />
@@ -1876,7 +1876,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterNumericInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="1234567890"
               aria-invalid={!!errors.father_nid}
             />
@@ -1898,7 +1898,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterNumericInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="01XXXXXXXXX"
               aria-invalid={!!errors.father_phone}
             />
@@ -1923,7 +1923,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterBanglaInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="মাতার নাম (বাংলায়)"
               aria-invalid={!!errors.mother_name_bn}
             />
@@ -1949,7 +1949,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterEnglishInput(target.value).toUpperCase();
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="Mother's Name (in English)"
               aria-invalid={!!errors.mother_name_en}
             />
@@ -1970,7 +1970,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               inputMode="numeric"
               minLength={10}
               maxLength={17}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="1234567890"
               aria-invalid={!!errors.mother_nid}
             />
@@ -1992,7 +1992,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               inputMode="numeric"
               maxLength={11}
               minLength={11}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="01XXXXXXXXX"
               aria-invalid={!!errors.mother_phone}
             />
@@ -2006,7 +2006,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             <select
               id="blood_group"
               {...register('blood_group')}
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               aria-invalid={!!errors.blood_group}
             >
               <option value="">Select Blood Group</option>
@@ -2027,7 +2027,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               type="email"
               id="email"
               {...register('email')}
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               placeholder="example@gmail.com"
               aria-invalid={!!errors.email}
             />
@@ -2047,7 +2047,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterNumericInput(target.value);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               placeholder="01XXXXXXXXX"
               aria-invalid={!!errors.whatsapp_number}
             />
@@ -2068,7 +2068,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             <select
               id="permanent_district"
               {...register('permanent_district', clearUpazilaOnDistrictChange('permanent_upazila'))}
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
             >
               <option value="">Select district</option>
               {districts.map((d) => (
@@ -2085,7 +2085,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
             tooltip="Select the upazila/thana of your permanent address. First select district to see options"
           >
             <select
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               disabled={!permanent_district}
               {...register('permanent_upazila')}
             >
@@ -2107,7 +2107,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               type="text"
               id="permanent_post_office"
               {...addressTextInputProps('permanent_post_office')}
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               placeholder="Post Office Name"
             />
           </FieldRow>
@@ -2127,7 +2127,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               type="text"
               inputMode="numeric"
               maxLength={4}
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               placeholder="1234"
               aria-invalid={!!errors.permanent_post_code}
             />
@@ -2142,7 +2142,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               type="text"
               id="permanent_village_road"
               {...addressTextInputProps('permanent_village_road')}
-              className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               placeholder="Village/Road/House No"
             />
           </FieldRow>
@@ -2175,7 +2175,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 <select
                   id="present_district"
                   {...register('present_district', clearUpazilaOnDistrictChange('present_upazila'))}
-                  className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                  className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                 >
                   <option value="">Select district</option>
                   {districts.map((d) => (
@@ -2192,7 +2192,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               >
                 <select
                   {...register('present_upazila')}
-                  className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                  className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                   disabled={!present_district}
                 >
                   <option value="">Select upazila/thana</option>
@@ -2210,7 +2210,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               >
                 <input
                   {...addressTextInputProps('present_post_office')}
-                  className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                  className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                   placeholder="Post Office Name"
                 />
               </FieldRow>
@@ -2228,7 +2228,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   type="text"
                   inputMode="numeric"
                   maxLength={4}
-                  className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                  className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                   placeholder="1234"
                   aria-invalid={!!errors.present_post_code}
                 />
@@ -2240,7 +2240,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
               >
                 <input
                   {...addressTextInputProps('present_village_road')}
-                  className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                  className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                   placeholder="Village/Road/House No"
                 />
               </FieldRow>
@@ -2295,7 +2295,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   <input
                     type="text"
                     {...register('guardian_name')}
-                    className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                    className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                     placeholder="Guardian's Name"
                     aria-invalid={!!errors.guardian_name}
                   />
@@ -2316,7 +2316,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                       const target = e.target as HTMLInputElement;
                       target.value = filterNumericInput(target.value);
                     }}
-                    className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                    className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                     placeholder="Guardian's NID"
                     aria-invalid={!!errors.guardian_nid}
                   />
@@ -2336,7 +2336,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                       const target = e.target as HTMLInputElement;
                       target.value = filterNumericInput(target.value);
                     }}
-                    className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                    className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                     placeholder="01XXXXXXXXX"
                     aria-invalid={!!errors.guardian_phone}
                   />
@@ -2349,7 +2349,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 >
                   <select
                     {...register('guardian_relation')}
-                    className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                    className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                     aria-invalid={!!errors.guardian_relation}
                   >
                     <option value="">Select Relationship / সম্পর্ক নির্বাচন করুন</option>
@@ -2406,7 +2406,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                         'guardian_district',
                         clearUpazilaOnDistrictChange('guardian_upazila'),
                       )}
-                      className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                      className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                     >
                       <option value="">Select district</option>
                       {districts.map((d) => (
@@ -2424,7 +2424,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   >
                     <select
                       {...register('guardian_upazila')}
-                      className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                      className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                       disabled={!guardian_district}
                     >
                       <option value="">Select upazila/thana</option>
@@ -2443,7 +2443,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   >
                     <input
                       {...addressTextInputProps('guardian_post_office')}
-                      className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                      className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                       placeholder="Post Office Name"
                     />
                   </FieldRow>
@@ -2458,7 +2458,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                       type="text"
                       inputMode="numeric"
                       maxLength={4}
-                      className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                      className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                       placeholder="1234"
                       aria-invalid={!!errors.guardian_post_code}
                     />
@@ -2471,7 +2471,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   >
                     <input
                       {...addressTextInputProps('guardian_village_road')}
-                      className="block w-full rounded border px-3 py-2 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                      className="block w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                       placeholder="Village/Road/House No"
                     />
                   </FieldRow>
@@ -2493,7 +2493,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <input
               {...register('prev_school_name')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="Enter the name of your previous school"
               aria-invalid={!!errors.prev_school_name}
             />
@@ -2513,7 +2513,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                   const target = e.target as HTMLInputElement;
                   target.value = filterNumericInput(target.value).slice(0, 10);
                 }}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
                 placeholder="10-digit Registration Number"
                 aria-invalid={!!errors.registration_no}
               />
@@ -2527,7 +2527,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('prev_school_passing_year')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               aria-invalid={!!errors.prev_school_passing_year}
             >
               <option value="">Select Year</option>
@@ -2549,7 +2549,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('section_in_prev_school')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               aria-invalid={!!errors.section_in_prev_school}
             >
               <option value="">Select Section</option>
@@ -2575,7 +2575,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 const target = e.target as HTMLInputElement;
                 target.value = filterNumericInput(target.value).slice(0, 6);
               }}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               placeholder="Roll number"
               aria-invalid={!!errors.roll_in_prev_school}
             />
@@ -2591,7 +2591,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                 'prev_school_district',
                 clearUpazilaOnDistrictChange('prev_school_upazila'),
               )}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               aria-invalid={!!errors.prev_school_district}
             >
               <option value="">Select District</option>
@@ -2610,7 +2610,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('prev_school_upazila')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-300 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-base"
               disabled={!prev_school_district}
               aria-invalid={!!errors.prev_school_upazila}
             >
@@ -2648,7 +2648,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                     shouldValidate: true,
                   });
                 }}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               >
                 <option value="">Select Profession</option>
                 <option value="Govt. Service">Govt. Service</option>
@@ -2672,7 +2672,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                       })
                     }
                     placeholder="Please specify father's profession"
-                    className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                    className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                     aria-invalid={!!errors.father_profession}
                   />
                 </div>
@@ -2701,7 +2701,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                     shouldValidate: true,
                   });
                 }}
-                className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               >
                 <option value="">Select Profession</option>
                 <option value="Housewife">Housewife</option>
@@ -2726,7 +2726,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
                       })
                     }
                     placeholder="Please specify mother's profession"
-                    className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+                    className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
                     aria-invalid={!!errors.mother_profession}
                   />
                 </div>
@@ -2742,7 +2742,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           >
             <select
               {...register('parent_income')}
-              className="block w-full rounded border px-3 py-2 text-sm transition focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="block w-full rounded border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
             >
               <option value="">Select Income Range</option>
               <option value="below_50000">0 - 50,000</option>
@@ -2839,7 +2839,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
         <div className="mt-6 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:items-center">
           <button
             type="submit"
-            className={`flex items-center justify-center gap-2 rounded bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-blue-700 focus:ring-2 focus:ring-blue-400 focus:outline-none sm:text-base ${isSubmitting ? 'cursor-not-allowed opacity-60' : ''}`}
+            className={`flex items-center justify-center gap-2 rounded bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 sm:text-base ${isSubmitting ? 'cursor-not-allowed opacity-60' : ''}`}
             disabled={isSubmitting}
           >
             {isSubmitting && (
@@ -2868,7 +2868,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           {!isEditMode && (
             <button
               type="button"
-              className="rounded border border-gray-300 bg-white px-6 py-3 text-sm shadow transition hover:bg-gray-50 focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="rounded border border-gray-300 bg-white px-6 py-3 text-sm shadow transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               onClick={() => reset()}
               disabled={isSubmitting}
             >
@@ -2879,7 +2879,7 @@ function Form({ id, settings, initialAdmissionRecord }: FormProps) {
           {isEditMode && (
             <button
               type="button"
-              className="rounded border border-gray-300 bg-white px-6 py-3 text-sm shadow transition hover:bg-gray-50 focus:ring-2 focus:ring-blue-200 focus:outline-none sm:text-base"
+              className="rounded border border-gray-300 bg-white px-6 py-3 text-sm shadow transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-200 sm:text-base"
               onClick={() => router.back()}
               disabled={isSubmitting}
             >

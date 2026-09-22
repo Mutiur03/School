@@ -121,7 +121,7 @@ export function PeopleListPage({
                 key={person.id}
                 className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
               >
-                <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:space-y-0 sm:space-x-4">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:space-x-4 sm:space-y-0">
                   <div className="shrink-0 self-center sm:self-start">
                     {person.image ? (
                       <Image
@@ -140,7 +140,7 @@ export function PeopleListPage({
 
                   <div className="min-w-0 flex-1">
                     <div className="mb-3">
-                      <h3 className="font-serif text-lg font-semibold tracking-wide wrap-break-word text-gray-900 sm:text-xl">
+                      <h3 className="wrap-break-word font-serif text-lg font-semibold tracking-wide text-gray-900 sm:text-xl">
                         {person.name}
                       </h3>
                       {person.designation && (
@@ -153,7 +153,7 @@ export function PeopleListPage({
                         <span className="mb-1 block text-xs font-medium tracking-wider text-gray-500">
                           Email
                         </span>
-                        <p className="text-sm break-all text-gray-900">{person.email || '—'}</p>
+                        <p className="break-all text-sm text-gray-900">{person.email || '—'}</p>
                       </div>
 
                       <div>
@@ -167,7 +167,7 @@ export function PeopleListPage({
                         <span className="mb-1 block text-xs font-medium tracking-wider text-gray-500">
                           Address
                         </span>
-                        <p className="text-sm wrap-break-word text-gray-900">
+                        <p className="wrap-break-word text-sm text-gray-900">
                           {person.address || '—'}
                         </p>
                       </div>

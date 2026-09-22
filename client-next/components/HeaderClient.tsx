@@ -128,7 +128,7 @@ export function Header({
 
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-2 sm:px-0">
           {headerLogo ? (
-            <div className="relative h-20 w-[95%] max-w-245 sm:h-32 md:h-40">
+            <div className="max-w-245 relative h-20 w-[95%] sm:h-32 md:h-40">
               <Image
                 src={headerLogo}
                 alt="Header"
@@ -138,7 +138,7 @@ export function Header({
               />
             </div>
           ) : (
-            <div className="flex w-full max-w-245 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:px-5">
+            <div className="max-w-245 flex w-full items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:px-5">
               {logo ? (
                 <Image
                   src={logo}
@@ -148,14 +148,14 @@ export function Header({
                   className="h-12 w-12 shrink-0 object-contain sm:h-20 sm:w-20 md:h-24 md:w-24"
                 />
               ) : null}
-              <div className="min-w-0 flex-1 text-center text-balance text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.65)]">
+              <div className="min-w-0 flex-1 text-balance text-center text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.65)]">
                 {titleBn ? (
-                  <h2 className="m-0 text-base leading-tight font-medium sm:text-2xl md:text-4xl">
+                  <h2 className="m-0 text-base font-medium leading-tight sm:text-2xl md:text-4xl">
                     {titleBn}
                   </h2>
                 ) : null}
                 {titleEn ? (
-                  <h3 className="mt-1 text-lg leading-tight font-normal sm:mt-2 sm:text-3xl md:text-5xl">
+                  <h3 className="mt-1 text-lg font-normal leading-tight sm:mt-2 sm:text-3xl md:text-5xl">
                     {titleEn}
                   </h3>
                 ) : null}
@@ -173,7 +173,7 @@ export function Header({
           )}
         </div>
 
-        <div className="absolute bottom-3 left-1/2 z-15 flex -translate-x-1/2 gap-2">
+        <div className="z-15 absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
           {bannerImages.map((_, index) => (
             <button
               key={index}

@@ -473,7 +473,7 @@ const AddMarks = () => {
 
         {isLoading ? (
           <SectionCard className="flex h-40 flex-col items-center justify-center sm:h-64">
-            <div className="border-primary h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 sm:h-12 sm:w-12"></div>
+            <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 sm:h-12 sm:w-12"></div>
             <span className="text-muted-foreground mt-2 px-4 text-center text-xs sm:mt-3 sm:text-sm">
               {isLoadingSubjects || isLoadingExams
                 ? 'Loading initial data...'
@@ -491,10 +491,10 @@ const AddMarks = () => {
                   placeholder="Search name or roll..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-border bg-card focus:ring-primary/20 w-full rounded-md border py-2 pr-3 pl-9 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 focus:outline-none"
+                  className="border-border bg-card focus:ring-primary/20 w-full rounded-md border py-2 pl-9 pr-3 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:outline-none focus:ring-2"
                 />
                 <svg
-                  className="text-muted-foreground absolute top-2.5 left-3 h-4 w-4"
+                  className="text-muted-foreground absolute left-3 top-2.5 h-4 w-4"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -532,7 +532,7 @@ const AddMarks = () => {
                   </div>
                   <div className="shrink-0">
                     <div className="text-right">
-                      <span className="text-muted-foreground block text-[10px] font-bold tracking-widest uppercase">
+                      <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-widest">
                         Total
                       </span>
                       <span className="text-sm font-bold">
@@ -545,10 +545,10 @@ const AddMarks = () => {
                 {/* Mobile card layout */}
                 <div className="sm:hidden">
                   <div className="bg-muted/50 border-border flex items-center justify-between border-b px-3 py-1.5">
-                    <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
                       Roll / Sec
                     </span>
-                    <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+                    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
                       {selectedSubject?.marking_scheme === 'BREAKDOWN'
                         ? 'CQ / MCQ / Prac'
                         : `Marks (${selectedSubject?.full_mark || 0})`}
@@ -577,23 +577,23 @@ const AddMarks = () => {
                   <table className="divide-border w-full divide-y">
                     <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                       <tr>
-                        <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase">
+                        <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                           Student
                         </th>
                         {selectedSubject && selectedSubject.marking_scheme === 'BREAKDOWN' ? (
                           <>
-                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                               CQ ({selectedSubject.cq_mark || 0})
                             </th>
-                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                               MCQ ({selectedSubject.mcq_mark || 0})
                             </th>
-                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                               Prac ({selectedSubject.practical_mark || 0})
                             </th>
                           </>
                         ) : (
-                          <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold tracking-wider uppercase">
+                          <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                             Marks ({selectedSubject?.full_mark || 0})
                           </th>
                         )}
@@ -657,7 +657,7 @@ const AddMarks = () => {
                 {addMarksMutation.isPending ? (
                   <>
                     <svg
-                      className="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
+                      className="-ml-1 mr-3 h-5 w-5 animate-spin text-white"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
