@@ -126,9 +126,35 @@ function replaceTree(src, dest) {
   fs.cpSync(src, dest, { recursive: true, force: true });
 }
 
+/**
+ * Next 16's getMiddlewareManifest() directly requires a runtime-computed path.
+ * Cloudflare Workers cannot execute that dynamic require, but OpenNext already
+ * patches loadManifest() to inline the manifest in the Worker bundle. Route the
+ * standalone copy through that patched loader without modifying node_modules.
+ */
+function patchMiddlewareManifestLoader(nextDir) {
+  const file = path.join(nextDir, 'dist', 'server', 'next-server.js');
+  let source = fs.readFileSync(file, 'utf8');
+  const dynamicRequire = 'const manifest = require(this.middlewareManifestPath);';
+  const loadManifest =
+    'const manifest = (0, _loadmanifestexternal.loadManifest)(this.middlewareManifestPath);';
+
+  if (source.includes(loadManifest)) return;
+  if (!source.includes(dynamicRequire)) {
+    throw new Error(`[open-next patch] Could not find middleware manifest loader in ${file}`);
+  }
+
+  source = source.replace(dynamicRequire, loadManifest);
+  fs.writeFileSync(file, source);
+  console.log(
+    `[open-next patch] Patched middleware manifest loader → ${path.relative(appRoot, file)}`,
+  );
+}
+
 const uniqueDests = [...new Set(destinations)];
 for (const dest of uniqueDests) {
   replaceTree(nextSrc, dest);
+  patchMiddlewareManifestLoader(dest);
   console.log(`[open-next patch] Copied full next → ${path.relative(appRoot, dest)}`);
 }
 

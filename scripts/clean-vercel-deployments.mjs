@@ -13,8 +13,10 @@ function printHelp() {
 
 Usage:
   pnpm clean:vercel [options]
+  pnpm clean:vercel:all [options]
 
 Options:
+  --all                    Clean every project in the account/team scope
   --yes                    Delete deployments (otherwise this is a dry run)
   --project <id-or-name>   Vercel project ID or name
   --team <id>              Vercel team ID (optional for personal projects)
@@ -35,7 +37,9 @@ supplies projectId and orgId automatically.
 Examples:
   pnpm clean:vercel
   pnpm clean:vercel -- --keep 5 --older-than 2
-  pnpm clean:vercel -- --keep 5 --older-than 2 --yes`);
+  pnpm clean:vercel -- --keep 5 --older-than 2 --yes
+  pnpm clean:vercel:all
+  pnpm clean:vercel:all -- --yes`);
 }
 
 function fail(message) {
@@ -63,6 +67,7 @@ function readNonNegativeInteger(value, option) {
 
 function parseArgs(argv) {
   const options = {
+    all: false,
     confirm: false,
     help: false,
     keep: DEFAULT_KEEP,
@@ -76,6 +81,9 @@ function parseArgs(argv) {
 
     switch (argument) {
       case '--':
+        break;
+      case '--all':
+        options.all = true;
         break;
       case '--yes':
         options.confirm = true;
