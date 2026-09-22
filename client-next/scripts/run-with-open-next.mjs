@@ -18,28 +18,76 @@ process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT = monorepoRoot;
 /**
  * Next's precompiled image-optimizer still `require('sharp')`. OpenNext's
  * esbuild follows that into .node binaries and dies. Images are unoptimized
- * here, so temporarily replace sharp's entry with a stub for the child build.
+ * here, so temporarily replace sharp's JS entrypoints with a stub.
+ *
+ * sharp is an optional dep of `next`, not of client-next — resolve via next.
  */
 function stubSharpForWorkers() {
   const req = createRequire(path.join(appRoot, 'package.json'));
   let sharpEntry;
   try {
-    sharpEntry = req.resolve('sharp');
-  } catch {
+    const nextReq = createRequire(req.resolve('next/package.json'));
+    sharpEntry = nextReq.resolve('sharp');
+  } catch (err) {
+    console.warn(
+      `[open-next patch] sharp not resolvable via next (${err instanceof Error ? err.message : err}); skipping stub`,
+    );
     return () => {};
   }
+
+  let sharpRoot = path.dirname(sharpEntry);
+  while (sharpRoot && path.basename(sharpRoot) !== 'sharp') {
+    const parent = path.dirname(sharpRoot);
+    if (parent === sharpRoot) break;
+    sharpRoot = parent;
+  }
+  if (path.basename(sharpRoot) !== 'sharp') {
+    console.warn(`[open-next patch] unexpected sharp path: ${sharpEntry}`);
+    return () => {};
+  }
+
   const stubPath = path.join(appRoot, 'scripts/empty-native-stub.cjs');
-  const stub = fs.readFileSync(stubPath);
-  const marker = '/* open-next-school-sharp-stub */';
-  const original = fs.readFileSync(sharpEntry);
-  if (original.includes(Buffer.from(marker))) return () => {};
-  fs.writeFileSync(sharpEntry, Buffer.concat([Buffer.from(`${marker}\n`), stub]));
-  console.log(`[open-next patch] Stubbed sharp entry → ${path.relative(monorepoRoot, sharpEntry)}`);
+  const stubCjs = fs.readFileSync(stubPath);
+  const stubMjs = Buffer.from(
+    "export default function sharp() {\n  throw new Error('Native module stub: not available in this runtime');\n}\n",
+  );
+  const marker = Buffer.from('/* open-next-school-sharp-stub */');
+  /** @type {{ file: string, original: Buffer }[]} */
+  const restores = [];
+
+  const distDir = path.join(sharpRoot, 'dist');
+  let distFiles = [];
+  try {
+    distFiles = fs.readdirSync(distDir);
+  } catch {
+    distFiles = [];
+  }
+
+  for (const name of distFiles) {
+    if (!/\.(cjs|mjs|js)$/.test(name)) continue;
+    const file = path.join(distDir, name);
+    const original = fs.readFileSync(file);
+    if (original.includes(marker)) continue;
+    const body = name.endsWith('.mjs') ? stubMjs : stubCjs;
+    fs.writeFileSync(file, Buffer.concat([marker, Buffer.from('\n'), body]));
+    restores.push({ file, original });
+  }
+
+  if (restores.length === 0) {
+    console.warn('[open-next patch] sharp found but no entry files stubbed');
+    return () => {};
+  }
+
+  console.log(
+    `[open-next patch] Stubbed ${restores.length} sharp files → ${path.relative(monorepoRoot, sharpRoot)}`,
+  );
   return () => {
-    try {
-      fs.writeFileSync(sharpEntry, original);
-    } catch {
-      /* install tree may already be gone */
+    for (const { file, original } of restores) {
+      try {
+        fs.writeFileSync(file, original);
+      } catch {
+        /* install tree may already be gone */
+      }
     }
   };
 }

@@ -28,8 +28,8 @@ const vercelTracingIncludes = [
   'node_modules/@swc/helpers/**/*',
 ];
 
-// Monorepo NFT otherwise walks sibling apps (server puppeteer/chrome, CF
-// workerd, next's optional sharp). Images are unoptimized — sharp is unused.
+// Monorepo NFT otherwise walks sibling apps / CF build tooling / native
+// binaries. Images are unoptimized — sharp is unused at runtime.
 const tracingExcludes = [
   '**/node_modules/sharp/**/*',
   '**/node_modules/@img/**/*',
@@ -37,6 +37,9 @@ const tracingExcludes = [
   '**/node_modules/puppeteer-core/**/*',
   '**/node_modules/@puppeteer/**/*',
   '**/node_modules/chromium-bidi/**/*',
+  '**/node_modules/playwright/**/*',
+  '**/node_modules/playwright-core/**/*',
+  '**/node_modules/@playwright/**/*',
   '**/node_modules/workerd/**/*',
   '**/node_modules/@cloudflare/workerd-*/**/*',
   '**/node_modules/wrangler/**/*',
@@ -48,9 +51,15 @@ const tracingExcludes = [
   '**/node_modules/@prisma/**/*',
   '**/node_modules/bcrypt/**/*',
   '**/node_modules/@napi-rs/**/*',
+  '**/node_modules/typescript/**/*',
+  '**/node_modules/turbo/**/*',
+  '**/node_modules/@turbo/**/*',
   '../server/**/*',
   '../dashboard/**/*',
   '../workers/**/*',
+  '../.git/**/*',
+  '../.github/**/*',
+  '../.turbo/**/*',
 ];
 
 const sharpStub = join(projectRoot, 'scripts/empty-native-stub.cjs');

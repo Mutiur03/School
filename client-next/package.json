@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",
-    "@opennextjs/cloudflare": "^1.20.2",
     "@school/common-ui": "workspace:*",
     "@school/shared-schemas": "workspace:*",
     "@swc/helpers": "0.5.15",
@@ -32,6 +31,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
