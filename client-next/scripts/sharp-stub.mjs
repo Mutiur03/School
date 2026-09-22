@@ -43,9 +43,7 @@ export function stubSharpForOpenNext(appRoot, monorepoRoot) {
   }
 
   const stubCjs = fs.readFileSync(path.join(appRoot, 'scripts/empty-native-stub.cjs'));
-  const stubMjs = Buffer.from(
-    "export default function sharp() {\n  throw new Error('Native module stub: not available in this runtime');\n}\n",
-  );
+  const stubMjs = fs.readFileSync(path.join(appRoot, 'scripts/empty-native-stub.mjs'));
   const markerBuf = Buffer.from(MARKER);
 
   const distDir = path.join(sharpRoot, 'dist');

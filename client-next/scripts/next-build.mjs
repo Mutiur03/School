@@ -163,8 +163,10 @@ if (helpersSrc) {
 /**
  * OpenNext esbuild resolves styled-jsx via require('./dist/index'). Monorepo NFT
  * often leaves only the package root stub without dist/.
+ * pnpm places styled-jsx next to `next` (sibling), not under next/node_modules.
  */
 const styledJsxSrcCandidates = [
+  path.join(path.dirname(nextSrc), 'styled-jsx'),
   path.join(nextSrc, 'node_modules', 'styled-jsx'),
   path.join(appRoot, 'node_modules', 'styled-jsx'),
   path.join(monorepoRoot, 'node_modules', 'styled-jsx'),
