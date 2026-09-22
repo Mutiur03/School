@@ -11,6 +11,7 @@
     "build:packages": "turbo run build --filter=@school/shared-schemas --filter=@school/common-ui",
     "build:apps": "turbo run build --filter=client-next --filter=dashboard --filter=server",
     "clean:ports": "pnpm exec kill-port 3002 3000 5174 5175 5176 5177 8787",
+    "clean:vercel": "node scripts/clean-vercel-deployments.mjs",
     "dev:server": "pnpm --filter server dev",
     "dev:dashboard": "pnpm --filter dashboard dev",
     "dev:super_admin": "pnpm --filter dashboard dev:super_admin",

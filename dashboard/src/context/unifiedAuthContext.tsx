@@ -122,9 +122,13 @@ type ErrorWithResponse = {
 const isErrorWithResponse = (error: unknown): error is ErrorWithResponse =>
   typeof error === 'object' && error !== null;
 
+// Any error that never got an HTTP response is a transport failure — offline,
+// timeout, or a request killed while the tab was frozen on mobile. Never an
+// auth failure, so callers must not clear the session for it.
 const isNetworkError = (error: unknown): boolean => {
+  if (axios.isCancel(error)) return false;
   if (!isErrorWithResponse(error)) return false;
-  return !error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error');
+  return !error.response;
 };
 
 const getErrorStatus = (error: unknown) =>
@@ -303,13 +307,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             const message = getResponseMessage(refreshError);
             console.error(`Refresh failed with status ${status}:`, message);
 
-            if (status === 429 || status === 402) {
+            if (status !== 401 && status !== 403) {
               if (status === 429) notifyRateLimited();
-              // Keep existing session; rate limit / lock are not auth failures
+              // Rate limit, lock or a 5xx hiccup — keep the session, retry later.
               return Promise.reject(refreshError);
             }
           }
-          // Refresh failed or returned success:false — clear auth state
+          // Refresh was rejected or returned success:false — clear auth state
           setUser(null);
           setAccessToken(null);
         }
@@ -367,14 +371,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
           const message = getResponseMessage(error);
           console.warn(`No active session found (Status ${status}):`, message);
 
-          if (status === 429 || status === 402) {
-            if (status === 429) notifyRateLimited();
-            setServerOffline(false);
-            // Keep existing session; rate limit / subscription lock are not auth failures
-          } else {
+          setServerOffline(false);
+          if (status === 429) notifyRateLimited();
+          // Only an explicit rejection means the session is gone. 5xx/429/402 are
+          // server hiccups — keep the session so a wake-up blip is not a logout.
+          if (status === 401 || status === 403) {
             setUser(null);
             setAccessToken(null);
-            setServerOffline(false);
           }
         }
       } finally {
@@ -424,16 +427,13 @@ export const UnifiedAuthProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           const status = getErrorStatus(error);
-          if (status === 429 || status === 402) {
-            if (status === 429) notifyRateLimited();
-            // Pause offline polling; keep session (lock ≠ logged out)
-            setServerOffline(false);
-            return;
-          }
-          // Server is reachable but session is invalid — stop the loop
+          // Server answered — stop the loop either way; only clear on a real rejection.
           setServerOffline(false);
-          setUser(null);
-          setAccessToken(null);
+          if (status === 429) notifyRateLimited();
+          if (status === 401 || status === 403) {
+            setUser(null);
+            setAccessToken(null);
+          }
         }
       }, 5000);
     } else {
