@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +14,38 @@ const monorepoRoot = path.join(appRoot, '..');
 // OpenNext setStandaloneBuildMode sets these too; set early so nested standalone is consistent.
 process.env.NEXT_PRIVATE_STANDALONE = 'true';
 process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT = monorepoRoot;
+
+/**
+ * Next's precompiled image-optimizer still `require('sharp')`. OpenNext's
+ * esbuild follows that into .node binaries and dies. Images are unoptimized
+ * here, so temporarily replace sharp's entry with a stub for the child build.
+ */
+function stubSharpForWorkers() {
+  const req = createRequire(path.join(appRoot, 'package.json'));
+  let sharpEntry;
+  try {
+    sharpEntry = req.resolve('sharp');
+  } catch {
+    return () => {};
+  }
+  const stubPath = path.join(appRoot, 'scripts/empty-native-stub.cjs');
+  const stub = fs.readFileSync(stubPath);
+  const marker = '/* open-next-school-sharp-stub */';
+  const original = fs.readFileSync(sharpEntry);
+  if (original.includes(Buffer.from(marker))) return () => {};
+  fs.writeFileSync(sharpEntry, Buffer.concat([Buffer.from(`${marker}\n`), stub]));
+  console.log(`[open-next patch] Stubbed sharp entry → ${path.relative(monorepoRoot, sharpEntry)}`);
+  return () => {
+    try {
+      fs.writeFileSync(sharpEntry, original);
+    } catch {
+      /* install tree may already be gone */
+    }
+  };
+}
+
+const restoreSharp = stubSharpForWorkers();
+process.on('exit', restoreSharp);
 
 /**
  * OpenNext's patchVercelOgLibrary (monorepo / incomplete NFT):

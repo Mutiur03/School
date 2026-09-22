@@ -191,3 +191,28 @@ if (styledJsxSrc) {
     '[open-next patch] styled-jsx not found — OpenNext bundle may fail resolving ./dist/index.',
   );
 }
+
+/**
+ * OpenNext esbuild cannot load sharp's .node binaries (Workers). Images are
+ * unoptimized, so drop any NFT-copied sharp/@img trees from standalone.
+ */
+function rmNativeImageLibs(dir) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (!entry.isDirectory()) continue;
+    if (entry.name === 'sharp' || entry.name === '@img') {
+      fs.rmSync(full, { recursive: true, force: true });
+      console.log(`[open-next patch] Removed ${path.relative(appRoot, full)}`);
+      continue;
+    }
+    rmNativeImageLibs(full);
+  }
+}
+
+rmNativeImageLibs(standaloneAppRoot);

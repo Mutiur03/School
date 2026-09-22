@@ -28,6 +28,33 @@ const vercelTracingIncludes = [
   'node_modules/@swc/helpers/**/*',
 ];
 
+// Monorepo NFT otherwise walks sibling apps (server puppeteer/chrome, CF
+// workerd, next's optional sharp). Images are unoptimized — sharp is unused.
+const tracingExcludes = [
+  '**/node_modules/sharp/**/*',
+  '**/node_modules/@img/**/*',
+  '**/node_modules/puppeteer/**/*',
+  '**/node_modules/puppeteer-core/**/*',
+  '**/node_modules/@puppeteer/**/*',
+  '**/node_modules/chromium-bidi/**/*',
+  '**/node_modules/workerd/**/*',
+  '**/node_modules/@cloudflare/workerd-*/**/*',
+  '**/node_modules/wrangler/**/*',
+  '**/node_modules/miniflare/**/*',
+  '**/node_modules/@opennextjs/**/*',
+  '**/node_modules/esbuild/**/*',
+  '**/node_modules/@esbuild/**/*',
+  '**/node_modules/prisma/**/*',
+  '**/node_modules/@prisma/**/*',
+  '**/node_modules/bcrypt/**/*',
+  '**/node_modules/@napi-rs/**/*',
+  '../server/**/*',
+  '../dashboard/**/*',
+  '../workers/**/*',
+];
+
+const sharpStub = join(projectRoot, 'scripts/empty-native-stub.cjs');
+
 const nextConfig: NextConfig = {
   // `output: "standalone"` is only needed by OpenNext/Cloudflare (it bundles the
   // standalone server itself). Vercel does its own tracing/packaging natively —
@@ -50,17 +77,34 @@ const nextConfig: NextConfig = {
             'node_modules/styled-jsx/**/*',
           ],
         },
+        outputFileTracingExcludes: {
+          '/*': tracingExcludes,
+        },
       }
     : {
         outputFileTracingRoot: monorepoRoot,
         outputFileTracingIncludes: {
           '/*': vercelTracingIncludes,
         },
+        outputFileTracingExcludes: {
+          '/*': tracingExcludes,
+        },
       }),
   transpilePackages: ['@school/common-ui'],
+  // Keep sharp out of the server graph — OpenNext esbuild cannot load .node binaries.
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      sharp$: sharpStub,
+    };
+    return config;
+  },
   turbopack: {
     // Keep in sync with tracing root when set (Next warns if they diverge).
     root: isOpenNextBuild ? projectRoot : monorepoRoot,
+    resolveAlias: {
+      sharp: './scripts/empty-native-stub.cjs',
+    },
   },
   images: {
     // Prefer optimizer on Vercel. On OpenNext/CF, use unoptimized unless a
