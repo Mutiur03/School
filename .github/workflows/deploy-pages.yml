@@ -312,12 +312,10 @@ jobs:
 
       - name: Deploy ${{ matrix.app.name }}
         if: needs.promote-meta.outputs.is_main_deploy == 'true'
-        run: |
-          if [ '${{ needs.promote-meta.outputs.hit }}' = 'true' ]; then
-            npx --yes wrangler@4 pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}
-          else
-            pnpm exec wrangler pages deploy ./${{ matrix.app.directory }}/dist --project-name=${{ matrix.app.project_name }}
-          fi
+        run: >
+          npx --yes wrangler@4 pages deploy
+          ./${{ matrix.app.directory }}/dist
+          --project-name=${{ matrix.app.project_name }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

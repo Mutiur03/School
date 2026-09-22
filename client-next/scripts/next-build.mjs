@@ -123,10 +123,16 @@ walk(standaloneAppRoot);
 // Always ensure classic layout exists for OpenNext.
 destinations.push(path.join(standaloneAppRoot, 'node_modules', 'next'));
 
+/** Replace dest even when NFT left a file/symlink where a package directory should be. */
+function replaceTree(src, dest) {
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.cpSync(src, dest, { recursive: true, force: true });
+}
+
 const uniqueDests = [...new Set(destinations)];
 for (const dest of uniqueDests) {
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.cpSync(nextSrc, dest, { recursive: true, force: true });
+  replaceTree(nextSrc, dest);
   console.log(`[open-next patch] Copied full next → ${path.relative(appRoot, dest)}`);
 }
 
@@ -149,8 +155,7 @@ if (helpersSrc) {
   );
   helpersDests.add(path.join(standaloneAppRoot, 'node_modules', '@swc', 'helpers'));
   for (const dest of helpersDests) {
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.cpSync(helpersSrc, dest, { recursive: true, force: true });
+    replaceTree(helpersSrc, dest);
     console.log(`[open-next patch] Copied @swc/helpers → ${path.relative(appRoot, dest)}`);
   }
 } else {
@@ -178,8 +183,7 @@ if (styledJsxSrc) {
   );
   styledJsxDests.add(path.join(standaloneAppRoot, 'node_modules', 'styled-jsx'));
   for (const dest of styledJsxDests) {
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.cpSync(styledJsxSrc, dest, { recursive: true, force: true });
+    replaceTree(styledJsxSrc, dest);
     console.log(`[open-next patch] Copied styled-jsx → ${path.relative(appRoot, dest)}`);
   }
 } else {
