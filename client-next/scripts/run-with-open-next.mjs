@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { restoreSharpAfterOpenNext } from './sharp-stub.mjs';
 
 /** Ensures Next sees OPEN_NEXT=1 when OpenNext invokes `next build`. */
 process.env.OPEN_NEXT = '1';
@@ -15,85 +15,9 @@ const monorepoRoot = path.join(appRoot, '..');
 process.env.NEXT_PRIVATE_STANDALONE = 'true';
 process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT = monorepoRoot;
 
-/**
- * Next's precompiled image-optimizer still `require('sharp')`. OpenNext's
- * esbuild follows that into .node binaries and dies. Images are unoptimized
- * here, so temporarily replace sharp's JS entrypoints with a stub.
- *
- * sharp is an optional dep of `next`, not of client-next — resolve via next.
- */
-function stubSharpForWorkers() {
-  const req = createRequire(path.join(appRoot, 'package.json'));
-  let sharpEntry;
-  try {
-    const nextReq = createRequire(req.resolve('next/package.json'));
-    sharpEntry = nextReq.resolve('sharp');
-  } catch (err) {
-    console.warn(
-      `[open-next patch] sharp not resolvable via next (${err instanceof Error ? err.message : err}); skipping stub`,
-    );
-    return () => {};
-  }
-
-  let sharpRoot = path.dirname(sharpEntry);
-  while (sharpRoot && path.basename(sharpRoot) !== 'sharp') {
-    const parent = path.dirname(sharpRoot);
-    if (parent === sharpRoot) break;
-    sharpRoot = parent;
-  }
-  if (path.basename(sharpRoot) !== 'sharp') {
-    console.warn(`[open-next patch] unexpected sharp path: ${sharpEntry}`);
-    return () => {};
-  }
-
-  const stubPath = path.join(appRoot, 'scripts/empty-native-stub.cjs');
-  const stubCjs = fs.readFileSync(stubPath);
-  const stubMjs = Buffer.from(
-    "export default function sharp() {\n  throw new Error('Native module stub: not available in this runtime');\n}\n",
-  );
-  const marker = Buffer.from('/* open-next-school-sharp-stub */');
-  /** @type {{ file: string, original: Buffer }[]} */
-  const restores = [];
-
-  const distDir = path.join(sharpRoot, 'dist');
-  let distFiles = [];
-  try {
-    distFiles = fs.readdirSync(distDir);
-  } catch {
-    distFiles = [];
-  }
-
-  for (const name of distFiles) {
-    if (!/\.(cjs|mjs|js)$/.test(name)) continue;
-    const file = path.join(distDir, name);
-    const original = fs.readFileSync(file);
-    if (original.includes(marker)) continue;
-    const body = name.endsWith('.mjs') ? stubMjs : stubCjs;
-    fs.writeFileSync(file, Buffer.concat([marker, Buffer.from('\n'), body]));
-    restores.push({ file, original });
-  }
-
-  if (restores.length === 0) {
-    console.warn('[open-next patch] sharp found but no entry files stubbed');
-    return () => {};
-  }
-
-  console.log(
-    `[open-next patch] Stubbed ${restores.length} sharp files → ${path.relative(monorepoRoot, sharpRoot)}`,
-  );
-  return () => {
-    for (const { file, original } of restores) {
-      try {
-        fs.writeFileSync(file, original);
-      } catch {
-        /* install tree may already be gone */
-      }
-    }
-  };
-}
-
-const restoreSharp = stubSharpForWorkers();
-process.on('exit', restoreSharp);
+// sharp is stubbed AFTER next build (see next-build.mjs). Restore when the
+// OpenNext child finishes so the shared pnpm store is not left broken.
+process.on('exit', () => restoreSharpAfterOpenNext(appRoot));
 
 /**
  * OpenNext's patchVercelOgLibrary (monorepo / incomplete NFT):

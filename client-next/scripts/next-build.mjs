@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stubSharpForOpenNext } from './sharp-stub.mjs';
 
 const require = createRequire(import.meta.url);
 const nextBin = require.resolve('next/dist/bin/next');
@@ -211,3 +212,9 @@ function rmNativeImageLibs(dir) {
 }
 
 rmNativeImageLibs(standaloneAppRoot);
+
+/**
+ * Stub sharp only AFTER next build — the image loader needs real sharp for
+ * blur placeholders. OpenNext's following esbuild step must not see .node files.
+ */
+stubSharpForOpenNext(appRoot, monorepoRoot);

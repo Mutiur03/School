@@ -15,18 +15,11 @@ const isOpenNextBuild = process.env.OPEN_NEXT === '1';
  * Vercel (monorepo): trace from repo root so hoisted next/@swc/helpers land in /var/task.
  * OpenNext (pnpm monorepo): set outputFileTracingRoot so standalone output is nested at
  * `.next/standalone/client-next/.next/...`, which OpenNext resolves via getPackagePath().
+ *
+ * Do NOT add Vercel `outputFileTracingIncludes` that glob through `node_modules/<pkg>`
+ * symlink paths — Vercel's packager rejects the deploy with
+ * "files in symlinked directories" (vercel/vercel#17348). Let NFT follow realpaths.
  */
-const vercelTracingIncludes = [
-  '../node_modules/next/dist/**/*',
-  '../node_modules/next/setup-node-env.js',
-  '../node_modules/next/package.json',
-  '../node_modules/next/node_modules/@swc/helpers/**/*',
-  '../node_modules/@swc/helpers/**/*',
-  'node_modules/next/dist/**/*',
-  'node_modules/next/setup-node-env.js',
-  'node_modules/next/node_modules/@swc/helpers/**/*',
-  'node_modules/@swc/helpers/**/*',
-];
 
 // Monorepo NFT otherwise walks sibling apps / CF build tooling / native
 // binaries. Images are unoptimized — sharp is unused at runtime.
@@ -54,6 +47,10 @@ const tracingExcludes = [
   '**/node_modules/typescript/**/*',
   '**/node_modules/turbo/**/*',
   '**/node_modules/@turbo/**/*',
+  // Workspace pkgs are webpack-bundled (transpilePackages); their node_modules
+  // entries are symlinks and trip Vercel's serverless packager.
+  'node_modules/@school/**/*',
+  '../packages/**/*',
   '../server/**/*',
   '../dashboard/**/*',
   '../workers/**/*',
@@ -62,21 +59,19 @@ const tracingExcludes = [
   '../.turbo/**/*',
 ];
 
-const sharpStub = join(projectRoot, 'scripts/empty-native-stub.cjs');
-
 const nextConfig: NextConfig = {
   // `output: "standalone"` is only needed by OpenNext/Cloudflare (it bundles the
   // standalone server itself). Vercel does its own tracing/packaging natively —
   // forcing standalone mode there makes Vercel's onBuildComplete step depend on
   // `.next/next-server.js.nft.json`, which Turbopack doesn't produce in that
   // shape (confirmed broken in production, 2026-08-15). Leaving it unset on
-  // Vercel lets its native builder handle the monorepo trace, which also makes
-  // Turbopack safe to use there.
+  // Vercel lets its native builder handle the monorepo trace.
   ...(isOpenNextBuild
     ? {
         output: 'standalone',
         outputFileTracingRoot: monorepoRoot,
         // Monorepo NFT includes for OpenNext esbuild bundle (next-build.mjs also copies full packages).
+        // OpenNext does not use Vercel's symlink-sensitive packager, so these are OK.
         outputFileTracingIncludes: {
           '/*': [
             '../node_modules/next/dist/**/*',
@@ -92,28 +87,14 @@ const nextConfig: NextConfig = {
       }
     : {
         outputFileTracingRoot: monorepoRoot,
-        outputFileTracingIncludes: {
-          '/*': vercelTracingIncludes,
-        },
         outputFileTracingExcludes: {
           '/*': tracingExcludes,
         },
       }),
-  transpilePackages: ['@school/common-ui'],
-  // Keep sharp out of the server graph — OpenNext esbuild cannot load .node binaries.
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      sharp$: sharpStub,
-    };
-    return config;
-  },
+  transpilePackages: ['@school/common-ui', '@school/shared-schemas'],
   turbopack: {
-    // Keep in sync with tracing root when set (Next warns if they diverge).
-    root: isOpenNextBuild ? projectRoot : monorepoRoot,
-    resolveAlias: {
-      sharp: './scripts/empty-native-stub.cjs',
-    },
+    // Must match outputFileTracingRoot (Next warns + picks tracing root if they diverge).
+    root: monorepoRoot,
   },
   images: {
     // Prefer optimizer on Vercel. On OpenNext/CF, use unoptimized unless a
