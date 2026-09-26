@@ -1,8 +1,26 @@
 import { z } from 'zod';
 import { registrationNoticeUploadSchema } from './class6RegistrationSchemas.js';
 
+const ADMISSION_YEAR_MIN = 2000;
+const ADMISSION_YEAR_MAX = 2100;
+
+/** Settings + public forms: 4-digit calendar year (rejects empty → 0 coercion). */
+export const admissionSettingsYearSchema = z
+  .union([z.string(), z.number()])
+  .transform((v) => String(v).trim())
+  .pipe(
+    z
+      .string()
+      .min(1, 'Admission year is required')
+      .regex(/^\d{4}$/, 'Admission year must be a 4-digit year')
+      .transform((v) => Number(v))
+      .refine((y) => y >= ADMISSION_YEAR_MIN && y <= ADMISSION_YEAR_MAX, {
+        message: `Admission year must be between ${ADMISSION_YEAR_MIN} and ${ADMISSION_YEAR_MAX}`,
+      }),
+  );
+
 export const admissionSettingsSchema = z.object({
-  admission_year: z.union([z.string(), z.number()]).optional(),
+  admission_year: admissionSettingsYearSchema,
   admission_open: z.union([z.string(), z.boolean()]).optional(),
   instruction: z.string().optional(),
   attachment_instruction_class6: z.string().optional(),
