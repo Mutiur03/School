@@ -12,6 +12,7 @@ import compression from 'compression';
 import { detailedRequestLogger } from './middlewares/requestLogger.js';
 import logger from './utils/logger.js';
 import { ApiError } from './utils/ApiError.js';
+import { buildClientErrorBody } from './utils/clientErrorBody.js';
 import { Prisma } from './generated/prisma/client.js';
 
 const isRawDatabaseError = (error: any) =>
@@ -281,12 +282,9 @@ app.use((error: any, req: express.Request, res: express.Response, _next: express
         .trim() || req.socket?.remoteAddress,
   });
 
-  res.status(statusCode).json({
-    success: false,
-    message: message,
-    errors: isApiError ? error.errors || [] : [],
-    error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-  });
+  // Never include Error.stack / absolute paths in the client body (any NODE_ENV).
+  // Full stack remains in server logs / Sentry above for 500s.
+  res.status(statusCode).json(buildClientErrorBody(message, isApiError ? error.errors || [] : []));
 });
 generateToken();
 const httpServer = app.listen(PORT, () => {
