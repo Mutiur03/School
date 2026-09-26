@@ -58,7 +58,10 @@ function AdmissionSettings() {
             : null);
 
         reset({
-          admission_year: data.admission_year ?? admissionSettingsDefaultValues.admission_year,
+          admission_year:
+            data.admission_year != null && data.admission_year !== 0
+              ? String(data.admission_year)
+              : String(admissionSettingsDefaultValues.admission_year),
           admission_open:
             typeof data.admission_open === 'boolean'
               ? data.admission_open
