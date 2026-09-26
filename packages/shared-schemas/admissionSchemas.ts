@@ -120,6 +120,7 @@ export const admissionResultMultipartCompleteSchema = z.object({
     .min(1, 'At least one part is required'),
 });
 
+export type AdmissionSettingsFormInput = z.input<typeof admissionSettingsSchema>;
 export type AdmissionSettingsData = z.infer<typeof admissionSettingsSchema>;
 export type AdmissionNoticeUploadData = z.infer<typeof admissionNoticeUploadSchema>;
 export type AdmissionResultCreateData = z.infer<typeof admissionResultCreateSchema>;
@@ -131,7 +132,7 @@ export type AdmissionResultMultipartCompleteData = z.infer<
 >;
 export type AdmissionPhotoUploadData = z.infer<typeof admissionPhotoUploadSchema>;
 
-export const admissionSettingsDefaultValues: AdmissionSettingsData = {
+export const admissionSettingsDefaultValues: AdmissionSettingsFormInput = {
   admission_year: new Date().getFullYear(),
   admission_open: false,
   instruction: 'Please follow the instructions carefully',

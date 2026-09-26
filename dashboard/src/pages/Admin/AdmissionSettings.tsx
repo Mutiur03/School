@@ -9,6 +9,7 @@ import {
   admissionSettingsDefaultValues,
   admissionSettingsSchema,
   type AdmissionSettingsData,
+  type AdmissionSettingsFormInput,
 } from '@school/shared-schemas';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
@@ -29,7 +30,7 @@ function AdmissionSettings() {
     watch,
     getValues,
     formState: { errors },
-  } = useForm<AdmissionSettingsData>({
+  } = useForm<AdmissionSettingsFormInput, unknown, AdmissionSettingsData>({
     resolver: zodResolver(admissionSettingsSchema),
     defaultValues: admissionSettingsDefaultValues,
   });
