@@ -821,8 +821,7 @@ function SchoolManagement() {
     try {
       // Only send writable credential fields — never display-only values like
       // estimated_sms / balance_message / api_key_masked (those caused Prisma 500s).
-      const isOwnAccount =
-        Boolean(smsCredentials.api_key_masked) || Boolean(smsApiKeyDraft.trim());
+      const isOwnAccount = Boolean(smsCredentials.api_key_masked) || Boolean(smsApiKeyDraft.trim());
       const payload: {
         api_url?: string | null;
         sender_id?: string | null;
