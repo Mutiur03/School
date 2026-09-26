@@ -818,8 +818,21 @@ function SchoolManagement() {
     if (selectedSchoolId === 'new') return;
     setSavingSms(true);
     try {
-      const { api_key_masked: _ignored, ...rest } = smsCredentials;
-      const payload = smsApiKeyDraft ? { ...rest, api_key: smsApiKeyDraft } : rest;
+      // Only send writable credential fields — never display-only values like
+      // estimated_sms / balance_message / api_key_masked (those caused Prisma 500s).
+      const payload: {
+        api_url: string | null;
+        sender_id: string | null;
+        service_type: string | null;
+        api_key?: string;
+      } = {
+        api_url: smsCredentials.api_url,
+        sender_id: smsCredentials.sender_id,
+        service_type: smsCredentials.service_type,
+      };
+      if (smsApiKeyDraft) {
+        payload.api_key = smsApiKeyDraft;
+      }
       const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, payload);
       setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
       setSmsApiKeyDraft('');

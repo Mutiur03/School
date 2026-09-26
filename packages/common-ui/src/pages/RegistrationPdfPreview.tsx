@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ClassSlug = 'class-6' | 'class-8' | 'junior-scholarship' | 'class-9';
 type PreviewMode = 'stored' | 'live';
@@ -11,6 +11,8 @@ type Props = {
 
 export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' }: Props) {
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
   const previewUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -24,6 +26,54 @@ export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' 
     classSlug === 'junior-scholarship'
       ? 'Junior Scholarship'
       : classSlug.replace('class-', 'Class ');
+
+  useEffect(() => {
+    let cancelled = false;
+    let createdUrl: string | null = null;
+
+    setIsLoading(true);
+    setErrorMessage(null);
+    setObjectUrl(null);
+
+    (async () => {
+      try {
+        const res = await fetch(previewUrl, { credentials: 'include' });
+        if (!res.ok) {
+          let message = res.status === 404 ? 'Registration not found' : 'Failed to load PDF';
+          try {
+            const body = (await res.json()) as { message?: string };
+            if (body?.message) message = body.message;
+          } catch {
+            // keep default message
+          }
+          if (!cancelled) {
+            setErrorMessage(message);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        const blob = await res.blob();
+        createdUrl = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(createdUrl);
+          return;
+        }
+        setObjectUrl(createdUrl);
+        setIsLoading(false);
+      } catch {
+        if (!cancelled) {
+          setErrorMessage('Failed to load PDF');
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [previewUrl]);
 
   return (
     <div style={{ width: '100%', height: '100vh', background: '#fff', position: 'relative' }}>
@@ -58,12 +108,31 @@ export default function RegistrationPdfPreview({ classSlug, id, mode = 'stored' 
         }
       `}</style>
 
-      <iframe
-        title={`${label} PDF Preview`}
-        src={previewUrl}
-        style={{ width: '100%', height: '100%', border: 'none' }}
-        onLoad={() => setIsLoading(false)}
-      />
+      {errorMessage ? (
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            padding: 24,
+            color: '#0f172a',
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: 16,
+            textAlign: 'center',
+          }}
+        >
+          {errorMessage}
+        </div>
+      ) : objectUrl ? (
+        <iframe
+          title={`${label} PDF Preview`}
+          src={objectUrl}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+        />
+      ) : null}
     </div>
   );
 }
