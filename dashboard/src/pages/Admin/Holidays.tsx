@@ -13,7 +13,6 @@ import {
 import { Label } from '@/components/ui/label';
 import DeleteConfirmation from '@/components/DeleteConfimation';
 import { Calendar } from '@/components/Calendar';
-import toast from 'react-hot-toast';
 import DateRangePickerF from '@/components/DateRangePickerF';
 import {
   useHolidays,
@@ -81,7 +80,7 @@ const HolidayCalendar = () => {
       }
       handleClose();
     } catch {
-      toast.error('Failed to add holiday. Please try again.');
+      // Mutation onError already toasts the API message; swallow to avoid unhandled rejection / double toast
     }
   };
 
