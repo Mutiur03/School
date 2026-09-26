@@ -289,7 +289,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           id: 'upload-image',
         },
         {
-          label: 'Aprrove Image',
+          label: 'Approve Image',
           link: '/admin/gallery/pending',
           id: 'approve-image',
         },
