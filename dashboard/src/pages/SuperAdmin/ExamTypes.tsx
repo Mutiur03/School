@@ -623,6 +623,7 @@ export default function ExamTypes() {
                   type="number"
                   inputMode="numeric"
                   min={0}
+                  max={2147483647}
                   step={1}
                   value={typeForm.sort_order}
                   onChange={(e) =>

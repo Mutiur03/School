@@ -7,6 +7,7 @@ export const examTypeSchema = z.object({
     .number()
     .int()
     .min(0, 'Sort order must be 0 or greater')
+    .max(2_147_483_647, 'Sort order is too large')
     .optional()
     .default(0),
   assign_to_new_schools: z.boolean().optional().default(false),
