@@ -795,7 +795,9 @@ function SchoolManagement() {
     setFetchingSms(true);
     try {
       const res = await axios.get(`/api/schools/${schoolId}/sms-credentials`);
-      setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
+      const data = { ...EMPTY_SMS_CREDENTIALS, ...res.data?.data };
+      if (!data.service_type) data.service_type = 'onecode';
+      setSmsCredentials(data);
       setSmsApiKeyDraft('');
     } catch (error) {
       console.error('Failed to fetch SMS credentials', error);
@@ -823,12 +825,14 @@ function SchoolManagement() {
       const payload: {
         api_url: string | null;
         sender_id: string | null;
-        service_type: string | null;
+        service_type: string;
         api_key?: string;
       } = {
         api_url: smsCredentials.api_url,
         sender_id: smsCredentials.sender_id,
-        service_type: smsCredentials.service_type,
+        // Match the Provider dropdown display default so a null DB value
+        // does not POST null and trip "service_type is required".
+        service_type: smsCredentials.service_type ?? 'onecode',
       };
       if (smsApiKeyDraft) {
         payload.api_key = smsApiKeyDraft;
