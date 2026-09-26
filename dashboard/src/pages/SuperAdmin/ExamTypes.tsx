@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dialog';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { cn } from '@/lib/utils';
+import { examTypeSchema } from '@school/shared-schemas';
 import type { ExamType } from '@/queries/exam.queries';
 
 function classLabel(levels: number[]) {
@@ -279,10 +280,15 @@ export default function ExamTypes() {
 
   const handleTypeSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const parsed = examTypeSchema.safeParse(typeForm);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message || 'Fix the form before saving');
+      return;
+    }
     setSaving(true);
     try {
       if (editingId) {
-        const response = await axios.put(`/api/exam-types/${editingId}`, typeForm);
+        const response = await axios.put(`/api/exam-types/${editingId}`, parsed.data);
         const cascade = response.data?.data?.cascade as
           { updated?: number; skipped_frozen?: number; skipped_overlap?: number } | undefined;
         const updatedCount = cascade?.updated ?? 0;
@@ -297,7 +303,7 @@ export default function ExamTypes() {
           toast.success('Exam type updated');
         }
       } else {
-        await axios.post('/api/exam-types', typeForm);
+        await axios.post('/api/exam-types', parsed.data);
         toast.success('Exam type created');
       }
       resetTypeForm();
@@ -616,6 +622,8 @@ export default function ExamTypes() {
                   id="exam-type-sort"
                   type="number"
                   inputMode="numeric"
+                  min={0}
+                  step={1}
                   value={typeForm.sort_order}
                   onChange={(e) =>
                     setTypeForm((prev) => ({ ...prev, sort_order: Number(e.target.value) }))

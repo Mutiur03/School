@@ -3,7 +3,12 @@ import { z } from 'zod';
 export const examTypeSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100),
   is_year_end: z.boolean().optional().default(false),
-  sort_order: z.coerce.number().int().optional().default(0),
+  sort_order: z.coerce
+    .number()
+    .int()
+    .min(0, 'Sort order must be 0 or greater')
+    .optional()
+    .default(0),
   assign_to_new_schools: z.boolean().optional().default(false),
   school_ids: z.array(z.coerce.number().int().positive()).optional(),
 });
