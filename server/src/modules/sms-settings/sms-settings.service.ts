@@ -5,6 +5,7 @@ import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
 import { getProviderAdapter } from '@/utils/sms-providers/index.js';
 import { encryptSecret, decryptSecret, maskSecret } from '@/utils/crypto.js';
 import { SMSService, isSelfHosted } from '@/utils/sms.service.js';
+import { sanitizeCredentialUpdate } from './sms-credentials.sanitize.js';
 
 export class SmsSettingsService {
   private static requireSchoolId(): number {
@@ -96,8 +97,10 @@ export class SmsSettingsService {
 
   static async updateCredentialsForSchool(
     schoolId: number,
-    data: { api_key?: string | null; api_url?: string; sender_id?: string; service_type?: string },
+    raw: Record<string, unknown> | null | undefined,
   ) {
+    const data = sanitizeCredentialUpdate(raw);
+
     if (data.service_type) {
       getProviderAdapter(data.service_type); // throws if unrecognized
     }
@@ -111,7 +114,7 @@ export class SmsSettingsService {
     // plaintext to send back). api_key === null: explicitly clear it (switch to shared
     // account). A non-empty string: set a new key (self-host with this key).
     const { api_key, ...rest } = data;
-    let updateData: Record<string, unknown> = rest;
+    let updateData: Record<string, unknown> = { ...rest };
     if (api_key === null) {
       updateData = { ...rest, api_key: null };
     } else if (api_key) {
