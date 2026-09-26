@@ -258,7 +258,7 @@ const EMPTY_SMS_CREDENTIALS: SmsCredentials = {
   balance_message: null,
   api_url: '',
   sender_id: '',
-  service_type: 'onecode',
+  service_type: null,
 };
 
 type EditorTab = (typeof EDITOR_TABS)[number]['id'];
@@ -796,7 +796,6 @@ function SchoolManagement() {
     try {
       const res = await axios.get(`/api/schools/${schoolId}/sms-credentials`);
       const data = { ...EMPTY_SMS_CREDENTIALS, ...res.data?.data };
-      if (!data.service_type) data.service_type = 'onecode';
       setSmsCredentials(data);
       setSmsApiKeyDraft('');
     } catch (error) {
@@ -822,20 +821,37 @@ function SchoolManagement() {
     try {
       // Only send writable credential fields — never display-only values like
       // estimated_sms / balance_message / api_key_masked (those caused Prisma 500s).
+      const isOwnAccount =
+        Boolean(smsCredentials.api_key_masked) || Boolean(smsApiKeyDraft.trim());
       const payload: {
-        api_url: string | null;
-        sender_id: string | null;
-        service_type: string;
+        api_url?: string | null;
+        sender_id?: string | null;
+        service_type?: string;
         api_key?: string;
-      } = {
-        api_url: smsCredentials.api_url,
-        sender_id: smsCredentials.sender_id,
-        // Match the Provider dropdown display default so a null DB value
-        // does not POST null and trip "service_type is required".
-        service_type: smsCredentials.service_type ?? 'onecode',
-      };
-      if (smsApiKeyDraft) {
-        payload.api_key = smsApiKeyDraft;
+      } = {};
+
+      const apiUrl = (smsCredentials.api_url ?? '').trim();
+      const senderId = (smsCredentials.sender_id ?? '').trim();
+
+      if (isOwnAccount) {
+        payload.api_url = smsCredentials.api_url;
+        payload.sender_id = smsCredentials.sender_id;
+        // Post the effective Provider selection (what the dropdown shows).
+        payload.service_type = smsCredentials.service_type ?? SMS_PROVIDERS[0].value;
+      } else {
+        // Shared account: omit blank fields so Save does not trip validation.
+        if (apiUrl) payload.api_url = apiUrl;
+        if (senderId) payload.sender_id = senderId;
+        if (
+          typeof smsCredentials.service_type === 'string' &&
+          smsCredentials.service_type.trim() !== ''
+        ) {
+          payload.service_type = smsCredentials.service_type;
+        }
+      }
+
+      if (smsApiKeyDraft.trim()) {
+        payload.api_key = smsApiKeyDraft.trim();
       }
       const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, payload);
       setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
