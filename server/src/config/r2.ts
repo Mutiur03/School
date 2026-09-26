@@ -18,9 +18,13 @@ const R2_ACCESS_KEY_ID = env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 
+/** MinIO when `R2_ENDPOINT` is set; otherwise Cloudflare R2. */
+export const resolveR2Endpoint = (accountId: string | undefined, endpoint?: string) =>
+  endpoint || `https://${accountId}.r2.cloudflarestorage.com`;
+
 const r2Client = new S3Client({
   region: 'auto',
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: resolveR2Endpoint(R2_ACCOUNT_ID, env.R2_ENDPOINT),
   forcePathStyle: true,
   credentials: {
     accessKeyId: R2_ACCESS_KEY_ID!,
