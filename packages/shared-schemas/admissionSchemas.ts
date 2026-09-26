@@ -1,8 +1,26 @@
 import { z } from 'zod';
 import { registrationNoticeUploadSchema } from './class6RegistrationSchemas.js';
 
+const ADMISSION_YEAR_MIN = 2000;
+const ADMISSION_YEAR_MAX = 2100;
+
+/** Settings + public forms: 4-digit calendar year (rejects empty → 0 coercion). */
+export const admissionSettingsYearSchema = z
+  .union([z.string(), z.number()])
+  .transform((v) => String(v).trim())
+  .pipe(
+    z
+      .string()
+      .min(1, 'Admission year is required')
+      .regex(/^\d{4}$/, 'Admission year must be a 4-digit year')
+      .transform((v) => Number(v))
+      .refine((y) => y >= ADMISSION_YEAR_MIN && y <= ADMISSION_YEAR_MAX, {
+        message: `Admission year must be between ${ADMISSION_YEAR_MIN} and ${ADMISSION_YEAR_MAX}`,
+      }),
+  );
+
 export const admissionSettingsSchema = z.object({
-  admission_year: z.union([z.string(), z.number()]).optional(),
+  admission_year: admissionSettingsYearSchema,
   admission_open: z.union([z.string(), z.boolean()]).optional(),
   instruction: z.string().optional(),
   attachment_instruction_class6: z.string().optional(),
@@ -102,6 +120,7 @@ export const admissionResultMultipartCompleteSchema = z.object({
     .min(1, 'At least one part is required'),
 });
 
+export type AdmissionSettingsFormInput = z.input<typeof admissionSettingsSchema>;
 export type AdmissionSettingsData = z.infer<typeof admissionSettingsSchema>;
 export type AdmissionNoticeUploadData = z.infer<typeof admissionNoticeUploadSchema>;
 export type AdmissionResultCreateData = z.infer<typeof admissionResultCreateSchema>;
@@ -113,7 +132,7 @@ export type AdmissionResultMultipartCompleteData = z.infer<
 >;
 export type AdmissionPhotoUploadData = z.infer<typeof admissionPhotoUploadSchema>;
 
-export const admissionSettingsDefaultValues: AdmissionSettingsData = {
+export const admissionSettingsDefaultValues: AdmissionSettingsFormInput = {
   admission_year: new Date().getFullYear(),
   admission_open: false,
   instruction: 'Please follow the instructions carefully',

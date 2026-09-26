@@ -28,6 +28,8 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET_NAME: z.string().optional(),
   R2_PUBLIC_URL: z.string().url().optional(),
+  /** Local MinIO (or other S3) base URL. Unset keeps Cloudflare R2. */
+  R2_ENDPOINT: z.string().url().optional(),
 
   // Email Configuration (Brevo)
   BREVO_API_KEY: z.string().optional(),

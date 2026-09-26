@@ -62,8 +62,8 @@ export class AdmissionService {
   static async createOrUpdateAdmission(data: AdmissionSettingsData) {
     const updateData: Record<string, unknown> = {};
 
-    if (data.admission_year !== undefined && data.admission_year !== null) {
-      updateData.admission_year = Number(data.admission_year);
+    if (data.admission_year !== undefined) {
+      updateData.admission_year = data.admission_year;
     }
 
     if (data.admission_open !== undefined) {
