@@ -39,8 +39,10 @@ export const useAddHoliday = () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });
       toast.success('Holiday added successfully');
     },
-    onError: (error: AxiosError<{ error: string }>) => {
-      toast.error(error.response?.data?.error || 'Error adding holiday');
+    onError: (error: AxiosError<{ error?: string; message?: string }>) => {
+      toast.error(
+        error.response?.data?.error || error.response?.data?.message || 'Error adding holiday',
+      );
     },
   });
 };
@@ -56,8 +58,10 @@ export const useUpdateHoliday = () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });
       toast.success('Holiday updated successfully');
     },
-    onError: (error: AxiosError<{ error: string }>) => {
-      toast.error(error.response?.data?.error || 'Error updating holiday');
+    onError: (error: AxiosError<{ error?: string; message?: string }>) => {
+      toast.error(
+        error.response?.data?.error || error.response?.data?.message || 'Error updating holiday',
+      );
     },
   });
 };
@@ -72,8 +76,10 @@ export const useDeleteHoliday = () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });
       toast.success('Holiday deleted successfully');
     },
-    onError: (error: AxiosError<{ error: string }>) => {
-      toast.error(error.response?.data?.error || 'Error deleting holiday');
+    onError: (error: AxiosError<{ error?: string; message?: string }>) => {
+      toast.error(
+        error.response?.data?.error || error.response?.data?.message || 'Error deleting holiday',
+      );
     },
   });
 };
