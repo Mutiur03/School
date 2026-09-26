@@ -6,7 +6,7 @@
   "main": "src/server.ts",
   "scripts": {
     "preinstall": "pnpm --filter @school/shared-schemas build",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsx src/modules/sms-settings/sms-credentials.schema.check.ts",
     "build": "prisma generate && tsc && tsc-alias",
     "db:migrate": "prisma generate && prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",

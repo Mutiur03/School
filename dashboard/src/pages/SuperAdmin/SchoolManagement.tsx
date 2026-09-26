@@ -61,7 +61,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { cn, getErrorMessage } from '@/lib/utils';
 import SchoolBillingEditor from './SchoolBillingEditor';
 
 interface SchoolData {
@@ -609,6 +609,7 @@ function SchoolManagement() {
   const [smsApiKeyDraft, setSmsApiKeyDraft] = useState('');
   const [fetchingSms, setFetchingSms] = useState(false);
   const [savingSms, setSavingSms] = useState(false);
+  const [smsCredentialsError, setSmsCredentialsError] = useState<string | null>(null);
   const [addBalanceAmount, setAddBalanceAmount] = useState('');
   const [addingBalance, setAddingBalance] = useState(false);
   const [rotatingId, setRotatingId] = useState<number | null>(null);
@@ -806,6 +807,7 @@ function SchoolManagement() {
   }, []);
 
   useEffect(() => {
+    setSmsCredentialsError(null);
     if (typeof selectedSchoolId === 'number') {
       fetchSmsCredentials(selectedSchoolId);
     } else {
@@ -814,22 +816,49 @@ function SchoolManagement() {
     }
   }, [selectedSchoolId, fetchSmsCredentials]);
 
+  const reportSmsError = (message: string) => {
+    setSmsCredentialsError(message);
+    toast.error(message);
+  };
+
   const onSaveSmsCredentials = async () => {
     if (selectedSchoolId === 'new') return;
+
+    const senderId = smsCredentials.sender_id?.trim() ?? '';
+    if (!senderId) {
+      reportSmsError('Sender ID is required');
+      return;
+    }
+
+    const apiKey = smsApiKeyDraft.trim();
+    if (smsApiKeyDraft && !apiKey) {
+      reportSmsError('API key cannot be empty');
+      return;
+    }
+
+    const payload: {
+      sender_id: string;
+      service_type?: string;
+      api_url?: string;
+      api_key?: string;
+    } = { sender_id: senderId };
+    const serviceType = smsCredentials.service_type?.trim();
+    if (serviceType) payload.service_type = serviceType;
+    const apiUrl = smsCredentials.api_url?.trim();
+    if (apiUrl) payload.api_url = apiUrl;
+    if (apiKey) payload.api_key = apiKey;
+
     setSavingSms(true);
+    setSmsCredentialsError(null);
     try {
-      const { api_key_masked: _ignored, ...rest } = smsCredentials;
-      const payload = smsApiKeyDraft ? { ...rest, api_key: smsApiKeyDraft } : rest;
       const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, payload);
       setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
       setSmsApiKeyDraft('');
       toast.success('SMS credentials updated');
     } catch (error) {
       console.error('Failed to save SMS credentials', error);
-      toast.error(
-        axios.isAxiosError(error)
-          ? error.response?.data?.message || 'Failed to save SMS credentials'
-          : 'Failed to save SMS credentials',
+      reportSmsError(
+        axios.isAxiosError(error) ? getErrorMessage(error) : 'Failed to save SMS credentials',
       );
     } finally {
       setSavingSms(false);
@@ -1750,12 +1779,13 @@ function SchoolManagement() {
                               id="sms-provider"
                               className={selectClassName}
                               value={smsCredentials.service_type ?? 'onecode'}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                setSmsCredentialsError(null);
                                 setSmsCredentials((prev) => ({
                                   ...prev,
                                   service_type: e.target.value,
-                                }))
-                              }
+                                }));
+                              }}
                             >
                               {SMS_PROVIDERS.map((p) => (
                                 <option key={p.value} value={p.value}>
@@ -1772,12 +1802,13 @@ function SchoolManagement() {
                             <Input
                               id="sms-sender-id"
                               value={smsCredentials.sender_id ?? ''}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                setSmsCredentialsError(null);
                                 setSmsCredentials((prev) => ({
                                   ...prev,
                                   sender_id: e.target.value,
-                                }))
-                              }
+                                }));
+                              }}
                               placeholder="e.g. 8809…, 8801…"
                             />
                           </Field>
@@ -1795,7 +1826,10 @@ function SchoolManagement() {
                                 id="sms-api-key"
                                 type={showSmsApiKey ? 'text' : 'password'}
                                 value={smsApiKeyDraft}
-                                onChange={(e) => setSmsApiKeyDraft(e.target.value)}
+                                onChange={(e) => {
+                                  setSmsCredentialsError(null);
+                                  setSmsApiKeyDraft(e.target.value);
+                                }}
                                 placeholder="Enter a new API key to replace it…"
                                 className="pr-10"
                               />
@@ -1815,6 +1849,14 @@ function SchoolManagement() {
                           </Field>
                         </div>
                       </>
+                    )}
+                    {smsCredentialsError && (
+                      <div
+                        role="alert"
+                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                      >
+                        {smsCredentialsError}
+                      </div>
                     )}
                     <div className="flex justify-end border-t pt-4">
                       <Button

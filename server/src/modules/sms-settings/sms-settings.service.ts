@@ -5,6 +5,7 @@ import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
 import { getProviderAdapter } from '@/utils/sms-providers/index.js';
 import { encryptSecret, decryptSecret, maskSecret } from '@/utils/crypto.js';
 import { SMSService, isSelfHosted } from '@/utils/sms.service.js';
+import { updateSmsCredentialsSchema } from './sms-credentials.schema.js';
 
 export class SmsSettingsService {
   private static requireSchoolId(): number {
@@ -94,12 +95,23 @@ export class SmsSettingsService {
     };
   }
 
-  static async updateCredentialsForSchool(
-    schoolId: number,
-    data: { api_key?: string | null; api_url?: string; sender_id?: string; service_type?: string },
-  ) {
-    if (data.service_type) {
-      getProviderAdapter(data.service_type); // throws if unrecognized
+  static async updateCredentialsForSchool(schoolId: number, input: unknown) {
+    const parsed = updateSmsCredentialsSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new ApiError(
+        400,
+        parsed.error.issues[0]?.message ?? 'Invalid SMS credentials',
+        parsed.error.issues,
+      );
+    }
+
+    const { api_key, api_url, sender_id, service_type } = parsed.data;
+    if (service_type) {
+      try {
+        getProviderAdapter(service_type);
+      } catch (error) {
+        throw new ApiError(400, error instanceof Error ? error.message : 'Unknown SMS provider');
+      }
     }
 
     const existing = await prisma.sms_settings.findUnique({ where: { school_id: schoolId } });
@@ -107,15 +119,24 @@ export class SmsSettingsService {
       await prisma.sms_settings.create({ data: { ...DEFAULT_SMS_TEMPLATES, school_id: schoolId } });
     }
 
-    // api_key omitted/undefined: leave the stored key unchanged (the UI never sees the
-    // plaintext to send back). api_key === null: explicitly clear it (switch to shared
-    // account). A non-empty string: set a new key (self-host with this key).
-    const { api_key, ...rest } = data;
-    let updateData: Record<string, unknown> = rest;
+    // Only columns that exist on sms_settings. api_key omitted: leave the stored key
+    // unchanged (the UI never sees the plaintext to send back). api_key === null:
+    // explicitly clear it (switch to shared account). A non-empty string: set a new key.
+    const updateData: {
+      api_key?: string | null;
+      api_url?: string;
+      sender_id?: string;
+      service_type?: string;
+    } = {};
+    if (sender_id !== undefined) updateData.sender_id = sender_id;
+    if (api_url !== undefined) updateData.api_url = api_url;
+    if (service_type !== undefined) updateData.service_type = service_type;
     if (api_key === null) {
-      updateData = { ...rest, api_key: null };
+      updateData.api_key = null;
     } else if (api_key) {
-      updateData = { ...rest, api_key: encryptSecret(api_key) };
+      const encrypted = encryptSecret(api_key);
+      if (encrypted.length > 255) throw new ApiError(400, 'API key is too long');
+      updateData.api_key = encrypted;
     }
 
     await prisma.sms_settings.update({
