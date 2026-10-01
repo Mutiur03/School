@@ -6,7 +6,8 @@
   "main": "src/server.ts",
   "scripts": {
     "preinstall": "pnpm --filter @school/shared-schemas build",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "test": "prisma generate && node --import tsx --import ./src/security/security-regression-env.ts --test 'src/**/*.test.ts'",
+    "test:security": "prisma generate && node --import tsx --import ./src/security/security-regression-env.ts --test src/security/security-regression-37-49.test.ts",
     "build": "prisma generate && tsc && tsc-alias",
     "db:migrate": "prisma generate && prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",
