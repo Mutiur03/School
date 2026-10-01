@@ -139,8 +139,8 @@ export const useUpdateEvent = () => {
         details: data.details,
         location: data.location,
         date: data.date,
-        imageKey,
-        fileKey,
+        ...(imageKey ? { imageKey } : {}),
+        ...(fileKey ? { fileKey } : {}),
       });
       return response.data;
     },

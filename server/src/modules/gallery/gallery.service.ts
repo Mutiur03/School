@@ -1,7 +1,12 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  assertTenantR2Key,
+  assertTenantR2Keys,
+  deleteFromR2IfPresent,
+  tenantR2Key,
+} from '@/utils/r2Key.util.js';
 
 const buildImageData = (image: any) => ({
   id: image.id,
@@ -63,6 +68,7 @@ export class GalleryService {
     schoolId?: number,
   ) {
     if (!data.keys?.length) throw new ApiError(400, 'No image keys provided');
+    assertTenantR2Keys(data.keys);
 
     const eventId =
       data.eventId !== undefined && data.eventId !== '' ? parseInt(String(data.eventId), 10) : null;
@@ -116,8 +122,9 @@ export class GalleryService {
     };
 
     if (data.imageKey) {
+      assertTenantR2Key(data.imageKey);
       updateData.image_path = data.imageKey;
-      if (existing.image_path) await deleteFromR2(existing.image_path);
+      if (existing.image_path) await deleteFromR2IfPresent(existing.image_path);
     }
 
     return prisma.gallery.update({ where: { id }, data: updateData });
@@ -215,7 +222,7 @@ export class GalleryService {
     });
     if (!existing) throw new ApiError(404, 'Image not found');
     await prisma.gallery.delete({ where: { id } });
-    if (existing.image_path) await deleteFromR2(existing.image_path);
+    if (existing.image_path) await deleteFromR2IfPresent(existing.image_path);
   }
 
   static async deleteMany(ids: number[], schoolId?: number) {
@@ -226,7 +233,7 @@ export class GalleryService {
       where: { id: { in: ids }, ...(schoolId ? { school_id: schoolId } : {}) },
     });
     await Promise.all(
-      existing.filter((img) => img.image_path).map((img) => deleteFromR2(img.image_path!)),
+      existing.filter((img) => img.image_path).map((img) => deleteFromR2IfPresent(img.image_path!)),
     );
   }
 
@@ -244,7 +251,7 @@ export class GalleryService {
       },
     });
     await Promise.all(
-      existing.filter((img) => img.image_path).map((img) => deleteFromR2(img.image_path!)),
+      existing.filter((img) => img.image_path).map((img) => deleteFromR2IfPresent(img.image_path!)),
     );
   }
 

@@ -11,6 +11,8 @@ import { StaffService } from './staff.service.js';
 import asyncHandler from '@/utils/asyncHandler.js';
 import { ApiResponse } from '@/utils/ApiResponse.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { toPublicStaffProfile } from '@/utils/publicPersonnelDto.util.js';
+import { isAdminRequest } from '@/utils/publicFormAccess.util.js';
 
 function parseInput<T>(schema: z.ZodType<T>, input: unknown): T {
   const parsed = schema.safeParse(input);
@@ -42,11 +44,20 @@ export class StaffController {
         limit: limitValue,
         search: searchValue,
       });
-      return res.status(200).json(new ApiResponse(200, result, 'Staffs fetched successfully'));
+      const payload = isAdminRequest(req)
+        ? result
+        : {
+            ...result,
+            data: result.data.map((row) => toPublicStaffProfile(row as Record<string, unknown>)),
+          };
+      return res.status(200).json(new ApiResponse(200, payload, 'Staffs fetched successfully'));
     }
 
     const data = await StaffService.getStaffs();
-    return res.status(200).json(new ApiResponse(200, data, 'Staffs fetched successfully'));
+    const payload = isAdminRequest(req)
+      ? data
+      : data.map((row) => toPublicStaffProfile(row as Record<string, unknown>));
+    return res.status(200).json(new ApiResponse(200, payload, 'Staffs fetched successfully'));
   });
 
   static addStaffController = asyncHandler(async (req: Request, res: Response) => {

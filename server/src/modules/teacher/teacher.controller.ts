@@ -7,6 +7,9 @@ import asyncHandler from '@/utils/asyncHandler.js';
 import { TeacherService } from '@/modules/teacher/teacher.service.js';
 import { ApiResponse } from '@/utils/ApiResponse.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { toPublicTeacherProfile } from '@/utils/publicPersonnelDto.util.js';
+import { isAdminRequest } from '@/utils/publicFormAccess.util.js';
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 
@@ -29,12 +32,21 @@ export class TeacherController {
         limit: limitValue,
         search: searchValue,
       });
-      res.status(200).json(new ApiResponse(200, result, 'Teachers fetched successfully'));
+      const payload = isAdminRequest(req)
+        ? result
+        : {
+            ...result,
+            data: result.data.map((row) => toPublicTeacherProfile(row as Record<string, unknown>)),
+          };
+      res.status(200).json(new ApiResponse(200, payload, 'Teachers fetched successfully'));
       return;
     }
 
     const teachers = await TeacherService.getAllTeachers();
-    res.status(200).json(new ApiResponse(200, teachers, 'Teachers fetched successfully'));
+    const payload = isAdminRequest(req)
+      ? teachers
+      : teachers.map((row) => toPublicTeacherProfile(row as Record<string, unknown>));
+    res.status(200).json(new ApiResponse(200, payload, 'Teachers fetched successfully'));
   });
 
   static addTeacherController = asyncHandler(async (req: Request, res: Response) => {
@@ -99,7 +111,7 @@ export class TeacherController {
 
     await TeacherService.getTeacherById(teacherId);
 
-    const r2Key = `teachers/${key}`;
+    const r2Key = tenantR2Key(`teachers/${key}`);
     const uploadUrl = await getUploadUrl(r2Key, contentType);
     res.json(new ApiResponse(200, { uploadUrl, key: r2Key }, 'Upload URL generated successfully'));
   });
@@ -137,7 +149,9 @@ export class TeacherController {
         typeof key === 'string' && key.includes('.')
           ? key.split('.').pop()
           : contentType?.split('/')[1] || 'png';
-      const r2Key = `signatures/${teacherId}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+      const r2Key = tenantR2Key(
+        `signatures/${teacherId}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`,
+      );
       const uploadUrl = await getUploadUrl(r2Key, contentType);
       res.json(
         new ApiResponse(200, { uploadUrl, key: r2Key }, 'Upload URL generated successfully'),

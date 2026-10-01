@@ -1,7 +1,7 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { assertTenantR2Key, deleteFromR2IfPresent, tenantR2Key } from '@/utils/r2Key.util.js';
 
 export class EventService {
   static async getPresignedUploadUrl(
@@ -33,6 +33,8 @@ export class EventService {
     },
     schoolId?: number,
   ) {
+    if (data.fileKey) assertTenantR2Key(data.fileKey);
+    if (data.imageKey) assertTenantR2Key(data.imageKey);
     const date = new Date(data.date).toISOString().slice(0, 10);
 
     return prisma.events.create({
@@ -78,15 +80,17 @@ export class EventService {
     }
 
     if (data.fileKey) {
+      assertTenantR2Key(data.fileKey);
       updateData.file = data.fileKey;
       updateData.public_id = data.fileKey;
       updateData.download_url = data.fileKey;
-      if (existing.file) await deleteFromR2(existing.file);
+      if (existing.file) await deleteFromR2IfPresent(existing.file);
     }
 
     if (data.imageKey) {
+      assertTenantR2Key(data.imageKey);
       updateData.image = data.imageKey;
-      if (existing.image) await deleteFromR2(existing.image);
+      if (existing.image) await deleteFromR2IfPresent(existing.image);
     }
 
     return prisma.events.update({ where: { id }, data: updateData });
@@ -100,7 +104,7 @@ export class EventService {
 
     await prisma.events.delete({ where: { id } });
 
-    if (existing.image) await deleteFromR2(existing.image);
-    if (existing.file) await deleteFromR2(existing.file);
+    await deleteFromR2IfPresent(existing.image);
+    await deleteFromR2IfPresent(existing.file);
   }
 }

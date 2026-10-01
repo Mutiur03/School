@@ -1,5 +1,6 @@
 import { prisma } from '@/config/prisma.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 
 export class HolidayService {
   static async createHoliday(data: {
@@ -45,6 +46,11 @@ export class HolidayService {
   }
 
   static async deleteHoliday(id: number) {
+    const schoolId = requireSchoolId();
+    const existing = await prisma.holidays.findFirst({ where: { id, school_id: schoolId } });
+    if (!existing) {
+      throw new ApiError(404, 'Holiday not found');
+    }
     return prisma.holidays.delete({ where: { id } });
   }
 
@@ -82,6 +88,11 @@ export class HolidayService {
     if (data.is_optional !== undefined) updateData.is_optional = Boolean(data.is_optional);
 
     try {
+      const schoolId = requireSchoolId();
+      const existing = await prisma.holidays.findFirst({ where: { id, school_id: schoolId } });
+      if (!existing) {
+        throw new ApiError(404, 'Holiday not found');
+      }
       return await prisma.holidays.update({
         where: { id },
         data: updateData,

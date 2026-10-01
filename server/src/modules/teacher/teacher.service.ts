@@ -2,13 +2,14 @@ import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
 import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
 import { prisma } from '@/config/prisma.js';
-import { deleteFromR2 } from '@/config/r2.js';
+import { assertTenantR2KeyIfPresent, deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
 import * as XLSX from 'xlsx';
 import { teacherFormSchema } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
 import EmailService from '@/utils/email.service.js';
 import { env } from '@/config/env.js';
 import { redis } from '@/config/redis.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import type { Prisma } from '@/generated/prisma/client.js';
 
 const headMsgCacheKey = (schoolId?: number | null) =>
@@ -61,8 +62,9 @@ export class TeacherService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const normalizedSearch = search?.trim();
+    const schoolId = requireSchoolId();
 
-    const where: Prisma.teachersWhereInput = { available: true };
+    const where: Prisma.teachersWhereInput = { available: true, school_id: schoolId };
 
     if (normalizedSearch) {
       where.OR = [
@@ -75,7 +77,7 @@ export class TeacherService {
     }
 
     const [total, teachers] = await prisma.$transaction([
-      prisma.teachers.count({ where: { available: true } }),
+      prisma.teachers.count({ where: { available: true, school_id: schoolId } }),
       prisma.teachers.findMany({
         where,
         orderBy: { id: 'asc' },
@@ -100,8 +102,9 @@ export class TeacherService {
   }
 
   static async getAllTeachers() {
+    const schoolId = requireSchoolId();
     const teachers = await prisma.teachers.findMany({
-      where: { available: true },
+      where: { available: true, school_id: schoolId },
     });
     return teachers.map(sanitizeTeacher);
   }
@@ -266,8 +269,9 @@ export class TeacherService {
     if (!existingTeacher) {
       throw new ApiError(404, 'Teacher not found');
     }
-    if (existingTeacher.image) {
-      await deleteFromR2(existingTeacher.image);
+    assertTenantR2KeyIfPresent(key);
+    if (existingTeacher.image && existingTeacher.image !== (key || null)) {
+      await deleteFromR2IfPresent(existingTeacher.image);
     }
     const result = await prisma.teachers.update({
       where: { id },
@@ -286,10 +290,9 @@ export class TeacherService {
     if (!existingTeacher) {
       throw new ApiError(404, 'Teacher not found');
     }
-    // Only delete the previous object when the key actually changes — same-key
-    // re-upload already overwrote R2; deleting would remove the new file.
+    assertTenantR2KeyIfPresent(key);
     if (existingTeacher.signature && existingTeacher.signature !== (key || null)) {
-      await deleteFromR2(existingTeacher.signature);
+      await deleteFromR2IfPresent(existingTeacher.signature);
     }
     const result = await prisma.teachers.update({
       where: { id },

@@ -1,7 +1,7 @@
 import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
 import { prisma } from '@/config/prisma.js';
-import { deleteFromR2 } from '@/config/r2.js';
+import { assertTenantR2KeyIfPresent, deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
 import * as XLSX from 'xlsx';
 import { removeInitialZeros, VALID_GROUPS } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
@@ -409,8 +409,18 @@ export class StudentService {
       }),
     );
 
+    const loginIds = hashedStudents.map((s) => s.login_id);
+    const existingRows = await prisma.students.findMany({
+      where: { login_id: { in: loginIds } },
+      select: { login_id: true },
+    });
+    const existingLoginIds = new Set(existingRows.map((row) => row.login_id));
+    const requestedCount = hashedStudents.length;
+
+    let createdCount = 0;
+
     const result = await prisma.$transaction(async (tx) => {
-      await tx.students.createMany({
+      const createResult = await tx.students.createMany({
         data: hashedStudents.map((s) => ({
           login_id: s.login_id,
           name: s.name,
@@ -430,9 +440,10 @@ export class StudentService {
         })),
         skipDuplicates: true,
       });
+      createdCount = createResult.count;
 
       const newStudents = await tx.students.findMany({
-        where: { login_id: { in: hashedStudents.map((s) => s.login_id) } },
+        where: { login_id: { in: loginIds } },
         select: { id: true, login_id: true },
       });
 
@@ -460,7 +471,9 @@ export class StudentService {
       });
     });
 
-    const excelData = hashedStudents.map((student) => ({
+    const credentialStudents = hashedStudents.filter((s) => !existingLoginIds.has(s.login_id));
+
+    const excelData = credentialStudents.map((student) => ({
       'Login ID': student.login_id.toString(),
       Name: student.name,
       Password: student.originalPassword,
@@ -471,7 +484,20 @@ export class StudentService {
       Religion: student.religion,
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const credentialHeaders = [
+      'Login ID',
+      'Name',
+      'Password',
+      'Batch',
+      'Class',
+      'Section',
+      'Roll',
+      'Religion',
+    ];
+    const worksheet =
+      excelData.length > 0
+        ? XLSX.utils.json_to_sheet(excelData)
+        : XLSX.utils.aoa_to_sheet([credentialHeaders]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
 
@@ -480,21 +506,24 @@ export class StudentService {
       type: 'buffer',
     });
 
-    EmailService.sendEmailWithAttachment({
-      from: env.FROM_EMAIL,
-      to: 'mutiur5bb@gmail.com',
-      subject: 'New Students Registered - Credentials',
-      body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${hashedStudents.length} newly registered students.\n\nBest regards,\nSchool Management System`,
-      attachment: {
-        filename: 'students_credentials.xlsx',
-        content: excelBuffer,
-      },
-    }).catch((err) => console.error('Failed to send headmaster email:', err));
+    if (credentialStudents.length > 0) {
+      EmailService.sendEmailWithAttachment({
+        from: env.FROM_EMAIL,
+        to: 'mutiur5bb@gmail.com',
+        subject: 'New Students Registered - Credentials',
+        body: `Hello Headmaster,\n\nPlease find attached the login credentials for the ${createdCount} newly registered students.\n\nBest regards,\nSchool Management System`,
+        attachment: {
+          filename: 'students_credentials.xlsx',
+          content: excelBuffer,
+        },
+      }).catch((err) => console.error('Failed to send headmaster email:', err));
+    }
 
     return {
       data: result,
-      inserted_count: hashedStudents.length,
       excelBuffer,
+      createdCount,
+      requestedCount,
     };
   }
 
@@ -757,8 +786,9 @@ export class StudentService {
     if (!existingStudent) {
       throw new ApiError(404, 'Student not found');
     }
-    if (existingStudent.image) {
-      await deleteFromR2(existingStudent.image);
+    assertTenantR2KeyIfPresent(key);
+    if (existingStudent.image && existingStudent.image !== (key || null)) {
+      await deleteFromR2IfPresent(existingStudent.image);
     }
     return prisma.students.update({
       where: { id: Number(id) },

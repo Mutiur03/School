@@ -4,11 +4,12 @@ import { prisma } from '@/config/prisma.js';
 import {
   completeMultipartUpload,
   createMultipartUpload,
-  deleteFromR2,
   getMultipartPartUrl,
   getUploadUrl,
 } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
+import { assertTenantR2Key, deleteFromR2IfPresent, tenantR2Key } from '@/utils/r2Key.util.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import type {
   AdmissionResultCreateData,
   AdmissionResultMultipartCompleteData,
@@ -26,6 +27,16 @@ const VALID_RESULT_TYPES = ['merit_list', 'waiting_list_1', 'waiting_list_2'] as
 
 type ResultType = (typeof VALID_RESULT_TYPES)[number];
 
+const assertResultListKeys = (data: {
+  merit_list?: string | null;
+  waiting_list_1?: string | null;
+  waiting_list_2?: string | null;
+}) => {
+  if (data.merit_list) assertTenantR2Key(data.merit_list);
+  if (data.waiting_list_1) assertTenantR2Key(data.waiting_list_1);
+  if (data.waiting_list_2) assertTenantR2Key(data.waiting_list_2);
+};
+
 function generateKey(
   filename: string,
   className: string,
@@ -38,15 +49,17 @@ function generateKey(
   const safeYear = String(admissionYear).trim();
   const ext = path.extname(filename);
   const safeFilename = `${type}-${safeYear}-${Date.now()}-${crypto.randomUUID()}${ext}`;
-  return `admission-results/${safeYear}/class-${safeClassName}/${safeFilename}`;
+  return tenantR2Key(`admission-results/${safeYear}/class-${safeClassName}/${safeFilename}`);
 }
 
 export class AdmissionResultService {
   static async getAdmissionResults(filters: { class_name?: string; admission_year?: string }) {
+    const schoolId = requireSchoolId();
     const whereCondition: {
+      school_id: number;
       class_name?: string;
       admission_year?: number;
-    } = {};
+    } = { school_id: schoolId };
 
     if (filters.class_name) {
       whereCondition.class_name = filters.class_name;
@@ -62,8 +75,8 @@ export class AdmissionResultService {
   }
 
   static async getAdmissionResultById(id: number) {
-    const result = await prisma.admission_result.findUnique({
-      where: { id },
+    const result = await prisma.admission_result.findFirst({
+      where: { id, school_id: requireSchoolId() },
     });
 
     if (!result) {
@@ -78,6 +91,7 @@ export class AdmissionResultService {
       where: {
         class_name: data.class_name,
         admission_year: data.admission_year,
+        school_id: requireSchoolId(),
       },
     });
 
@@ -87,6 +101,8 @@ export class AdmissionResultService {
         `Result already exists for Class ${data.class_name} - Year ${data.admission_year}. Please update the existing result instead.`,
       );
     }
+
+    assertResultListKeys(data);
 
     return prisma.admission_result.create({
       data: {
@@ -103,8 +119,8 @@ export class AdmissionResultService {
   }
 
   static async updateAdmissionResult(id: number, data: AdmissionResultUpdateData) {
-    const existingResult = await prisma.admission_result.findUnique({
-      where: { id },
+    const existingResult = await prisma.admission_result.findFirst({
+      where: { id, school_id: requireSchoolId() },
     });
 
     if (!existingResult) {
@@ -121,24 +137,27 @@ export class AdmissionResultService {
     }
 
     if (data.merit_list !== undefined) {
+      if (data.merit_list) assertTenantR2Key(data.merit_list);
       if (existingResult.merit_list && existingResult.merit_list !== data.merit_list) {
-        await deleteFromR2(existingResult.merit_list);
+        await deleteFromR2IfPresent(existingResult.merit_list);
       }
       updateData.merit_list = data.merit_list;
       updateData.merit_list_public_id = data.merit_list ? 'r2' : null;
     }
 
     if (data.waiting_list_1 !== undefined) {
+      if (data.waiting_list_1) assertTenantR2Key(data.waiting_list_1);
       if (existingResult.waiting_list_1 && existingResult.waiting_list_1 !== data.waiting_list_1) {
-        await deleteFromR2(existingResult.waiting_list_1);
+        await deleteFromR2IfPresent(existingResult.waiting_list_1);
       }
       updateData.waiting_list_1 = data.waiting_list_1;
       updateData.waiting_list_1_public_id = data.waiting_list_1 ? 'r2' : null;
     }
 
     if (data.waiting_list_2 !== undefined) {
+      if (data.waiting_list_2) assertTenantR2Key(data.waiting_list_2);
       if (existingResult.waiting_list_2 && existingResult.waiting_list_2 !== data.waiting_list_2) {
-        await deleteFromR2(existingResult.waiting_list_2);
+        await deleteFromR2IfPresent(existingResult.waiting_list_2);
       }
       updateData.waiting_list_2 = data.waiting_list_2;
       updateData.waiting_list_2_public_id = data.waiting_list_2 ? 'r2' : null;
@@ -151,23 +170,17 @@ export class AdmissionResultService {
   }
 
   static async deleteAdmissionResult(id: number) {
-    const existingResult = await prisma.admission_result.findUnique({
-      where: { id },
+    const existingResult = await prisma.admission_result.findFirst({
+      where: { id, school_id: requireSchoolId() },
     });
 
     if (!existingResult) {
       throw new ApiError(404, 'Admission result not found');
     }
 
-    if (existingResult.merit_list) {
-      await deleteFromR2(existingResult.merit_list);
-    }
-    if (existingResult.waiting_list_1) {
-      await deleteFromR2(existingResult.waiting_list_1);
-    }
-    if (existingResult.waiting_list_2) {
-      await deleteFromR2(existingResult.waiting_list_2);
-    }
+    await deleteFromR2IfPresent(existingResult.merit_list);
+    await deleteFromR2IfPresent(existingResult.waiting_list_1);
+    await deleteFromR2IfPresent(existingResult.waiting_list_2);
 
     await prisma.admission_result.delete({
       where: { id },
@@ -243,11 +256,13 @@ export class AdmissionResultService {
   }
 
   static async signMultipartUploadPart(data: AdmissionResultMultipartSignData) {
+    assertTenantR2Key(data.key);
     const url = await getMultipartPartUrl(data.key, data.uploadId, data.partNumber);
     return { success: true, url };
   }
 
   static async completeMultipartUploadHandler(data: AdmissionResultMultipartCompleteData) {
+    assertTenantR2Key(data.key);
     await completeMultipartUpload(data.key, data.uploadId, data.parts);
     return { success: true, key: data.key };
   }

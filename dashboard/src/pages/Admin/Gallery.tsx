@@ -278,7 +278,7 @@ export default function Gallery() {
       }
 
       await axios.put(`/api/gallery/updateGallery/${editId}`, {
-        imageKey,
+        ...(imageKey ? { imageKey } : {}),
         caption: formValues.caption,
         eventId: formValues.eventId || '',
         category: formValues.eventId ? '1' : formValues.category,

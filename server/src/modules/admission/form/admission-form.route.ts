@@ -30,7 +30,7 @@ router.get(
   AdmissionFormController.exportAdmissionImagesZip,
 );
 
-router.get('/:id', AdmissionFormController.getFormById);
+router.get('/:id', AuthMiddleware.authenticateOptional(), AdmissionFormController.getFormById);
 router.get('/:id/pdf', AdmissionFormController.downloadPDF);
 router.put('/:id', AuthMiddleware.authenticateOptional(), AdmissionFormController.updateForm);
 router.put(

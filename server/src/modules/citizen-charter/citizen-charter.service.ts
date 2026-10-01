@@ -1,6 +1,11 @@
 import { prisma } from '@/config/prisma.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { fileDocFields, presignTenantUpload, swapR2Key } from '@/utils/r2Key.util.js';
+import {
+  fileDocFields,
+  assertTenantR2Key,
+  presignTenantUpload,
+  swapR2Key,
+} from '@/utils/r2Key.util.js';
 
 export class CitizenCharterService {
   async getPresignedUploadUrl(filename: string, contentType: string) {
@@ -11,6 +16,7 @@ export class CitizenCharterService {
   }
 
   async upsertCharter(key: string, schoolId?: number) {
+    assertTenantR2Key(key);
     const existing = await prisma.citizenCharter.findFirst({
       where: schoolId ? { school_id: schoolId } : undefined,
       orderBy: { updated_at: 'desc' },

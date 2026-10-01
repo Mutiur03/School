@@ -65,11 +65,15 @@ class AuthMiddleware {
 
         if (!dbUser) return next(new ApiError(401, 'Unauthorized'));
 
-        assertTenantContextForAuthenticatedRequest(
-          req,
-          decoded.role,
-          (dbUser as any)?.school_id ?? null,
-        );
+        try {
+          assertTenantContextForAuthenticatedRequest(
+            req,
+            decoded.role,
+            (dbUser as any)?.school_id ?? null,
+          );
+        } catch (error) {
+          return next(error);
+        }
 
         if (dbUser.password) delete dbUser.password;
         const user = { ...dbUser, role: decoded.role };
@@ -87,11 +91,16 @@ class AuthMiddleware {
 
   /** Attach req.user when a valid token is present; continue anonymously otherwise. */
   static authenticateOptional(roles: string[] = []) {
-    return async (req: Request, _res: Response, next: NextFunction) => {
+    return async (req: Request, res: Response, next: NextFunction) => {
       const token = req.headers.authorization?.split(' ')[1];
       if (!token) return next();
 
-      return AuthMiddleware.authenticate(roles)(req, _res, next);
+      return AuthMiddleware.authenticate(roles)(req, res, (err) => {
+        if (err) {
+          delete req.user;
+        }
+        return next();
+      });
     };
   }
 }

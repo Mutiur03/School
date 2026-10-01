@@ -41,8 +41,8 @@ export class AdmissionFormController {
   });
 
   static getFormById = asyncHandler(async (req: Request, res: Response) => {
-    const rec = await AdmissionFormService.getFormById(req.params.id as string);
-    res.status(200).json({ success: true, data: rec });
+    const data = await AdmissionFormService.getFormById(req.params.id as string);
+    res.status(200).json({ success: true, data });
   });
 
   static updateForm = asyncHandler(

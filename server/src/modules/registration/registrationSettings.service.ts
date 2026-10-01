@@ -1,9 +1,9 @@
 import path from 'path';
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { assertTenantR2Key, deleteFromR2IfPresent, tenantR2Key } from '@/utils/r2Key.util.js';
 import {
   parseRegistrationYear,
   resolveRegistrationClassmates,
@@ -68,11 +68,12 @@ export function createRegistrationSettingsService(cfg: RegistrationSettingsConfi
     const schoolId = requireSchoolId();
 
     if (notice_key) {
+      assertTenantR2Key(notice_key);
       const existing = await table().findFirst({
         where: { school_id: schoolId, [cfg.yearField]: resolvedYear },
       });
       if (existing?.notice && existing.notice !== notice_key) {
-        await deleteFromR2(existing.notice);
+        await deleteFromR2IfPresent(existing.notice);
       }
       updateData.notice = notice_key;
     }
@@ -157,7 +158,7 @@ export function createRegistrationSettingsService(cfg: RegistrationSettingsConfi
     if (!row?.id || !row.notice) {
       throw new ApiError(404, 'No notice found to delete');
     }
-    await deleteFromR2(row.notice as string);
+    await deleteFromR2IfPresent(row.notice as string);
     await table().update({
       where: { id: row.id },
       data: { notice: null },

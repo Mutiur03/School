@@ -63,7 +63,7 @@ export const useUpdateNotice = () => {
 
       const response = await axios.put(`/api/notices/updateNotice/${id}`, {
         title: data.title,
-        key,
+        ...(key ? { key } : {}),
         created_at: data.created_at,
       });
       return response.data;

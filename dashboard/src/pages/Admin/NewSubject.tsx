@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { ChangeEvent, FormEvent } from 'react';
 import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import { readAdminXlsxWorkbook } from '@/utils/safeXlsxRead';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1034,160 +1035,168 @@ const NewSubject: React.FC = () => {
       reader.readAsArrayBuffer(file);
       reader.onload = (e) => {
         const arrayBuffer = e.target?.result;
-        if (!arrayBuffer) return;
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
-        const mandatoryColumns = [
-          'name',
-          'class',
-          'full_mark',
-          'year',
-          'assessment_type',
-          'priority',
-        ];
-        const sheetHeaders = (rawData[0] || []) as string[];
-        const missingColumns = mandatoryColumns.filter((col) => !sheetHeaders.includes(col));
-        if (missingColumns.length > 0) {
-          toast.error(`Excel file is missing required columns: ${missingColumns.join(', ')}`);
-          setFileUploaded(false);
-          return;
-        }
-        const data = XLSX.utils.sheet_to_json(sheet) as any[];
-        const errors: string[] = [];
-        const normalizedRows = data.map((row) => {
-          // More robust key matching for 'group' and other optional columns
-          const findKeyByValue = (searchVal: string) =>
-            Object.keys(row).find(
-              (k) => String(k).trim().toLowerCase() === searchVal.toLowerCase(),
-            );
-
-          const groupKey = findKeyByValue('group');
-          const groupRaw = groupKey ? String(row[groupKey as keyof typeof row] || '').trim() : '';
-
-          const subjectGroupKey = findKeyByValue('subject_group');
-          const subjectGroupRaw = subjectGroupKey
-            ? String(row[subjectGroupKey as keyof typeof row] || '').trim()
-            : null;
-
-          const group = groupRaw
-            ? groupRaw.charAt(0).toUpperCase() + groupRaw.slice(1).toLowerCase()
-            : '';
-          return {
-            ...row,
-            name: String(row.name || '').trim(),
-            class: Number(row.class),
-            full_mark: Number(row.full_mark),
-            pass_mark:
-              row.assessment_type?.toLowerCase() === 'continuous' ? null : Number(row.pass_mark),
-            group: group === 'General' ? '' : group,
-            year: Number(row.year) || new Date().getFullYear(),
-            assessment_type: String(row.assessment_type || 'exam').toLowerCase(),
-            subject_group: subjectGroupRaw,
-            priority: Number(row.priority) || 0,
-            cq_mark: Number(row.cq_mark) || 0,
-            mcq_mark: Number(row.mcq_mark) || 0,
-            practical_mark: Number(row.practical_mark) || 0,
-            cq_pass_mark: Number(row.cq_pass_mark) || 0,
-            mcq_pass_mark: Number(row.mcq_pass_mark) || 0,
-            practical_pass_mark: Number(row.practical_pass_mark) || 0,
-            marking_scheme: row.marking_scheme ? String(row.marking_scheme).toUpperCase() : 'TOTAL',
-          };
-        });
-        const seen = new Set();
-        normalizedRows.forEach((row, index) => {
-          const rowNum = index + 2;
-          const key = `${row.name}|${row.class}|${row.group}|${row.year}`;
-          if (!row.name) errors.push(`Row ${rowNum}: Subject name required.`);
-          if (!row.class || isNaN(row.class) || row.class < 6 || row.class > 10)
-            errors.push(`Row ${rowNum}: Class must be 6-10.`);
-          if (!row.full_mark || isNaN(row.full_mark) || row.full_mark <= 0)
-            errors.push(`Row ${rowNum}: Full mark required.`);
-          if (
-            row.assessment_type === 'exam' &&
-            (row.pass_mark === null || isNaN(row.pass_mark) || row.pass_mark < 0)
-          )
-            errors.push(`Row ${rowNum}: Pass mark required for exam.`);
-          if (!row.year || isNaN(row.year) || row.year < 2000)
-            errors.push(`Row ${rowNum}: Invalid year.`);
-          if (!['exam', 'continuous'].includes(row.assessment_type))
-            errors.push(`Row ${rowNum}: Invalid assessment type.`);
-          if (row.priority < 0) errors.push(`Row ${rowNum}: Priority must be non-negative.`);
-          if (
-            row.marking_scheme === 'BREAKDOWN' &&
-            (Number(row.cq_mark) || 0) === 0 &&
-            (Number(row.mcq_mark) || 0) === 0 &&
-            (Number(row.practical_mark) || 0) === 0
-          ) {
-            errors.push(
-              `Row ${rowNum}: BREAKDOWN scheme requires at least one mark type (CQ, MCQ, or Practical).`,
-            );
+        if (!(arrayBuffer instanceof ArrayBuffer)) return;
+        try {
+          const { sheet } = readAdminXlsxWorkbook(arrayBuffer);
+          const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
+          const mandatoryColumns = [
+            'name',
+            'class',
+            'full_mark',
+            'year',
+            'assessment_type',
+            'priority',
+          ];
+          const sheetHeaders = (rawData[0] || []) as string[];
+          const missingColumns = mandatoryColumns.filter((col) => !sheetHeaders.includes(col));
+          if (missingColumns.length > 0) {
+            toast.error(`Excel file is missing required columns: ${missingColumns.join(', ')}`);
+            setFileUploaded(false);
+            return;
           }
+          const data = XLSX.utils.sheet_to_json(sheet) as any[];
+          const errors: string[] = [];
+          const normalizedRows = data.map((row) => {
+            // More robust key matching for 'group' and other optional columns
+            const findKeyByValue = (searchVal: string) =>
+              Object.keys(row).find(
+                (k) => String(k).trim().toLowerCase() === searchVal.toLowerCase(),
+              );
 
-          // Sum validation for breakdown marks
-          const totalBreakdown =
-            (Number(row.cq_mark) || 0) +
-            (Number(row.mcq_mark) || 0) +
-            (Number(row.practical_mark) || 0);
-          if (totalBreakdown > 0 && row.full_mark !== totalBreakdown) {
-            errors.push(
-              `Row ${rowNum}: Full mark (${row.full_mark}) must equal sum of CQ, MCQ, and Practical (${totalBreakdown}).`,
+            const groupKey = findKeyByValue('group');
+            const groupRaw = groupKey ? String(row[groupKey as keyof typeof row] || '').trim() : '';
+
+            const subjectGroupKey = findKeyByValue('subject_group');
+            const subjectGroupRaw = subjectGroupKey
+              ? String(row[subjectGroupKey as keyof typeof row] || '').trim()
+              : null;
+
+            const group = groupRaw
+              ? groupRaw.charAt(0).toUpperCase() + groupRaw.slice(1).toLowerCase()
+              : '';
+            return {
+              ...row,
+              name: String(row.name || '').trim(),
+              class: Number(row.class),
+              full_mark: Number(row.full_mark),
+              pass_mark:
+                row.assessment_type?.toLowerCase() === 'continuous' ? null : Number(row.pass_mark),
+              group: group === 'General' ? '' : group,
+              year: Number(row.year) || new Date().getFullYear(),
+              assessment_type: String(row.assessment_type || 'exam').toLowerCase(),
+              subject_group: subjectGroupRaw,
+              priority: Number(row.priority) || 0,
+              cq_mark: Number(row.cq_mark) || 0,
+              mcq_mark: Number(row.mcq_mark) || 0,
+              practical_mark: Number(row.practical_mark) || 0,
+              cq_pass_mark: Number(row.cq_pass_mark) || 0,
+              mcq_pass_mark: Number(row.mcq_pass_mark) || 0,
+              practical_pass_mark: Number(row.practical_pass_mark) || 0,
+              marking_scheme: row.marking_scheme
+                ? String(row.marking_scheme).toUpperCase()
+                : 'TOTAL',
+            };
+          });
+          const seen = new Set();
+          normalizedRows.forEach((row, index) => {
+            const rowNum = index + 2;
+            const key = `${row.name}|${row.class}|${row.group}|${row.year}`;
+            if (!row.name) errors.push(`Row ${rowNum}: Subject name required.`);
+            if (!row.class || isNaN(row.class) || row.class < 6 || row.class > 10)
+              errors.push(`Row ${rowNum}: Class must be 6-10.`);
+            if (!row.full_mark || isNaN(row.full_mark) || row.full_mark <= 0)
+              errors.push(`Row ${rowNum}: Full mark required.`);
+            if (
+              row.assessment_type === 'exam' &&
+              (row.pass_mark === null || isNaN(row.pass_mark) || row.pass_mark < 0)
+            )
+              errors.push(`Row ${rowNum}: Pass mark required for exam.`);
+            if (!row.year || isNaN(row.year) || row.year < 2000)
+              errors.push(`Row ${rowNum}: Invalid year.`);
+            if (!['exam', 'continuous'].includes(row.assessment_type))
+              errors.push(`Row ${rowNum}: Invalid assessment type.`);
+            if (row.priority < 0) errors.push(`Row ${rowNum}: Priority must be non-negative.`);
+            if (
+              row.marking_scheme === 'BREAKDOWN' &&
+              (Number(row.cq_mark) || 0) === 0 &&
+              (Number(row.mcq_mark) || 0) === 0 &&
+              (Number(row.practical_mark) || 0) === 0
+            ) {
+              errors.push(
+                `Row ${rowNum}: BREAKDOWN scheme requires at least one mark type (CQ, MCQ, or Practical).`,
+              );
+            }
+
+            // Sum validation for breakdown marks
+            const totalBreakdown =
+              (Number(row.cq_mark) || 0) +
+              (Number(row.mcq_mark) || 0) +
+              (Number(row.practical_mark) || 0);
+            if (totalBreakdown > 0 && row.full_mark !== totalBreakdown) {
+              errors.push(
+                `Row ${rowNum}: Full mark (${row.full_mark}) must equal sum of CQ, MCQ, and Practical (${totalBreakdown}).`,
+              );
+            }
+
+            // Sum validation for pass marks
+            const totalPassBreakdown =
+              (Number(row.cq_pass_mark) || 0) +
+              (Number(row.mcq_pass_mark) || 0) +
+              (Number(row.practical_pass_mark) || 0);
+            if (totalPassBreakdown > 0 && row.pass_mark !== totalPassBreakdown) {
+              errors.push(
+                `Row ${rowNum}: Pass mark (${row.pass_mark}) must equal sum of breakdown pass marks (${totalPassBreakdown}).`,
+              );
+            }
+
+            if (row.pass_mark > row.full_mark) {
+              errors.push(
+                `Row ${rowNum}: Pass mark (${row.pass_mark}) cannot exceed full mark (${row.full_mark}).`,
+              );
+            }
+
+            if (!['TOTAL', 'BREAKDOWN'].includes(row.marking_scheme))
+              errors.push(`Row ${rowNum}: Invalid marking scheme (must be TOTAL or BREAKDOWN).`);
+            if (seen.has(key)) errors.push(`Row ${rowNum}: Duplicate subject in file.`);
+            seen.add(key);
+            const isDuplicateInDB = subjects.some(
+              (s) =>
+                s.name === row.name &&
+                s.class === row.class &&
+                (s.group || '') === row.group &&
+                s.year === row.year,
             );
+            if (isDuplicateInDB) errors.push(`Row ${rowNum}: Subject already exists in database.`);
+          });
+          if (errors.length > 0) {
+            errors.slice(0, 5).forEach((err) => toast.error(err, { duration: 4000 }));
+            if (errors.length > 5)
+              toast.error(`...and ${errors.length - 5} more rows have errors.`);
+            setFileUploaded(false);
+            setJsonData(null);
+            if (excelFileRef.current) excelFileRef.current.value = '';
+            return;
           }
-
-          // Sum validation for pass marks
-          const totalPassBreakdown =
-            (Number(row.cq_pass_mark) || 0) +
-            (Number(row.mcq_pass_mark) || 0) +
-            (Number(row.practical_pass_mark) || 0);
-          if (totalPassBreakdown > 0 && row.pass_mark !== totalPassBreakdown) {
-            errors.push(
-              `Row ${rowNum}: Pass mark (${row.pass_mark}) must equal sum of breakdown pass marks (${totalPassBreakdown}).`,
-            );
-          }
-
-          if (row.pass_mark > row.full_mark) {
-            errors.push(
-              `Row ${rowNum}: Pass mark (${row.pass_mark}) cannot exceed full mark (${row.full_mark}).`,
-            );
-          }
-
-          if (!['TOTAL', 'BREAKDOWN'].includes(row.marking_scheme))
-            errors.push(`Row ${rowNum}: Invalid marking scheme (must be TOTAL or BREAKDOWN).`);
-          if (seen.has(key)) errors.push(`Row ${rowNum}: Duplicate subject in file.`);
-          seen.add(key);
-          const isDuplicateInDB = subjects.some(
-            (s) =>
-              s.name === row.name &&
-              s.class === row.class &&
-              (s.group || '') === row.group &&
-              s.year === row.year,
-          );
-          if (isDuplicateInDB) errors.push(`Row ${rowNum}: Subject already exists in database.`);
-        });
-        if (errors.length > 0) {
-          errors.slice(0, 5).forEach((err) => toast.error(err, { duration: 4000 }));
-          if (errors.length > 5) toast.error(`...and ${errors.length - 5} more rows have errors.`);
+          const subjectsToUpload: any[] = normalizedRows.map((row) => {
+            // Optimization: Let the backend handle auto-grouping via subject_group.
+            // We set subject_type to 'single' if parent_id is null to pass frontend/backend validation.
+            // The backend will promote it to 'paper' if a subject_group matches.
+            return {
+              ...row,
+              subject_type: row.subject_type || 'single',
+              parent_id: row.parent_id || null,
+            };
+          });
+          subjectsToUpload.forEach((s) => {
+            if (s.assessment_type === 'continuous') s.pass_mark = null;
+          });
+          setJsonData(subjectsToUpload);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to read spreadsheet');
           setFileUploaded(false);
           setJsonData(null);
           if (excelFileRef.current) excelFileRef.current.value = '';
-          return;
         }
-        const subjectsToUpload: any[] = normalizedRows.map((row) => {
-          // Optimization: Let the backend handle auto-grouping via subject_group.
-          // We set subject_type to 'single' if parent_id is null to pass frontend/backend validation.
-          // The backend will promote it to 'paper' if a subject_group matches.
-          return {
-            ...row,
-            subject_type: row.subject_type || 'single',
-            parent_id: row.parent_id || null,
-          };
-        });
-        subjectsToUpload.forEach((s) => {
-          if (s.assessment_type === 'continuous') s.pass_mark = null;
-        });
-        setJsonData(subjectsToUpload);
       };
       reader.onerror = () => {
         toast.error('Error reading the file. Please try again.');

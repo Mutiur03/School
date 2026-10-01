@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useDeferredValue, useCallback } from 'react';
 import axios, { isAxiosError } from 'axios';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
+import { withUploadedKey, withoutField } from '@/lib/r2UploadPayload';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, useLocation } from 'react-router-dom';
@@ -389,7 +390,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
 
   const settingsMutation = useMutation({
     mutationFn: async (updatedSettings: SettingsData) => {
-      let notice_key = updatedSettings.notice_key;
+      let uploadedNoticeKey: string | undefined;
 
       if (selectedNotice) {
         const { data: urlData } = await axios.post(`${cfg.apiBase}/upload-url`, {
@@ -399,21 +400,22 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
 
         if (urlData.success) {
           await putFileToPresignedUrl(urlData.data.uploadUrl, selectedNotice, selectedNotice.type);
-          notice_key = urlData.data.key;
+          uploadedNoticeKey = urlData.data.key;
         }
       }
 
-      const payload = {
-        ...updatedSettings,
+      const basePayload = {
+        ...withoutField(updatedSettings, 'notice_key'),
         [cfg.settingsYearField]:
           (updatedSettings as Record<string, string>)[cfg.settingsYearField] ||
           normalizedSettingsYear,
-        notice_key,
         reg_open:
           typeof updatedSettings.reg_open === 'boolean'
             ? updatedSettings.reg_open.toString()
             : updatedSettings.reg_open,
       };
+
+      const payload = withUploadedKey(basePayload, 'notice_key', uploadedNoticeKey);
 
       const res = await axios.post(cfg.apiBase, payload);
       return res.data;

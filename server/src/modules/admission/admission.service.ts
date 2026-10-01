@@ -1,12 +1,12 @@
 import path from 'path';
 import { prisma } from '@/config/prisma.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
-import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import { redis } from '@/config/redis.js';
 import { env } from '@/config/env.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { tenantR2Key, assertTenantR2Key, deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
 import type { AdmissionNoticeUploadData, AdmissionSettingsData } from '@school/shared-schemas';
 
 const defaultAdmission = {
@@ -102,12 +102,13 @@ export class AdmissionService {
     }
 
     if (data.notice_key) {
+      assertTenantR2Key(data.notice_key);
       const schoolId = requireSchoolId();
       const existing = await prisma.admission.findUnique({ where: { school_id: schoolId } });
       const existingKey = existing?.preview_url;
 
       if (existingKey && existingKey !== data.notice_key) {
-        await deleteFromR2(existingKey);
+        await deleteFromR2IfPresent(existingKey);
       }
 
       updateData.public_id = data.notice_key;
@@ -179,7 +180,7 @@ export class AdmissionService {
 
     const storageKey = existing.preview_url;
     if (storageKey) {
-      await deleteFromR2(storageKey);
+      await deleteFromR2IfPresent(storageKey);
     }
 
     const updated = await prisma.admission.update({

@@ -1,8 +1,8 @@
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2 } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import { MarksheetService } from '@/modules/marks/marksheet.service.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { assertTenantR2Key, deleteFromR2IfPresent, tenantR2Key } from '@/utils/r2Key.util.js';
 import logger from '@/utils/logger.js';
 import {
   missingYearEndClasses,
@@ -230,6 +230,7 @@ export class ExamService {
   }
 
   static async uploadRoutinePdf(examId: number, key: string) {
+    assertTenantR2Key(key);
     const updateResult = await prisma.exams.updateMany({
       where: { id: examId },
       data: {
@@ -258,7 +259,7 @@ export class ExamService {
     }
 
     if (exam.public_id) {
-      await deleteFromR2(exam.public_id);
+      await deleteFromR2IfPresent(exam.public_id);
     }
 
     const updateResult = await prisma.exams.updateMany({

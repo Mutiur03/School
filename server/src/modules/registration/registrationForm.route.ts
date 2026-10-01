@@ -37,7 +37,7 @@ export function makeRegistrationFormRouter(opts: {
     AuthMiddleware.authenticate(['admin']),
     ctrl.exportRegistrationPhotos,
   );
-  router.get('/:id', ctrl.getRegistrationById);
+  router.get('/:id', AuthMiddleware.authenticateOptional(), ctrl.getRegistrationById);
   router.get('/:id/pdf', ctrl.downloadRegistrationPDF);
   router.put(
     '/:id/status',
