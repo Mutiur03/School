@@ -1,5 +1,6 @@
 services:
   nginx-proxy:
+    profiles: ['docker-proxy']
     image: nginxproxy/nginx-proxy:alpine
     container_name: nginx-proxy
     restart: always
@@ -19,6 +20,7 @@ services:
       - 'com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy'
 
   acme-companion:
+    profiles: ['docker-proxy']
     image: nginxproxy/acme-companion
     container_name: nginx-proxy-acme
     restart: always

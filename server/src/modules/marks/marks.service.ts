@@ -988,17 +988,34 @@ export class MarksService {
     id: string,
     year: string,
     exam: string,
-    user?: { role?: string; id?: number },
+    user?: { role?: string; id?: number; levels?: any[] },
   ) {
     const yearInt = parseInt(year);
+    const studentId = parseInt(id, 10);
     if (user?.role === 'student') {
       await this.assertStudentPublishedExam(exam, yearInt);
+    }
+
+    if (user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'student') {
+      const enrollment = await prisma.student_enrollments.findFirst({
+        where: { student_id: studentId, year: yearInt },
+        select: { class: true, section: true },
+      });
+      if (!enrollment) {
+        throw new Error('Student enrollment not found for specified year');
+      }
+      if (
+        !user ||
+        !this.checkAccess(user, studentId, enrollment.class, enrollment.section, yearInt)
+      ) {
+        throw new Error("You are not authorized to view this student's marks");
+      }
     }
 
     const marks = await prisma.marks.findMany({
       where: {
         enrollment: {
-          student_id: parseInt(id),
+          student_id: studentId,
           year: yearInt,
         },
         exam: {

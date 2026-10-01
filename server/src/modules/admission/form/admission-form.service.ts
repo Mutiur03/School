@@ -3,10 +3,15 @@ import archiver from 'archiver';
 import * as XLSX from 'xlsx';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { prisma } from '@/config/prisma.js';
-import { getUploadUrl, deleteFromR2, r2Client } from '@/config/r2.js';
+import { getUploadUrl, r2Client } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  assertTenantR2Key,
+  assertTenantR2KeyIfPresent,
+  deleteFromR2IfPresent,
+  tenantR2Key,
+} from '@/utils/r2Key.util.js';
 import type { AdmissionPhotoUploadData } from '@school/shared-schemas';
 import { formatQuota, generateAdmissionPDF } from './admission-form-pdf.js';
 
@@ -66,6 +71,16 @@ const checkDuplicates = async (data: Record<string, any>, excludeId: string | nu
 };
 
 export class AdmissionFormService {
+  private static async findFormInTenant(id: string) {
+    const rec = await prisma.admission_form.findFirst({
+      where: { id, school_id: requireSchoolId() },
+    });
+    if (!rec) {
+      throw new ApiError(404, 'Form not found');
+    }
+    return rec;
+  }
+
   static async getAdmissionUploadUrl(data: AdmissionPhotoUploadData) {
     const { filename, filetype, year, admissionClass, listType, name, serialNo } = data;
 
@@ -123,6 +138,7 @@ export class AdmissionFormService {
     }
 
     const photoPath = body.photo_path || null;
+    assertTenantR2KeyIfPresent(photoPath);
     const dataToCreate = { ...payload, photo_path: photoPath };
 
     let rec;
@@ -212,18 +228,11 @@ export class AdmissionFormService {
   }
 
   static async getFormById(id: string) {
-    const rec = await prisma.admission_form.findUnique({ where: { id } });
-    if (!rec) {
-      throw new ApiError(404, 'Form not found');
-    }
-    return rec;
+    return AdmissionFormService.findFormInTenant(id);
   }
 
   static async updateForm(id: string, body: Record<string, any>) {
-    const existing = await prisma.admission_form.findUnique({ where: { id } });
-    if (!existing) {
-      throw new ApiError(404, 'Form not found');
-    }
+    const existing = await AdmissionFormService.findFormInTenant(id);
 
     const payload = { ...body };
     delete payload.guardian_is_not_father;
@@ -238,8 +247,9 @@ export class AdmissionFormService {
 
     let photoPath = existing.photo_path;
     if (body.photo_path) {
+      assertTenantR2Key(body.photo_path);
       if (existing.photo_path && existing.photo_path !== body.photo_path) {
-        await deleteFromR2(existing.photo_path);
+        await deleteFromR2IfPresent(existing.photo_path);
       }
       photoPath = body.photo_path;
     }
@@ -256,23 +266,17 @@ export class AdmissionFormService {
   }
 
   static async deleteForm(id: string) {
-    const existing = await prisma.admission_form.findUnique({ where: { id } });
-    if (!existing) {
-      throw new ApiError(404, 'Form not found');
-    }
+    const existing = await AdmissionFormService.findFormInTenant(id);
 
     if (existing.photo_path) {
-      await deleteFromR2(existing.photo_path);
+      await deleteFromR2IfPresent(existing.photo_path);
     }
 
     await prisma.admission_form.delete({ where: { id } });
   }
 
   static async approveForm(id: string) {
-    const existing = await prisma.admission_form.findUnique({ where: { id } });
-    if (!existing) {
-      throw new ApiError(404, 'Form not found');
-    }
+    await AdmissionFormService.findFormInTenant(id);
 
     return prisma.admission_form.update({
       where: { id },
@@ -281,10 +285,7 @@ export class AdmissionFormService {
   }
 
   static async pendingForm(id: string) {
-    const existing = await prisma.admission_form.findUnique({ where: { id } });
-    if (!existing) {
-      throw new ApiError(404, 'Form not found');
-    }
+    await AdmissionFormService.findFormInTenant(id);
 
     return prisma.admission_form.update({
       where: { id },
@@ -481,10 +482,7 @@ export class AdmissionFormService {
   }
 
   static async downloadPDF(id: string) {
-    const admission = await prisma.admission_form.findUnique({ where: { id } });
-    if (!admission) {
-      throw new ApiError(404, 'Admission not found');
-    }
+    const admission = await AdmissionFormService.findFormInTenant(id);
 
     return generateAdmissionPDF(admission);
   }

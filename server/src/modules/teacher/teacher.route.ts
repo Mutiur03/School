@@ -5,7 +5,7 @@ import AuthMiddleware from '@/middlewares/auth.middleware.js';
 const router = express.Router();
 
 // Teacher CRUD operations
-router.get('/', TeacherController.getTeachersController);
+router.get('/', AuthMiddleware.authenticateOptional(), TeacherController.getTeachersController);
 router.post('/', AuthMiddleware.authenticate(['admin']), TeacherController.addTeacherController);
 router.put(
   '/:id',

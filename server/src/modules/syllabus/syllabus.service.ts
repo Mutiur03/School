@@ -3,6 +3,7 @@ import { redis } from '@/config/redis.js';
 import { env } from '@/config/env.js';
 import { ApiError } from '@/utils/ApiError.js';
 import {
+  assertTenantR2Key,
   deleteFromR2IfPresent,
   pdfDocFields,
   presignTenantUpload,
@@ -25,6 +26,7 @@ export class SyllabusService {
     data: { key: string; class: number; year: number },
     schoolId?: number,
   ) {
+    assertTenantR2Key(data.key);
     const syllabus = await prisma.syllabus.create({
       data: {
         class: data.class,

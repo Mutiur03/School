@@ -135,10 +135,13 @@ function AdmissionResult() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    const hasAnyFile =
-      !!formData.merit_list || !!formData.waiting_list_1 || !!formData.waiting_list_2;
 
-    if (!hasAnyFile) {
+    const hasNewUpload =
+      formData.merit_list instanceof File ||
+      formData.waiting_list_1 instanceof File ||
+      formData.waiting_list_2 instanceof File;
+
+    if (!isEditing && !hasNewUpload) {
       toast.error('Please upload at least one PDF file');
       return;
     }
@@ -147,7 +150,7 @@ function AdmissionResult() {
     const toastId = toast.loading('Preparing upload...');
 
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         class_name: formData.class_name,
         admission_year: formData.admission_year,
       };
@@ -155,23 +158,18 @@ function AdmissionResult() {
       const filesToUpload: { file: File; type: string }[] = [];
       if (formData.merit_list instanceof File)
         filesToUpload.push({ file: formData.merit_list, type: 'merit_list' });
-      else if (typeof formData.merit_list === 'string') payload.merit_list = formData.merit_list;
 
       if (formData.waiting_list_1 instanceof File)
         filesToUpload.push({
           file: formData.waiting_list_1,
           type: 'waiting_list_1',
         });
-      else if (typeof formData.waiting_list_1 === 'string')
-        payload.waiting_list_1 = formData.waiting_list_1;
 
       if (formData.waiting_list_2 instanceof File)
         filesToUpload.push({
           file: formData.waiting_list_2,
           type: 'waiting_list_2',
         });
-      else if (typeof formData.waiting_list_2 === 'string')
-        payload.waiting_list_2 = formData.waiting_list_2;
 
       if (filesToUpload.length > 0) {
         toast.loading(`Initializing upload for ${filesToUpload.length} files...`, {

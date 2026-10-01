@@ -1,4 +1,5 @@
 import { getUploadUrl } from '@/config/r2.js';
+import { tenantR2Key } from '@/utils/r2Key.util.js';
 import {
   addStudentsRequestSchema,
   updateStudentSchema,
@@ -191,6 +192,8 @@ export class StudentController {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     res.setHeader('Content-Disposition', 'attachment; filename=students_credentials.xlsx');
+    res.setHeader('X-Students-Created', String(result.createdCount));
+    res.setHeader('X-Students-Requested', String(result.requestedCount));
 
     res.status(201).send(result.excelBuffer);
   });
@@ -304,7 +307,7 @@ export class StudentController {
 
       await StudentService.getStudentById(parsedId.data);
 
-      const r2Key = `students/${key}`;
+      const r2Key = tenantR2Key(`students/${key}`);
       const uploadUrl = await getUploadUrl(r2Key, contentType);
       res.json(
         new ApiResponse(200, { uploadUrl, key: r2Key }, 'Upload URL generated successfully'),

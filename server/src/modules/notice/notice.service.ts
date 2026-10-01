@@ -2,6 +2,7 @@ import { prisma } from '@/config/prisma.js';
 import { redis } from '@/config/redis.js';
 import { ApiError } from '@/utils/ApiError.js';
 import {
+  assertTenantR2Key,
   deleteFromR2IfPresent,
   fileDocFields,
   presignTenantUpload,
@@ -38,6 +39,7 @@ export class NoticeService {
     },
     schoolId?: number,
   ) {
+    assertTenantR2Key(data.key);
     const notice = await prisma.notices.create({
       data: {
         title: data.title,

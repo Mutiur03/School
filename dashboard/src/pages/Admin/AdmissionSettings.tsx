@@ -12,6 +12,7 @@ import {
   type AdmissionSettingsFormInput,
 } from '@school/shared-schemas';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
+import { withUploadedKey, withoutField } from '@/lib/r2UploadPayload';
 import { getFileUrl } from '@/lib/backend';
 import { PageHeader, SectionCard } from '@/components';
 import { Button } from '@/components/ui/button';
@@ -141,7 +142,7 @@ function AdmissionSettings() {
     setFormMessage('');
 
     try {
-      let nextNoticeKey = values.notice_key ?? currentNotice?.notice_key ?? null;
+      let uploadedNoticeKey: string | undefined;
 
       if (noticeFile) {
         const uploadPayload = admissionNoticeUploadSchema.parse({
@@ -156,19 +157,22 @@ function AdmissionSettings() {
         }
 
         await putFileToPresignedUrl(urlData.data.uploadUrl, noticeFile, noticeFile.type);
-        nextNoticeKey = urlData.data.key;
+        uploadedNoticeKey = urlData.data.key;
       }
 
-      const res = await axios.put('/api/admission', {
-        ...values,
-        notice_key: nextNoticeKey,
-      });
+      const settingsPayload = withoutField(values, 'notice_key');
+      const res = await axios.put(
+        '/api/admission',
+        withUploadedKey(settingsPayload, 'notice_key', uploadedNoticeKey),
+      );
 
       if (res?.data?.success) {
         toast.success(isEdit ? 'Settings updated' : 'Settings created');
         setFormMessage('Settings saved successfully');
         setNoticeFile(null);
-        setValue('notice_key', nextNoticeKey);
+        if (uploadedNoticeKey) {
+          setValue('notice_key', uploadedNoticeKey);
+        }
       } else {
         toast.error('Failed to save settings');
         setFormMessage('Error: Failed to save settings');

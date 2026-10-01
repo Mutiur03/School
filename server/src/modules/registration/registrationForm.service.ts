@@ -1,11 +1,5 @@
 import { prisma } from '@/config/prisma.js';
-import {
-  getUploadUrl,
-  deleteFromR2,
-  uploadToR2,
-  getFileBuffer,
-  resolveR2FileBuffer,
-} from '@/config/r2.js';
+import { getUploadUrl, uploadToR2, getFileBuffer, resolveR2FileBuffer } from '@/config/r2.js';
 import path from 'path';
 import * as XLSX from 'xlsx';
 import archiver from 'archiver';
@@ -15,7 +9,7 @@ import QRCode from 'qrcode';
 import { removeInitialZeros } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import { assertTenantR2Key, deleteFromR2IfPresent, tenantR2Key } from '@/utils/r2Key.util.js';
 import { schoolPublicOrigin, schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
 import {
   assertRegistrationOpen,
@@ -260,6 +254,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     if (!data.photo) {
       throw new ApiError(400, 'Student photo is required');
     }
+    assertTenantR2Key(data.photo);
 
     const duplicates = await checkDuplicates(data, null, schoolId);
     if (duplicates.length > 0) {
@@ -402,8 +397,11 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     if (!data.photo) {
       data.photo = existingPhoto;
     }
+    if (data.photo) {
+      assertTenantR2Key(data.photo);
+    }
     if (data.photo && existingPhoto && data.photo !== existingPhoto) {
-      await deleteFromR2(existingPhoto);
+      await deleteFromR2IfPresent(existingPhoto);
     }
 
     if (data.birth_day && data.birth_month && data.birth_year) {
@@ -413,7 +411,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
     const dbData = applyIncoming(data);
 
     if (cfg.deletePdfOnUpdate && existing.pdf_path) {
-      await deleteFromR2(existing.pdf_path);
+      await deleteFromR2IfPresent(existing.pdf_path);
     }
 
     const updated = await students().update({
@@ -447,10 +445,10 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
   async function deleteRegistration(id: string) {
     const existing = await findOwnedRegistration(id);
     if (existing[cfg.photoField]) {
-      await deleteFromR2(existing[cfg.photoField]);
+      await deleteFromR2IfPresent(existing[cfg.photoField]);
     }
     if (existing.pdf_path) {
-      await deleteFromR2(existing.pdf_path);
+      await deleteFromR2IfPresent(existing.pdf_path);
     }
     await students().delete({ where: { id } });
     return true;

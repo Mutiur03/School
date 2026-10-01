@@ -4,6 +4,7 @@ import { getRlsContext } from '@/config/rlsContextStore.js';
 import { env } from '@/config/env.js';
 import { ApiError } from '@/utils/ApiError.js';
 import {
+  assertTenantR2Key,
   deleteFromR2IfPresent,
   pdfDocFields,
   presignTenantUpload,
@@ -25,6 +26,7 @@ export class ClassRoutineService {
   }
 
   static async createPdf(key: string) {
+    assertTenantR2Key(key);
     const pdf = await prisma.class_routine_pdf.create({
       data: pdfDocFields(key),
     });

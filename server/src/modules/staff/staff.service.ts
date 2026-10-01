@@ -1,8 +1,13 @@
 import type { Prisma } from '@/generated/prisma/client.js';
 import { prisma } from '@/config/prisma.js';
-import { deleteFromR2, getUploadUrl } from '@/config/r2.js';
+import { getUploadUrl } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
-import { tenantR2Key } from '@/utils/r2Key.util.js';
+import {
+  assertTenantR2KeyIfPresent,
+  deleteFromR2IfPresent,
+  tenantR2Key,
+} from '@/utils/r2Key.util.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import type { StaffFormData } from '@school/shared-schemas';
 
 export class StaffService {
@@ -15,8 +20,9 @@ export class StaffService {
         : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
     const search = params.search?.trim();
+    const schoolId = requireSchoolId();
 
-    const where: Prisma.staffsWhereInput = {};
+    const where: Prisma.staffsWhereInput = { school_id: schoolId };
 
     if (search) {
       where.OR = [
@@ -52,7 +58,8 @@ export class StaffService {
   }
 
   static getStaffs() {
-    return prisma.staffs.findMany({ orderBy: { id: 'asc' } });
+    const schoolId = requireSchoolId();
+    return prisma.staffs.findMany({ where: { school_id: schoolId }, orderBy: { id: 'asc' } });
   }
 
   static async addStaff(staff: StaffFormData[]) {
@@ -117,7 +124,7 @@ export class StaffService {
     const existing = await StaffService.requireStaff(id);
 
     if (existing.image) {
-      await deleteFromR2(existing.image);
+      await deleteFromR2IfPresent(existing.image);
     }
 
     return prisma.staffs.delete({ where: { id } });
@@ -133,8 +140,9 @@ export class StaffService {
   static async saveStaffImage(id: number, key: string | null) {
     const existing = await StaffService.requireStaff(id);
 
+    assertTenantR2KeyIfPresent(key);
     if (existing.image && existing.image !== key) {
-      await deleteFromR2(existing.image);
+      await deleteFromR2IfPresent(existing.image);
     }
 
     return prisma.staffs.update({

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Search, UserMinus, RotateCw, User, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import * as XLSX from 'xlsx';
+import { readAdminXlsxWorkbook } from '@/utils/safeXlsxRead';
 import Loading from '@/components/Loading';
 import {
   PageHeader,
@@ -34,6 +35,7 @@ import { Input } from '@/components/ui/input';
 import ErrorMessage from '@/components/ErrorMessage';
 import { getFileUrl } from '@/lib/backend';
 import { downloadBlob, openBlobInNewTab } from '@school/common-ui/blob';
+import { notifyBulkStudentUpload, readBulkStudentCounts } from '@/lib/bulkStudentUploadFeedback';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Student } from '@/types/students';
 import type { Subject } from '@/types/subjects';
@@ -878,20 +880,28 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
           { responseType: 'blob' },
         );
 
-        if (image) await uploadImageToR2(image, response.data.data?.[0]?.id);
-        return response.data;
+        const { created, requested } = readBulkStudentCounts(response.headers);
+        return { blob: response.data as Blob, created, requested };
       }
     },
     onSuccess: (data) => {
-      if (!isEditing) {
-        downloadBlob(new Blob([data]), 'students_credentials.xlsx');
+      if (isEditing) {
+        handleCancel();
+        toast.success('Student updated successfully.');
+        invalidateStudents();
+        return;
       }
+
+      const result = data as {
+        blob: Blob;
+        created: number;
+        requested: number;
+      };
+      if (result.created > 0) {
+        downloadBlob(result.blob, 'students_credentials.xlsx');
+      }
+      notifyBulkStudentUpload(result.created, result.requested);
       handleCancel();
-      toast.success(
-        isEditing
-          ? 'Student updated successfully.'
-          : 'Student added successfully. Credentials downloaded.',
-      );
       invalidateStudents();
     },
     onError: async (err: any) => {
@@ -921,110 +931,116 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     reader.readAsArrayBuffer(file);
     reader.onload = (e) => {
       const arrayBuffer = e.target?.result;
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
+      if (!(arrayBuffer instanceof ArrayBuffer)) return;
+      try {
+        const { sheet } = readAdminXlsxWorkbook(arrayBuffer);
 
-      const rawData = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        raw: false,
-      }) as unknown[][];
+        const rawData = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          raw: false,
+        }) as unknown[][];
 
-      const headers = rawData[0]?.map((header) => String(header).toLowerCase().trim());
+        const headers = rawData[0]?.map((header) => String(header).toLowerCase().trim());
 
-      const missingHeaders = excelRequiredHeaders.filter((field) => !headers.includes(field));
-      if (missingHeaders.length > 0) {
-        toast.error(`Missing required columns: ${missingHeaders.join(', ')}`);
-        setFileUploaded(false);
-        setexcelfile(null);
-        setJsonData(null);
-        return;
-      }
+        const missingHeaders = excelRequiredHeaders.filter((field) => !headers.includes(field));
+        if (missingHeaders.length > 0) {
+          toast.error(`Missing required columns: ${missingHeaders.join(', ')}`);
+          setFileUploaded(false);
+          setexcelfile(null);
+          setJsonData(null);
+          return;
+        }
 
-      const formattedData = rawData
-        .slice(1)
-        .filter((row: unknown[]) => {
-          const nameIndex = headers.indexOf('name');
-          return row[nameIndex] !== undefined && String(row[nameIndex]).trim() !== '';
-        })
-        .map((row: unknown[]) => {
-          const student: Record<string, unknown> = {};
-          headers.forEach((header: string, index: number) => {
-            student[header] = row[index];
+        const formattedData = rawData
+          .slice(1)
+          .filter((row: unknown[]) => {
+            const nameIndex = headers.indexOf('name');
+            return row[nameIndex] !== undefined && String(row[nameIndex]).trim() !== '';
+          })
+          .map((row: unknown[]) => {
+            const student: Record<string, unknown> = {};
+            headers.forEach((header: string, index: number) => {
+              student[header] = row[index];
+            });
+
+            return {
+              name: toExcelString(student.name),
+              father_name: toExcelString(student.father_name),
+              mother_name: toExcelString(student.mother_name),
+              father_phone: toExcelString(student.father_phone),
+              mother_phone: toExcelString(student.mother_phone) || null,
+              village: toExcelString(student.village),
+              post_office: toExcelString(student.post_office),
+              upazila: toExcelString(student.upazila),
+              district: toExcelString(student.district),
+              dob: normalizeExcelDate(student.dob),
+              class: toExcelString(student.class),
+              roll: toExcelString(student.roll),
+              section: toExcelString(student.section).toUpperCase(),
+              religion: toExcelString(student.religion),
+              group: toExcelString(student.group),
+              has_stipend: toExcelString(student.has_stipend).toLowerCase() === 'yes',
+              available: true,
+            };
           });
 
-          return {
-            name: toExcelString(student.name),
-            father_name: toExcelString(student.father_name),
-            mother_name: toExcelString(student.mother_name),
-            father_phone: toExcelString(student.father_phone),
-            mother_phone: toExcelString(student.mother_phone) || null,
-            village: toExcelString(student.village),
-            post_office: toExcelString(student.post_office),
-            upazila: toExcelString(student.upazila),
-            district: toExcelString(student.district),
-            dob: normalizeExcelDate(student.dob),
-            class: toExcelString(student.class),
-            roll: toExcelString(student.roll),
-            section: toExcelString(student.section).toUpperCase(),
-            religion: toExcelString(student.religion),
-            group: toExcelString(student.group),
-            has_stipend: toExcelString(student.has_stipend).toLowerCase() === 'yes',
-            available: true,
-          };
+        const validationErrors: string[] = [];
+        formattedData.forEach((row, index) => {
+          const parsed = studentFormSchema.safeParse(row);
+
+          if (!parsed.success) {
+            const issueText = parsed.error.issues
+              .map(
+                (issue: { path: PropertyKey[]; message: string }) =>
+                  `${issue.path.join('.') || 'row'}: ${issue.message}`,
+              )
+              .join(' | ');
+            console.error('[Excel Row Validation Failed]', {
+              rowNumber: index + 2,
+              input: row,
+              issues: parsed.error.issues,
+            });
+            validationErrors.push(`Row ${index + 2}: ${issueText || 'Invalid data'}`);
+          }
+
+          const classNum = Number((row.class as string) || 0);
+          if ((classNum === 9 || classNum === 10) && !(row.group as string)?.trim()) {
+            console.error('[Excel Row Validation Failed]', {
+              rowNumber: index + 2,
+              input: row,
+              issues: [{ path: ['group'], message: 'Group is required for class 9-10' }],
+            });
+            validationErrors.push(`Row ${index + 2}: Group is required for class 9-10`);
+          }
         });
 
-      const validationErrors: string[] = [];
-      formattedData.forEach((row, index) => {
-        const parsed = studentFormSchema.safeParse(row);
-
-        if (!parsed.success) {
-          const issueText = parsed.error.issues
-            .map(
-              (issue: { path: PropertyKey[]; message: string }) =>
-                `${issue.path.join('.') || 'row'}: ${issue.message}`,
-            )
-            .join(' | ');
-          console.error('[Excel Row Validation Failed]', {
-            rowNumber: index + 2,
-            input: row,
-            issues: parsed.error.issues,
-          });
-          validationErrors.push(`Row ${index + 2}: ${issueText || 'Invalid data'}`);
+        if (validationErrors.length > 0) {
+          toast.error(validationErrors[0]);
+          setJsonData(null);
+          setFileUploaded(false);
+          setexcelfile(null);
+          return;
         }
 
-        const classNum = Number((row.class as string) || 0);
-        if ((classNum === 9 || classNum === 10) && !(row.group as string)?.trim()) {
-          console.error('[Excel Row Validation Failed]', {
-            rowNumber: index + 2,
-            input: row,
-            issues: [{ path: ['group'], message: 'Group is required for class 9-10' }],
-          });
-          validationErrors.push(`Row ${index + 2}: Group is required for class 9-10`);
+        setJsonData(formattedData);
+
+        if (formattedData.length > 500) {
+          toast.error(
+            `Maximum 500 students allowed per upload. Your file has ${formattedData.length}.`,
+          );
+          setJsonData(null);
+          setFileUploaded(false);
+          setexcelfile(null);
+          return;
         }
-      });
 
-      if (validationErrors.length > 0) {
-        toast.error(validationErrors[0]);
-        setJsonData(null);
+        toast.success(`Loaded ${formattedData.length} students successfully.`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to read spreadsheet');
         setFileUploaded(false);
         setexcelfile(null);
-        return;
-      }
-
-      setJsonData(formattedData);
-
-      if (formattedData.length > 500) {
-        toast.error(
-          `Maximum 500 students allowed per upload. Your file has ${formattedData.length}.`,
-        );
         setJsonData(null);
-        setFileUploaded(false);
-        setexcelfile(null);
-        return;
       }
-
-      toast.success(`Loaded ${formattedData.length} students successfully.`);
     };
     reader.onerror = () => {
       toast.error('Error reading the file. Please try again.');
@@ -1087,12 +1103,14 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
         { students: data },
         { responseType: 'blob' },
       );
-      return response.data;
+      const counts = readBulkStudentCounts(response.headers);
+      return { blob: response.data as Blob, ...counts };
     },
-    onSuccess: (data) => {
-      downloadBlob(new Blob([data]), 'students_credentials.xlsx');
-
-      toast.success('Students uploaded successfully. Credentials downloaded.');
+    onSuccess: ({ blob, created, requested }) => {
+      if (created > 0) {
+        downloadBlob(blob, 'students_credentials.xlsx');
+      }
+      notifyBulkStudentUpload(created, requested);
       setJsonData(null);
       setFileUploaded(false);
       setexcelfile(null);

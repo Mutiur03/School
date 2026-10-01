@@ -98,10 +98,12 @@ export function PeopleListPage({
                         <span className="font-medium text-gray-600">Phone:</span>{' '}
                         {person.phone || '—'}
                       </div>
-                      <div>
-                        <span className="font-medium text-gray-600">Address:</span>{' '}
-                        {person.address || '—'}
-                      </div>
+                      {person.address ? (
+                        <div>
+                          <span className="font-medium text-gray-600">Address:</span>{' '}
+                          {person.address}
+                        </div>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -163,14 +165,14 @@ export function PeopleListPage({
                         <p className="text-sm text-gray-900">{person.phone || '—'}</p>
                       </div>
 
-                      <div className="sm:col-span-2">
-                        <span className="mb-1 block text-xs font-medium tracking-wider text-gray-500">
-                          Address
-                        </span>
-                        <p className="wrap-break-word text-sm text-gray-900">
-                          {person.address || '—'}
-                        </p>
-                      </div>
+                      {person.address ? (
+                        <div className="sm:col-span-2">
+                          <span className="mb-1 block text-xs font-medium tracking-wider text-gray-500">
+                            Address
+                          </span>
+                          <p className="wrap-break-word text-sm text-gray-900">{person.address}</p>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

@@ -4,7 +4,7 @@ import AuthMiddleware from '@/middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.get('/', StaffController.getStaffsController);
+router.get('/', AuthMiddleware.authenticateOptional(), StaffController.getStaffsController);
 router.post('/', AuthMiddleware.authenticate(['admin']), StaffController.addStaffController);
 router.get(
   '/presigned-url',
