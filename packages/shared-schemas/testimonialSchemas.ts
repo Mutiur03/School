@@ -47,6 +47,11 @@ export const testimonialSchema = z
     registration_no: z.string().trim().optional(),
     gpa: z.string().trim().optional(),
   })
+  // The exam picked decides the kind; never trust a stale/mismatched `kind` from the client.
+  .transform((d) => ({
+    ...d,
+    kind: (d.exam === 'SSC' || d.exam === 'JSC' ? 'board' : 'class') as TestimonialKind,
+  }))
   .superRefine((d, ctx) => {
     const issue = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
     if (!testimonialExamOptions(d.kind, d.passing_year).includes(d.exam)) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
@@ -34,6 +34,14 @@ const EXAM_LABEL: Record<string, string> = {
 const INPUT =
   'w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500';
 
+/** Keeps GPA typing valid: one digit 0-5, optional dot, up to 2 decimals (e.g. 4.75). */
+function filterGpa(value: string) {
+  const [whole = '', ...rest] = value.replace(/[^\d.]/g, '').split('.');
+  const digit = /^[0-5]/.test(whole) ? whole[0] : '';
+  if (!digit) return '';
+  return rest.length ? `${digit}.${rest.join('').slice(0, 2)}` : digit;
+}
+
 async function errMsg(error: unknown) {
   // Error body comes back as a Blob because of responseType: 'blob'.
   if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
@@ -47,6 +55,7 @@ async function errMsg(error: unknown) {
 }
 
 export default function TestimonialClient({ askGender }: { askGender: boolean }) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -86,15 +95,14 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
   }, [kind, setValue]);
 
   async function onSubmit(body: TestimonialData) {
-    // Open the tab synchronously (inside the click) so popup blockers allow it.
-    const tab = window.open('', '_blank');
+    setPdfUrl(null);
     try {
       const res = await axios.post('/api/testimonial/pdf', body, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      if (tab) tab.location.href = url;
-      else window.location.href = url;
+      // Opened only once the server has sent the PDF. If the browser blocks the popup
+      // (the click's permission can expire while generating), offer a link instead.
+      if (!window.open(url, '_blank')) setPdfUrl(url);
     } catch (error) {
-      tab?.close();
       toast.error(await errMsg(error));
     }
   }
@@ -120,6 +128,12 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
         spellCheck={false}
         {...extra}
         {...register(name, { setValueAs: (v) => filter(String(v ?? '')) })}
+        onInput={(e) => {
+          // setValueAs only shapes the submitted value; rewrite the field itself while typing.
+          const input = e.currentTarget;
+          const next = filter(input.value);
+          if (next !== input.value) input.value = next;
+        }}
       />
       {err(name)}
     </div>
@@ -198,13 +212,18 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
 
         {kind === 'board' && (
           <div className="grid gap-5 sm:grid-cols-2">
-            {text('roll', 'Roll number', filterNumericInput, {
+            {text('roll', 'Roll number', (v) => filterNumericInput(v).slice(0, 6), {
               inputMode: 'numeric',
             })}
-            {text('registration_no', 'Registration number', filterNumericInput, {
-              inputMode: 'numeric',
-            })}
-            {text('gpa', 'GPA', (v) => v.replace(/[^\d.]/g, '').slice(0, 4), {
+            {text(
+              'registration_no',
+              'Registration number',
+              (v) => filterNumericInput(v).slice(0, 10),
+              {
+                inputMode: 'numeric',
+              },
+            )}
+            {text('gpa', 'GPA', filterGpa, {
               inputMode: 'decimal',
             })}
           </div>
@@ -218,6 +237,24 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {isSubmitting ? 'Generating PDF…' : 'Open Testimonial PDF'}
         </button>
+        {isSubmitting && (
+          <p role="status" className="text-center text-sm text-gray-600">
+            Generating your testimonial, please wait…
+          </p>
+        )}
+        {pdfUrl && !isSubmitting && (
+          <p className="text-center text-sm">
+            Your testimonial is ready.{' '}
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-blue-600 underline"
+            >
+              Open PDF
+            </a>
+          </p>
+        )}
       </form>
     </div>
   );

@@ -3,6 +3,7 @@ import fs from 'fs';
 import puppeteer from 'puppeteer';
 import { parseDateOfBirth, type TestimonialData } from '@school/shared-schemas';
 import { prisma } from '@/config/prisma.js';
+import { resolveR2FileBuffer } from '@/config/r2.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
@@ -54,12 +55,26 @@ async function loadSchool() {
       district: true,
       customDomain: true,
       ownership: true,
+      logo: true,
       board: true,
       gender: true,
     },
   });
   if (!school) throw new ApiError(404, 'School not found');
 
+  let logo = '';
+  if (school.logo) {
+    try {
+      const buf = await resolveR2FileBuffer(school.logo, schoolId);
+      if (buf?.length) {
+        const ext = path.extname(school.logo).toLowerCase();
+        const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        logo = `data:${mime};base64,${buf.toString('base64')}`;
+      }
+    } catch (err) {
+      console.warn('Failed to load school logo for testimonial PDF:', err);
+    }
+  }
   const host = schoolWebsiteHost(school.customDomain);
   return {
     ...school,
@@ -68,6 +83,7 @@ async function loadSchool() {
       .map((s) => s?.trim())
       .filter(Boolean)
       .join(', '),
+    logo,
     isGov: school.ownership === 'Government',
   };
 }
@@ -96,11 +112,11 @@ function buildHtml(d: TestimonialData, s: School) {
     const examBn = EXAM_BN[d.exam];
     const bodyBn = isBoard
       ? `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))} এ বিদ্যালয় হতে ${bBn((BOARD_BN[s.board!] ?? esc(s.board)) + 'ের')} অধীনে ${bBn(bnNum(year))} সালে ${examBn} পরীক্ষায় অংশগ্রহণ করে জিপিএ ${bBn(bnNum(gpa))} প্রাপ্ত হয়ে উত্তীর্ণ হয়েছে। তার ${examBn} পরীক্ষার রোল নম্বর ${bBn(bnNum(d.roll!))} এবং রেজিস্ট্রেশন নম্বর ${bBn(bnNum(d.registration_no!))}। বিদ্যালয়ের তথ্য অনুযায়ী তার জন্ম তারিখ ${bBn(bnNum(dob))}।`
-      : `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))} এ বিদ্যালয় হতে ${bBn(bnNum(year))} সালে বার্ষিক পরীক্ষায় অংশগ্রহণ করে ${bBn(CLASS_BN[d.exam] + ' শ্রেণিতে')} উত্তীর্ণ হয়েছে। ভর্তির তথ্য অনুযায়ী তার জন্ম তারিখ ${bBn(bnNum(dob))}।`;
+      : `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))} এ বিদ্যালয় হতে ${bBn(bnNum(year))} সালে বার্ষিক পরীক্ষায় অংশগ্রহণ করে ${bBn(CLASS_BN[d.exam] + ' শ্রেণিতে')} উত্তীর্ণ হয়েছে। বিদ্যালয়ের তথ্য অনুযায়ী তার জন্ম তারিখ ${bBn(bnNum(dob))}।`;
     const intro = `This is to certify that ${b(d.student_name_en)}, ${male ? 'son' : 'daughter'} of ${b(d.father_name_en)} and ${b(d.mother_name_en)}`;
     const bodyEn = isBoard
       ? `${intro}, bearing Roll Number ${b(d.roll)} and Registration Number ${b(d.registration_no)} from this school under ${b(s.board)}, duly passed the ${b(d.exam)} examination ${b(year)} securing GPA ${b(gpa)} in the scale of 5.00. According to the school information, ${his} date of birth is ${b(dob)}.`
-      : `${intro}, appeared at the annual examination of Class ${b(CLASS_EN[d.exam])} from this school in ${b(year)} and duly passed. According to the admission information, ${his} date of birth is ${b(dob)}.`;
+      : `${intro}, a student of this school, has successfully passed Class ${b(CLASS_EN[d.exam])} in the annual examination of ${b(year)}. According to the school information, ${his} date of birth is ${b(dob)}.`;
     const tx = (en: string, bnText: string) => (bn ? bnText : en);
     const rows = bn
       ? [
@@ -131,7 +147,11 @@ function buildHtml(d: TestimonialData, s: School) {
     <div class="page ${bn ? 'bn' : 'en'}">
       <div class="cert">
         <div class="hd">
-          ${s.isGov ? `<div class="l1">${tx("Government of the People's Republic of Bangladesh", 'গণপ্রজাতন্ত্রী বাংলাদেশ সরকার')}</div>` : ''}
+          ${s.logo ? `<img class="logo" src="${s.logo}" alt="" />` : ''}
+          ${
+            '' /* Slogan box disabled — re-enable: <div class="slogan">“জুলাই চেতনায় গড়বো দেশ,<br />সবার আগে বাংলাদেশ”</div> */
+          }
+          ${s.isGov ? `<div class="l1">${tx("Government of the People's Republic of Bangladesh", 'গণপ্রজাতন্ত্রী বাংলাদেশ সরকার')}</div>` : '<div class="l1" style="visibility: hidden">&nbsp;</div>'}
           <div class="l2">${tx('The office of the Headmaster', 'প্রধান শিক্ষকের কার্যালয়')}</div>
           <div class="school">${schoolName}</div>
           ${s.place ? `<div class="l3">${esc(s.place)}</div>` : ''}
@@ -173,16 +193,19 @@ function buildHtml(d: TestimonialData, s: School) {
     .page:last-child { page-break-after: auto; }
     .en, .bn .en { font-family: 'TNR', 'Times New Roman', serif; }
     .bn { font-family: 'SolaimanLipi', 'Noto Sans Bengali', sans-serif; }
-    .cert { position: relative; height: 504pt; border-bottom: 1px dashed #666; margin: 0 15pt; padding: 35pt 25pt 0; }
-    .hd { text-align: center; margin: 0 -25pt; line-height: 1.25; }
+    .cert { position: relative; height: 575pt; border-bottom: 1px dashed #666; margin: 0 15pt; padding: 35pt 55pt 0; }
+    .slogan { position: absolute; right: 22pt; top: 2pt; border: 1px solid #000; padding: 1pt 6pt; font-family: 'SolaimanLipi', 'Noto Sans Bengali', sans-serif; font-size: 11.5pt; line-height: 1.25; white-space: nowrap; }
+    .logo { position: absolute; left: 75pt; top: 0; width: 50pt; height: 50pt; object-fit: contain; }
+    .hd { position: relative; text-align: center; margin: 0 -55pt; line-height: 1.25; }
     .l1 { font-size: 12pt; margin-bottom: 4pt; }
     .l2 { font-size: 14pt; margin-bottom: 4pt; }
     .school { font-size: 24pt; font-weight: bold; margin-bottom: 4pt; white-space: nowrap; }
     .l3 { font-size: 14pt; margin-bottom: 3pt; }
     .l4 { font-size: 13pt; margin-bottom: 3pt; }
-    .rule { margin: 9pt -55pt 0; height: 5pt; border-top: 2px solid #000; border-bottom: 1px solid #000; }
+    .rule { margin: 9pt -70pt 0; height: 5pt; border-top: 2px solid #000; border-bottom: 1px solid #000; }
     .dt { display: inline-block; min-width: 110pt; }
-    .memo { display: flex; justify-content: space-between; margin-top: 9pt; font-size: 10pt; }
+    .memo, .rmrow { display: grid; grid-template-columns: 72% 1fr; }
+    .memo { margin-top: 9pt; font-size: 10pt; }
     h1 { text-align: center; font-size: 22pt; margin: 14pt 0 12pt; }
     .cert p { font-size: 12pt; line-height: 1.6; text-align: justify; margin-bottom: 6pt; }
     .bn .cert p { font-size: 14pt; line-height: 1.45; margin-bottom: 4pt; }
@@ -191,14 +214,13 @@ function buildHtml(d: TestimonialData, s: School) {
     .bn .rs { font-size: 17pt; } .bn .rl { font-size: 13pt; }
     .bn .rt { font-size: 14pt; } .bn .rm { font-size: 11pt; } .bn .rr, .bn .rg { font-size: 12pt; }
     .cert p.nj { text-align: left; }
-    .rc { padding: 25pt 40pt 0; }
+    .rc { padding: 14pt 70pt 0; }
     .rs { text-align: center; font-size: 14pt; font-weight: bold; }
     .rl { text-align: center; font-size: 11pt; margin-top: 3pt; }
-    .rt { text-align: center; font-size: 12pt; font-weight: bold; margin: 18pt 0 12pt; }
-    .rmrow { display: flex; justify-content: space-between; }
-    .rm { font-size: 9pt; font-weight: bold; margin-bottom: 8pt; }
-    .rr { font-size: 10pt; margin-bottom: 7pt; }
-    .rg { font-size: 10pt; text-align: right; margin-bottom: 8pt; }
+    .rt { text-align: center; font-size: 12pt; font-weight: bold; margin: 8pt 0 6pt; }
+    .rm { font-size: 9pt; font-weight: bold; margin-bottom: 4pt; }
+    .rr { font-size: 10pt; margin-bottom: 4pt; }
+    .rg { font-size: 10pt; text-align: right; margin-bottom: 4pt; }
   </style></head><body>${section(true)}${section(false)}</body></html>`;
 }
 
