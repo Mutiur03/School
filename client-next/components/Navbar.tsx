@@ -276,6 +276,13 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       ],
     },
     {
+      id: 'menu-item-testimonial',
+      className:
+        'nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-testimonial nav-item',
+      href: '/testimonial',
+      text: 'Testimonial',
+    },
+    {
       id: 'menu-item-3541',
       className:
         'nav_navyblue menu-item menu-item-type-post_type menu-item-object-page menu-item-3541 nav-item',

@@ -48,6 +48,7 @@ import staffRouter from './modules/staff/staff.route.js';
 import admissionRouter from './modules/admission/admission.route.js';
 import admissionFormRouter from './modules/admission/form/admission-form.route.js';
 import admissionResultRouter from './modules/admission/result/admission-result.route.js';
+import testimonialRouter from './modules/testimonial/testimonial.route.js';
 import smsRouter from './modules/sms-logs/sms-logs.route.js';
 import registrationFormClass6Router from './modules/registration/class-6/Form/registrationFormClass6.route.js';
 import registrationFormClass8Router from './modules/registration/class-8/Form/registrationFormClass8.route.js';
@@ -245,6 +246,7 @@ app.use(registrationFormJuniorScholarshipRouter);
 app.use(admissionRouter);
 app.use(admissionFormRouter);
 app.use(admissionResultRouter);
+app.use(testimonialRouter);
 
 app.use(smsRouter);
 app.use('*', (_req, res) => {
