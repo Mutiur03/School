@@ -21,7 +21,12 @@ export function testimonialExamOptions(kind: TestimonialKind, year: number): str
 }
 
 const banglaName = (label: string) =>
-  z.string().trim().min(1, `${label} is required`).max(150).regex(BANGLA_ONLY, `${label} must be in Bangla`);
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(150)
+    .regex(BANGLA_ONLY, `${label} must be in Bangla`);
 const englishName = (label: string) =>
   z.string().trim().min(1, `${label} is required`).regex(NAME, `${label} must be in English`);
 
@@ -53,7 +58,8 @@ export const testimonialSchema = z
     kind: (d.exam === 'SSC' || d.exam === 'JSC' ? 'board' : 'class') as TestimonialKind,
   }))
   .superRefine((d, ctx) => {
-    const issue = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
+    const issue = (path: string, message: string) =>
+      ctx.addIssue({ code: 'custom', path: [path], message });
     if (!testimonialExamOptions(d.kind, d.passing_year).includes(d.exam)) {
       issue('exam', `Not available for passing year ${d.passing_year}`);
     }
@@ -63,7 +69,8 @@ export const testimonialSchema = z
       issue('registration_no', 'Registration number must be 10 digits');
     }
     const gpa = Number(d.gpa);
-    if (!d.gpa || !/^\d(\.\d{1,2})?$/.test(d.gpa) || gpa < 1 || gpa > 5) issue('gpa', 'GPA must be 1.00 – 5.00');
+    if (!d.gpa || !/^\d(\.\d{1,2})?$/.test(d.gpa) || gpa < 1 || gpa > 5)
+      issue('gpa', 'GPA must be 1.00 – 5.00');
   });
 
 export type TestimonialInput = z.input<typeof testimonialSchema>;
