@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useDeferredValue, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue, useRef } from 'react';
 import axios, { isAxiosError } from 'axios';
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import { withUploadedKey, withoutField } from '@/lib/r2UploadPayload';
@@ -6,42 +6,52 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import {
-  Plus,
-  Search,
-  Download,
-  Image as ImageIcon,
-  FileText,
-  Settings,
-  Users,
-  Loader2,
   CheckCircle2,
-  XCircle,
-  AlertCircle,
+  ChevronDown,
+  Clock,
+  Download,
+  ExternalLink,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  MoreHorizontal,
+  Settings,
+  Trash2,
+  Upload,
+  Users,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getFileUrl } from '@/lib/backend';
 import { downloadBlob } from '@school/common-ui/blob';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
-  PageHeader,
   TabNav,
-  StatsCard,
   StatusBadge,
   SectionCard,
   Popup,
-  FilterSelection,
-  FilterField,
+  ConfirmationPopup,
+  TablePagination,
   filterSelectClassName,
-  filterInputClassName,
 } from '@/components';
 import type { TabItem } from '@/components';
-import DeleteConfirmation from '@/components/DeleteConfimation';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import ActionButton from '@/components/ActionButton';
-import { formatDateWithTime } from '@/lib/utils';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
+import { cn, formatDateWithTime } from '@/lib/utils';
 import type {
   Class6RegistrationRecord,
   Class6RegistrationSettingsData,
@@ -76,7 +86,6 @@ type Registration = Partial<Class6RegistrationRecord> &
     status: string;
     student_name_en: string;
     photo?: string | null;
-    photo_path?: string | null;
   };
 
 type SettingsData =
@@ -84,6 +93,8 @@ type SettingsData =
   | Class8RegistrationSettingsData
   | JuniorScholarshipRegistrationSettingsData
   | Class9RegistrationSettingsData;
+
+type SortKey = 'name' | 'section' | 'roll' | 'status' | 'date';
 
 const SCHEMAS = {
   6: class6RegistrationSettingsSchema,
@@ -103,21 +114,15 @@ const CONFIG = {
     preview: '/preview/class6/',
     exportPrefix: 'Class6_',
     pdfPrefix: 'Class6_Registration_',
-    title: 'Class Six Registration Management',
-    description: 'Manage student registrations and notification settings for Class Six.',
-    yearLabel: 'Academic Year',
+    title: 'Class 6 Registration',
+    yearLabel: 'Academic year',
     settingsCardDesc: 'Settings are saved separately for each academic year.',
     yearHeaderId: 'class6-settings-year',
     yearHeaderStatusId: 'class6-settings-year-status',
     loadingLabel: 'Loading selected year settings…',
     createHint: (year: string) =>
       `No settings for ${year} yet. Fill in the fields and create them.`,
-    filterYearLabel: 'Academic Year',
     classmatesEnrollmentLabel: 'Automatically uses names from the Class 6 enrollment list.',
-    approveLabel: 'Approve Now',
-    confirmDelete: false,
-    richExport404: true,
-    editModalSize: 'md' as const,
   },
   8: {
     apiBase: '/api/reg/class-8',
@@ -129,21 +134,15 @@ const CONFIG = {
     preview: '/preview/class8/',
     exportPrefix: 'Class8_',
     pdfPrefix: 'Class8_Registration_',
-    title: 'Class Eight Registration Management',
-    description: 'Manage student registrations and notification settings for Class Eight.',
-    yearLabel: 'Academic Year',
+    title: 'Class 8 Registration',
+    yearLabel: 'Academic year',
     settingsCardDesc: 'Settings are saved separately for each academic year.',
     yearHeaderId: 'class8-settings-year',
     yearHeaderStatusId: 'class8-settings-year-status',
     loadingLabel: 'Loading selected year settings…',
     createHint: (year: string) =>
       `No settings for ${year} yet. Fill in the fields and create them.`,
-    filterYearLabel: 'Academic Year',
     classmatesEnrollmentLabel: 'Automatically uses names from the Class 8 enrollment list.',
-    approveLabel: 'Approve Now',
-    confirmDelete: true,
-    richExport404: false,
-    editModalSize: 'md' as const,
   },
   jse: {
     apiBase: '/api/reg/junior-scholarship',
@@ -155,21 +154,15 @@ const CONFIG = {
     preview: '/preview/junior-scholarship/',
     exportPrefix: 'JuniorScholarship_',
     pdfPrefix: 'JuniorScholarship_',
-    title: 'Junior Scholarship Examination Management',
-    description: 'Manage Junior Scholarship Examination form fillup and notification settings.',
-    yearLabel: 'Exam Year',
+    title: 'Junior Scholarship Exam',
+    yearLabel: 'Exam year',
     settingsCardDesc: 'Settings are saved separately for each exam year.',
     yearHeaderId: 'jse-settings-year',
     yearHeaderStatusId: 'jse-settings-year-status',
     loadingLabel: 'Loading selected year settings…',
     createHint: (year: string) =>
       `No settings for ${year} yet. Fill in the fields and create them.`,
-    filterYearLabel: 'Exam Year',
     classmatesEnrollmentLabel: 'Automatically uses names from the Class 8 enrollment list.',
-    approveLabel: 'Approve Now',
-    confirmDelete: true,
-    richExport404: false,
-    editModalSize: 'md' as const,
   },
   9: {
     apiBase: '/api/reg/class-9',
@@ -181,23 +174,124 @@ const CONFIG = {
     preview: '/preview/class9/',
     exportPrefix: 'Class_9_',
     pdfPrefix: 'Class9_Registration_',
-    title: 'Class 9 Registration Management',
-    description: 'Manage student registrations and notification settings for Class 9.',
-    yearLabel: 'SSC Batch',
+    title: 'Class 9 Registration',
+    yearLabel: 'SSC batch',
     settingsCardDesc: 'Settings are saved separately for each SSC batch.',
     yearHeaderId: 'class9-settings-year',
     yearHeaderStatusId: 'class9-settings-year-status',
     loadingLabel: 'Loading selected batch settings…',
     createHint: (year: string) =>
       `No settings for SSC ${year} yet. Fill in the fields and create them.`,
-    filterYearLabel: 'SSC Batch',
     classmatesEnrollmentLabel: 'Automatically uses names from the Class 10 enrollment list.',
-    approveLabel: 'Approve',
-    confirmDelete: true,
-    richExport404: false,
-    editModalSize: 'sm' as const,
   },
 } as const;
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+/** Joins the non-empty parts with ", "; null when nothing is left. */
+const join = (...parts: unknown[]) => parts.filter(Boolean).join(', ') || null;
+
+const address = (reg: Registration, prefix: 'present' | 'permanent' | 'guardian') => {
+  const get = (key: string) => (reg as Record<string, unknown>)[`${prefix}_${key}`];
+  const post = [get('post_office'), get('post_code')].filter(Boolean).join('-');
+  return join(get('village_road'), post, get('upazila'), get('district'));
+};
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+// Registration photos are passport crops; keep the portrait ratio so heads aren't cut off.
+const RegPhoto = ({ reg, className }: { reg: Registration; className: string }) =>
+  reg.photo ? (
+    <img
+      src={getFileUrl(reg.photo)}
+      alt=""
+      loading="lazy"
+      className={cn('border-border shrink-0 rounded border object-cover object-top', className)}
+    />
+  ) : (
+    <div
+      className={cn(
+        'bg-muted text-muted-foreground flex shrink-0 items-center justify-center rounded text-xs font-semibold',
+        className,
+      )}
+    >
+      {reg.student_name_en.charAt(0).toUpperCase()}
+    </div>
+  );
+
+type DetailRow = [label: string, value: React.ReactNode];
+
+const DetailSection = ({ title, rows }: { title: string; rows: DetailRow[] }) => (
+  <section>
+    <h3 className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
+      {title}
+    </h3>
+    <dl className="border-border divide-border divide-y rounded-lg border text-sm">
+      {rows.map(([label, value]) => (
+        <div key={label} className="grid gap-0.5 px-3 py-2 sm:grid-cols-[10rem_1fr] sm:gap-4">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="min-w-0 break-words">
+            {value ?? <span className="text-muted-foreground">—</span>}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  </section>
+);
+
+const Field = ({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) => (
+  <div className="space-y-1.5">
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">{label}</span>
+      {children}
+    </label>
+    {hint && !error && <p className="text-muted-foreground text-xs">{hint}</p>}
+    {error && <p className="text-destructive text-xs">{error}</p>}
+  </div>
+);
+
+const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <section className="space-y-4">
+    <h3 className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+      {title}
+    </h3>
+    {children}
+  </section>
+);
+
+// Pinned Student column while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit max-xl:shadow-[1px_0_0_var(--border)]';
+
+/** Pulls the server's `message` out of a failed blob download. */
+const blobErrorMessage = async (error: unknown, fallback: string) => {
+  if (isAxiosError(error) && error.response?.data instanceof Blob) {
+    try {
+      return JSON.parse(await error.response.data.text()).message || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+};
 
 type ClassRegFormProps = { variant: Variant };
 
@@ -206,46 +300,34 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
   const queryClient = useQueryClient();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'registrations' | 'settings'>(
-    tabParam === 'settings' ? 'settings' : 'registrations',
-  );
+  const activeTab = searchParams.get('tab') === 'settings' ? 'settings' : 'registrations';
+  const handleTabChange = (id: string) => setSearchParams({ tab: id }, { replace: true });
 
-  // Keep URL in sync when tab changes programmatically
-  const handleTabChange = (id: string) => {
-    const next = id as 'registrations' | 'settings';
-    setActiveTab(next);
-    setSearchParams({ tab: next }, { replace: true });
-  };
-
-  // Sync tab state when URL changes (e.g. browser back/forward or direct link)
-  // When no tab param is present, default to "registrations" and write it into the URL
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab === 'settings' || tab === 'registrations') {
-      setActiveTab(tab);
-    } else {
-      setActiveTab('registrations');
-      setSearchParams({ tab: 'registrations' }, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
   const currentYear = new Date().getFullYear().toString();
   const [selectedNotice, setSelectedNotice] = useState<File | null>(null);
-  const [filters, setFilters] = useState({
-    status: 'all',
-    section: '',
-    year: variant === 9 ? '' : currentYear,
-    search: '',
-  });
-  const [filterYearTouched, setFilterYearTouched] = useState(false);
+  const noticeInputRef = useRef<HTMLInputElement>(null);
+  const pickNotice = (file: File | null | undefined) => {
+    if (file && file.type !== 'application/pdf') {
+      toast.error('Notice must be a PDF');
+      return;
+    }
+    setSelectedNotice(file ?? null);
+    // Clear the input so picking the same file again still fires onChange.
+    if (noticeInputRef.current) noticeInputRef.current.value = '';
+  };
+
+  // ---- Registrations list state ----
+  const [filterYear, setFilterYear] = useState<string | null>(null); // null = latest settings year
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search.trim());
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [sectionFilters, setSectionFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
-  const deferredFilters = useDeferredValue(filters);
-  const [showDetails, setShowDetails] = useState(false);
-  const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState<{ id: string; status: string } | null>(null);
-  const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [detailReg, setDetailReg] = useState<Registration | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Registration | null>(null);
+  const [pdfDownloadingId, setPdfDownloadingId] = useState<string | null>(null);
 
   const {
     register,
@@ -258,13 +340,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
     defaultValues: {
       a_sec_roll: '',
       b_sec_roll: '',
-      ...(variant === 6
-        ? { class6_year: currentYear }
-        : variant === 8
-          ? { class8_year: currentYear }
-          : variant === 'jse'
-            ? { jse_year: currentYear }
-            : { ssc_year: currentYear }),
+      [cfg.settingsYearField]: currentYear,
       reg_open: false,
       instruction_for_a: '',
       instruction_for_b: '',
@@ -272,7 +348,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
       notice_key: null,
       classmates: '',
       classmates_source: 'default',
-    },
+    } as SettingsData,
   });
 
   const settingsForm = watch();
@@ -299,19 +375,14 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
     apiPath: cfg.apiBase,
     yearParam: cfg.settingsYearField,
     yearField: cfg.settingsYearField,
-    extraYearValues: [settingsYearValue, filters.year],
+    extraYearValues: [settingsYearValue, filterYear ?? undefined],
   });
   const latestRegistrationYear = latestSettingsData
     ? String((latestSettingsData as Record<string, unknown>)[cfg.settingsYearField] ?? '')
     : latestSettingsLoading
       ? ''
       : currentYear;
-  const effectiveFilterYear =
-    !filterYearTouched && latestRegistrationYear ? latestRegistrationYear : filters.year;
-  const effectiveDeferredFilters = useMemo(
-    () => ({ ...deferredFilters, year: effectiveFilterYear }),
-    [deferredFilters, effectiveFilterYear],
-  );
+  const year = filterYear ?? latestRegistrationYear;
 
   useEffect(() => {
     if (settingsData) {
@@ -326,67 +397,53 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
     }
   }, [settingsData, normalizedSettingsYear, reset, cfg.settingsYearField]);
 
+  // Only two statuses and two sections exist: one ticked = filter, none or both = all.
+  const statusParam = statusFilters.length === 1 ? statusFilters[0] : 'all';
+  const sectionParam = sectionFilters.length === 1 ? sectionFilters[0] : '';
+  const listParams = {
+    [cfg.listYearParam]: year,
+    status: statusParam,
+    section: sectionParam,
+    search: deferredSearch || undefined,
+    sort: sort?.key,
+    order: sort?.order,
+  };
+  const filterKey = JSON.stringify(listParams);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
+
   const {
     data: registrationsResponse,
-    isLoading: registrationsLoading,
-    isFetching: registrationsFetching,
-    isPlaceholderData: registrationsPlaceholderData,
+    isFetching,
     error: registrationsError,
   } = useQuery({
-    queryKey: [cfg.qRegs, { page, limit, ...effectiveDeferredFilters }],
+    queryKey: [cfg.qRegs, { page, limit, ...listParams }],
     queryFn: async () => {
       const res = await axios.get(`${cfg.apiBase}/form`, {
-        params: {
-          page,
-          limit,
-          [cfg.listYearParam]: effectiveDeferredFilters.year,
-          status: effectiveDeferredFilters.status,
-          section: effectiveDeferredFilters.section,
-          search: effectiveDeferredFilters.search.trim() || undefined,
-        },
+        params: { page, limit, ...listParams },
       });
-      return res.data.success ? res.data.data : [];
+      return res.data.success ? res.data.data : null;
     },
-    enabled: !latestSettingsLoading && Boolean(effectiveDeferredFilters.year),
+    enabled: !latestSettingsLoading && Boolean(year),
     placeholderData: keepPreviousData,
-    // refetchOnMount: 'always',
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 
-  const registrations = useMemo(() => registrationsResponse?.data ?? [], [registrationsResponse]);
-  const meta = registrationsResponse?.meta;
-  const registrationsInitialLoading =
-    latestSettingsLoading ||
-    !effectiveFilterYear ||
-    (!registrationsResponse && registrationsLoading);
-  const registrationsPageChanging = registrationsPlaceholderData && registrationsFetching;
-  const registrationsBusy = registrationsInitialLoading || registrationsFetching;
+  const registrations: Registration[] = registrationsResponse?.data ?? [];
+  const meta = registrationsResponse?.meta as
+    { total: number; pending: number; approved: number; totalPages: number } | undefined;
+  const loading = latestSettingsLoading || !year || (!registrationsResponse && isFetching);
+  const filtersActive =
+    Boolean(search.trim()) || statusFilters.length > 0 || sectionFilters.length > 0;
 
-  const errorMessage = registrationsError
-    ? variant === 6
-      ? (registrationsError as { response?: { status?: number } }).response?.status === 404
-        ? 'No registrations found.'
-        : 'An error occurred while fetching registrations.'
-      : (registrationsError as any).response?.status === 404
-        ? 'No registrations found.'
-        : 'An error occurred while fetching registrations.'
-    : '';
-
-  const getRegPhoto = (reg: Registration) => (variant === 9 ? reg.photo_path : reg.photo);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [effectiveDeferredFilters]);
-
-  const stats = useMemo(
-    () => ({
-      total: meta?.total ?? 0,
-      pending: meta?.pending ?? 0,
-    }),
-    [meta],
-  );
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilters([]);
+    setSectionFilters([]);
+  };
 
   const settingsMutation = useMutation({
     mutationFn: async (updatedSettings: SettingsData) => {
@@ -421,16 +478,13 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
       return res.data;
     },
     onSuccess: () => {
-      toast.success(
-        settingsExist ? 'Settings updated successfully' : 'Settings created successfully',
-      );
+      toast.success(settingsExist ? 'Settings saved' : 'Settings created');
       queryClient.invalidateQueries({ queryKey: [cfg.qSettings] });
       setSelectedNotice(null);
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
+      if (noticeInputRef.current) noticeInputRef.current.value = '';
     },
     onError: () => {
-      toast.error('Failed to update settings');
+      toast.error('Failed to save settings');
     },
   });
 
@@ -439,8 +493,9 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
       const res = await axios.put(`${cfg.apiBase}/form/${id}/status`, { status });
       return res.data;
     },
-    onSuccess: (_, variables) => {
-      toast.success(`Registration ${variables.status}`);
+    onSuccess: (_, { id, status }) => {
+      toast.success(status === 'approved' ? 'Registration approved' : 'Marked as pending');
+      setDetailReg((r) => (r?.id === id ? { ...r, status } : r));
       queryClient.invalidateQueries({ queryKey: [cfg.qRegs] });
     },
     onError: () => {
@@ -453,102 +508,73 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
       const res = await axios.delete(`${cfg.apiBase}/form/${id}`);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       toast.success('Registration deleted');
+      setDetailReg((r) => (r?.id === id ? null : r));
       queryClient.invalidateQueries({ queryKey: [cfg.qRegs] });
-      setShowDetails(false);
     },
     onError: () => {
       toast.error('Failed to delete registration');
     },
   });
 
-  const handleSettingsSubmit = handleSubmit((data) => {
-    settingsMutation.mutate(data);
-  });
+  const setStatus = (reg: Registration, status: 'approved' | 'pending') =>
+    statusMutation.mutate({ id: reg.id, status });
 
-  const handleStatusUpdate = useCallback(
-    (id: string, status: string) => {
-      statusMutation.mutate({ id, status });
-    },
-    [statusMutation],
-  );
+  const previewPdf = (reg: Registration) =>
+    window.open(`${cfg.preview}${reg.id}`, '_blank', 'noopener,noreferrer');
 
-  const handleDeleteDetails = useCallback(
-    (id: string) => {
-      if (cfg.confirmDelete) {
-        if (confirm('Are you sure you want to delete this registration?')) {
-          deleteMutation.mutate(id);
-        }
-      } else {
-        deleteMutation.mutate(id);
-      }
-    },
-    [deleteMutation, cfg.confirmDelete],
-  );
+  const downloadPdf = async (reg: Registration) => {
+    if (pdfDownloadingId) return;
+    setPdfDownloadingId(reg.id);
+    try {
+      const response = await axios.get(`${cfg.apiBase}/form/${reg.id}/pdf`, {
+        responseType: 'blob',
+      });
+      downloadBlob(
+        new Blob([response.data], { type: 'application/pdf' }),
+        `${cfg.pdfPrefix}${reg.student_name_en.replace(/\s+/g, '_')}.pdf`,
+      );
+    } catch (error) {
+      toast.error(await blobErrorMessage(error, 'Failed to download PDF'));
+    } finally {
+      setPdfDownloadingId(null);
+    }
+  };
 
-  const handlePreviewPDF = useCallback(
-    (id: string) => {
-      const previewUrl = `${cfg.preview}${id}`;
-      window.open(previewUrl, '_blank', 'noopener,noreferrer');
-    },
-    [cfg.preview],
-  );
+  const handleExport = async (type: 'sheet' | 'photos') => {
+    const endpoint = type === 'sheet' ? 'export' : 'export-photos';
+    const label = type === 'sheet' ? 'Excel sheet' : 'Photos';
+    try {
+      toast.loading(`Preparing ${label.toLowerCase()}…`, { id: 'export' });
+      const res = await axios.get(`${cfg.apiBase}/form/${endpoint}`, {
+        params: { status: statusParam, section: sectionParam, [cfg.listYearParam]: year },
+        responseType: 'blob',
+      });
+      downloadBlob(
+        new Blob([res.data]),
+        `${cfg.exportPrefix}${type}_${year}${sectionParam ? `_${sectionParam}` : ''}.${
+          type === 'sheet' ? 'xlsx' : 'zip'
+        }`,
+      );
+      toast.success(`${label} exported`, { id: 'export' });
+    } catch (error) {
+      toast.error(await blobErrorMessage(error, `Failed to export ${label.toLowerCase()}`), {
+        id: 'export',
+      });
+    }
+  };
 
-  const handleExport = useCallback(
-    async (type: 'sheet' | 'photos') => {
-      const { status, section } = filters;
-      const year = effectiveFilterYear;
-      const endpoint = type === 'sheet' ? 'export' : 'export-photos';
-      const url = `${cfg.apiBase}/form/${endpoint}?status=${status}&section=${section}&${cfg.listYearParam}=${year}`;
-
-      try {
-        toast.loading(`Preparing ${type}...`, { id: 'export' });
-        const res = await axios.get(url, { responseType: 'blob' });
-        const extension = type === 'sheet' ? 'xlsx' : 'zip';
-        const blob = new Blob([res.data]);
-        downloadBlob(
-          blob,
-          `${cfg.exportPrefix}${type}_${year}${section ? `_${section}` : ''}.${extension}`,
-        );
-        toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} exported successfully`, {
-          id: 'export',
-        });
-      } catch (error) {
-        if (cfg.richExport404) {
-          if (isAxiosError(error) && error.response?.status === 404) {
-            console.error(`Export ${type} error:`, error);
-            const message = `Failed to export ${type}`;
-            if (error.response.data instanceof Blob) {
-              const reader = new FileReader();
-              reader.onload = () => {
-                try {
-                  const errData = JSON.parse(reader.result as string);
-                  toast.error(errData.message || message, { id: 'export' });
-                } catch {
-                  toast.error(message, { id: 'export' });
-                }
-              };
-              reader.readAsText(error.response.data);
-            } else {
-              toast.error(message, { id: 'export' });
-            }
-          }
-        } else {
-          console.error(`Export ${type} error:`, error);
-          toast.error(`Failed to export ${type}`, { id: 'export' });
-        }
-      }
-    },
-    [filters, effectiveFilterYear, cfg],
-  );
-
-  const handleFilterChange = useCallback((key: string, value: string) => {
-    if (key === 'year') setFilterYearTouched(true);
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  // StatusBadge is now handled by the <StatusBadge> component from @/components
+  const yearOptions = useMemo(() => {
+    const latest = Number(latestRegistrationYear || currentYear);
+    const years = Array.from({ length: 6 }, (_, i) => latest - i);
+    const selected = Number(year);
+    if (year && !Number.isNaN(selected) && !years.includes(selected)) {
+      years.push(selected);
+      years.sort((a, b) => b - a);
+    }
+    return years;
+  }, [latestRegistrationYear, currentYear, year]);
 
   const tabs: TabItem[] = [
     {
@@ -565,15 +591,276 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
     },
   ];
 
+  const summary = meta
+    ? [
+        plural(meta.pending + meta.approved, 'registration'),
+        meta.pending ? `${meta.pending.toLocaleString()} pending` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ' ';
+
+  const sortProps = (key: SortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
+
+  const columns: {
+    label: string;
+    sortKey?: SortKey;
+    className?: string;
+    header: React.ReactNode;
+  }[] = [
+    {
+      label: 'Student',
+      sortKey: 'name',
+      className: cn(stickyCell, 'px-3 sm:px-4'),
+      header: (
+        <ColumnHeaderMenu
+          label="Student"
+          {...sortProps('name')}
+          filterInput={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Name, roll, birth reg…',
+          }}
+        />
+      ),
+    },
+    {
+      label: 'Section',
+      sortKey: 'section',
+      className: 'w-28',
+      header: (
+        <ColumnHeaderMenu
+          label="Section"
+          {...sortProps('section')}
+          options={['A', 'B'].map((s) => ({ value: s, label: `Section ${s}` }))}
+          selected={sectionFilters}
+          onSelectedChange={setSectionFilters}
+        />
+      ),
+    },
+    {
+      label: 'Roll',
+      sortKey: 'roll',
+      className: 'w-24',
+      header: <ColumnHeaderMenu label="Roll" {...sortProps('roll')} />,
+    },
+    {
+      label: 'Status',
+      sortKey: 'status',
+      className: 'w-32',
+      header: (
+        <ColumnHeaderMenu
+          label="Status"
+          {...sortProps('status')}
+          options={[
+            { value: 'pending', label: 'Pending' },
+            { value: 'approved', label: 'Approved' },
+          ]}
+          selected={statusFilters}
+          onSelectedChange={setStatusFilters}
+        />
+      ),
+    },
+    {
+      label: 'Submitted',
+      sortKey: 'date',
+      className: 'w-44',
+      header: <ColumnHeaderMenu label="Submitted" {...sortProps('date')} />,
+    },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      header: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={clearFilters}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
+
+  const rowActions = (reg: Registration) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton action="view" iconOnly onClick={() => setDetailReg(reg)} />
+      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton iconOnly label="More actions" icon={<MoreHorizontal size={16} />} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {reg.student_name_en}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => setDetailReg(reg)}>
+            <Eye /> View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => previewPdf(reg)}>
+            <FileText /> Preview PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => downloadPdf(reg)}>
+            <Download /> Download PDF
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {reg.status === 'pending' ? (
+            <DropdownMenuItem onSelect={() => setStatus(reg, 'approved')}>
+              <CheckCircle2 /> Approve
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onSelect={() => setStatus(reg, 'pending')}>
+              <Clock /> Mark as pending
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(reg)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {registrationsError ? (
+        <p>Couldn't load registrations. Try again in a moment.</p>
+      ) : filtersActive ? (
+        <>
+          <p>No registrations match these filters.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            <X /> Clear filters
+          </Button>
+        </>
+      ) : (
+        <p>No registrations for {variant === 9 ? `SSC ${year}` : year} yet.</p>
+      )}
+    </div>
+  );
+
+  const detailRows = (reg: Registration) => {
+    const personal: DetailRow[] = [
+      ['Name (Bangla)', reg.student_name_bn],
+      ...(variant === 9 ? [['Nickname', reg.student_nick_name_bn] as DetailRow] : []),
+      ['Birth reg. no', reg.birth_reg_no && <span className="font-mono">{reg.birth_reg_no}</span>],
+      ['Date of birth', reg.birth_date],
+      ...(variant === 9
+        ? [['Blood group', reg.blood_group] as DetailRow]
+        : [['Scout', reg.scout_status || 'No'] as DetailRow]),
+      ['Email', reg.email],
+      ['Father phone', reg.father_phone],
+      ['Mother phone', reg.mother_phone],
+    ];
+    const parents: DetailRow[] = [
+      ['Father', join(reg.father_name_bn, reg.father_name_en)],
+      ['Father NID', reg.father_nid],
+      ['Mother', join(reg.mother_name_bn, reg.mother_name_en)],
+      ['Mother NID', reg.mother_nid],
+    ];
+    const addresses: DetailRow[] = [
+      ['Present', address(reg, 'present')],
+      ['Permanent', address(reg, 'permanent')],
+      [
+        'Nearby student',
+        (variant === 9 ? reg.nearby_nine_student_info : reg.nearby_student_info) ||
+          'Not applicable',
+      ],
+    ];
+    const academic: DetailRow[] = [
+      ['Previous school', join(reg.prev_school_name)],
+      ['School location', join(reg.prev_school_upazila, reg.prev_school_district)],
+      ...(variant === 6
+        ? ([
+            ['Section / roll', join(reg.section_in_prev_school, reg.roll_in_prev_school)],
+            ['Passing year', reg.prev_school_passing_year],
+          ] as DetailRow[])
+        : []),
+      ...(variant === 8 || variant === 'jse'
+        ? ([
+            ['Class 6 reg. year', reg.class6_reg_year],
+            ['Class 6 board', reg.class6_board],
+            ['Class 6 reg. no', reg.class6_reg_no],
+            ['Class 6 ID / roll', reg.class6_roll_no],
+          ] as DetailRow[])
+        : []),
+      ...(variant === 9
+        ? ([
+            ['Group', reg.group_class_nine],
+            ['Main subject', reg.main_subject],
+            ['4th subject', reg.fourth_subject],
+            ['JSC year', reg.jsc_passing_year],
+            ['JSC ID / roll', reg.jsc_roll_no],
+            ['JSC reg. no', reg.jsc_reg_no],
+          ] as DetailRow[])
+        : []),
+    ];
+    const guardian: DetailRow[] = reg.guardian_name
+      ? [
+          ['Name', join(reg.guardian_name, reg.guardian_relation && `(${reg.guardian_relation})`)],
+          ['Phone', reg.guardian_phone],
+          ['NID', reg.guardian_nid],
+          ['Address', address(reg, 'guardian')],
+        ]
+      : [['Guardian', 'Parents (no separate guardian)']];
+    return { personal, parents, addresses, academic, guardian };
+  };
+
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader title={cfg.title} description={cfg.description} />
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">{cfg.title}</h1>
+            {activeTab === 'registrations' && (
+              <select
+                aria-label={cfg.yearLabel}
+                value={year}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className={cn(filterSelectClassName, 'h-8 w-auto font-medium tabular-nums')}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={String(y)}>
+                    {variant === 9 ? `SSC ${y}` : y}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {activeTab === 'registrations' && (
+            <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+          )}
+        </div>
+        {activeTab === 'registrations' && (
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline">
+                <Download /> Export <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                {filtersActive ? 'Current filters' : 'All registrations'}
+              </DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => handleExport('sheet')}>
+                <FileSpreadsheet /> Excel sheet
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExport('photos')}>
+                <ImageIcon /> Photos (ZIP)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </header>
 
       <TabNav tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} className="mb-6" />
 
       {activeTab === 'settings' ? (
         <SectionCard
-          title="Registration Settings"
+          title="Registration settings"
           description={cfg.settingsCardDesc}
           icon={<Settings size={20} />}
           headerAction={
@@ -590,172 +877,172 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
           }
         >
           {latestSettingsLoading || settingsLoading ? (
-            <div className="flex justify-center py-20">
-              <Loader2 size={40} className="text-primary animate-spin" />
+            <div className="space-y-4">
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
             </div>
           ) : (
-            <form onSubmit={handleSettingsSubmit} className="space-y-6">
-              <RegistrationSettingsYearStatus
-                statusId={cfg.yearHeaderStatusId}
-                settingsFetching={settingsFetching}
-                loadingLabel={cfg.loadingLabel}
-                showCreateHint={!settingsExist && Boolean(settingsData)}
-                createHint={cfg.createHint(normalizedSettingsYear)}
-              />
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    Section A Roll Range (e.g., 01-50)
-                  </label>
-                  <Input type="text" {...register('a_sec_roll')} placeholder="01-50" />
-                  {errors.a_sec_roll && (
-                    <p className="mt-1 text-xs text-red-500">{errors.a_sec_roll.message}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    Section B Roll Range
-                  </label>
-                  <Input type="text" {...register('b_sec_roll')} placeholder="51-100" />
-                  {errors.b_sec_roll && (
-                    <p className="mt-1 text-xs text-red-500">{errors.b_sec_roll.message}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    {cfg.yearLabel}
-                  </label>
-                  <Input
-                    type="text"
-                    {...register(
-                      cfg.settingsYearField as
-                        'class6_year' | 'class8_year' | 'jse_year' | 'ssc_year',
-                    )}
-                    readOnly
-                  />
-                  {(errors as Record<string, { message?: string } | undefined>)[
-                    cfg.settingsYearField
-                  ] && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {
-                        (errors as Record<string, { message?: string }>)[cfg.settingsYearField]
-                          ?.message
-                      }
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-end">
-                  <label className="bg-muted/40 flex w-full cursor-pointer items-center gap-2 rounded-lg p-2">
-                    <input
-                      type="checkbox"
-                      {...register('reg_open')}
-                      className="text-primary h-4 w-4"
-                    />
-                    <span className="text-sm font-medium">Registration Open</span>
-                  </label>
-                  {errors.reg_open && (
-                    <p className="mt-1 text-xs text-red-500">{errors.reg_open.message}</p>
-                  )}
-                </div>
-              </div>
+            <form onSubmit={handleSubmit((data) => settingsMutation.mutate(data))}>
+              <div className="space-y-8">
+                <RegistrationSettingsYearStatus
+                  statusId={cfg.yearHeaderStatusId}
+                  settingsFetching={settingsFetching}
+                  loadingLabel={cfg.loadingLabel}
+                  showCreateHint={!settingsExist && Boolean(settingsData)}
+                  createHint={cfg.createHint(normalizedSettingsYear)}
+                />
 
-              <div>
-                <label className="text-foreground mb-1 block text-sm font-medium">
-                  Notice File (PDF)
+                <label className="border-border flex cursor-pointer items-start gap-3 rounded-lg border p-4">
+                  <input type="checkbox" {...register('reg_open')} className="mt-0.5 h-4 w-4" />
+                  <span>
+                    <span className="block text-sm font-medium">Accept registrations</span>
+                    <span className="text-muted-foreground block text-sm">
+                      Students can submit the form while this is on.
+                    </span>
+                  </span>
                 </label>
-                <div className="mt-1 flex items-center gap-4">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setSelectedNotice(e.target.files?.[0] || null)}
-                    className="text-muted-foreground block w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  {settingsForm.notice_key && (
-                    <a
-                      href={getFileUrl(settingsForm.notice_key)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary flex shrink-0 items-center gap-1 text-sm font-medium hover:underline"
-                    >
-                      <FileText size={16} /> Current Notice
-                    </a>
-                  )}
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    Instruction for Section A
-                  </label>
-                  <Textarea {...register('instruction_for_a')} className="h-24" />
-                  {errors.instruction_for_a && (
-                    <p className="mt-1 text-xs text-red-500">{errors.instruction_for_a.message}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    Instruction for Section B
-                  </label>
-                  <Textarea {...register('instruction_for_b')} className="h-24" />
-                  {errors.instruction_for_b && (
-                    <p className="mt-1 text-xs text-red-500">{errors.instruction_for_b.message}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    Classmates List Source
-                  </label>
-                  <select
-                    {...register('classmates_source')}
-                    className="bg-card border-border text-foreground focus:ring-primary/30 block w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                  >
-                    <option value="default">Default (Current Student List)</option>
-                    <option value="custom">Manual (Custom List)</option>
-                  </select>
-                  {errors.classmates_source && (
-                    <p className="mt-1 text-xs text-red-500">{errors.classmates_source.message}</p>
-                  )}
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    {settingsForm.classmates_source === 'custom'
-                      ? 'Enter your own student names.'
-                      : cfg.classmatesEnrollmentLabel}
-                  </p>
-                </div>
-                {settingsForm.classmates_source === 'custom' && (
-                  <div>
-                    <label className="text-foreground mb-1 block text-sm font-medium">
-                      Manual Classmates List
-                    </label>
-                    <Textarea
-                      {...register('classmates')}
-                      placeholder="Enter student names separated by commas (e.g., আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন)"
-                      className="h-24"
-                    />
-                    {errors.classmates && (
-                      <p className="mt-1 text-xs text-red-500">{errors.classmates.message}</p>
-                    )}
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Students will be able to select from this list in the registration form's
-                      nearby student field.
-                    </p>
+                <FormSection title="Sections">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Section A roll range" error={errors.a_sec_roll?.message}>
+                      <Input {...register('a_sec_roll')} placeholder="01-50" />
+                    </Field>
+                    <Field label="Section B roll range" error={errors.b_sec_roll?.message}>
+                      <Input {...register('b_sec_roll')} placeholder="51-100" />
+                    </Field>
                   </div>
-                )}
-                <div>
-                  <label className="text-foreground mb-1 block text-sm font-medium">
-                    Attachment Instructions
-                  </label>
-                  <Textarea {...register('attachment_instruction')} className="h-24" />
-                  {errors.attachment_instruction && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {errors.attachment_instruction.message}
-                    </p>
+                </FormSection>
+
+                <FormSection title="Notice">
+                  <input
+                    ref={noticeInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden
+                    onChange={(e) => pickNotice(e.target.files?.[0])}
+                  />
+                  {selectedNotice || settingsForm.notice_key ? (
+                    <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400">
+                        <FileText size={20} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {selectedNotice ? selectedNotice.name : 'Current notice'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {selectedNotice
+                            ? `${(selectedNotice.size / 1024 / 1024).toFixed(2)} MB · uploads when you save`
+                            : 'PDF · shown to students on the registration page'}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        {selectedNotice ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => pickNotice(null)}
+                          >
+                            <X /> Remove
+                          </Button>
+                        ) : (
+                          <Button type="button" variant="ghost" size="sm" asChild>
+                            <a
+                              href={getFileUrl(settingsForm.notice_key!)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink /> View
+                            </a>
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => noticeInputRef.current?.click()}
+                        >
+                          <Upload /> Replace
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => noticeInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        pickNotice(e.dataTransfer.files[0]);
+                      }}
+                      className="border-border hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2"
+                    >
+                      <Upload size={20} className="text-muted-foreground" />
+                      <span className="text-sm font-medium">Upload notice PDF</span>
+                      <span className="text-muted-foreground text-xs">
+                        Click or drop a file here
+                      </span>
+                    </button>
                   )}
-                </div>
+                </FormSection>
+
+                <FormSection title="Instructions">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Field label="Section A" error={errors.instruction_for_a?.message}>
+                      <Textarea {...register('instruction_for_a')} className="h-24" />
+                    </Field>
+                    <Field label="Section B" error={errors.instruction_for_b?.message}>
+                      <Textarea {...register('instruction_for_b')} className="h-24" />
+                    </Field>
+                  </div>
+                  <Field label="Attachments" error={errors.attachment_instruction?.message}>
+                    <Textarea {...register('attachment_instruction')} className="h-24" />
+                  </Field>
+                </FormSection>
+
+                <FormSection title="Classmates list">
+                  <Field
+                    label="Source"
+                    hint={
+                      settingsForm.classmates_source === 'custom'
+                        ? 'Students pick from your list in the nearby student field.'
+                        : cfg.classmatesEnrollmentLabel
+                    }
+                    error={errors.classmates_source?.message}
+                  >
+                    <select
+                      {...register('classmates_source')}
+                      className={cn(filterSelectClassName, 'sm:max-w-sm')}
+                    >
+                      <option value="default">Current student list</option>
+                      <option value="custom">Custom list</option>
+                    </select>
+                  </Field>
+                  {settingsForm.classmates_source === 'custom' && (
+                    <Field
+                      label="Names"
+                      hint="Separate names with commas."
+                      error={errors.classmates?.message}
+                    >
+                      <Textarea
+                        {...register('classmates')}
+                        placeholder="আব্দুল করিম, রহিম উদ্দিন, সালমা খাতুন"
+                        className="h-24"
+                      />
+                    </Field>
+                  )}
+                </FormSection>
               </div>
 
-              <div className="flex justify-end pt-4">
-                <button
+              <div className="border-border mt-8 flex items-center justify-end gap-3 border-t pt-4">
+                {(isDirty || selectedNotice) && (
+                  <span className="text-muted-foreground text-sm">Unsaved changes</span>
+                )}
+                <Button
                   type="submit"
                   disabled={
                     !settingsYearIsValid ||
@@ -763,1227 +1050,220 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                     settingsMutation.isPending ||
                     (settingsExist && !isDirty && !selectedNotice)
                   }
-                  className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-6 py-2 text-white transition-colors disabled:opacity-50"
                 >
-                  {settingsMutation.isPending ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Plus size={18} />
-                  )}
-                  {settingsExist ? 'Save Settings' : 'Create Settings'}
-                </button>
+                  {settingsMutation.isPending && <Loader2 className="animate-spin" />}
+                  {settingsExist ? 'Save settings' : 'Create settings'}
+                </Button>
               </div>
             </form>
           )}
         </SectionCard>
       ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <StatsCard
-              label="Total Registrations"
-              value={stats.total}
-              loading={registrationsBusy}
-            />
-            {stats.pending > 0 && (
-              <StatsCard
-                label="Pending"
-                value={stats.pending}
-                color="amber"
-                loading={registrationsBusy}
-              />
-            )}
-          </div>
-
-          <FilterSelection
-            headerAction={
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleExport('sheet')}
-                  className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-emerald-700"
-                >
-                  <FileText size={18} />
-                  <span>Export Sheet</span>
-                </button>
-                <button
-                  onClick={() => handleExport('photos')}
-                  className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2 text-white shadow-sm transition-colors"
-                >
-                  <ImageIcon size={18} />
-                  <span>Export Photos</span>
-                </button>
-              </div>
-            }
-          >
-            <FilterField label="Search" wide>
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
-                />
-                <Input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  placeholder="Search by name, roll, birth reg..."
-                  className={`${filterInputClassName} pl-9`}
-                />
-              </div>
-            </FilterField>
-            <FilterField label="Status">
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className={filterSelectClassName}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-              </select>
-            </FilterField>
-            <FilterField label="Section">
-              <select
-                value={filters.section}
-                onChange={(e) => handleFilterChange('section', e.target.value)}
-                className={filterSelectClassName}
-              >
-                <option value="">All Sections</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-              </select>
-            </FilterField>
-            <FilterField label={cfg.filterYearLabel}>
-              <select
-                value={effectiveFilterYear}
-                onChange={(e) => handleFilterChange('year', e.target.value)}
-                className={filterSelectClassName}
-              >
-                {(() => {
-                  const currentBatchYear = Number(
-                    (latestSettingsData as Record<string, unknown> | undefined)?.[
-                      cfg.settingsYearField
-                    ] || new Date().getFullYear(),
-                  );
-                  const years = [];
-                  for (let i = 0; i < 6; i++) years.push(currentBatchYear - i);
-
-                  const selectedYear = Number(effectiveFilterYear);
-                  if (
-                    effectiveFilterYear &&
-                    !isNaN(selectedYear) &&
-                    !years.includes(selectedYear)
-                  ) {
-                    years.push(selectedYear);
-                    years.sort((a, b) => b - a);
-                  }
-                  return years.map((y) => (
-                    <option key={y} value={y.toString()}>
-                      {y}
-                    </option>
-                  ));
-                })()}
-              </select>
-            </FilterField>
-          </FilterSelection>
-
-          <SectionCard noPadding className="mb-6">
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-muted border-border border-b">
-                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                      Section
-                    </th>
-                    <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                      Roll
-                    </th>
-                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="text-foreground/70 w-1 whitespace-nowrap px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-border divide-y">
-                  {registrationsBusy ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                          <p className="text-muted-foreground text-sm dark:text-gray-400">
-                            {registrationsPageChanging
-                              ? 'Loading selected page...'
-                              : 'Loading registrations...'}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : registrations.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-muted-foreground py-12 text-center">
-                        {errorMessage || 'No registrations found'}
-                      </td>
-                    </tr>
-                  ) : (
-                    registrations.map((reg: Registration) => (
-                      <tr key={reg.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {getRegPhoto(reg) ? (
-                              <img
-                                src={getFileUrl(getRegPhoto(reg)!)}
-                                className="border-border h-10 w-10 rounded-full border object-cover"
-                                alt=""
-                              />
-                            ) : (
-                              <div className="bg-muted text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
-                                <Users size={18} />
-                              </div>
-                            )}
-                            <div>
-                              <div className="text-foreground font-medium">
-                                {reg.student_name_en}
-                              </div>
-                              <div className="text-muted-foreground text-sm">
-                                {reg.student_name_bn}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                            {reg.section || '-'}
-                          </span>
-                        </td>
-                        <td className="text-muted-foreground px-6 py-4 text-center font-mono font-medium">
-                          {reg.roll || '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={reg.status} />
-                        </td>
-                        <td className="text-muted-foreground px-6 py-4 text-sm">
-                          {formatDateWithTime(reg.created_at)}
-                        </td>
-                        <td className="w-1 whitespace-nowrap px-6 py-4 text-right">
-                          <div className="inline-flex justify-end gap-2">
-                            <ActionButton
-                              action="view"
-                              onClick={() => {
-                                setSelectedReg(reg);
-                                setShowDetails(true);
-                              }}
-                            />
-                            <ActionButton
-                              action="edit"
-                              onClick={() => {
-                                setEditFormData({ id: reg.id, status: reg.status });
-                                setShowEditModal(true);
-                              }}
-                            />
-                            <DeleteConfirmation onDelete={() => handleDeleteDetails(reg.id)} />
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="lg:hidden">
-              {registrationsBusy ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-12">
-                  <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                  <p className="text-muted-foreground text-sm dark:text-gray-400">
-                    {registrationsPageChanging
-                      ? 'Loading selected page...'
-                      : 'Loading registrations...'}
-                  </p>
-                </div>
-              ) : registrations.length > 0 ? (
-                <ul className="divide-border divide-y">
-                  {registrations.map((reg: Registration) => (
-                    <li key={reg.id} className="space-y-3 p-4">
-                      <div className="flex items-start gap-3">
-                        {getRegPhoto(reg) ? (
-                          <img
-                            src={getFileUrl(getRegPhoto(reg)!)}
-                            className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          <div className="bg-muted text-muted-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
-                            <Users size={18} />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-foreground truncate font-medium">
-                            {reg.student_name_en}
-                          </p>
-                          <p className="text-muted-foreground truncate text-sm">
-                            {reg.student_name_bn}
-                          </p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                              {reg.section || '-'}
-                            </span>
-                            <span className="text-muted-foreground font-mono text-xs font-medium">
-                              Roll {reg.roll || '-'}
-                            </span>
-                            <StatusBadge status={reg.status} />
-                          </div>
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {formatDateWithTime(reg.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <ActionButton
-                          action="view"
-                          onClick={() => {
-                            setSelectedReg(reg);
-                            setShowDetails(true);
-                          }}
-                        />
-                        <ActionButton
-                          action="edit"
-                          onClick={() => {
-                            setEditFormData({ id: reg.id, status: reg.status });
-                            setShowEditModal(true);
-                          }}
-                        />
-                        <DeleteConfirmation onDelete={() => handleDeleteDetails(reg.id)} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-                  {errorMessage || 'No registrations found'}
-                </p>
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard className="mb-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-muted-foreground text-sm">
-                Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-sm">Rows</span>
-                  <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                    value={limit}
-                    disabled={registrationsBusy}
-                    onChange={(e) => {
-                      setLimit(Number(e.target.value));
-                      setPage(1);
-                    }}
-                  >
-                    {[50, 100, 200].map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {(() => {
-                  const totalPages = meta?.totalPages ?? 0;
-                  const currentPage = page;
-                  const maxVisible = 7;
-                  if (totalPages <= maxVisible) {
-                    return Array.from({ length: totalPages }, (_, i) => (
-                      <Button
-                        key={i}
-                        type="button"
-                        variant={i + 1 === currentPage ? 'default' : 'outline'}
-                        onClick={() => setPage(i + 1)}
-                        disabled={registrationsBusy}
-                      >
-                        {i + 1}
-                      </Button>
-                    ));
-                  }
-                  const pages: (number | string)[] = [];
-                  const half = Math.floor(maxVisible / 2);
-                  let start = Math.max(1, currentPage - half);
-                  const end = Math.min(totalPages, start + maxVisible - 1);
-                  if (end - start < maxVisible - 1) {
-                    start = Math.max(1, end - maxVisible + 1);
-                  }
-                  if (start > 1) {
-                    pages.push(1);
-                    if (start > 2) pages.push('...');
-                  }
-                  for (let i = start; i <= end; i++) {
-                    pages.push(i);
-                  }
-                  if (end < totalPages) {
-                    if (end < totalPages - 1) pages.push('...');
-                    pages.push(totalPages);
-                  }
-                  return pages.map((p, idx) =>
-                    p === '...' ? (
-                      <span key={idx} className="text-muted-foreground px-2">
-                        ...
-                      </span>
-                    ) : (
-                      <Button
-                        key={idx}
-                        type="button"
-                        variant={p === currentPage ? 'default' : 'outline'}
-                        onClick={() => setPage(p as number)}
-                        disabled={registrationsBusy}
-                      >
-                        {p}
-                      </Button>
-                    ),
-                  );
-                })()}
-              </div>
-            </div>
-          </SectionCard>
-        </div>
-      )}
-
-      {showDetails && selectedReg && (
-        <Popup open onOpenChange={(o) => !o && setShowDetails(false)}>
-          <div className="border-border bg-linear-to-r flex items-center justify-between rounded-t-xl border-b from-blue-600 to-blue-500 p-6 text-white dark:border-gray-700">
-            <div>
-              <h3 className="text-xl font-bold">Registration Details</h3>
-              <p className="mt-1 text-sm opacity-90">Full student information preview</p>
-            </div>
-            <button
-              onClick={() => setShowDetails(false)}
-              className="p-2 text-white transition-colors hover:text-gray-200"
-            >
-              <XCircle size={24} />
-            </button>
-          </div>
-
-          <div className="p-6">
-            <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-4">
-              <div className="md:col-span-1">
-                <div className="bg-muted/50 border-border sticky top-20 flex flex-col items-center rounded-xl border p-4 dark:border-gray-700 dark:bg-gray-900/50">
-                  <h4 className="text-muted-foreground mb-3 text-xs font-bold uppercase tracking-wider">
-                    Student Photo
-                  </h4>
-                  {(variant === 9 ? selectedReg.photo : selectedReg.photo) ? (
-                    <img
-                      src={getFileUrl(
-                        variant === 9 ? (selectedReg.photo as string) : selectedReg.photo!,
+        <SectionCard noPadding className="mb-6">
+          {/* One table for every screen: narrow screens scroll it sideways. */}
+          <div className="overflow-x-auto xl:overflow-visible">
+            <table className="w-full min-w-[44rem] border-collapse text-left">
+              <thead className="xl:sticky xl:top-0 xl:z-10">
+                <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                  {columns.map((col) => (
+                    <th
+                      key={col.label}
+                      aria-sort={
+                        sort && col.sortKey === sort.key
+                          ? sort.order === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : undefined
+                      }
+                      className={cn(
+                        'text-muted-foreground px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                        col.className,
                       )}
-                      className="aspect-3/4 w-full rounded-lg border-2 border-white object-cover shadow-md dark:border-gray-800"
-                      alt="Student"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/placeholder-student.png';
-                      }}
-                    />
-                  ) : (
-                    <div className="border-border aspect-3/4 flex w-full items-center justify-center rounded-lg border-2 border-dashed bg-gray-200 dark:border-gray-600 dark:bg-gray-700">
-                      <Users size={48} className="text-gray-400" />
-                    </div>
-                  )}
-                  <div className="mt-4 w-full">
-                    <div className="bg-card rounded-lg border border-gray-100 p-3 text-center shadow-sm dark:border-gray-700">
-                      <p className="text-muted-foreground mb-1 text-[10px] font-bold uppercase tracking-wider">
-                        Status
-                      </p>
-                      <div className="flex justify-center">
-                        <StatusBadge status={selectedReg.status} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6 md:col-span-3">
-                <div className="grid grid-cols-2 gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-4 dark:border-blue-900/20 dark:bg-blue-900/10">
-                  <div>
-                    <p className="text-primary dark:text-primary/70 text-[10px] font-bold uppercase">
-                      Section
-                    </p>
-                    <p className="font-semibold">{selectedReg.section || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-primary dark:text-primary/70 text-[10px] font-bold uppercase">
-                      Roll No
-                    </p>
-                    <p className="font-semibold">{selectedReg.roll || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-primary dark:text-primary/70 text-[10px] font-bold uppercase">
-                      Academic Year
-                    </p>
-                    <p className="font-semibold">
-                      {selectedReg[cfg.recordYearKey as keyof Registration] as string | number}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-primary dark:text-primary/70 text-[10px] font-bold uppercase">
-                      Religion
-                    </p>
-                    <p className="font-semibold">{selectedReg.religion || '-'}</p>
-                  </div>
-                </div>
-
-                {variant === 9 ? (
-                  <div className="space-y-4">
-                    <div className="border-border overflow-hidden rounded-xl border shadow-sm dark:border-gray-700">
-                      <table className="w-full text-sm">
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                          <tr>
-                            <td
-                              colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
+                    >
+                      {col.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {loading ? (
+                  Array.from({ length: 8 }, (_, i) => (
+                    <tr key={i}>
+                      <td colSpan={columns.length} className="px-4 py-2">
+                        <Skeleton className="h-9 w-full" />
+                      </td>
+                    </tr>
+                  ))
+                ) : registrations.length > 0 ? (
+                  registrations.map((reg) => (
+                    // Opaque row colours so the pinned Student cell hides what scrolls under it.
+                    <tr
+                      key={reg.id}
+                      className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                    >
+                      <td className={cn(stickyCell, 'px-3 py-2 sm:px-4')}>
+                        <div className="flex max-w-[12rem] items-center gap-3 sm:max-w-none">
+                          <RegPhoto reg={reg} className="h-9 w-7" />
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => setDetailReg(reg)}
+                              className="focus-visible:ring-ring block max-w-full truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
                             >
-                              Personal Information (ব্যক্তিগত তথ্য)
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Student Name (EN)
-                            </td>
-                            <td className="dark:text-primary/70 px-4 py-2.5 font-bold uppercase text-blue-700">
-                              {selectedReg.student_name_en}
-                              {selectedReg.student_nick_name_bn && (
-                                <span className="text-muted-foreground ml-2 text-sm font-normal lowercase">
-                                  ({selectedReg.student_nick_name_bn})
-                                </span>
-                              )}
-                              {selectedReg.student_name_bn && (
-                                <div className="text-muted-foreground mt-0.5 text-sm font-normal">
-                                  {selectedReg.student_name_bn}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Birth Reg. No
-                            </td>
-                            <td className="px-4 py-2.5 font-mono">{selectedReg.birth_reg_no}</td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Date of Birth
-                            </td>
-                            <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Blood Group
-                            </td>
-                            <td className="px-4 py-2.5 font-semibold text-red-500">
-                              {selectedReg.blood_group || '-'}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Contact Info
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <p>Email: {selectedReg.email || '-'}</p>
-                              <p>Father Ph: {selectedReg.father_phone || '-'}</p>
-                              <p>Mother Ph: {selectedReg.mother_phone || '-'}</p>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td
-                              colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                            >
-                              Parent Information (পিতা-মাতার তথ্য)
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Father's Info
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <p>
-                                <strong>Father's Name (BN):</strong>{' '}
-                                {selectedReg.father_name_bn || '-'}
+                              {reg.student_name_en}
+                            </button>
+                            {reg.student_name_bn && (
+                              <p className="text-muted-foreground truncate text-xs">
+                                {reg.student_name_bn}
                               </p>
-                              <p>
-                                <strong>Father's Name (EN):</strong>{' '}
-                                {selectedReg.father_name_en || '-'}
-                              </p>
-                              <p className="text-xs">NID: {selectedReg.father_nid || '-'}</p>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              Mother's Info
-                            </td>
-                            <td className="px-4 py-2.5 text-lg font-bold text-gray-900 dark:text-gray-100">
-                              {selectedReg.mother_name_bn || '-'}
-                              <span className="text-muted-foreground mt-1 block text-sm font-normal uppercase">
-                                {selectedReg.mother_name_en || '-'}
-                              </span>
-                              <p className="text-xs">NID: {selectedReg.mother_nid || '-'}</p>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td
-                              colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                            >
-                              Address Details (ঠিকানা)
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              Present Address
-                            </td>
-                            <td className="px-4 py-2.5 leading-relaxed">
-                              {selectedReg.present_village_road &&
-                                `${selectedReg.present_village_road}, `}
-                              {selectedReg.present_post_office}-{selectedReg.present_post_code},{' '}
-                              {selectedReg.present_upazila}, {selectedReg.present_district}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              Permanent Address
-                            </td>
-                            <td className="px-4 py-2.5 leading-relaxed">
-                              {selectedReg.permanent_village_road &&
-                                `${selectedReg.permanent_village_road}, `}
-                              {selectedReg.permanent_post_office}-{selectedReg.permanent_post_code},{' '}
-                              {selectedReg.permanent_upazila}, {selectedReg.permanent_district}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              Nearby Student Info
-                            </td>
-                            <td className="px-4 py-2.5">
-                              {selectedReg.nearby_nine_student_info || 'Not Applicable'}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td
-                              colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                            >
-                              SSC & JSC Information (শিক্ষাগত তথ্য)
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              Class 9 Academic
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <p className="text-xs font-bold uppercase text-gray-800 dark:text-gray-200">
-                                Group: {selectedReg.group_class_nine || '-'}
-                              </p>
-                              <div className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-                                <p>
-                                  <span className="text-gray-400">Main:</span>{' '}
-                                  {selectedReg.main_subject || '-'}
-                                </p>
-                                <p>
-                                  <span className="text-gray-400">4th Sub:</span>{' '}
-                                  {selectedReg.fourth_subject || '-'}
-                                </p>
-                              </div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              JSC Information
-                            </td>
-                            <td className="px-4 py-2.5 text-sm">
-                              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                                <p>
-                                  <strong>Year:</strong> {selectedReg.jsc_passing_year || '-'}
-                                </p>
-                                <p>
-                                  <strong>JSC/JDC/Class 8 ID/Roll:</strong>{' '}
-                                  <span className="font-mono">
-                                    {selectedReg.jsc_roll_no || '-'}
-                                  </span>
-                                </p>
-                                <p>
-                                  <strong>Reg:</strong>{' '}
-                                  <span className="font-mono">{selectedReg.jsc_reg_no || '-'}</span>
-                                </p>
-                              </div>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td
-                              colSpan={2}
-                              className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                            >
-                              Guardian Info (অভিভাবক)
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              Prev. School
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <p className="text-xs font-bold uppercase text-gray-800 dark:text-gray-200">
-                                {selectedReg.prev_school_name || '-'}
-                              </p>
-                              <p className="text-muted-foreground mt-1 text-xs dark:text-gray-400">
-                                {selectedReg.prev_school_upazila},{' '}
-                                {selectedReg.prev_school_district}
-                              </p>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                              Guardian
-                            </td>
-                            <td className="px-4 py-2.5">
-                              {selectedReg.guardian_name ? (
-                                <div className="space-y-1.5">
-                                  <p className="font-semibold text-gray-800 dark:text-gray-200">
-                                    {selectedReg.guardian_name}{' '}
-                                    <span className="text-muted-foreground text-xs font-normal">
-                                      ({selectedReg.guardian_relation})
-                                    </span>
-                                  </p>
-                                  <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-                                    <p>
-                                      <span className="text-gray-400">Phone:</span>{' '}
-                                      {selectedReg.guardian_phone || '-'}
-                                    </p>
-                                    <p>
-                                      <span className="text-gray-400">NID:</span>{' '}
-                                      {selectedReg.guardian_nid || '-'}
-                                    </p>
-                                  </div>
-                                  {(selectedReg.guardian_village_road ||
-                                    selectedReg.guardian_district) && (
-                                    <div className="mt-1 border-t border-gray-100 pt-1 dark:border-gray-700/50">
-                                      <p className="mb-0.5 text-[10px] font-bold uppercase text-gray-400">
-                                        Guardian Address
-                                      </p>
-                                      <p className="text-muted-foreground text-xs leading-relaxed dark:text-gray-400">
-                                        {selectedReg.guardian_village_road},{' '}
-                                        {selectedReg.guardian_post_office}-
-                                        {selectedReg.guardian_post_code},{' '}
-                                        {selectedReg.guardian_upazila},{' '}
-                                        {selectedReg.guardian_district}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="italic text-gray-400">
-                                  Parent (No separate guardian specified)
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                              System Info
-                            </td>
-                            <td className="text-muted-foreground px-4 py-2.5 text-[10px]">
-                              <p>ID: {selectedReg.id}</p>
-                              <p>Submitted: {formatDateWithTime(selectedReg.created_at)}</p>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-sm">{reg.section || '—'}</td>
+                      <td className="px-4 py-2 text-sm tabular-nums">{reg.roll || '—'}</td>
+                      <td className="px-4 py-2">
+                        <StatusBadge status={reg.status} />
+                      </td>
+                      <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                        {formatDateWithTime(reg.created_at)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">{rowActions(reg)}</td>
+                    </tr>
+                  ))
                 ) : (
-                  <div className="border-border overflow-hidden rounded-xl border shadow-sm dark:border-gray-700">
-                    <table className="w-full text-sm">
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                          >
-                            Personal Information (ব্যক্তিগত তথ্য)
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Student Name (EN)
-                          </td>
-                          <td className="dark:text-primary/70 px-4 py-2.5 font-bold uppercase text-blue-700">
-                            {selectedReg.student_name_en}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Birth Reg. No
-                          </td>
-                          <td className="px-4 py-2.5 font-mono">{selectedReg.birth_reg_no}</td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Date of Birth
-                          </td>
-                          <td className="px-4 py-2.5">{selectedReg.birth_date}</td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Scout Status
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                                selectedReg.scout_status === 'Yes'
-                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                              }`}
-                            >
-                              {selectedReg.scout_status || 'No'}
-                            </span>
-                          </td>
-                        </tr>
-                        {(variant === 8 || variant === 'jse') && (
-                          <>
-                            <tr>
-                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Class 6 Registration Year
-                              </td>
-                              <td className="px-4 py-2.5">{selectedReg.class6_reg_year}</td>
-                            </tr>
-                            <tr>
-                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Class 6 Board
-                              </td>
-                              <td className="px-4 py-2.5">{selectedReg.class6_board}</td>
-                            </tr>
-                            <tr>
-                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Class 6 Reg No
-                              </td>
-                              <td className="px-4 py-2.5 font-mono">{selectedReg.class6_reg_no}</td>
-                            </tr>
-                            <tr>
-                              <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                                Class 6 ID/Roll
-                              </td>
-                              <td className="px-4 py-2.5 font-mono">
-                                {selectedReg.class6_roll_no}
-                              </td>
-                            </tr>
-                          </>
-                        )}
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Contact Info
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <p>Email: {selectedReg.email || '-'}</p>
-                            <p>Father Ph: {selectedReg.father_phone || '-'}</p>
-                            <p>Mother Ph: {selectedReg.mother_phone || '-'}</p>
-                          </td>
-                        </tr>
-
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                          >
-                            Parent Information (পিতা-মাতার তথ্য)
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Father's Info
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <p>
-                              <strong>Father's Name (BN):</strong> {selectedReg.father_name_bn}
-                            </p>
-                            <p>
-                              <strong>Father's Name (EN):</strong> {selectedReg.father_name_en}
-                            </p>
-                            <p className="text-xs">NID: {selectedReg.father_nid || '-'}</p>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            Mother's Info
-                          </td>
-                          <td className="px-4 py-2.5 text-lg font-bold text-gray-900 dark:text-gray-100">
-                            {selectedReg.mother_name_bn}
-                            <span className="text-muted-foreground mt-1 block text-sm font-normal uppercase">
-                              {selectedReg.mother_name_en}
-                            </span>
-                            <p className="text-xs">NID: {selectedReg.mother_nid || '-'}</p>
-                          </td>
-                        </tr>
-
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                          >
-                            Address Details (ঠিকানা)
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                            Present Address
-                          </td>
-                          <td className="px-4 py-2.5 leading-relaxed">
-                            {selectedReg.present_village_road}, {selectedReg.present_post_office}-
-                            {selectedReg.present_post_code}, {selectedReg.present_upazila},{' '}
-                            {selectedReg.present_district}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                            Permanent Address
-                          </td>
-                          <td className="px-4 py-2.5 leading-relaxed">
-                            {selectedReg.permanent_village_road},{' '}
-                            {selectedReg.permanent_post_office}-{selectedReg.permanent_post_code},{' '}
-                            {selectedReg.permanent_upazila}, {selectedReg.permanent_district}
-                          </td>
-                        </tr>
-
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                            Nearby Student Info
-                          </td>
-                          <td className="px-4 py-2.5">
-                            {selectedReg.nearby_student_info || 'Not Applicable'}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-tight text-gray-700 dark:bg-gray-900/50 dark:text-gray-200"
-                          >
-                            Guardian Info (অভিভাবক)
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                            Prev. School
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <p className="text-xs font-bold uppercase text-gray-800 dark:text-gray-200">
-                              {selectedReg.prev_school_name}
-                            </p>
-                            <p className="text-muted-foreground mt-1 text-xs dark:text-gray-400">
-                              {selectedReg.prev_school_upazila}, {selectedReg.prev_school_district}
-                            </p>
-                            {variant === 6 && (
-                              <div className="mt-2 grid grid-cols-3 gap-2 border-t border-gray-100 pt-2 dark:border-gray-700">
-                                <div>
-                                  <p className="text-[9px] font-bold uppercase leading-none text-gray-400">
-                                    Section
-                                  </p>
-                                  <p className="text-xs font-semibold">
-                                    {selectedReg.section_in_prev_school || '-'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-[9px] font-bold uppercase leading-none text-gray-400">
-                                    Roll
-                                  </p>
-                                  <p className="text-xs font-semibold">
-                                    {selectedReg.roll_in_prev_school || '-'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-[9px] font-bold uppercase leading-none text-gray-400">
-                                    Year
-                                  </p>
-                                  <p className="text-xs font-semibold">
-                                    {selectedReg.prev_school_passing_year || '-'}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 align-top dark:bg-gray-800/30 dark:text-gray-400">
-                            Guardian
-                          </td>
-                          <td className="px-4 py-2.5">
-                            {selectedReg.guardian_name ? (
-                              <div className="space-y-1.5">
-                                <p className="font-semibold text-gray-800 dark:text-gray-200">
-                                  {selectedReg.guardian_name}{' '}
-                                  <span className="text-muted-foreground text-xs font-normal">
-                                    ({selectedReg.guardian_relation})
-                                  </span>
-                                </p>
-                                <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-                                  <p>
-                                    <span className="text-gray-400">Phone:</span>{' '}
-                                    {selectedReg.guardian_phone || '-'}
-                                  </p>
-                                  <p>
-                                    <span className="text-gray-400">NID:</span>{' '}
-                                    {selectedReg.guardian_nid || '-'}
-                                  </p>
-                                </div>
-                                {(selectedReg.guardian_village_road ||
-                                  selectedReg.guardian_district) && (
-                                  <div className="mt-1 border-t border-gray-100 pt-1 dark:border-gray-700/50">
-                                    <p className="mb-0.5 text-[10px] font-bold uppercase text-gray-400">
-                                      Guardian Address
-                                    </p>
-                                    <p className="text-muted-foreground text-xs leading-relaxed dark:text-gray-400">
-                                      {selectedReg.guardian_village_road},{' '}
-                                      {selectedReg.guardian_post_office}-
-                                      {selectedReg.guardian_post_code},{' '}
-                                      {selectedReg.guardian_upazila},{' '}
-                                      {selectedReg.guardian_district}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="italic text-gray-400">
-                                Parent (No separate guardian specified)
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="text-muted-foreground bg-muted/50/30 px-4 py-2.5 dark:bg-gray-800/30 dark:text-gray-400">
-                            System Info
-                          </td>
-                          <td className="text-muted-foreground px-4 py-2.5 text-[10px]">
-                            <p>ID: {selectedReg.id}</p>
-                            <p>Submitted: {formatDateWithTime(selectedReg.created_at)}</p>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  <tr>
+                    <td colSpan={columns.length}>{emptyState}</td>
+                  </tr>
                 )}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
 
-          <div className="border-border bg-muted/50 flex flex-wrap items-center justify-between gap-4 border-t p-6 dark:border-gray-700 dark:bg-gray-900/50">
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  if (!selectedReg) return;
-                  handlePreviewPDF(selectedReg.id);
-                }}
-                className="flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 font-semibold text-white shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:bg-violet-700"
-              >
-                <FileText size={18} />
-                Preview PDF
-              </button>
-              <button
-                onClick={async () => {
-                  if (!selectedReg || pdfDownloading) return;
-                  setPdfDownloading(true);
-                  try {
-                    const response = await axios.get(`${cfg.apiBase}/form/${selectedReg.id}/pdf`, {
-                      responseType: 'blob',
-                    });
-                    const blob = new Blob([response.data], { type: 'application/pdf' });
-                    downloadBlob(
-                      blob,
-                      `${cfg.pdfPrefix}${selectedReg.student_name_en.replace(/\s+/g, '_')}.pdf`,
-                    );
-                  } catch (err) {
-                    console.error(err);
-                    toast.error('Failed to download PDF');
-                  } finally {
-                    setPdfDownloading(false);
-                  }
-                }}
-                disabled={pdfDownloading}
-                className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-xl px-6 py-2.5 font-semibold text-white shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] disabled:opacity-50"
-              >
-                {pdfDownloading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Download size={18} />
-                )}
-                {pdfDownloading ? 'Generating PDF...' : 'Download PDF'}
-              </button>
-              {selectedReg.status === 'pending' && (
-                <button
-                  onClick={() => {
-                    handleStatusUpdate(selectedReg.id, 'approved');
-                    setShowDetails(false);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 font-semibold text-white shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:bg-emerald-700"
+          <TablePagination
+            page={page}
+            totalPages={meta?.totalPages ?? 0}
+            limit={limit}
+            loading={isFetching}
+            totalFiltered={meta?.total}
+            limitOptions={[50, 100, 200]}
+            onPageChange={setPage}
+            onLimitChange={(l) => {
+              setLimit(l);
+              setPage(1);
+            }}
+          />
+        </SectionCard>
+      )}
+
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete registration"
+        msg={`Delete the registration for ${deleteTarget?.student_name_en ?? 'this student'}? This cannot be undone.`}
+      />
+
+      {detailReg && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setDetailReg(null)}
+          size="2xl"
+          aria-labelledby="registration-details-title"
+        >
+          <div className="border-border flex items-center justify-between border-b px-5 py-4">
+            <h2 id="registration-details-title" className="text-base font-semibold">
+              Registration details
+            </h2>
+            <CloseButton onClick={() => setDetailReg(null)} />
+          </div>
+
+          <div className="max-h-[65vh] space-y-6 overflow-y-auto px-5 py-4">
+            <div className="flex items-start gap-4">
+              <RegPhoto reg={detailReg} className="h-28 w-[5.5rem] text-2xl" />
+              <div className="min-w-0 space-y-2">
+                <div>
+                  <p className="text-lg font-semibold leading-tight">{detailReg.student_name_en}</p>
+                  {detailReg.student_name_bn && (
+                    <p className="text-muted-foreground text-sm">{detailReg.student_name_bn}</p>
+                  )}
+                </div>
+                <StatusBadge status={detailReg.status} />
+                <p className="text-muted-foreground text-sm tabular-nums">
+                  {join(
+                    detailReg.section && `Section ${detailReg.section}`,
+                    detailReg.roll && `Roll ${detailReg.roll}`,
+                    `${cfg.yearLabel} ${String(
+                      detailReg[cfg.recordYearKey as keyof Registration] ?? '—',
+                    )}`,
+                    detailReg.religion,
+                  )}
+                </p>
+              </div>
+            </div>
+            {(() => {
+              const rows = detailRows(detailReg);
+              return (
+                <>
+                  <DetailSection title="Personal" rows={rows.personal} />
+                  <DetailSection title="Parents" rows={rows.parents} />
+                  <DetailSection title="Address" rows={rows.addresses} />
+                  <DetailSection title="Education" rows={rows.academic} />
+                  <DetailSection title="Guardian" rows={rows.guardian} />
+                </>
+              );
+            })()}
+            <p className="text-muted-foreground text-xs">
+              Submitted {formatDateWithTime(detailReg.created_at)} · ID {detailReg.id}
+            </p>
+          </div>
+
+          <div className="border-border flex flex-wrap items-center gap-2 border-t px-5 py-3">
+            <Button type="button" variant="outline" onClick={() => previewPdf(detailReg)}>
+              <FileText /> Preview PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pdfDownloadingId !== null}
+              onClick={() => downloadPdf(detailReg)}
+            >
+              {pdfDownloadingId === detailReg.id ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Download />
+              )}
+              Download PDF
+            </Button>
+            <div className="ml-auto">
+              {detailReg.status === 'pending' ? (
+                <Button
+                  type="button"
+                  disabled={statusMutation.isPending}
+                  onClick={() => setStatus(detailReg, 'approved')}
                 >
-                  <CheckCircle2 size={18} />
-                  {cfg.approveLabel}
-                </button>
+                  {statusMutation.isPending ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 />
+                  )}
+                  Approve
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={statusMutation.isPending}
+                  onClick={() => setStatus(detailReg, 'pending')}
+                >
+                  <Clock /> Mark as pending
+                </Button>
               )}
             </div>
-            <button
-              onClick={() => setShowDetails(false)}
-              className="rounded-xl bg-gray-200 px-6 py-2.5 font-semibold text-gray-800 transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-            >
-              Close Preview
-            </button>
           </div>
-        </Popup>
-      )}
-      {showEditModal && editFormData && (
-        <Popup open onOpenChange={(o) => !o && setShowEditModal(false)} size={cfg.editModalSize}>
-          {variant === 9 ? (
-            <>
-              <div className="border-border flex items-center justify-between border-b px-5 py-4 dark:border-gray-700">
-                <h3 className="text-lg font-bold">Update Status</h3>
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="hover:bg-muted rounded-full p-1 transition-colors dark:hover:bg-gray-700"
-                  aria-label="Close"
-                >
-                  <XCircle size={22} className="text-muted-foreground" />
-                </button>
-              </div>
-              <div className="space-y-4 p-5">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Select Status
-                  </label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {(['pending', 'approved'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setEditFormData({ ...editFormData, status: s })}
-                        className={`flex items-center justify-between rounded-xl border-2 px-3 py-3 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
-                          editFormData.status === s
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'hover:border-border border-gray-100 dark:border-gray-700 dark:hover:border-gray-600'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`rounded-full p-2 ${
-                              s === 'approved'
-                                ? 'bg-emerald-100 text-emerald-600'
-                                : 'bg-amber-100 text-amber-600'
-                            }`}
-                          >
-                            {s === 'approved' ? (
-                              <CheckCircle2 size={18} />
-                            ) : (
-                              <AlertCircle size={18} />
-                            )}
-                          </div>
-                          <span className="text-sm font-semibold capitalize text-gray-900 dark:text-white">
-                            {s}
-                          </span>
-                        </div>
-                        {editFormData.status === s && (
-                          <div className="bg-primary h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(59,130,246,0.2)]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(false)}
-                    className="hover:bg-muted rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleStatusUpdate(editFormData.id, editFormData.status);
-                      setShowEditModal(false);
-                    }}
-                    className="bg-primary hover:bg-primary/90 rounded-lg px-5 py-2 text-sm font-medium text-white shadow-sm transition-colors"
-                  >
-                    Update Status
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="border-border flex items-center justify-between border-b p-6 dark:border-gray-700">
-                <h3 className="text-xl font-bold">Update Registration Status</h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="hover:bg-muted rounded-full p-1 transition-colors dark:hover:bg-gray-700"
-                >
-                  <XCircle size={24} className="text-muted-foreground" />
-                </button>
-              </div>
-              <div className="space-y-6 p-6">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Select Status
-                  </label>
-                  <div className="grid grid-cols-1 gap-3">
-                    {['pending', 'approved'].map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setEditFormData({ ...editFormData, status: s })}
-                        className={`flex items-center justify-between rounded-xl border-2 p-4 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
-                          editFormData.status === s
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'hover:border-border border-gray-100 dark:border-gray-700 dark:hover:border-gray-600'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`rounded-full p-2 ${s === 'approved' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}
-                          >
-                            {s === 'approved' ? (
-                              <CheckCircle2 size={20} />
-                            ) : (
-                              <AlertCircle size={20} />
-                            )}
-                          </div>
-                          <span className="font-semibold capitalize text-gray-900 dark:text-white">
-                            {s}
-                          </span>
-                        </div>
-                        {editFormData.status === s && (
-                          <div className="bg-primary h-3 w-3 rounded-full shadow-[0_0_0_4px_rgba(59,130,246,0.2)]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="hover:bg-muted rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await handleStatusUpdate(editFormData.id, editFormData.status);
-                      setShowEditModal(false);
-                    }}
-                    className="bg-primary hover:bg-primary/90 rounded-lg px-6 py-2 text-sm font-medium text-white shadow-sm transition-colors"
-                  >
-                    Update Status
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
         </Popup>
       )}
     </div>

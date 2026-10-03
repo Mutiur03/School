@@ -1533,7 +1533,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
         <div className="overflow-x-auto xl:overflow-visible">
           <table className="w-full min-w-[48rem] border-collapse text-left">
             <thead className="xl:sticky xl:top-0 xl:z-10">
-              <tr className="bg-muted border-border border-b">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
                 {!readOnly && (
                   <th className={cn(stickyCell, 'left-0 w-10 px-3 py-2.5')}>
                     <input

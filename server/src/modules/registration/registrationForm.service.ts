@@ -42,6 +42,16 @@ type PdfRowHelpers = {
   joinAddr: (v: any, po: any, pc: any, upz: any, dist: any) => string;
 };
 
+/** Admin list `?sort=` keys → columns. */
+const REG_SORT_FIELDS: Record<string, string> = {
+  name: 'student_name_en',
+  section: 'section',
+  status: 'status',
+  date: 'created_at',
+};
+
+const ROLL_COLLATOR = new Intl.Collator('en', { numeric: true });
+
 const UI_ONLY_KEYS = [
   'same_as_permanent',
   'guardian_address_same_as_permanent',
@@ -296,6 +306,18 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
       ];
     }
 
+    // NOTE: sort added to frozen legacy route by explicit user decision (admin column sort);
+    // port to Nest with the registration module.
+    const sortField = REG_SORT_FIELDS[query.sort as string];
+    const orderBy = sortField
+      ? [{ [sortField]: query.order === 'asc' ? 'asc' : 'desc' }, { id: 'desc' }]
+      : { created_at: 'desc' };
+    // Roll is VARCHAR ("2" > "10" in SQL), so roll sort happens here with a numeric collator.
+    // ponytail: loads the whole filtered year (a few hundred rows); move to SQL if that grows.
+    const rollDir = query.sort === 'roll' ? (query.order === 'desc' ? -1 : 1) : 0;
+    const sortByRoll = (rows: any[]) =>
+      rows.sort((a, b) => rollDir * ROLL_COLLATOR.compare(a.roll ?? '', b.roll ?? ''));
+
     if (shouldPaginate) {
       const pageNum = parseInt(String(page ?? 1), 10);
       const limitNum = parseInt(String(limit ?? (cfg.alwaysPaginate ? 50 : 20)), 10);
@@ -317,16 +339,16 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
         students().count({ where }),
         students().count({ where: { ...statsWhere, status: 'pending' } }),
         students().count({ where: { ...statsWhere, status: 'approved' } }),
-        students().findMany({
-          where,
-          orderBy: { created_at: 'desc' },
-          skip,
-          take: normalizedLimit,
-        }),
+        students().findMany(
+          rollDir ? { where, orderBy } : { where, orderBy, skip, take: normalizedLimit },
+        ),
       ]);
+      const pageRows = rollDir
+        ? sortByRoll(registrations).slice(skip, skip + normalizedLimit)
+        : registrations;
 
       return {
-        data: registrations.map(applyOutgoing),
+        data: pageRows.map(applyOutgoing),
         meta: {
           total,
           pending,
@@ -340,9 +362,9 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
 
     const rows = await students().findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy,
     });
-    return rows.map(applyOutgoing);
+    return (rollDir ? sortByRoll(rows) : rows).map(applyOutgoing);
   }
 
   async function getRegistrationById(id: string) {
