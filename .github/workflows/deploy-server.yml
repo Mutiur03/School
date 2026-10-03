@@ -7,8 +7,9 @@
 name: Deploy Server
 
 on:
+  # Every branch runs ci (lint, typecheck, tests, build). Image push + deploy: main only.
   push:
-    branches: ['main', 'staging']
+    branches: ['**']
     paths:
       - 'server/**'
       - 'packages/shared-schemas/**'
@@ -152,17 +153,17 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build --filter=server
 
-      # Push sha-tagged image on staging (for later promote) and on main rebuild fallback.
+      # Push image on main only.
       - name: Set up Docker Buildx
         if: |
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+          github.ref == 'refs/heads/main'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub (To prevent rate limits)
         if: |
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+          github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -171,7 +172,7 @@ jobs:
       - name: Log in to the Container registry
         if: |
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+          github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -181,14 +182,14 @@ jobs:
       - name: Lowercase Repository Name
         if: |
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+          github.ref == 'refs/heads/main'
         id: repo
         run: echo "name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
         if: |
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+          github.ref == 'refs/heads/main'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -201,7 +202,7 @@ jobs:
       - name: Build and push Docker image
         if: |
           (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+          github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v5
         with:
           context: .

@@ -2,7 +2,7 @@ name: Deploy Tenant Router
 
 on:
   push:
-    branches: ['main', 'staging']
+    branches: ['**']
     paths:
       - 'workers/tenant-router/**'
       - '.github/workflows/deploy-tenant-router.yml'

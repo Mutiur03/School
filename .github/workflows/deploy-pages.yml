@@ -8,7 +8,7 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: ['main', 'staging']
+    branches: ['**']
     paths:
       - 'dashboard/**'
       - 'packages/**'
@@ -292,15 +292,6 @@ jobs:
       - name: Build ${{ matrix.app.name }}
         if: needs.promote-meta.outputs.hit != 'true'
         run: pnpm exec turbo run ${{ matrix.app.build_script }} --filter=dashboard
-
-      - name: Upload dist artifact for ${{ matrix.app.name }}
-        if: github.ref == 'refs/heads/staging'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pages-${{ matrix.app.project_name }}
-          path: ./${{ matrix.app.directory }}/dist
-          retention-days: 14
-          if-no-files-found: error
 
       - name: Set up Node.js for promote deploy
         if: |
