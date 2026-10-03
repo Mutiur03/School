@@ -8,6 +8,8 @@
       "@/*": ["./src/*"]
     },
     "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
@@ -18,8 +20,8 @@
     "allowImportingTsExtensions": false,
     "noEmit": false,
     "outDir": "dist",
-    "rootDir": "src"
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist"]
 }

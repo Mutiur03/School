@@ -7,7 +7,10 @@
   "scripts": {
     "preinstall": "pnpm --filter @school/shared-schemas build",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "build": "prisma generate && tsc && tsc-alias",
+    "test:nest": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:nest:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:nest:cov": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "build": "prisma generate && nest build && tsc-alias",
     "db:migrate": "prisma generate && prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",
     "db:migrate:dev": "prisma migrate dev",
@@ -15,7 +18,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "backfill:class68-reg-pdfs": "tsx src/scripts/backfill-class68-reg-pdfs.ts",
-    "dev": "nodemon",
+    "dev": "node --watch-path=src --watch-path=../packages/shared-schemas/dist --import @swc-node/register/esm-register --import ./src/instrument.ts src/server.ts",
     "start": "node --import ./dist/instrument.js dist/server.js"
   },
   "keywords": [],
@@ -25,6 +28,10 @@
     "@aws-sdk/client-s3": "^3.972.0",
     "@aws-sdk/s3-request-presigner": "^3.972.0",
     "@getbrevo/brevo": "^2.2.0",
+    "@nestjs/common": "^12.1.2",
+    "@nestjs/core": "^12.1.2",
+    "@nestjs/mapped-types": "^12.0.0",
+    "@nestjs/platform-express": "^12.1.2",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "7",
     "@school/shared-schemas": "workspace:*",
@@ -32,6 +39,8 @@
     "archiver": "^7.0.1",
     "bcrypt": "^6.0.0",
     "bull": "^4.16.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -47,6 +56,8 @@
     "prisma": "7",
     "puppeteer": "^24.33.0",
     "qrcode": "^1.5.4",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "sharp": "^0.34.4",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
@@ -54,18 +65,62 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@nestjs/cli": "^12.0.8",
+    "@nestjs/schematics": "^12.0.6",
+    "@nestjs/testing": "^12.1.2",
+    "@swc-node/register": "^1.12.1",
+    "@swc/core": "^1.16.13",
     "@types/archiver": "^7.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.20.1",
     "@types/pdfkit": "^0.17.5",
     "@types/qrcode": "^1.5.6",
-    "nodemon": "^3.1.11",
+    "@types/supertest": "^7.2.1",
+    "jest": "^30.5.2",
+    "supertest": "^7.3.0",
+    "ts-jest": "^29.4.14",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.20.6",
-    "typescript": "^7.0.2"
+    "typescript": "npm:@typescript/typescript6@6.0.2"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)\\.js$": "<rootDir>/$1",
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
+    },
+    "setupFiles": [
+      "dotenv/config"
+    ],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "forceExit": true
   }
 }

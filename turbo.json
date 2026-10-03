@@ -1,6 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["pnpm-lock.yaml", ".npmrc"],
+  "globalPassThroughEnv": ["LOCALAPPDATA", "APPDATA", "USERPROFILE", "SWC_NATIVE_BINDING_CACHE"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

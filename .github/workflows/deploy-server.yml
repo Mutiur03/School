@@ -140,6 +140,15 @@ jobs:
       - name: Lint, format, and typecheck
         run: pnpm run check:server
 
+      # Unit tests only: no DB/Redis. *.http.spec.ts needs a seeded Postgres + Redis, run locally.
+      - name: Test
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+        run: |
+          pnpm test
+          pnpm test:nest --testPathIgnorePatterns http.spec
+
       - name: Build
         run: pnpm exec turbo run build --filter=server
 

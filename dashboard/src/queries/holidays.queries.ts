@@ -23,7 +23,7 @@ export const useHolidays = () =>
   useQuery<Holiday[]>({
     queryKey: ['holidays'],
     queryFn: async () => {
-      const res = await axios.get('/api/holidays/getHolidays');
+      const res = await axios.get('/api/holidays');
       return res.data.data;
     },
   });
@@ -32,7 +32,7 @@ export const useAddHoliday = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (formData: HolidayFormData) => {
-      const response = await axios.post('/api/holidays/addHoliday', formData);
+      const response = await axios.post('/api/holidays', formData);
       return response.data.data as Holiday;
     },
     onSuccess: () => {
@@ -51,7 +51,7 @@ export const useUpdateHoliday = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, formData }: { id: string; formData: HolidayFormData }) => {
-      const response = await axios.put(`/api/holidays/updateHoliday/${id}`, formData);
+      const response = await axios.patch(`/api/holidays/${id}`, formData);
       return response.data.data as Holiday;
     },
     onSuccess: () => {
@@ -70,7 +70,7 @@ export const useDeleteHoliday = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await axios.delete(`/api/holidays/deleteHoliday/${id}`);
+      await axios.delete(`/api/holidays/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['holidays'] });

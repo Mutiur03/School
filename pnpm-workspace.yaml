@@ -5,7 +5,9 @@ packages:
   - packages/*
   - workers/*
 allowBuilds:
+  '@parcel/watcher': false
   '@prisma/engines': true
+  '@swc/core': false
   bcrypt: true
   esbuild: true
   msgpackr-extract: true
