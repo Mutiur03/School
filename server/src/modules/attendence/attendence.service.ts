@@ -185,7 +185,7 @@ export class AttendenceService {
       throw new Error('SMS service is currently disabled in settings.');
     }
 
-    const SCHOOL_NAME = 'Panchbibi Lal Bihari Pilot Govt. High School';
+    const SCHOOL_NAME = await SmsSettingsService.getSchoolName();
 
     const interpolate = (template: string, data: any) => {
       return template
@@ -429,6 +429,7 @@ export class AttendenceService {
       prisma.sms_logs.groupBy({
         by: ['status'],
         where: {
+          category: 'attendance',
           attendance_date: date,
           student_id: { in: studentIds },
         },

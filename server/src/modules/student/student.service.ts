@@ -299,6 +299,7 @@ export class StudentService {
             image: true,
             login_id: true,
             available: true,
+            father_phone: true,
           },
         },
       },
@@ -311,6 +312,8 @@ export class StudentService {
       image: enrollment.student.image,
       login_id: enrollment.student.login_id.toString(),
       available: enrollment.student.available,
+      // Attendance SMS only goes to father_phone; lets the dashboard estimate match.
+      has_phone: Boolean(enrollment.student.father_phone?.trim()),
       class: enrollment.class,
       section: enrollment.section,
       roll: enrollment.roll,

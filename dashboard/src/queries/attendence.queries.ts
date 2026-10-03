@@ -103,14 +103,15 @@ export const useAttendanceStats = (params: {
   });
 };
 
-export const useSmsSettings = (section: string) => {
+/** Pass a section to wait until one is picked; call with no argument to load right away. */
+export const useSmsSettings = (section?: string) => {
   return useQuery({
     queryKey: ['smsSettingsPublic'],
     queryFn: async () => {
       const response = await axios.get('/api/sms-settings/public');
       return response.data.data;
     },
-    enabled: !!section,
+    enabled: section === undefined || !!section,
     refetchInterval: 10000, // Poll every 10 seconds for balance updates
     staleTime: 5000,
   });

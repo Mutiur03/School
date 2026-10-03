@@ -10,7 +10,7 @@ type UserContext = {
 type LogFilters = {
   status?: string;
   date?: string;
-  /** 'attendance' | 'password_reset' | 'test' | 'all'. Defaults to 'attendance' for backward compat. */
+  /** 'attendance' | 'password_reset' | 'test' | 'bulk' | 'all'. Defaults to 'attendance' for backward compat. */
   category?: string;
   page?: number;
   limit?: number;
@@ -100,27 +100,39 @@ export class SmsLogsService {
     const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Number(limit) : 50));
     const offset = (safePage - 1) * safeLimit;
 
-    // Defaults to 'attendance' so existing clients/behavior are unchanged;
-    // pass category=all|password_reset|test to see other send types.
-    const whereClause: any = {};
-    if (category && category !== 'all') {
-      whereClause.category = category;
-    }
+    // category / status: one value, a comma list ("attendance,bulk"), or 'all'.
+    // category defaults to 'attendance' so existing clients/behavior are unchanged.
+    const toList = (v?: string) =>
+      !v || v === 'all'
+        ? []
+        : v
+            .split(',')
+            .map((x) => x.trim())
+            .filter(Boolean);
+    const categories = toList(category);
+    const statuses = toList(status);
 
-    if (status && status !== 'all') {
-      whereClause.status = status;
-    }
+    const whereClause: any = {};
+    if (statuses.length) whereClause.status = { in: statuses };
 
     if (date) {
-      if (category === 'attendance') {
-        whereClause.attendance_date = date;
-      } else {
-        // password_reset/test/all rows have no attendance_date — filter by the day
-        // they were actually sent instead (Asia/Dhaka, fixed UTC+6, no DST).
-        const start = new Date(`${date}T00:00:00+06:00`);
-        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-        whereClause.created_at = { gte: start, lt: end };
+      // Attendance rows are filed by attendance_date; password_reset/test/bulk rows have none,
+      // so they're matched by the day they were sent (Asia/Dhaka, fixed UTC+6, no DST).
+      const start = new Date(`${date}T00:00:00+06:00`);
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      const wantsAttendance = !categories.length || categories.includes('attendance');
+      const others = categories.filter((c) => c !== 'attendance');
+      const byDay: any[] = [];
+      if (wantsAttendance) byDay.push({ category: 'attendance', attendance_date: date });
+      if (!categories.length || others.length) {
+        byDay.push({
+          category: others.length ? { in: others } : { not: 'attendance' },
+          created_at: { gte: start, lt: end },
+        });
       }
+      whereClause.OR = byDay;
+    } else if (categories.length) {
+      whereClause.category = { in: categories };
     }
 
     const studentFilter = await buildTeacherStudentFilter(user);
@@ -367,12 +379,8 @@ export class SmsLogsService {
           },
         });
 
-        if (
-          !smsLog ||
-          !smsLog.student ||
-          smsLog.attendance_date === null ||
-          smsLog.student_id === null
-        ) {
+        // Bulk logs have no attendance_date; retry doesn't touch attendance, so that's fine.
+        if (!smsLog || !smsLog.student || smsLog.student_id === null) {
           results.push({
             smsLogId,
             status: 'error',
@@ -409,7 +417,7 @@ export class SmsLogsService {
           {
             smsLogId,
             studentId: smsLog.student_id,
-            attendanceDate: smsLog.attendance_date,
+            attendanceDate: smsLog.attendance_date ?? '',
             studentName: smsLog.student.name,
           },
         ]);
@@ -675,7 +683,8 @@ export class SmsLogsService {
           student_id: enrollment.student_id,
           phone_number: phone,
           message,
-          attendance_date: todayStr,
+          // Own type, no attendance_date: bulk sends must not count as attendance SMS.
+          category: 'bulk',
           status: 'pending',
           sms_count: smsCountPerMsg,
         },

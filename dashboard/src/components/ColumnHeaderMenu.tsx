@@ -82,7 +82,7 @@ export function ColumnHeaderMenu({
             <Filter
               className={cn(
                 'h-3.5 w-3.5',
-                filterActive ? 'fill-primary text-primary' : 'opacity-40',
+                filterActive ? 'fill-primary text-primary' : 'text-muted-foreground',
               )}
             />
             {filterActive && <span className="sr-only">(filtered)</span>}
@@ -165,7 +165,11 @@ export function ColumnHeaderMenu({
                 ? 'Sort descending'
                 : 'Clear sort'
           }
-          className={cn(headerButton, 'p-1.5 sm:p-1', sortOrder ? 'text-primary' : 'opacity-50')}
+          className={cn(
+            headerButton,
+            'pointer-coarse:p-2.5 p-1',
+            sortOrder ? 'text-primary' : 'text-muted-foreground',
+          )}
         >
           <SortIcon className="h-3.5 w-3.5" />
         </button>

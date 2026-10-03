@@ -32,6 +32,15 @@ export class SmsSettingsService {
     return settings;
   }
 
+  /** Current tenant's name for the {school_name} SMS placeholder. */
+  static async getSchoolName() {
+    const school = await prisma.school.findUnique({
+      where: { id: this.requireSchoolId() },
+      select: { name: true },
+    });
+    return school?.name ?? '';
+  }
+
   static async updateSettings(data: any) {
     const settings = await this.getSettings();
 

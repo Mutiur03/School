@@ -1556,7 +1556,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                         : undefined
                     }
                     className={cn(
-                      'text-muted-foreground px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
                       col.label === 'Student' &&
                         cn(stickyCell, stickyEdge, readOnly ? 'left-0' : 'left-10', 'px-3 sm:px-4'),
                       col.label === 'Actions' && 'px-3 text-right',

@@ -1076,7 +1076,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                           : undefined
                       }
                       className={cn(
-                        'text-muted-foreground px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                        'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
                         col.className,
                       )}
                     >

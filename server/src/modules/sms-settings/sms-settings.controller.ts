@@ -12,14 +12,21 @@ export class SmsSettingsController {
 
   static getPublicSettings = asyncHandler(async (_req: Request, res: Response) => {
     const settings = await SmsSettingsService.getSettings();
-    const { estimatedSms } = await SmsSettingsService.getBalance();
+    const [{ estimatedSms }, schoolName] = await Promise.all([
+      SmsSettingsService.getBalance(),
+      SmsSettingsService.getSchoolName(),
+    ]);
     const publicSettings = {
       is_active: settings.is_active,
       send_to_present: settings.send_to_present,
       send_to_absent: settings.send_to_absent,
+      send_to_run_awayed: settings.send_to_run_awayed,
       present_template: settings.present_template,
       absent_template: settings.absent_template,
+      run_awayed_template: settings.run_awayed_template,
       sms_balance: estimatedSms,
+      // Lets the dashboard estimate SMS length with the real {school_name}.
+      school_name: schoolName,
     };
     return res
       .status(200)

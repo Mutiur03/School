@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-hot-toast';
 import {
@@ -8,18 +8,18 @@ import {
   useSaveAndSendAttendance,
 } from '@/queries/attendence.queries.js';
 import useNavigationStore from '@/store/navigation.Store';
-import PageHeader from '@/components/PageHeader.js';
-import {
-  FilterSelection,
-  FilterField,
-  filterSelectClassName,
-} from '@/components/FilterSelection.js';
-import SectionCard from '@/components/SectionCard.js';
-import StatsCard from '@/components/StatsCard.js';
-import { Users, CheckCircle2, Save, AlertTriangle } from 'lucide-react';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { SectionCard, StatusBadge, filterSelectClassName } from '@/components';
+import { Loader2, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Checkbox } from '@/components/ui/checkbox';
-import { calculateSMSCount } from '@school/shared-schemas';
+import { smsCredits, smsDate } from '@/lib/sms';
+import { cn } from '@/lib/utils';
+import {
+  ATTENDANCE_CLASSES,
+  ATTENDANCE_SECTIONS,
+  readStoredClass,
+  storeClass,
+} from '@/lib/attendanceClass';
 
 interface StudentOverview {
   id: number;
@@ -31,122 +31,35 @@ interface StudentOverview {
   enrollment_id: number;
   login_id: number;
   available: boolean;
+  has_phone?: boolean;
 }
 
-// Memoized row component to prevent unnecessary re-renders
-const StudentRow = memo(
-  ({
-    student,
-    persistedStatus,
-    currentStatus,
-    onToggle,
-  }: {
-    student: StudentOverview;
-    persistedStatus: string;
-    currentStatus: string;
-    onToggle: (id: number, checked: boolean) => void;
-  }) => {
-    const isRunAwayed = currentStatus === 'run-awayed';
-    const isAbsent = persistedStatus === 'absent';
+type Status = 'present' | 'absent' | 'run-awayed';
 
-    return (
-      <tr
-        className={`hover:bg-muted/30 transition-colors ${isRunAwayed ? 'bg-amber-50/30' : ''} ${isAbsent ? 'opacity-40 grayscale-[0.5]' : ''}`}
-      >
-        <td className="bg-card border-border/50 sticky left-0 z-10 border-r px-6 py-4 text-sm font-medium shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-          {student.roll}
-        </td>
-        <td className="px-6 py-4">
-          <div className="flex items-center justify-center">
-            <Checkbox
-              id={`run-away-${student.id}`}
-              checked={isRunAwayed}
-              onCheckedChange={(checked) => !isAbsent && onToggle(student.id, !!checked)}
-              disabled={isAbsent}
-              className={`h-5 w-5 border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${isAbsent ? 'border-muted opacity-50' : isRunAwayed ? 'scale-110 border-amber-600 bg-amber-500 shadow-md' : 'border-slate-400 bg-white shadow-sm hover:scale-110 hover:border-amber-500'}`}
-            />
-          </div>
-        </td>
-        <td className="px-6 py-4">
-          <div className="flex flex-col text-left">
-            <span className="text-sm font-semibold">{student.name}</span>
-            <div className="flex items-center gap-2">
-              {isAbsent && (
-                <span className="rounded bg-red-100 px-1 py-0 text-[9px] font-bold uppercase tracking-tight text-red-600">
-                  Initially Absent
-                </span>
-              )}
-            </div>
-          </div>
-        </td>
-      </tr>
-    );
-  },
+const Stat = ({ label, value, dot }: { label: string; value: number; dot?: string }) => (
+  <div className="min-w-0">
+    <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+      {dot && <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />}
+      {label}
+    </p>
+    <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+  </div>
 );
-
-StudentRow.displayName = 'StudentRow';
-
-const StudentCard = memo(
-  ({
-    student,
-    persistedStatus,
-    currentStatus,
-    onToggle,
-  }: {
-    student: StudentOverview;
-    persistedStatus: string;
-    currentStatus: string;
-    onToggle: (id: number, checked: boolean) => void;
-  }) => {
-    const isRunAwayed = currentStatus === 'run-awayed';
-    const isAbsent = persistedStatus === 'absent';
-
-    return (
-      <li
-        className={`border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm ${isRunAwayed ? 'bg-amber-50/30' : ''} ${isAbsent ? 'opacity-40 grayscale-[0.5]' : ''}`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="wrap-break-word text-sm font-semibold">{student.name}</p>
-            <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">Roll {student.roll}</p>
-            {isAbsent && (
-              <span className="mt-1 inline-block rounded bg-red-100 px-1 py-0 text-[9px] font-bold uppercase tracking-tight text-red-600">
-                Initially Absent
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-muted-foreground text-[10px] font-medium">Running Away?</span>
-            <Checkbox
-              id={`run-away-mobile-${student.id}`}
-              checked={isRunAwayed}
-              onCheckedChange={(checked) => !isAbsent && onToggle(student.id, !!checked)}
-              disabled={isAbsent}
-              className={`h-5 w-5 border-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${isAbsent ? 'border-muted opacity-50' : isRunAwayed ? 'scale-110 border-amber-600 bg-amber-500 shadow-md' : 'border-slate-400 bg-white shadow-sm hover:scale-110 hover:border-amber-500'}`}
-            />
-          </div>
-        </div>
-      </li>
-    );
-  },
-);
-
-StudentCard.displayName = 'StudentCard';
 
 function StayCheck() {
+  const { confirm, dialog } = useConfirmDialog();
   const currentDate = new Date();
-  const [selectedClass, setSelectedClass] = useState<number | ''>('');
-  const [selectedSection, setSelectedSection] = useState<string>('');
-  const [localAttendance, setLocalAttendance] = useState<
-    Record<string, 'present' | 'absent' | 'run-awayed'>
-  >({});
+  const [selectedClass, setSelectedClass] = useState<number | ''>(readStoredClass);
+  const [selectedSection, setSelectedSection] = useState(() =>
+    readStoredClass() ? ATTENDANCE_SECTIONS[0] : '',
+  );
+  const [localAttendance, setLocalAttendance] = useState<Record<string, Status>>({});
   const { setDirty, resetDirty } = useNavigationStore();
   const { data: smsSettings } = useSmsSettings(selectedSection);
 
   const todayDay = currentDate.getDate();
   const selectedMonth = currentDate.getMonth();
   const selectedYear = currentDate.getFullYear();
-
   const todayIso = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
 
   const { data: attendanceRecords, isLoading: recordsLoading } = useAttendance({
@@ -163,10 +76,11 @@ function StayCheck() {
   });
 
   const saveAndSendMutation = useSaveAndSendAttendance();
-  const students = (studentsData?.data || []) as StudentOverview[];
+  const students = useMemo(() => (studentsData?.data || []) as StudentOverview[], [studentsData]);
+  const unsavedCount = Object.keys(localAttendance).length;
 
   const { attendanceMap, sentMap } = useMemo(() => {
-    const aMap: Record<string, 'present' | 'absent' | 'run-awayed'> = {};
+    const aMap: Record<string, Status> = {};
     const sMap: Record<string, boolean> = {};
 
     if (!attendanceRecords?.data) return { attendanceMap: aMap, sentMap: sMap };
@@ -179,6 +93,8 @@ function StayCheck() {
     });
     return { attendanceMap: aMap, sentMap: sMap };
   }, [attendanceRecords, todayIso]);
+
+  const morningTaken = students.some((s) => attendanceMap[s.id]);
 
   const getStatus = useCallback(
     (studentId: number) => {
@@ -202,9 +118,20 @@ function StayCheck() {
     [attendanceMap],
   );
 
+  // Browser reload/close guard + global "unsaved changes" flag for in-app navigation.
   useEffect(() => {
-    const hasUnsavedChanges = Object.keys(localAttendance).length > 0;
-    setDirty(hasUnsavedChanges);
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(localAttendance).length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [localAttendance]);
+
+  useEffect(() => {
+    setDirty(Object.keys(localAttendance).length > 0);
     return () => resetDirty();
   }, [localAttendance, setDirty, resetDirty]);
 
@@ -212,47 +139,49 @@ function StayCheck() {
     let present = 0;
     let absent = 0;
     let runAwayed = 0;
+    let morningPresent = 0;
+    let notMarked = 0;
 
-    const activeStudents = students.filter((s) => s.available);
+    students
+      .filter((s) => s.available)
+      .forEach((s) => {
+        // Count only what's actually recorded (or ticked here); no record = not marked, not absent.
+        const status = localAttendance[s.id] || attendanceMap[s.id];
+        if (!status) notMarked++;
+        else if (status === 'present') present++;
+        else if (status === 'absent') absent++;
+        else if (status === 'run-awayed') runAwayed++;
+        if (attendanceMap[s.id] === 'present' || attendanceMap[s.id] === 'run-awayed')
+          morningPresent++;
+      });
 
-    activeStudents.forEach((s) => {
-      const status = getStatus(s.id);
-      if (status === 'present') present++;
-      else if (status === 'absent') absent++;
-      else if (status === 'run-awayed') runAwayed++;
-    });
+    return { present, absent, runAwayed, morningPresent, notMarked };
+  }, [students, localAttendance, attendanceMap]);
 
-    return { present, absent, runAwayed, total: activeStudents.length };
-  }, [students, getStatus]);
-
-  const initiallyPresentCount = useMemo(() => {
-    return students.filter(
-      (s) =>
-        s.available && (attendanceMap[s.id] === 'present' || attendanceMap[s.id] === 'run-awayed'),
-    ).length;
-  }, [students, attendanceMap]);
-
-  const smsEstimateCsv = useMemo(() => {
+  const smsEstimate = useMemo(() => {
     if (!smsSettings || !smsSettings.is_active || students.length === 0) return 0;
     let segments = 0;
     students.forEach((s) => {
       const status = getStatus(s.id);
       const alreadySent = sentMap[s.id];
-      if (alreadySent || !s.available) return;
+      if (alreadySent || !s.available || s.has_phone === false) return;
 
       if (status === 'run-awayed' && smsSettings.send_to_run_awayed) {
-        const template = smsSettings.run_awayed_template;
-        const formattedDisplayDate = todayIso.split('-').reverse().join('/');
-        const message = template
-          .replace(/{student_name}/g, s.name)
-          .replace(/{login_id}/g, s.login_id?.toString() || '')
-          .replace(/{date}/g, formattedDisplayDate)
-          .replace(/{school_name}/g, 'School');
-        segments += calculateSMSCount(message).count;
+        segments += smsCredits(smsSettings.run_awayed_template, {
+          student_name: s.name,
+          login_id: s.login_id,
+          date: smsDate(todayIso),
+          class: s.class,
+          section: s.section,
+          roll: s.roll,
+          school_name: smsSettings.school_name,
+        });
       }
     });
     return segments;
   }, [smsSettings, students, getStatus, sentMap, todayIso]);
+
+  const lowBalance = smsEstimate > 0 && smsSettings?.sms_balance < smsEstimate;
 
   const saveAndSendStayCheck = async () => {
     if (!selectedClass || !selectedSection) {
@@ -291,181 +220,222 @@ function StayCheck() {
     );
   };
 
-  const classes = [6, 7, 8, 9, 10];
-  const sections = ['A', 'B'];
+  /** Asks before throwing away unsaved ticks; resolves true when it's fine to continue. */
+  const okToDiscard = async (what: string) => {
+    if (unsavedCount === 0) return true;
+    const proceed = await confirm({
+      title: 'Discard unsaved changes?',
+      msg: `You have unsaved changes. Changing the ${what} will discard them.`,
+      confirmLabel: 'Discard & continue',
+    });
+    if (proceed) setLocalAttendance({});
+    return proceed;
+  };
+
+  const handleClassChange = async (newClass: number | '') => {
+    if (!(await okToDiscard('class'))) return;
+    setSelectedClass(newClass);
+    setSelectedSection(newClass ? ATTENDANCE_SECTIONS[0] : '');
+    storeClass(newClass);
+  };
+
+  const handleSectionChange = async (newSection: string) => {
+    if (await okToDiscard('section')) setSelectedSection(newSection);
+  };
+
+  const pickerClass = cn(filterSelectClassName, 'h-8 w-auto font-medium');
+  const loading = studentsLoading || recordsLoading;
+
+  const saveButton = (
+    <Button
+      type="button"
+      onClick={saveAndSendStayCheck}
+      disabled={saveAndSendMutation.isPending || !selectedSection || unsavedCount === 0}
+      title={unsavedCount === 0 ? 'Tick a student first' : undefined}
+    >
+      {saveAndSendMutation.isPending ? <Loader2 className="animate-spin" /> : <Send />}
+      {saveAndSendMutation.isPending ? 'Saving…' : 'Save & send SMS'}
+    </Button>
+  );
+
+  const smsLine =
+    smsEstimate > 0 ? (
+      <span
+        className={cn(
+          'text-xs tabular-nums',
+          lowBalance ? 'text-destructive font-medium' : 'text-muted-foreground',
+        )}
+      >
+        ≈ {smsEstimate} SMS credits
+        {lowBalance && ` · balance ${smsSettings?.sms_balance} is not enough`}
+      </span>
+    ) : null;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Running Away"
-        description="Daily monitoring for student departures. Check the box if a student has left without permission."
-      >
-        <div className="flex flex-col items-end gap-2">
-          {smsEstimateCsv > 0 && (
-            <div
-              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${smsSettings?.sms_balance < smsEstimateCsv ? 'animate-pulse bg-red-100 text-red-700' : 'bg-primary/10 text-primary'}`}
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      {dialog}
+
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">Running away</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Class"
+              className={pickerClass}
+              value={selectedClass}
+              onChange={(e) => handleClassChange(e.target.value ? parseInt(e.target.value) : '')}
             >
-              Est. Running Away SMS Cost: {smsEstimateCsv} credits
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={saveAndSendStayCheck}
-              disabled={
-                saveAndSendMutation.isPending ||
-                !selectedClass ||
-                !selectedSection ||
-                !students.length ||
-                Object.keys(localAttendance).length === 0
-              }
+              {!selectedClass && <option value="">Select class</option>}
+              {ATTENDANCE_CLASSES.map((c) => (
+                <option key={c} value={c}>
+                  Class {c}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Section"
+              className={pickerClass}
+              value={selectedSection}
+              onChange={(e) => handleSectionChange(e.target.value)}
+              disabled={!selectedClass}
             >
-              <Save className="mr-2 h-4 w-4" />
-              {saveAndSendMutation.isPending ? 'Saving & Sending...' : 'Save & Send SMS'}
-            </Button>
+              {!selectedSection && <option value="">Section</option>}
+              {ATTENDANCE_SECTIONS.map((s) => (
+                <option key={s} value={s}>
+                  Section {s}
+                </option>
+              ))}
+            </select>
+            <span className="text-muted-foreground text-sm">
+              Today, {currentDate.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+            </span>
           </div>
         </div>
-      </PageHeader>
+        <div className="flex flex-col items-end gap-1">
+          {saveButton}
+          {unsavedCount === 0 && smsLine}
+        </div>
+      </header>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <StatsCard
-          label="Initially Present"
-          value={initiallyPresentCount}
-          icon={<Users className="h-5 w-5" />}
-          color="indigo"
-          loading={studentsLoading}
-        />
-        <StatsCard
-          label="Still Here"
-          value={stats.present}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          color="emerald"
-          loading={studentsLoading}
-        />
-        <StatsCard
-          label="Running Away"
-          value={stats.runAwayed}
-          icon={<AlertTriangle className="h-5 w-5" />}
-          color="amber"
-          loading={studentsLoading}
-        />
+      <div className="border-border bg-card mb-6 flex flex-wrap items-center gap-x-8 gap-y-4 rounded-xl border px-5 py-4 shadow-sm">
+        <Stat label="Present this morning" value={stats.morningPresent} />
+        <Stat label="Still here" value={stats.present} dot="bg-emerald-500" />
+        <Stat label="Ran away" value={stats.runAwayed} dot="bg-amber-500" />
+        <Stat label="Absent" value={stats.absent} dot="bg-red-500" />
+        {stats.notMarked > 0 && <Stat label="Not marked yet" value={stats.notMarked} />}
       </div>
 
-      <FilterSelection>
-        <FilterField label="Class">
-          <select
-            className={filterSelectClassName}
-            value={selectedClass}
-            onChange={(e) => {
-              setSelectedClass(e.target.value ? parseInt(e.target.value) : '');
-              setLocalAttendance({});
-            }}
-          >
-            <option value="">Select Class</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                Class {c}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Section">
-          <select
-            className={filterSelectClassName}
-            value={selectedSection}
-            onChange={(e) => {
-              setSelectedSection(e.target.value);
-              setLocalAttendance({});
-            }}
-            disabled={!selectedClass}
-          >
-            <option value="">Select Section</option>
-            {sections.map((s) => (
-              <option key={s} value={s}>
-                Section {s}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-      </FilterSelection>
+      <SectionCard noPadding className="mb-6">
+        <div className="border-border border-b px-4 py-3">
+          <p className="text-sm font-semibold">
+            {selectedClass ? `Class ${selectedClass} ${selectedSection}` : 'No class selected'}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Tick students who left without permission. Students absent this morning can't be ticked.
+          </p>
+        </div>
 
-      <SectionCard
-        title="Running Away List"
-        description="Select the checkbox if a student is running away. Students marked absent in the morning are disabled."
-        noPadding
-      >
-        {/* Desktop table */}
-        <div className="hidden min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
-          <table className="w-full min-w-[640px] border-collapse">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-muted/50 border-border border-b">
-                <th className="text-muted-foreground bg-muted/50 border-border/50 sticky left-0 z-20 w-[80px] border-r px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                  Roll
-                </th>
-                <th className="text-muted-foreground w-[100px] px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider">
-                  Running Away?
-                </th>
-                <th className="text-muted-foreground px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">
-                  Student Name
-                </th>
+              <tr className="bg-muted border-border text-foreground/70 border-b text-xs font-semibold uppercase tracking-wider">
+                <th className="w-16 px-4 py-2.5">Roll</th>
+                <th className="px-4 py-2.5">Student</th>
+                <th className="w-28 px-4 py-2.5 text-center">Ran away</th>
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
-              {studentsLoading || recordsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+              {loading ? (
+                Array.from({ length: 8 }, (_, i) => (
                   <tr key={i}>
-                    <td colSpan={3} className="px-6 py-4">
-                      <Skeleton className="h-6 w-full" />
+                    <td colSpan={3} className="px-4 py-2">
+                      <Skeleton className="h-8 w-full" />
                     </td>
                   </tr>
                 ))
-              ) : students.length === 0 ? (
+              ) : students.length === 0 || !morningTaken ? (
                 <tr>
-                  <td colSpan={3} className="text-muted-foreground px-6 py-12 text-center italic">
-                    No students found or filters not applied.
+                  <td colSpan={3} className="text-muted-foreground px-4 py-12 text-center text-sm">
+                    {!selectedSection
+                      ? 'Pick a class and section.'
+                      : students.length === 0
+                        ? 'No students in this class.'
+                        : "Morning attendance hasn't been saved for this class yet. Take it on the Attendance page first."}
                   </td>
                 </tr>
               ) : (
-                students.map((s) => (
-                  <StudentRow
-                    key={s.id}
-                    student={s}
-                    persistedStatus={attendanceMap[s.id] || 'absent'}
-                    currentStatus={getStatus(s.id)}
-                    onToggle={handleToggleRunAway}
-                  />
-                ))
+                students.map((s) => {
+                  const ranAway = getStatus(s.id) === 'run-awayed';
+                  const absentMorning = (attendanceMap[s.id] || 'absent') === 'absent';
+                  const locked = absentMorning || !s.available;
+                  return (
+                    <tr
+                      key={s.id}
+                      className={cn(
+                        'transition-colors',
+                        ranAway
+                          ? 'bg-amber-500/10'
+                          : 'hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]',
+                        locked && 'text-muted-foreground',
+                      )}
+                    >
+                      <td className="px-4 py-2 text-sm tabular-nums">{s.roll}</td>
+                      <td className="px-4 py-2">
+                        <label
+                          htmlFor={`run-away-${s.id}`}
+                          className={cn(
+                            'flex flex-wrap items-center gap-2',
+                            !locked && 'cursor-pointer',
+                          )}
+                        >
+                          <span className="text-sm font-medium">{s.name}</span>
+                          {!s.available ? (
+                            <StatusBadge status="inactive" />
+                          ) : absentMorning ? (
+                            <StatusBadge status="rejected" label="Absent this morning" />
+                          ) : null}
+                        </label>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <input
+                          id={`run-away-${s.id}`}
+                          type="checkbox"
+                          checked={ranAway}
+                          disabled={locked}
+                          onChange={(e) => handleToggleRunAway(s.id, e.target.checked)}
+                          aria-label={`${s.name} ran away`}
+                          className="h-5 w-5 cursor-pointer align-middle accent-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Mobile cards */}
-        <div className="lg:hidden">
-          {studentsLoading || recordsLoading ? (
-            <div className="space-y-3 p-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : students.length === 0 ? (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm italic">
-              No students found or filters not applied.
-            </p>
-          ) : (
-            <ul className="space-y-3 p-4">
-              {students.map((s) => (
-                <StudentCard
-                  key={s.id}
-                  student={s}
-                  persistedStatus={attendanceMap[s.id] || 'absent'}
-                  currentStatus={getStatus(s.id)}
-                  onToggle={handleToggleRunAway}
-                />
-              ))}
-            </ul>
-          )}
-        </div>
       </SectionCard>
+
+      {unsavedCount > 0 && (
+        <div
+          role="region"
+          aria-label="Unsaved changes"
+          className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-2 shadow-lg"
+        >
+          <div>
+            <p className="text-sm font-medium tabular-nums">
+              {unsavedCount} unsaved {unsavedCount === 1 ? 'change' : 'changes'}
+            </p>
+            {smsLine}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLocalAttendance({})}>
+              Discard
+            </Button>
+            {saveButton}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,31 +11,18 @@ import {
 } from '@/queries/attendence.queries.js';
 import useNavigationStore from '@/store/navigation.Store';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
-import PageHeader from '@/components/PageHeader.js';
-import SectionCard from '@/components/SectionCard.js';
-import StatsCard from '@/components/StatsCard.js';
-import {
-  FilterSelection,
-  FilterField,
-  filterSelectClassName,
-} from '@/components/FilterSelection.js';
-import {
-  Calendar as CalendarIcon,
-  Save,
-  RefreshCcw,
-  Users,
-  CheckCircle2,
-  XCircle,
-  Filter,
-  Eye,
-  EyeOff,
-  Clock,
-  AlertTriangle,
-  FileDown,
-} from 'lucide-react';
+import { SectionCard, StatusBadge, filterSelectClassName } from '@/components';
+import { AlertTriangle, Check, FileDown, Loader2, Send, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { calculateSMSCount } from '@school/shared-schemas';
+import { smsCredits, smsDate } from '@/lib/sms';
 import { openBlobInNewTab } from '@school/common-ui/blob';
+import { cn } from '@/lib/utils';
+import {
+  ATTENDANCE_CLASSES,
+  ATTENDANCE_SECTIONS,
+  readStoredClass,
+  storeClass,
+} from '@/lib/attendanceClass';
 
 interface StudentOverview {
   id: number;
@@ -47,6 +34,7 @@ interface StudentOverview {
   enrollment_id: number;
   login_id: number;
   available: boolean;
+  has_phone?: boolean;
 }
 
 type AttendanceStatus = 'present' | 'absent' | 'run-awayed';
@@ -66,17 +54,59 @@ const months = [
   'December',
 ];
 
+const classes = ATTENDANCE_CLASSES;
+const sections = ATTENDANCE_SECTIONS;
+
+// Pinned Roll + Student columns; opaque backgrounds hide the day columns scrolling under them.
+const stickyRoll = 'sticky left-0 z-[1] w-14 min-w-14 bg-inherit';
+const stickyName =
+  'sticky left-14 z-[1] min-w-[10rem] bg-inherit shadow-[1px_0_0_var(--border)] sm:min-w-[14rem]';
+const todayTint = 'bg-[color-mix(in_oklab,var(--primary)_5%,transparent)]';
+
+const StatusIcon = ({ status }: { status: AttendanceStatus | null }) =>
+  status === 'present' ? (
+    <Check
+      className="mx-auto h-4 w-4 text-emerald-600 dark:text-emerald-400"
+      aria-label="Present"
+    />
+  ) : status === 'absent' ? (
+    <X className="mx-auto h-4 w-4 text-red-500 dark:text-red-400" aria-label="Absent" />
+  ) : status === 'run-awayed' ? (
+    <AlertTriangle className="mx-auto h-4 w-4 text-amber-500" aria-label="Ran away" />
+  ) : (
+    <span className="text-muted-foreground text-sm" aria-label="Not marked">
+      —
+    </span>
+  );
+
+const Stat = ({ label, value, dot }: { label: string; value: number; dot?: string }) => (
+  <div className="min-w-0">
+    <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+      {dot && <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />}
+      {label}
+    </p>
+    <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+  </div>
+);
+
 function Attendance() {
   const { confirm, dialog } = useConfirmDialog();
   const currentDate = new Date();
+  const todayDay = currentDate.getDate();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
-  const [selectedClass, setSelectedClass] = useState<number | ''>('');
-  const [selectedSection, setSelectedSection] = useState<string>('');
-  const [visibleDays, setVisibleDays] = useState<number[]>([currentDate.getDate()]);
+  const [selectedClass, setSelectedClass] = useState<number | ''>(readStoredClass);
+  // A class always comes with a section: the list API returns nothing for "all sections".
+  const [selectedSection, setSelectedSection] = useState(() =>
+    readStoredClass() ? sections[0] : '',
+  );
+  const [visibleDays, setVisibleDays] = useState<number[]>([todayDay]);
   const [localAttendance, setLocalAttendance] = useState<Record<string, AttendanceStatus>>({});
   const { setDirty, resetDirty } = useNavigationStore();
   const { data: smsSettings } = useSmsSettings(selectedSection);
+
+  const isCurrentMonth =
+    selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
 
   const { data: attendanceRecords } = useAttendance({
     month: selectedMonth,
@@ -93,7 +123,7 @@ function Attendance() {
   const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(
     2,
     '0',
-  )}-${String(currentDate.getDate()).padStart(2, '0')}`;
+  )}-${String(todayDay).padStart(2, '0')}`;
 
   const { data: persistentStats } = useAttendanceStats({
     date: todayIso,
@@ -105,9 +135,6 @@ function Attendance() {
   const saveAndSendMutation = useSaveAndSendAttendance();
   const statsToDisplay = persistentStats?.data;
   const [exportingPdf, setExportingPdf] = useState(false);
-
-  const classes = [6, 7, 8, 9, 10];
-  const sections = ['A', 'B'];
 
   const daysInMonth = useMemo(() => {
     return new Date(selectedYear, selectedMonth + 1, 0).getDate();
@@ -131,6 +158,7 @@ function Attendance() {
   }, [attendanceRecords, selectedMonth, selectedYear]);
 
   const students = (studentsData?.data || []) as StudentOverview[];
+  const unsavedCount = Object.keys(localAttendance).length;
 
   const handleAttendanceChange = (studentId: number, day: number, isPresent: boolean) => {
     const key = `${studentId}-${day}`;
@@ -161,12 +189,16 @@ function Attendance() {
     return getRecordedStatus(studentId, day) || 'absent';
   };
 
-  const realtimeStats = useMemo(() => {
-    const todayDay = currentDate.getDate();
-    const isToday =
-      selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
+  // Students whose today box can be ticked (active, not marked run-away by Stay Check).
+  const markable = students.filter(
+    (s) => s.available && getRecordedStatus(s.id, todayDay) !== 'run-awayed',
+  );
+  const markedPresent = markable.filter((s) => getStatus(s.id, todayDay) === 'present').length;
+  const setAllToday = (present: boolean) =>
+    markable.forEach((s) => handleAttendanceChange(s.id, todayDay, present));
 
-    if (!students.length || !isToday) {
+  const realtimeStats = useMemo(() => {
+    if (!students.length || !isCurrentMonth) {
       const activePersistentPresent = persistentStats?.data?.present || 0;
       const activePersistentAbsent = persistentStats?.data?.absent || 0;
       const activePersistentRunAwayed = persistentStats?.data?.runAwayed || 0;
@@ -175,30 +207,22 @@ function Attendance() {
         present: activePersistentPresent,
         absent: activePersistentAbsent,
         runAwayed: activePersistentRunAwayed,
+        notMarked: 0,
         total: activePersistentPresent + activePersistentAbsent + activePersistentRunAwayed,
       };
     }
 
-    const activeStudents = students.filter((s) => s.available);
-    const todayKeys = activeStudents.map((s) => `${s.id}-${todayDay}`);
-    const hasAnyData = todayKeys.some((key) => !!attendanceMap[key] || !!localAttendance[key]);
-
-    if (!hasAnyData) {
-      return {
-        present: 0,
-        absent: 0,
-        runAwayed: 0,
-        total: activeStudents.length,
-      };
-    }
-
+    // Count only what's recorded (or ticked here). No record = not marked, never assumed absent.
     let presentCount = 0;
     let absentCount = 0;
     let runAwayedCount = 0;
+    let notMarked = 0;
+    const activeStudents = students.filter((s) => s.available);
 
     activeStudents.forEach((student) => {
-      const status = getStatus(student.id, todayDay);
-      if (status === 'present') presentCount++;
+      const status = getRecordedStatus(student.id, todayDay);
+      if (!status) notMarked++;
+      else if (status === 'present') presentCount++;
       else if (status === 'run-awayed') runAwayedCount++;
       else absentCount++;
     });
@@ -207,17 +231,11 @@ function Attendance() {
       present: presentCount,
       absent: absentCount,
       runAwayed: runAwayedCount,
+      notMarked,
       total: activeStudents.length,
     };
-  }, [
-    students,
-    localAttendance,
-    attendanceMap,
-    persistentStats,
-    selectedMonth,
-    selectedYear,
-    currentDate,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students, localAttendance, attendanceMap, persistentStats, isCurrentMonth, todayDay]);
 
   // 1. Browser navigation guard (Reload/Close tab)
   useEffect(() => {
@@ -233,87 +251,61 @@ function Attendance() {
 
   // Sync with global navigation store
   useEffect(() => {
-    const hasUnsavedChanges = Object.keys(localAttendance).length > 0;
-    setDirty(hasUnsavedChanges);
-
-    // Reset dirty state when component unmounts (optional, but good for cleanliness)
+    setDirty(Object.keys(localAttendance).length > 0);
     return () => resetDirty();
   }, [localAttendance, setDirty, resetDirty]);
 
   const smsEstimate = useMemo(() => {
-    if (!smsSettings || !smsSettings.is_active || students.length === 0)
+    if (!smsSettings || !smsSettings.is_active || students.length === 0 || !isCurrentMonth)
       return { count: 0, cost: 0 };
-
-    const todayDay = currentDate.getDate();
-    const isToday =
-      selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
-    if (!isToday) return { count: 0, cost: 0 };
-
-    const todayIso = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
 
     let totalSegments = 0;
     let messagesToSend = 0;
-
-    // Helper for segment calculation (mirroring backend SMSService)
-    const calculateSegments = (text: string) => calculateSMSCount(text).count;
+    const formattedDisplayDate = smsDate(todayIso);
 
     students.forEach((student) => {
       const status = getStatus(student.id, todayDay);
-      // Run Awayed SMS are handled by the Stay Check page, but we include them here if we want to preview total cost
       const shouldSend =
         (status === 'present' && smsSettings.send_to_present) ||
         (status === 'absent' && smsSettings.send_to_absent) ||
         (status === 'run-awayed' && smsSettings.send_to_run_awayed);
 
       const alreadySent = sentMap[`${student.id}-${todayDay}`];
-      if (alreadySent || !student.available) return;
+      // Server only texts active students with a father's phone (has_phone false = skipped).
+      if (alreadySent || !student.available || !shouldSend || student.has_phone === false) return;
 
-      if (shouldSend) {
-        let template = '';
-        if (status === 'present') template = smsSettings.present_template;
-        else if (status === 'absent') template = smsSettings.absent_template;
-        else if (status === 'run-awayed') template = smsSettings.run_awayed_template;
+      const template =
+        status === 'present'
+          ? smsSettings.present_template
+          : status === 'absent'
+            ? smsSettings.absent_template
+            : smsSettings.run_awayed_template;
+      if (!template) return;
 
-        if (!template) return;
-
-        const formattedDisplayDate = todayIso.split('-').reverse().join('/');
-
-        // Approximation of interpolated message length
-        const message = template
-          .replace(/{student_name}/g, student.name)
-          .replace(/{login_id}/g, student.login_id?.toString() || '')
-          .replace(/{date}/g, formattedDisplayDate) // Date length is fixed
-          .replace(/{school_name}/g, 'Panchbibi Lal Bihari Govt High School');
-
-        totalSegments += calculateSegments(message);
-        messagesToSend++;
-      }
+      totalSegments += smsCredits(template, {
+        student_name: student.name,
+        login_id: student.login_id,
+        date: formattedDisplayDate,
+        class: student.class,
+        section: student.section,
+        roll: student.roll,
+        school_name: smsSettings.school_name,
+      });
+      messagesToSend++;
     });
 
     return { count: messagesToSend, cost: totalSegments };
-  }, [
-    smsSettings,
-    students,
-    localAttendance,
-    attendanceMap,
-    sentMap,
-    selectedMonth,
-    selectedYear,
-    currentDate,
-    todayIso,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smsSettings, students, localAttendance, attendanceMap, sentMap, isCurrentMonth, todayIso]);
+
+  const lowBalance = smsEstimate.cost > 0 && smsSettings?.sms_balance < smsEstimate.cost;
 
   const saveAndSendAttendance = async () => {
     if (!selectedClass || !selectedSection) {
       toast.error('Please select both class and section');
       return;
     }
-
-    const todayDay = currentDate.getDate();
-    const isTodaySelectable =
-      selectedMonth === currentDate.getMonth() && selectedYear === currentDate.getFullYear();
-
-    if (!isTodaySelectable) {
+    if (!isCurrentMonth) {
       toast.error('Attendance can only be managed for the current date');
       return;
     }
@@ -348,57 +340,35 @@ function Attendance() {
     );
   };
 
+  /** Asks before throwing away unsaved ticks; resolves true when it's fine to continue. */
+  const okToDiscard = async (what: string) => {
+    if (unsavedCount === 0) return true;
+    const proceed = await confirm({
+      title: 'Discard unsaved changes?',
+      msg: `You have unsaved attendance. Changing the ${what} will discard it.`,
+      confirmLabel: 'Discard & continue',
+    });
+    if (proceed) setLocalAttendance({});
+    return proceed;
+  };
+
   const handleClassChange = async (newClass: number | '') => {
-    if (Object.keys(localAttendance).length > 0) {
-      const proceed = await confirm({
-        title: 'Discard unsaved changes?',
-        msg: 'You have unsaved changes. Changing the class will discard them.',
-        confirmLabel: 'Discard & Continue',
-      });
-      if (!proceed) return;
-    }
-    setLocalAttendance({});
+    if (!(await okToDiscard('class'))) return;
     setSelectedClass(newClass);
-    setSelectedSection('');
+    setSelectedSection(newClass ? sections[0] : '');
+    storeClass(newClass);
   };
 
   const handleSectionChange = async (newSection: string) => {
-    if (Object.keys(localAttendance).length > 0) {
-      const proceed = await confirm({
-        title: 'Discard unsaved changes?',
-        msg: 'You have unsaved changes. Changing the section will discard them.',
-        confirmLabel: 'Discard & Continue',
-      });
-      if (!proceed) return;
-    }
-    setLocalAttendance({});
-    setSelectedSection(newSection);
+    if (await okToDiscard('section')) setSelectedSection(newSection);
   };
 
   const handleMonthChange = async (newMonth: number) => {
-    if (Object.keys(localAttendance).length > 0) {
-      const proceed = await confirm({
-        title: 'Discard unsaved changes?',
-        msg: 'You have unsaved changes. Changing the month will discard them.',
-        confirmLabel: 'Discard & Continue',
-      });
-      if (!proceed) return;
-    }
-    setLocalAttendance({});
-    setSelectedMonth(newMonth);
+    if (await okToDiscard('month')) setSelectedMonth(newMonth);
   };
 
   const handleYearChange = async (newYear: number) => {
-    if (Object.keys(localAttendance).length > 0) {
-      const proceed = await confirm({
-        title: 'Discard unsaved changes?',
-        msg: 'You have unsaved changes. Changing the year will discard them.',
-        confirmLabel: 'Discard & Continue',
-      });
-      if (!proceed) return;
-    }
-    setLocalAttendance({});
-    setSelectedYear(newYear);
+    if (await okToDiscard('year')) setSelectedYear(newYear);
   };
 
   const toggleVisibleDay = (day: number) => {
@@ -409,24 +379,17 @@ function Attendance() {
     );
   };
 
-  const selectAllDays = () => {
-    setVisibleDays(Array.from({ length: daysInMonth }, (_, i) => i + 1));
-  };
-
-  const resetVisibleDays = () => {
-    setVisibleDays([currentDate.getDate()]);
-  };
-
   const exportAttendancePdf = async () => {
     if (!selectedClass || !selectedSection) {
       toast.error('Select class and section first');
       return;
     }
-    if (Object.keys(localAttendance).length > 0) {
+    if (unsavedCount > 0) {
       const proceed = await confirm({
-        title: 'Unsaved Changes',
+        title: 'Unsaved changes',
         msg: 'You have unsaved attendance changes. Export uses saved data only. Continue?',
-        confirmLabel: 'Export Anyway',
+        confirmLabel: 'Export anyway',
+        variant: 'default',
       });
       if (!proceed) return;
     }
@@ -460,330 +423,271 @@ function Attendance() {
     }
   };
 
-  return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
-      {dialog}
-      <PageHeader
-        title="Attendance Management"
-        description="Monitor and record student attendance across different classes and sections."
-        className="mb-0"
+  const canSave =
+    !saveAndSendMutation.isPending &&
+    Boolean(selectedClass) &&
+    Boolean(selectedSection) &&
+    isCurrentMonth &&
+    students.length > 0;
+  const saveHint =
+    !selectedClass || !selectedSection
+      ? 'Select a class and section to take attendance'
+      : !isCurrentMonth
+        ? 'Attendance can only be taken for today'
+        : undefined;
+
+  const classLabel = selectedClass
+    ? `Class ${selectedClass}${selectedSection ? ` ${selectedSection}` : ''}`
+    : 'No class selected';
+  const activeCount = students.filter((s) => s.available).length;
+  const showSection = !selectedSection;
+
+  const pickerClass = cn(filterSelectClassName, 'h-8 w-auto font-medium');
+
+  const saveButton = (
+    <Button type="button" onClick={saveAndSendAttendance} disabled={!canSave} title={saveHint}>
+      {saveAndSendMutation.isPending ? <Loader2 className="animate-spin" /> : <Send />}
+      {saveAndSendMutation.isPending ? 'Saving…' : 'Save & send SMS'}
+    </Button>
+  );
+
+  const smsLine =
+    smsEstimate.cost > 0 ? (
+      <span
+        className={cn(
+          'text-xs tabular-nums',
+          lowBalance ? 'text-destructive font-medium' : 'text-muted-foreground',
+        )}
       >
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
-          {smsEstimate.cost > 0 && (
-            <div
-              className={`self-end rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                smsSettings?.sms_balance < smsEstimate.cost
-                  ? 'animate-pulse bg-red-100 text-red-700'
-                  : 'bg-primary/10 text-primary'
-              }`}
+        ≈ {smsEstimate.cost} SMS credits
+        {lowBalance && ` · balance ${smsSettings?.sms_balance} is not enough`}
+      </span>
+    ) : null;
+
+  const todayHeader = (
+    <label className="inline-flex flex-col items-center gap-1">
+      <span className="text-primary">{todayDay}</span>
+      <input
+        type="checkbox"
+        aria-label="Mark everyone present today"
+        title="Mark everyone present"
+        disabled={markable.length === 0}
+        checked={markable.length > 0 && markedPresent === markable.length}
+        ref={(el) => {
+          if (el) el.indeterminate = markedPresent > 0 && markedPresent < markable.length;
+        }}
+        onChange={(e) => setAllToday(e.target.checked)}
+        className="h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
+      />
+    </label>
+  );
+
+  return (
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      {dialog}
+
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">Attendance</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Class"
+              className={pickerClass}
+              value={selectedClass}
+              onChange={(e) => handleClassChange(e.target.value ? parseInt(e.target.value) : '')}
             >
-              Est. SMS Cost: {smsEstimate.cost} credits
-              {smsSettings?.sms_balance < smsEstimate.cost && ' (Insufficient Balance!)'}
-            </div>
-          )}
-          <div className="flex flex-wrap items-center justify-end gap-2">
+              {!selectedClass && <option value="">Select class</option>}
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  Class {c}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Section"
+              className={pickerClass}
+              value={selectedSection}
+              onChange={(e) => handleSectionChange(e.target.value)}
+              disabled={!selectedClass}
+            >
+              {!selectedSection && <option value="">Section</option>}
+              {sections.map((s) => (
+                <option key={s} value={s}>
+                  Section {s}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Month"
+              className={pickerClass}
+              value={selectedMonth}
+              onChange={(e) => handleMonthChange(parseInt(e.target.value))}
+            >
+              {months.map((month, index) => (
+                <option key={month} value={index}>
+                  {month}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Year"
+              className={cn(pickerClass, 'tabular-nums')}
+              value={selectedYear}
+              onChange={(e) => handleYearChange(parseInt(e.target.value))}
+            >
+              {[
+                currentDate.getFullYear() - 1,
+                currentDate.getFullYear(),
+                currentDate.getFullYear() + 1,
+              ].map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               onClick={exportAttendancePdf}
               disabled={exportingPdf || !selectedClass || !selectedSection || !students.length}
               title={
                 !selectedClass || !selectedSection
-                  ? 'Select class and section to export'
-                  : !students.length
-                    ? 'No students to export'
-                    : 'Export monthly attendance sheet as PDF'
+                  ? 'Select a class and section to export'
+                  : 'Monthly attendance sheet (PDF)'
               }
-              aria-label="Export attendance sheet as PDF"
-              className="border-border bg-card text-foreground hover:bg-muted min-w-[9.5rem] border shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
             >
-              {exportingPdf ? (
-                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <FileDown className="mr-2 h-4 w-4" aria-hidden="true" />
-              )}
-              {exportingPdf ? 'Exporting…' : 'Export PDF'}
+              {exportingPdf ? <Loader2 className="animate-spin" /> : <FileDown />}
+              Export PDF
             </Button>
-            <Button
-              type="button"
-              onClick={saveAndSendAttendance}
-              disabled={
-                saveAndSendMutation.isPending ||
-                !selectedClass ||
-                !selectedSection ||
-                !(
-                  selectedMonth === currentDate.getMonth() &&
-                  selectedYear === currentDate.getFullYear()
-                ) ||
-                !students.length
-              }
-              className="min-w-[9.5rem] shadow-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98]"
-            >
-              {saveAndSendMutation.isPending ? (
-                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" aria-hidden="true" />
-              )}
-              {saveAndSendMutation.isPending ? 'Saving & Sending…' : 'Save & Send SMS'}
-            </Button>
+            {saveButton}
           </div>
+          {unsavedCount === 0 && smsLine}
         </div>
-      </PageHeader>
+      </header>
 
-      <div className="relative space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-foreground/70 flex items-center gap-2 text-sm font-semibold">
-            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
-            Today&apos;s Attendance Overview
-          </h3>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
-          <StatsCard
-            label="Total Students"
-            value={realtimeStats.total}
-            color="indigo"
-            icon={<Users className="h-5 w-5" aria-hidden="true" />}
-            loading={studentsLoading}
-          />
-          <StatsCard
-            label="Present"
-            value={realtimeStats.present}
-            color="emerald"
-            icon={<CheckCircle2 className="h-5 w-5" aria-hidden="true" />}
-            loading={studentsLoading}
-          />
-          <StatsCard
-            label="Absent"
-            value={realtimeStats.absent}
-            color="red"
-            icon={<XCircle className="h-5 w-5" aria-hidden="true" />}
-            loading={studentsLoading}
-          />
-          <StatsCard
-            label="Run Away"
-            value={realtimeStats.runAwayed}
-            color="amber"
-            icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}
-            loading={studentsLoading}
-          />
-          <StatsCard
-            label="SMS Success"
-            value={statsToDisplay?.sms?.successful || 0}
-            color="blue"
-            icon={<RefreshCcw className="h-5 w-5" aria-hidden="true" />}
-            loading={false}
-          />
-          <StatsCard
-            label="SMS Failed"
-            value={statsToDisplay?.sms?.failed || 0}
-            color="amber"
-            icon={<Filter className="h-5 w-5" aria-hidden="true" />}
-            loading={false}
-          />
-          <StatsCard
-            label="Pending SMS"
-            value={statsToDisplay?.sms?.pending || 0}
-            color="violet"
-            icon={<Clock className="h-5 w-5" aria-hidden="true" />}
-            loading={false}
-          />
+      {/* Today at a glance */}
+      <div className="border-border bg-card mb-6 flex flex-wrap items-center gap-x-8 gap-y-4 rounded-xl border px-5 py-4 shadow-sm">
+        <p className="text-muted-foreground w-full text-xs font-semibold uppercase tracking-wider sm:w-auto">
+          Today
+        </p>
+        <Stat label="Students" value={realtimeStats.total} />
+        <Stat label="Present" value={realtimeStats.present} dot="bg-emerald-500" />
+        <Stat label="Absent" value={realtimeStats.absent} dot="bg-red-500" />
+        <Stat label="Ran away" value={realtimeStats.runAwayed} dot="bg-amber-500" />
+        {realtimeStats.notMarked > 0 && (
+          <Stat label="Not marked yet" value={realtimeStats.notMarked} />
+        )}
+        <div className="border-border text-muted-foreground text-sm sm:ml-auto sm:border-l sm:pl-8">
+          <p className="text-xs font-medium">SMS</p>
+          <p className="mt-0.5 tabular-nums">
+            <span className="text-foreground font-semibold">
+              {(statsToDisplay?.sms?.successful || 0).toLocaleString()}
+            </span>{' '}
+            sent
+            {(statsToDisplay?.sms?.failed || 0) > 0 && (
+              <span className="text-destructive"> · {statsToDisplay.sms.failed} failed</span>
+            )}
+            {(statsToDisplay?.sms?.pending || 0) > 0 && (
+              <span> · {statsToDisplay.sms.pending} pending</span>
+            )}
+          </p>
         </div>
       </div>
 
-      <FilterSelection>
-        <FilterField label="Month" htmlFor="attendance-month">
-          <select
-            id="attendance-month"
-            name="month"
-            autoComplete="off"
-            className={filterSelectClassName}
-            value={selectedMonth}
-            onChange={(e) => handleMonthChange(parseInt(e.target.value))}
-          >
-            {months.map((month, index) => (
-              <option key={month} value={index}>
-                {month}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Year" htmlFor="attendance-year">
-          <select
-            id="attendance-year"
-            name="year"
-            autoComplete="off"
-            className={filterSelectClassName}
-            value={selectedYear}
-            onChange={(e) => handleYearChange(parseInt(e.target.value))}
-          >
-            {[
-              currentDate.getFullYear() - 1,
-              currentDate.getFullYear(),
-              currentDate.getFullYear() + 1,
-            ].map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Class" htmlFor="attendance-class">
-          <select
-            id="attendance-class"
-            name="class"
-            autoComplete="off"
-            className={filterSelectClassName}
-            value={selectedClass}
-            onChange={(e) => {
-              handleClassChange(e.target.value ? parseInt(e.target.value) : '');
-            }}
-          >
-            <option value="">Select Class</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                Class {c}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Section" htmlFor="attendance-section">
-          <select
-            id="attendance-section"
-            name="section"
-            autoComplete="off"
-            className={filterSelectClassName}
-            value={selectedSection}
-            onChange={(e) => handleSectionChange(e.target.value)}
-            disabled={!selectedClass}
-          >
-            <option value="">Select Section</option>
-            {sections.map((s: string) => (
-              <option key={s} value={s}>
-                Section {s}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-      </FilterSelection>
-
-      <SectionCard className="mt-6">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <label className="text-foreground/80 flex items-center gap-2 text-sm font-semibold">
-            <CalendarIcon className="text-primary h-4 w-4" />
-            Toggle Visible Days
-          </label>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={selectAllDays}
-              className="h-8 flex-1 text-xs sm:flex-none"
+      <SectionCard noPadding className="mb-6">
+        {/* Card header: what's shown + which days */}
+        <div className="border-border flex flex-col gap-3 border-b px-4 py-3 lg:flex-row lg:items-center">
+          <p className="shrink-0 text-sm font-semibold">
+            {classLabel}
+            <span className="text-muted-foreground font-normal">
+              {' '}
+              · {activeCount.toLocaleString()} students · {months[selectedMonth]} {selectedYear}
+            </span>
+          </p>
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:justify-end">
+            <div
+              role="group"
+              aria-label="Visible days"
+              className="flex min-w-0 gap-1 overflow-x-auto pb-1 lg:pb-0"
             >
-              <Eye className="mr-1.5 h-3 w-3" />
-              Select All
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetVisibleDays}
-              className="h-8 flex-1 text-xs sm:flex-none"
-            >
-              <EyeOff className="mr-1.5 h-3 w-3" />
-              Reset
-            </Button>
-          </div>
-        </div>
-        <div className="max-w-full overflow-hidden">
-          <div className="bg-muted/30 border-border/50 scrollbar-thumb-primary/20 scrollbar-thin scrollbar-track-transparent flex flex-nowrap gap-1.5 overflow-x-auto rounded-lg border p-3">
-            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
-              <button
-                key={day}
-                type="button"
-                onClick={() => toggleVisibleDay(day)}
-                aria-label={`Toggle day ${day}`}
-                aria-pressed={visibleDays.includes(day)}
-                className={`focus-visible:ring-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium tabular-nums transition-[color,background-color,border-color,box-shadow,opacity,transform] focus-visible:outline-none focus-visible:ring-2 ${
-                  visibleDays.includes(day)
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-background text-muted-foreground border-input hover:border-primary/50'
-                }`}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title={
-          selectedClass ? `Attendance: Class ${selectedClass} ${selectedSection}` : 'Student List'
-        }
-        icon={<Users className="text-primary h-5 w-5" />}
-        noPadding
-      >
-        <div className="border-border bg-muted/20 text-muted-foreground flex flex-wrap items-center gap-3 border-b px-4 py-2.5 text-xs">
-          <span className="text-foreground/70 font-semibold">Legend</span>
-          <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
-            Present
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <XCircle className="h-3.5 w-3.5 text-red-400" aria-hidden="true" />
-            Absent
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-            <span className="font-bold text-amber-600">R</span> Run Away
-          </span>
-          <span className="text-muted-foreground/80 inline-flex items-center gap-1.5">
-            <span className="w-3.5 text-center">—</span> Not marked
-          </span>
-        </div>
-        {/* Desktop table */}
-        <div className="hidden min-h-[400px] max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
-          <table className="w-max min-w-full border-separate border-spacing-0">
-            <thead>
-              <tr className="bg-muted/50 border-border border-b">
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-0 z-20 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                  Sec
-                </th>
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-16 z-20 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                  Roll
-                </th>
-                {visibleDays.map((day) => (
-                  <th
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+                const on = visibleDays.includes(day);
+                const isToday = isCurrentMonth && day === todayDay;
+                return (
+                  <button
                     key={day}
-                    className="text-muted-foreground min-w-[60px] px-2 py-3 text-center text-xs font-semibold uppercase tabular-nums tracking-wider"
+                    type="button"
+                    onClick={() => toggleVisibleDay(day)}
+                    aria-pressed={on}
+                    aria-label={`Show day ${day}`}
+                    className={cn(
+                      'focus-visible:ring-ring pointer-coarse:h-10 pointer-coarse:min-w-10 h-7 min-w-7 shrink-0 rounded-md text-xs font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2',
+                      on
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      isToday && !on && 'ring-primary/40 text-foreground ring-1 ring-inset',
+                    )}
                   >
                     {day}
-                  </th>
-                ))}
-                <th className="text-muted-foreground bg-background border-border/50 sticky left-32 z-20 min-w-[150px] border-l px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]">
-                  Student Name
-                </th>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisibleDays([todayDay])}
+              >
+                Today
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setVisibleDays(Array.from({ length: daysInMonth }, (_, i) => i + 1))}
+              >
+                All
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* One table for every screen: narrow screens scroll the day columns sideways. */}
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="bg-muted border-border text-foreground/70 border-b text-xs font-semibold uppercase tracking-wider">
+                <th className={cn(stickyRoll, 'px-3 py-2.5')}>Roll</th>
+                <th className={cn(stickyName, 'px-3 py-2.5')}>Student</th>
+                {visibleDays.map((day) => {
+                  const isToday = isCurrentMonth && day === todayDay;
+                  return (
+                    <th
+                      key={day}
+                      className={cn(
+                        'w-12 min-w-12 px-1 py-2 text-center tabular-nums',
+                        isToday && todayTint,
+                      )}
+                    >
+                      {isToday ? todayHeader : day}
+                    </th>
+                  );
+                })}
+                <th aria-hidden className="w-full p-0" />
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
               {studentsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+                Array.from({ length: 8 }, (_, i) => (
                   <tr key={i}>
-                    <td className="bg-background sticky left-0 z-10 w-16 min-w-16 max-w-16 px-4 py-3">
-                      <Skeleton className="h-4 w-8" />
-                    </td>
-                    <td className="bg-background sticky left-16 z-10 w-16 min-w-16 max-w-16 px-4 py-3">
-                      <Skeleton className="h-4 w-8" />
-                    </td>
-                    {visibleDays.map((d) => (
-                      <td key={d} className="px-2 py-3">
-                        <Skeleton className="mx-auto h-4 w-4" />
-                      </td>
-                    ))}
-                    <td className="bg-background sticky left-32 z-10 min-w-[150px] px-4 py-3 sm:min-w-[200px]">
-                      <Skeleton className="ml-auto h-4 w-40" />
+                    <td colSpan={visibleDays.length + 3} className="px-4 py-2">
+                      <Skeleton className="h-8 w-full" />
                     </td>
                   </tr>
                 ))
@@ -791,83 +695,56 @@ function Attendance() {
                 <tr>
                   <td
                     colSpan={visibleDays.length + 3}
-                    className="text-muted-foreground px-4 py-12 text-center"
+                    className="text-muted-foreground px-4 py-12 text-center text-sm"
                   >
-                    No students found. Please select a class and section.
+                    {selectedClass
+                      ? 'No students in this class.'
+                      : 'Pick a class and section to take attendance.'}
                   </td>
                 </tr>
               ) : (
                 students.map((student) => (
                   <tr
                     key={student.id}
-                    className={`hover:bg-muted/30 transition-colors ${!student.available ? 'bg-muted/20 opacity-60' : ''}`}
+                    className={cn(
+                      'bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]',
+                      !student.available && 'text-muted-foreground',
+                    )}
                   >
-                    <td className="bg-background border-border/50 sticky left-0 z-10 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-sm font-medium">
-                      {student.section}
+                    <td className={cn(stickyRoll, 'px-3 py-2 text-sm tabular-nums')}>
+                      {showSection ? `${student.section}-${student.roll}` : student.roll}
                     </td>
-                    <td className="text-muted-foreground bg-background border-border/50 sticky left-16 z-10 w-16 min-w-16 max-w-16 border-r px-4 py-3 text-sm">
-                      {student.roll}
+                    <td className={cn(stickyName, 'px-3 py-2')}>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium">{student.name}</span>
+                        {!student.available && (
+                          <StatusBadge status="inactive" className="shrink-0" />
+                        )}
+                      </div>
                     </td>
                     {visibleDays.map((day) => {
-                      const isToday =
-                        day === currentDate.getDate() &&
-                        selectedMonth === currentDate.getMonth() &&
-                        selectedYear === currentDate.getFullYear();
+                      const isToday = isCurrentMonth && day === todayDay;
                       const recorded = getRecordedStatus(student.id, day);
-                      const status = recorded || 'absent';
                       return (
-                        <td key={day} className="px-2 py-3 text-center">
+                        <td key={day} className={cn('px-1 py-2 text-center', isToday && todayTint)}>
                           {isToday && recorded !== 'run-awayed' ? (
                             <input
                               type="checkbox"
-                              checked={status === 'present'}
+                              checked={recorded === 'present'}
                               disabled={!student.available}
-                              aria-label={`Mark ${student.name} present on day ${day}`}
+                              aria-label={`${student.name} present today`}
                               onChange={(e) =>
                                 handleAttendanceChange(student.id, day, e.target.checked)
                               }
-                              className="text-primary focus:ring-primary h-5 w-5 cursor-pointer rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="h-5 w-5 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-40"
                             />
-                          ) : recorded === 'present' ? (
-                            <div className="flex items-center justify-center" title="Present">
-                              <CheckCircle2
-                                className="h-4 w-4 text-emerald-500"
-                                aria-hidden="true"
-                              />
-                            </div>
-                          ) : recorded === 'run-awayed' ? (
-                            <div
-                              className="flex items-center justify-center"
-                              title="Run Away"
-                              aria-label={`${student.name} run away on day ${day}`}
-                            >
-                              <AlertTriangle
-                                className="h-4 w-4 stroke-[2.75] text-amber-500 drop-shadow-[0_0_3px_rgba(245,158,11,0.55)]"
-                                aria-hidden="true"
-                              />
-                            </div>
-                          ) : recorded === 'absent' ? (
-                            <div className="flex items-center justify-center" title="Absent">
-                              <XCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
-                            </div>
                           ) : (
-                            <span className="text-muted-foreground/50 text-xs" title="Not marked">
-                              —
-                            </span>
+                            <StatusIcon status={recorded} />
                           )}
                         </td>
                       );
                     })}
-                    <td className="bg-background border-border/50 sticky left-32 z-10 min-w-[150px] border-l px-4 py-3 text-left text-sm font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)] sm:min-w-[200px]">
-                      <div className="flex flex-col items-start gap-0.5">
-                        <span>{student.name}</span>
-                        {!student.available && (
-                          <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold uppercase tracking-tight text-red-500">
-                            Inactive
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                    <td aria-hidden className="p-0" />
                   </tr>
                 ))
               )}
@@ -875,91 +752,41 @@ function Attendance() {
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="lg:hidden">
-          {studentsLoading ? (
-            <div className="space-y-3 p-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="border-border space-y-3 rounded-xl border p-4">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ))}
-            </div>
-          ) : students.length === 0 ? (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-              No students found. Please select a class and section.
-            </p>
-          ) : (
-            <ul className="space-y-3 p-4">
-              {students.map((student) => (
-                <li
-                  key={student.id}
-                  className={`border-border bg-card space-y-3 rounded-xl border p-4 shadow-sm ${!student.available ? 'opacity-60' : ''}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="wrap-break-word text-sm font-semibold">{student.name}</p>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        Sec {student.section} · Roll {student.roll}
-                      </p>
-                    </div>
-                    {!student.available && (
-                      <span className="rounded border border-red-100 bg-red-50 px-1 text-[10px] font-bold uppercase tracking-tight text-red-500">
-                        Inactive
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {visibleDays.map((day) => {
-                      const isToday =
-                        day === currentDate.getDate() &&
-                        selectedMonth === currentDate.getMonth() &&
-                        selectedYear === currentDate.getFullYear();
-                      const recorded = getRecordedStatus(student.id, day);
-                      const status = recorded || 'absent';
-                      return (
-                        <div
-                          key={day}
-                          className="border-border bg-muted/30 flex min-w-12 flex-col items-center gap-1 rounded-lg border px-2 py-1.5"
-                        >
-                          <span className="text-muted-foreground text-[10px] font-semibold tabular-nums">
-                            {day}
-                          </span>
-                          {isToday && recorded !== 'run-awayed' ? (
-                            <input
-                              type="checkbox"
-                              checked={status === 'present'}
-                              disabled={!student.available}
-                              aria-label={`Mark ${student.name} present on day ${day}`}
-                              onChange={(e) =>
-                                handleAttendanceChange(student.id, day, e.target.checked)
-                              }
-                              className="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                          ) : recorded === 'present' ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
-                          ) : recorded === 'run-awayed' ? (
-                            <AlertTriangle
-                              className="h-4 w-4 stroke-[2.75] text-amber-500"
-                              aria-hidden="true"
-                            />
-                          ) : recorded === 'absent' ? (
-                            <XCircle className="h-4 w-4 text-red-400" aria-hidden="true" />
-                          ) : (
-                            <span className="text-muted-foreground/50 text-xs">—</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="border-border text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2.5 text-xs">
+          <span className="inline-flex items-center gap-1">
+            <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden /> Present
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <X className="h-3.5 w-3.5 text-red-500" aria-hidden /> Absent
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" aria-hidden /> Ran away (set from
+            Running Away)
+          </span>
+          <span>— Not marked</span>
         </div>
       </SectionCard>
+
+      {unsavedCount > 0 && (
+        <div
+          role="region"
+          aria-label="Unsaved attendance"
+          className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-2 shadow-lg"
+        >
+          <div>
+            <p className="text-sm font-medium tabular-nums">
+              {unsavedCount} unsaved {unsavedCount === 1 ? 'change' : 'changes'}
+            </p>
+            {smsLine}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLocalAttendance({})}>
+              Discard
+            </Button>
+            {saveButton}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
