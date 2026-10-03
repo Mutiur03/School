@@ -21,7 +21,10 @@ describe('HolidayService.getHolidays', () => {
   it('filters by school_id, sorted by start_date', async () => {
     findMany.mockResolvedValue([]);
     await service.getHolidays(1);
-    expect(findMany).toHaveBeenCalledWith({ where: { school_id: 1 }, orderBy: { start_date: 'asc' } });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { school_id: 1 },
+      orderBy: { start_date: 'asc' },
+    });
   });
 });
 
@@ -44,9 +47,9 @@ describe('HolidayService.createHoliday', () => {
   });
 
   it('start after end → 400, no insert', async () => {
-    await expect(service.createHoliday(1, { ...dto, start_date: '2026-05-01' })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.createHoliday(1, { ...dto, start_date: '2026-05-01' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -63,7 +66,10 @@ describe('HolidayService.updateHoliday', () => {
 
   it('strips time from dates on update', async () => {
     update.mockResolvedValue({ id: 1 });
-    await service.updateHoliday(1, 1, { start_date: '2026-06-01T08:00:00Z', end_date: '2026-06-02' });
+    await service.updateHoliday(1, 1, {
+      start_date: '2026-06-01T08:00:00Z',
+      end_date: '2026-06-02',
+    });
     expect(update).toHaveBeenCalledWith({
       where: { id: 1, school_id: 1 },
       data: { start_date: '2026-06-01', end_date: '2026-06-02' },
@@ -81,9 +87,14 @@ describe('HolidayService.updateHoliday', () => {
 
   it('P2025 (not found / wrong tenant) bubbles up for global filter', async () => {
     update.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('not found', { code: 'P2025', clientVersion: 'test' }),
+      new Prisma.PrismaClientKnownRequestError('not found', {
+        code: 'P2025',
+        clientVersion: 'test',
+      }),
     );
-    await expect(service.updateHoliday(1, 99, { title: 'X' })).rejects.toMatchObject({ code: 'P2025' });
+    await expect(service.updateHoliday(1, 99, { title: 'X' })).rejects.toMatchObject({
+      code: 'P2025',
+    });
   });
 });
 
@@ -98,7 +109,10 @@ describe('HolidayService.deleteHoliday', () => {
 
   it('P2025 bubbles up for global filter', async () => {
     del.mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('not found', { code: 'P2025', clientVersion: 'test' }),
+      new Prisma.PrismaClientKnownRequestError('not found', {
+        code: 'P2025',
+        clientVersion: 'test',
+      }),
     );
     await expect(service.deleteHoliday(1, 99)).rejects.toMatchObject({ code: 'P2025' });
   });

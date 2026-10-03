@@ -48,7 +48,7 @@ function run(args) {
     for (const [name, handler] of handlers) process.off(name, handler);
     process.kill(process.pid, signal);
   });
-  child.on('error', error => {
+  child.on('error', (error) => {
     console.error(`Failed to start Node.js: ${error.message}`);
     process.exit(1);
   });
@@ -76,8 +76,12 @@ if (args[0] === '-e' || args[0] === '--eval') {
   const prefix = `const { chromium, firefox, webkit, devices } = require('playwright');\nconst helpers = require(${helpersPath});\n`;
   // ponytail: exit once the snippet settles so a snippet that leaves the browser open
   // cannot hang; the empty writes flush queued output first (pipe writes are async).
-  const exit = "async () => { for (const s of [process.stdout, process.stderr]) await new Promise(r => s.write('', r)); process.exit(process.exitCode ?? 0); }";
-  run(['-e', `${prefix}\n(async () => {\n  try {\n    ${source}\n  } catch (error) {\n    console.error(error.stack || error.message);\n    process.exitCode = 1;\n  }\n})().finally(${exit});`]);
+  const exit =
+    "async () => { for (const s of [process.stdout, process.stderr]) await new Promise(r => s.write('', r)); process.exit(process.exitCode ?? 0); }";
+  run([
+    '-e',
+    `${prefix}\n(async () => {\n  try {\n    ${source}\n  } catch (error) {\n    console.error(error.stack || error.message);\n    process.exitCode = 1;\n  }\n})().finally(${exit});`,
+  ]);
 } else if (args[0]) {
   const file = path.resolve(args[0]);
   if (!fs.existsSync(file)) {

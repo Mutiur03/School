@@ -33,7 +33,8 @@ export class LegacyErrorFilter implements ExceptionFilter {
       res.status(404).json({ success: false, message: 'Route not found' });
       return;
     }
-    const err = error instanceof HttpException ? new ApiError(error.getStatus(), httpMessage(error)) : error;
+    const err =
+      error instanceof HttpException ? new ApiError(error.getStatus(), httpMessage(error)) : error;
     errorHandler(err, http.getRequest(), res);
   }
 }

@@ -47,12 +47,7 @@ export class OrdersService {
 
       for (const item of items) {
         await manager.save(OrderItem, { orderId: order.id, ...item });
-        await manager.decrement(
-          Inventory,
-          { productId: item.productId },
-          'stock',
-          item.quantity,
-        );
+        await manager.decrement(Inventory, { productId: item.productId }, 'stock', item.quantity);
       }
 
       // If this throws, everything rolls back
@@ -75,12 +70,7 @@ export class TransferService {
 
     try {
       // Debit source account
-      await queryRunner.manager.decrement(
-        Account,
-        { id: fromId },
-        'balance',
-        amount,
-      );
+      await queryRunner.manager.decrement(Account, { id: fromId }, 'balance', amount);
 
       // Verify sufficient funds
       const source = await queryRunner.manager.findOne(Account, {
@@ -91,12 +81,7 @@ export class TransferService {
       }
 
       // Credit destination account
-      await queryRunner.manager.increment(
-        Account,
-        { id: toId },
-        'balance',
-        amount,
-      );
+      await queryRunner.manager.increment(Account, { id: toId }, 'balance', amount);
 
       // Log the transaction
       await queryRunner.manager.save(TransactionLog, {
@@ -124,10 +109,7 @@ export class UsersRepository {
     private dataSource: DataSource,
   ) {}
 
-  async createWithProfile(
-    userData: CreateUserDto,
-    profileData: CreateProfileDto,
-  ): Promise<User> {
+  async createWithProfile(userData: CreateUserDto, profileData: CreateProfileDto): Promise<User> {
     return this.dataSource.transaction(async (manager) => {
       const user = await manager.save(User, userData);
       await manager.save(Profile, { ...profileData, userId: user.id });

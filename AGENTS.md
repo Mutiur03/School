@@ -41,6 +41,7 @@ nest/modules/<name>/
   <name>.http.spec.ts
   <name>.module.ts              # registered in app.module.ts
 ```
+
 Shared Nest pieces live in `nest/common/` (auth guard, `@SchoolId()`, Prisma module, error filter, response interceptor). Tests sit next to the code they test, not in a separate `test/` folder.
 
 ### Code rules
@@ -62,17 +63,18 @@ Shared Nest pieces live in `nest/common/` (auth guard, `@SchoolId()`, Prisma mod
 
 ### Tests (Jest `*.spec.ts`, three layers per module)
 
-| File | Tests | How |
-|---|---|---|
-| `dto/<name>.dto.spec.ts` | Validation rules | Call `new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }).transform(body, { type: 'body', metatype: Dto })` directly. No app, no DB. |
-| `<name>.service.spec.ts` | Business logic, exact Prisma args | Pass a fake Prisma (`{ model: { findMany, create, ... } } as unknown as PrismaClient`, `jest.fn()`s) to the constructor. Assert `toHaveBeenCalledWith`, including `school_id`. Prisma errors: assert they bubble up (`rejects.toMatchObject({ code })`). No DB. |
-| `<name>.http.spec.ts` | Full stack: routing, guards, validation, envelope, status codes | Boot the real app on port 0, signed JWT + `x-tenant-host` header, real DB. Rejection cases plus one lifecycle test (create → list → update → delete → 404). Push created ids to `createdIds`; `afterAll` deletes them inside `runWithRlsContext({ isSuperAdmin: true }, ...)`. |
+| File                     | Tests                                                           | How                                                                                                                                                                                                                                                                            |
+| ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dto/<name>.dto.spec.ts` | Validation rules                                                | Call `new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }).transform(body, { type: 'body', metatype: Dto })` directly. No app, no DB.                                                                                                                           |
+| `<name>.service.spec.ts` | Business logic, exact Prisma args                               | Pass a fake Prisma (`{ model: { findMany, create, ... } } as unknown as PrismaClient`, `jest.fn()`s) to the constructor. Assert `toHaveBeenCalledWith`, including `school_id`. Prisma errors: assert they bubble up (`rejects.toMatchObject({ code })`). No DB.                |
+| `<name>.http.spec.ts`    | Full stack: routing, guards, validation, envelope, status codes | Boot the real app on port 0, signed JWT + `x-tenant-host` header, real DB. Rejection cases plus one lifecycle test (create → list → update → delete → 404). Push created ids to `createdIds`; `afterAll` deletes them inside `runWithRlsContext({ isSuperAdmin: true }, ...)`. |
 
 Skip controller unit tests: controllers only delegate, and the http spec covers them.
 
 CI (`.github/workflows/deploy-server.yml`, `Test` step) runs `pnpm test` and all Jest specs except `*.http.spec.ts`, with a dummy `DATABASE_URL` and no DB. So DTO/service specs must never hit a real DB or Redis. Anything that needs one goes in `*.http.spec.ts` and runs locally.
 
 Commands (in `server/`):
+
 - `pnpm test:nest`: all Jest specs. Filter: `pnpm test:nest --testPathPatterns holiday` (Jest 30, plural) and/or `-t "test name"`.
 - `pnpm test`: legacy `node:test` `*.test.ts` for non-migrated modules. Filter with `--test-name-pattern`, not `-t`.
 

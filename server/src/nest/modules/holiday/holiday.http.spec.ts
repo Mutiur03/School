@@ -92,10 +92,18 @@ const valid = { title: 'Eid', start_date: '2026-03-30', end_date: '2026-04-01' }
 // All rejected before any DB write, so they leave no rows behind.
 test.each([
   ['missing dates', { title: 'Eid' }, 'start_date must be a valid ISO 8601 date string'],
-  ['bad date', { ...valid, start_date: 'not-a-date' }, 'start_date must be a valid ISO 8601 date string'],
+  [
+    'bad date',
+    { ...valid, start_date: 'not-a-date' },
+    'start_date must be a valid ISO 8601 date string',
+  ],
   ['wrong type', { ...valid, is_optional: 'yes' }, 'is_optional must be a boolean value'],
   ['extra field', { ...valid, school_id: 2 }, 'property school_id should not exist'],
-  ['start after end', { ...valid, start_date: '2026-05-01' }, 'Start date cannot be after end date'],
+  [
+    'start after end',
+    { ...valid, start_date: '2026-05-01' },
+    'Start date cannot be after end date',
+  ],
 ])('POST /holidays %s → 400', async (_name, payload, message) => {
   const { status, body } = await call('POST', '/api/holidays', { auth: true, body: payload });
   expect(status).toBe(400);
@@ -188,6 +196,9 @@ test('create → list → update → delete → gone', async () => {
   expect(again.status).toBe(404);
   expect(again.body.success).toBe(false);
 
-  const missingUpdate = await call('PATCH', `/api/holidays/${id}`, { auth: true, body: { title: 'x' } });
+  const missingUpdate = await call('PATCH', `/api/holidays/${id}`, {
+    auth: true,
+    body: { title: 'x' },
+  });
   expect(missingUpdate.status).toBe(404);
 });

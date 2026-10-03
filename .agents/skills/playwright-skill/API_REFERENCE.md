@@ -84,13 +84,13 @@ const { chromium } = require('playwright');
 (async () => {
   // Launch browser
   const browser = await chromium.launch({
-    headless: false,  // Set to true for headless mode
-    slowMo: 50       // Slow down operations by 50ms
+    headless: false, // Set to true for headless mode
+    slowMo: 50, // Slow down operations by 50ms
   });
 
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   });
 
   const page = await context.newPage();
@@ -152,11 +152,11 @@ await page.locator('button[type="submit"]').click();
 await page.locator('input[name="email"]').fill('test@test.com');
 
 // AVOID: Classes and IDs (can change frequently)
-await page.locator('.btn-primary').click();  // Avoid
-await page.locator('#submit').click();       // Avoid
+await page.locator('.btn-primary').click(); // Avoid
+await page.locator('#submit').click(); // Avoid
 
 // LAST RESORT: Complex CSS/XPath
-await page.locator('div.container > form > button').click();  // Fragile
+await page.locator('div.container > form > button').click(); // Fragile
 ```
 
 ### Advanced Locator Patterns
@@ -208,20 +208,17 @@ await page.selectOption('select#colors', ['red', 'blue', 'green']);
 
 // File upload
 await page.setInputFiles('input[type="file"]', 'path/to/file.pdf');
-await page.setInputFiles('input[type="file"]', [
-  'file1.pdf',
-  'file2.pdf'
-]);
+await page.setInputFiles('input[type="file"]', ['file1.pdf', 'file2.pdf']);
 ```
 
 ### Mouse Actions
 
 ```javascript
 // Click variations
-await page.click('button');                          // Left click
-await page.click('button', { button: 'right' });    // Right click
-await page.dblclick('button');                       // Double click
-await page.click('button', { position: { x: 10, y: 10 } });  // Click at position
+await page.click('button'); // Left click
+await page.click('button', { button: 'right' }); // Right click
+await page.dblclick('button'); // Double click
+await page.click('button', { position: { x: 10, y: 10 } }); // Click at position
 
 // Hover
 await page.hover('.menu-item');
@@ -267,7 +264,7 @@ await page.locator('button').waitFor({ state: 'detached' });
 
 // Wait for specific conditions
 await page.waitForURL('**/success');
-await page.waitForURL(url => url.pathname === '/dashboard');
+await page.waitForURL((url) => url.pathname === '/dashboard');
 
 // Prefer a user-visible assertion over network-idle heuristics.
 await page.getByRole('heading', { name: 'Dashboard' }).waitFor();
@@ -275,10 +272,7 @@ await page.waitForLoadState('domcontentloaded');
 
 // Wait for function
 await page.waitForFunction(() => document.querySelector('.loaded'));
-await page.waitForFunction(
-  text => document.body.innerText.includes(text),
-  'Content loaded'
-);
+await page.waitForFunction((text) => document.body.innerText.includes(text), 'Content loaded');
 
 // Wait for response
 const responsePromise = page.waitForResponse('**/api/users');
@@ -286,14 +280,14 @@ await page.click('button#load-users');
 const response = await responsePromise;
 
 // Wait for request
-await page.waitForRequest(request =>
-  request.url().includes('/api/') && request.method() === 'POST'
+await page.waitForRequest(
+  (request) => request.url().includes('/api/') && request.method() === 'POST',
 );
 
 // Custom timeout
 await page.locator('.slow-element').waitFor({
   state: 'visible',
-  timeout: 10000  // 10 seconds
+  timeout: 10000, // 10 seconds
 });
 ```
 
@@ -383,28 +377,28 @@ test('login with valid credentials', async ({ page }) => {
 
 ```javascript
 // Mock API responses
-await page.route('**/api/users', route => {
+await page.route('**/api/users', (route) => {
   route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify([
       { id: 1, name: 'John' },
-      { id: 2, name: 'Jane' }
-    ])
+      { id: 2, name: 'Jane' },
+    ]),
   });
 });
 
 // Modify requests
-await page.route('**/api/**', route => {
+await page.route('**/api/**', (route) => {
   const headers = {
     ...route.request().headers(),
-    'X-Custom-Header': 'value'
+    'X-Custom-Header': 'value',
   };
   route.continue({ headers });
 });
 
 // Block resources
-await page.route('**/*.{png,jpg,jpeg,gif}', route => route.abort());
+await page.route('**/*.{png,jpg,jpeg,gif}', (route) => route.abort());
 ```
 
 ### Custom Headers via Environment Variables
@@ -420,9 +414,11 @@ PW_EXTRA_HEADERS='{"X-Automated-By":"playwright-skill","X-Request-ID":"123"}'
 ```
 
 These headers are automatically applied to all requests when using:
+
 - `helpers.createContext(browser)` - headers merged automatically
 
 **Precedence (highest to lowest):**
+
 1. Headers passed directly in `options.extraHTTPHeaders`
 2. Environment variable headers
 3. Playwright defaults
@@ -437,12 +433,12 @@ These headers are automatically applied to all requests when using:
 // Full page screenshot
 await page.screenshot({
   path: 'screenshot.png',
-  fullPage: true
+  fullPage: true,
 });
 
 // Element screenshot
 await page.locator('.chart').screenshot({
-  path: 'chart.png'
+  path: 'chart.png',
 });
 
 // Visual comparison
@@ -460,7 +456,7 @@ const context = await browser.newContext({
   ...iPhone,
   locale: 'en-US',
   permissions: ['geolocation'],
-  geolocation: { latitude: 37.7749, longitude: -122.4194 }
+  geolocation: { latitude: 37.7749, longitude: -122.4194 },
 });
 ```
 
@@ -486,8 +482,8 @@ npx playwright test --headed --slowmo=1000
 await page.pause();
 
 // Console logs
-page.on('console', msg => console.log('Browser log:', msg.text()));
-page.on('pageerror', error => console.log('Page error:', error));
+page.on('console', (msg) => console.log('Browser log:', msg.text()));
+page.on('pageerror', (error) => console.log('Page error:', error));
 ```
 
 ## Performance Testing
@@ -583,10 +579,7 @@ jobs:
 ### Handling Popups
 
 ```javascript
-const [popup] = await Promise.all([
-  page.waitForEvent('popup'),
-  page.click('button.open-popup')
-]);
+const [popup] = await Promise.all([page.waitForEvent('popup'), page.click('button.open-popup')]);
 await popup.waitForLoadState();
 ```
 
@@ -595,7 +588,7 @@ await popup.waitForLoadState();
 ```javascript
 const [download] = await Promise.all([
   page.waitForEvent('download'),
-  page.click('button.download')
+  page.click('button.download'),
 ]);
 await download.saveAs(`./downloads/${download.suggestedFilename()}`);
 ```
@@ -612,7 +605,7 @@ await frame.locator('button').click();
 ```javascript
 async function scrollToBottom(page) {
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve())));
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 }
 ```
 

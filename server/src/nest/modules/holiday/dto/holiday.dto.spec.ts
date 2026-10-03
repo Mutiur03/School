@@ -23,10 +23,7 @@ describe('CreateHolidayDto', () => {
     await expect(run(body, CreateHolidayDto)).rejects.toMatchObject({ status: 400 });
   });
 
-  it.each([
-    [valid],
-    [{ ...valid, description: 'desc' }],
-  ])('accepts %j → 200', async (body) => {
+  it.each([[valid], [{ ...valid, description: 'desc' }]])('accepts %j → 200', async (body) => {
     await expect(run(body, CreateHolidayDto)).resolves.toMatchObject(body);
   });
 

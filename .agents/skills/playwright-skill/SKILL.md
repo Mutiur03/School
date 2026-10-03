@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires Node.js 20+, npm, and network access on first setup to install Playwright and Chromium.
 metadata:
   author: lackeyjb
-  version: "5.0.0"
+  version: '5.0.0'
 allowed-tools: Bash(node:*) Bash(npm:*) Read Write
 ---
 
@@ -44,6 +44,7 @@ Common installation paths:
 
    Use the only result automatically. Ask which URL to use when there are
    multiple results. Ask for a URL or offer to start a server when none exist.
+
 2. Write reusable scripts to `$TMP_DIR/playwright-test-*.js` unless the user
    asks to save them in the project. Use `PW_SCRIPT_DIR` to preserve scripts.
 3. Use a visible browser by default. Use `headless: true` only when requested

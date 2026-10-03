@@ -57,9 +57,16 @@ async function takeScreenshot(page, name, options = {}) {
   if (!filename) {
     const outputDirectory = directory || process.env.PW_ARTIFACT_DIR || os.tmpdir();
     fs.mkdirSync(outputDirectory, { recursive: true });
-    filename = path.join(outputDirectory, `${name}-${new Date().toISOString().replace(/[:.]/g, '-')}.png`);
+    filename = path.join(
+      outputDirectory,
+      `${name}-${new Date().toISOString().replace(/[:.]/g, '-')}.png`,
+    );
   }
-  await page.screenshot({ path: filename, fullPage: screenshotOptions.fullPage !== false, ...screenshotOptions });
+  await page.screenshot({
+    path: filename,
+    fullPage: screenshotOptions.fullPage !== false,
+    ...screenshotOptions,
+  });
   console.log(`Screenshot saved: ${filename}`);
   return filename;
 }
@@ -77,7 +84,11 @@ async function handleCookieBanner(page, timeout = 3000) {
   ];
   for (const selector of selectors) {
     try {
-      await page.locator(selector).filter({ visible: true }).first().click({ timeout: timeout / selectors.length });
+      await page
+        .locator(selector)
+        .filter({ visible: true })
+        .first()
+        .click({ timeout: timeout / selectors.length });
       console.log('Cookie banner dismissed');
       return true;
     } catch {
@@ -88,21 +99,31 @@ async function handleCookieBanner(page, timeout = 3000) {
 }
 
 async function detectDevServers(customPorts = []) {
-  const ports = [...new Set([3000, 3001, 3002, 5173, 8080, 8000, 4200, 5000, 9000, 1234, ...customPorts])];
+  const ports = [
+    ...new Set([3000, 3001, 3002, 5173, 8080, 8000, 4200, 5000, 9000, 1234, ...customPorts]),
+  ];
   const servers = [];
-  await Promise.all(ports.map(async port => {
-    await new Promise(resolve => {
-      const request = http.request({ hostname: 'localhost', port, path: '/', method: 'HEAD', timeout: 500 }, response => {
-        if (response.statusCode < 500) servers.push(port);
-        response.resume();
-        resolve();
+  await Promise.all(
+    ports.map(async (port) => {
+      await new Promise((resolve) => {
+        const request = http.request(
+          { hostname: 'localhost', port, path: '/', method: 'HEAD', timeout: 500 },
+          (response) => {
+            if (response.statusCode < 500) servers.push(port);
+            response.resume();
+            resolve();
+          },
+        );
+        request.on('error', resolve);
+        request.on('timeout', () => {
+          request.destroy();
+          resolve();
+        });
+        request.end();
       });
-      request.on('error', resolve);
-      request.on('timeout', () => { request.destroy(); resolve(); });
-      request.end();
-    });
-  }));
-  return servers.sort((a, b) => a - b).map(port => `http://localhost:${port}`);
+    }),
+  );
+  return servers.sort((a, b) => a - b).map((port) => `http://localhost:${port}`);
 }
 
 module.exports = {

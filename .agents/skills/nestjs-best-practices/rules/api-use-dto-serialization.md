@@ -126,7 +126,7 @@ export class UsersController {
   @SerializeOptions({ type: UserResponseDto })
   async findAll(): Promise<UserResponseDto[]> {
     const users = await this.usersService.findAll();
-    return users.map(u => plainToInstance(UserResponseDto, u));
+    return users.map((u) => plainToInstance(UserResponseDto, u));
   }
 
   @Get(':id')

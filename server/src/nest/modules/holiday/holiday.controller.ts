@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Auth } from '../../common/auth.guard.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { CreateHolidayDto } from './dto/create-holiday.dto.js';

@@ -27,7 +27,10 @@ export class HolidayService {
   }
 
   getHolidays(schoolId: number) {
-    return this.prisma.holidays.findMany({ where: { school_id: schoolId }, orderBy: { start_date: 'asc' } });
+    return this.prisma.holidays.findMany({
+      where: { school_id: schoolId },
+      orderBy: { start_date: 'asc' },
+    });
   }
 
   async updateHoliday(schoolId: number, id: number, dto: UpdateHolidayDto) {
