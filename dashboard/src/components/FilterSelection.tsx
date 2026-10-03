@@ -1,5 +1,4 @@
 import React from 'react';
-import { Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Shared native &lt;select&gt; styling for filter dropdowns */
@@ -48,7 +47,7 @@ export interface FilterSelectionProps {
 /**
  * Compact filter bar.
  * Mobile: search full-width → selects in one row → actions full-width.
- * Desktop: title + fields + actions on one line when space allows.
+ * Desktop: fields + actions on one line when space allows.
  */
 export function FilterSelection({
   children,
@@ -64,13 +63,6 @@ export function FilterSelection({
       )}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          <Filter size={18} className="text-primary shrink-0" />
-          <span className="text-foreground whitespace-nowrap text-sm font-semibold">
-            Filter Selection
-          </span>
-        </div>
-
         <div className={cn(gridClassName, 'min-w-0 flex-1')}>{children}</div>
 
         {headerAction ? (

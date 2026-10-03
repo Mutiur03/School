@@ -161,6 +161,117 @@ html {
       scroll-behavior: auto !important;
     }
   }
+
+  /*
+   * Themed option list for every native <select> (Chrome/Edge 135+, Safari 27).
+   * Firefox keeps the OS list. Touch devices keep the native picker (iOS wheel etc.),
+   * so this is mouse/trackpad only. In @layer base so Tailwind utilities still win.
+   */
+  @supports (appearance: base-select) {
+    @media (pointer: fine) {
+      select:not([multiple]):not([size]),
+      select:not([multiple]):not([size])::picker(select) {
+        appearance: base-select;
+      }
+
+      select:not([multiple]):not([size]) {
+        cursor: pointer;
+      }
+
+      /*
+       * Opt-in truncation: a select with a <button><selectedcontent> child keeps the
+       * chosen value on one line with "…" (plain base-select wraps long values).
+       */
+      select > button {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        color: inherit;
+      }
+
+      select > button selectedcontent {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      select:not([multiple]):not([size]):disabled {
+        cursor: not-allowed;
+      }
+
+      select::picker-icon {
+        color: var(--muted-foreground);
+        transition: rotate 150ms ease;
+      }
+
+      select:open::picker-icon {
+        rotate: 180deg;
+      }
+
+      select::picker(select) {
+        margin-block: 4px;
+        padding: 4px;
+        max-height: min(20rem, 60vh);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) + 2px);
+        background: var(--popover);
+        color: var(--popover-foreground);
+        box-shadow:
+          0 10px 15px -3px rgb(0 0 0 / 0.08),
+          0 4px 6px -4px rgb(0 0 0 / 0.05);
+      }
+
+      select option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.5rem;
+        border-radius: calc(var(--radius) - 4px);
+        font-size: 0.875rem;
+        cursor: pointer;
+      }
+
+      select option:hover,
+      select option:focus-visible {
+        background: var(--muted);
+        outline: none;
+      }
+
+      select option:checked {
+        font-weight: 600;
+      }
+
+      select option::checkmark {
+        order: 1;
+        margin-inline-start: auto;
+        color: var(--primary);
+      }
+
+      select option:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+    }
+  }
+}
+
+/*
+ * iOS Safari zooms the page when a field under 16px gets focus. Touch screens get
+ * 16px fields. Unlayered on purpose so it beats Tailwind's text-sm/text-xs utilities.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 @keyframes fade-in-up {

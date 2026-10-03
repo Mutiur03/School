@@ -61,16 +61,11 @@ export function TablePagination({
     >
       <div className="text-muted-foreground text-sm">
         {totalFiltered != null ? (
-          <>
-            <span className="tabular-nums">{totalFiltered.toLocaleString()}</span> total
-            {totalPages > 0 ? (
-              <>
-                {' '}
-                · page <span className="tabular-nums">{page}</span> of{' '}
-                <span className="tabular-nums">{totalPages}</span>
-              </>
-            ) : null}
-          </>
+          <span className="tabular-nums">
+            {totalFiltered === 0
+              ? '0 results'
+              : `${((page - 1) * limit + 1).toLocaleString()}–${Math.min(page * limit, totalFiltered).toLocaleString()} of ${totalFiltered.toLocaleString()}`}
+          </span>
         ) : (
           <>
             Page <span className="tabular-nums">{page}</span> of{' '}
@@ -105,9 +100,13 @@ export function TablePagination({
           >
             Prev
           </Button>
+          {/* Phones: compact "2 / 11" instead of a wrapping row of page numbers. */}
+          <span className="text-muted-foreground px-2 text-sm tabular-nums sm:hidden">
+            {page} / {Math.max(totalPages, 1)}
+          </span>
           {pageButtons.map((p, idx) =>
             p === '...' ? (
-              <span key={idx} className="text-muted-foreground px-1 text-sm">
+              <span key={idx} className="text-muted-foreground hidden px-1 text-sm sm:inline">
                 …
               </span>
             ) : (
@@ -118,6 +117,7 @@ export function TablePagination({
                 variant={p === currentPage ? 'default' : 'outline'}
                 disabled={loading}
                 onClick={() => onPageChange(p as number)}
+                className="hidden sm:inline-flex"
               >
                 {p}
               </Button>

@@ -5,14 +5,13 @@ import { Eye, Pencil, Trash2, Upload, RotateCw } from 'lucide-react';
 type ActionVariant = 'blue' | 'emerald' | 'gray' | 'red' | 'amber';
 type ActionType = 'view' | 'edit' | 'delete' | 'photo' | 'reactivate';
 
+// Quiet ghost buttons: neutral at rest, colour only on hover so rows of actions don't shout.
 const variantClasses: Record<ActionVariant, string> = {
-  blue: 'text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/10 dark:text-blue-300 dark:hover:bg-blue-900/30',
-  emerald:
-    'text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-300 dark:hover:bg-emerald-900/30',
-  gray: 'text-gray-700 bg-muted hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600',
-  red: 'text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/10 dark:text-red-300 dark:hover:bg-red-900/30',
-  amber:
-    'text-amber-700 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:hover:bg-amber-900/30',
+  blue: 'hover:bg-blue-500/10 hover:text-blue-700 dark:hover:text-blue-300',
+  emerald: 'hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300',
+  gray: 'hover:bg-muted hover:text-foreground',
+  red: 'hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300',
+  amber: 'hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-300',
 };
 
 const actionDefaults: Record<
@@ -33,28 +32,40 @@ interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
   label?: string;
   asLabel?: boolean;
   htmlFor?: string;
+  /** Show only the icon; the label becomes the tooltip and accessible name. */
+  iconOnly?: boolean;
 }
 
 const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
-  ({ action, variant, icon, label, className, children, asLabel, htmlFor, ...props }, ref) => {
+  (
+    { action, variant, icon, label, className, children, asLabel, htmlFor, iconOnly, ...props },
+    ref,
+  ) => {
     const defaults = action ? actionDefaults[action] : null;
     const resolvedVariant = variant ?? defaults?.variant ?? 'gray';
     const resolvedIcon = icon ?? defaults?.icon;
     const resolvedLabel = label ?? defaults?.label;
 
-    const base =
-      'inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-sm transition-colors cursor-pointer';
+    const base = cn(
+      'text-muted-foreground inline-flex cursor-pointer items-center gap-1 rounded-md text-xs font-medium transition-colors focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2',
+      iconOnly ? 'h-8 w-8 justify-center' : 'px-2.5 py-1.5',
+    );
 
     const content = (
       <>
         {resolvedIcon}
-        {resolvedLabel ?? children}
+        {iconOnly ? null : (resolvedLabel ?? children)}
       </>
     );
+    const a11y = iconOnly ? { title: resolvedLabel, 'aria-label': resolvedLabel } : {};
 
     if (asLabel) {
       return (
-        <label htmlFor={htmlFor} className={cn(base, variantClasses[resolvedVariant], className)}>
+        <label
+          htmlFor={htmlFor}
+          className={cn(base, variantClasses[resolvedVariant], className)}
+          {...a11y}
+        >
           {content}
         </label>
       );
@@ -65,6 +76,7 @@ const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
         ref={ref}
         type="button"
         className={cn(base, variantClasses[resolvedVariant], className)}
+        {...a11y}
         {...props}
       >
         {content}

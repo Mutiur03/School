@@ -1,6 +1,6 @@
 import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
-import { prisma } from '@/config/prisma.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { assertTenantR2KeyIfPresent, deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
 import * as XLSX from 'xlsx';
 import { removeInitialZeros, VALID_GROUPS } from '@school/shared-schemas';
@@ -48,29 +48,63 @@ export class StudentService {
       religion?: string;
       roll?: number;
       group?: string;
+      levels?: number[];
+      sections?: string[];
+      groups?: string[];
+      /** Subject ids as strings, plus 'none' for no 4th subject. */
+      fourthSubjects?: string[];
+      sort?: 'name' | 'roll' | 'class' | 'section' | 'group' | 'fourth';
+      order?: 'asc' | 'desc';
+      /** 'name' limits `search` to the student name (default also matches parent phones). */
+      searchBy?: 'name';
     },
     _user?: {
       role?: string;
       levels?: Array<{ class_name: number; section: string; year: number }>;
     },
   ) {
-    const { year, page, limit, level, section, search, religion, roll, group } = params;
+    const { year, page, limit, level, section, search, religion, roll, group, sort } = params;
+    const order = params.order ?? 'asc';
 
     const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
     const normalizedLimit =
       Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
-    const normalizedSection = section?.trim().toUpperCase();
     const normalizedSearch = search?.trim();
     const normalizedGroup = group?.trim();
 
+    // `levels`/`sections` (multi) take precedence over the single `level`/`section`.
+    const hasLevel = typeof level === 'number' && !Number.isNaN(level);
+    const classList = params.levels?.length ? params.levels : hasLevel ? [level] : [];
+    const sectionList = (
+      params.sections?.length ? params.sections : section?.trim() ? [section] : []
+    ).map((s) => s.trim().toUpperCase());
+
+    const groupList = params.groups?.length
+      ? params.groups
+      : normalizedGroup
+        ? [normalizedGroup]
+        : [];
+    const fourthIds = (params.fourthSubjects ?? [])
+      .filter((s) => s !== 'none')
+      .map((s) => parseInt(s, 10));
+    const wantsNoFourth = params.fourthSubjects?.includes('none') ?? false;
+
     const enrollmentWhere: Prisma.student_enrollmentsWhereInput = {
       year,
-      ...(typeof level === 'number' && !Number.isNaN(level) ? { class: level } : {}),
-      ...(normalizedSection ? { section: normalizedSection } : {}),
-      ...(normalizedGroup ? { group: normalizedGroup } : {}),
+      ...(classList.length ? { class: { in: classList } } : {}),
+      ...(sectionList.length ? { section: { in: sectionList } } : {}),
+      ...(groupList.length ? { group: { in: groupList } } : {}),
       ...(!Number.isNaN(roll as number) && roll !== undefined ? { roll } : {}),
+      ...(fourthIds.length || wantsNoFourth
+        ? {
+            OR: [
+              ...(fourthIds.length ? [{ fourth_subject_id: { in: fourthIds } }] : []),
+              ...(wantsNoFourth ? [{ fourth_subject_id: null }] : []),
+            ],
+          }
+        : {}),
     };
 
     const baseWhere: Prisma.student_enrollmentsWhereInput = {
@@ -84,18 +118,22 @@ export class StudentService {
           {
             OR: [
               { name: { contains: normalizedSearch, mode: 'insensitive' } },
-              {
-                father_phone: {
-                  contains: normalizedSearch,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                mother_phone: {
-                  contains: normalizedSearch,
-                  mode: 'insensitive',
-                },
-              },
+              ...(params.searchBy === 'name'
+                ? []
+                : [
+                    {
+                      father_phone: {
+                        contains: normalizedSearch,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                    {
+                      mother_phone: {
+                        contains: normalizedSearch,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  ]),
             ],
           },
         ],
@@ -108,23 +146,46 @@ export class StudentService {
       }
     }
 
-    const [total, filtered, enrollments, allOptions] = await prisma.$transaction([
+    const [total, filtered, stipendCount, enrollments, allOptions] = await prisma.$transaction([
       prisma.student_enrollments.count({
         where: baseWhere,
       }),
       prisma.student_enrollments.count({
         where: enrollmentWhere,
       }),
+      prisma.student_enrollments.count({
+        where: { AND: [enrollmentWhere, { student: { has_stipend: true } }] },
+      }),
       prisma.student_enrollments.findMany({
         where: enrollmentWhere,
         include: { student: true },
-        orderBy: [{ class: 'asc' }, { section: 'asc' }, { roll: 'asc' }],
+        orderBy:
+          sort === 'name'
+            ? [{ student: { name: order } }, { class: 'asc' }, { roll: 'asc' }]
+            : sort === 'roll'
+              ? [{ roll: order }, { class: 'asc' }, { section: 'asc' }]
+              : sort === 'section'
+                ? [{ section: order }, { class: 'asc' }, { roll: 'asc' }]
+                : sort === 'group'
+                  ? [{ group: { sort: order, nulls: 'last' } }, { class: 'asc' }, { roll: 'asc' }]
+                  : sort === 'fourth'
+                    ? [{ fourth_subject: { name: order } }, { class: 'asc' }, { roll: 'asc' }]
+                    : [
+                        { class: sort === 'class' ? order : 'asc' },
+                        { section: 'asc' },
+                        { roll: 'asc' },
+                      ],
         skip,
         take: normalizedLimit,
       }),
       prisma.student_enrollments.findMany({
         where: baseWhere,
-        select: { class: true, section: true, roll: true },
+        select: {
+          class: true,
+          section: true,
+          roll: true,
+          fourth_subject: { select: { id: true, name: true } },
+        },
       }),
     ]);
 
@@ -132,17 +193,25 @@ export class StudentService {
       (a, b) => a - b,
     );
 
-    const availableSections = Array.from(new Set(allOptions.map((o) => o.section))).sort();
+    const inClasses = (c: number) => !classList.length || classList.includes(c);
+    const availableSections = Array.from(
+      new Set(allOptions.filter((o) => inClasses(o.class)).map((o) => o.section)),
+    ).sort();
 
-    const hasLevel = typeof level === 'number' && !Number.isNaN(level);
-    const hasSection = !!normalizedSection;
+    // Subjects actually assigned as a 4th subject this year (subjects carry no "optional" flag).
+    const availableFourthSubjects = Array.from(
+      new Map(
+        allOptions.flatMap((o) =>
+          o.fourth_subject ? [[o.fourth_subject.id, o.fourth_subject]] : [],
+        ),
+      ).values(),
+    ).sort((a, b) => a.name.localeCompare(b.name));
 
     const availableRolls = Array.from(
       new Set(
         allOptions
           .filter(
-            (o) =>
-              (!hasLevel || o.class === level) && (!hasSection || o.section === normalizedSection),
+            (o) => inClasses(o.class) && (!sectionList.length || sectionList.includes(o.section)),
           )
           .map((o) => o.roll),
       ),
@@ -166,12 +235,14 @@ export class StudentService {
       meta: {
         total,
         filtered,
+        stipendCount,
         page: normalizedPage,
         limit: normalizedLimit,
         totalPages,
         availableClasses,
         availableSections,
         availableRolls,
+        availableFourthSubjects,
       },
     };
   }
@@ -639,22 +710,35 @@ export class StudentService {
       password: string;
     }> = [];
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      for (const student of processedStudents) {
-        await tx.students.update({
-          where: { id: student.id },
-          data: { password: student.hashedPassword },
-        });
-
-        rotatedStudents.push({
-          login_id: student.login_id,
-          name: student.name,
-          batch: student.batch,
-          religion: student.religion,
-          password: student.password,
-        });
+    // One UPDATE for all rows inside rlsTransaction. The old per-row loop under bare
+    // prisma.$transaction ran each update in its own RLS transaction (committing
+    // individually) while the outer one hit the 5s timeout on large selections: passwords
+    // changed but the request 500'd, so the credentials Excel was never delivered.
+    const ids = processedStudents.map((s) => s.id);
+    const hashes = processedStudents.map((s) => s.hashedPassword);
+    await rlsTransaction(async (tx) => {
+      const updated = await tx.$executeRaw`
+        UPDATE students AS s
+        SET password = v.password
+        FROM unnest(${ids}::int[], ${hashes}::text[]) AS v(id, password)
+        WHERE s.id = v.id
+      `;
+      // Throw inside the transaction so a mismatch rolls back instead of leaving
+      // changed passwords with no credentials file.
+      if (updated !== processedStudents.length) {
+        throw new ApiError(500, 'Password rotation updated an unexpected number of students');
       }
     });
+
+    for (const student of processedStudents) {
+      rotatedStudents.push({
+        login_id: student.login_id,
+        name: student.name,
+        batch: student.batch,
+        religion: student.religion,
+        password: student.password,
+      });
+    }
 
     const excelData = rotatedStudents.map(
       (student: {

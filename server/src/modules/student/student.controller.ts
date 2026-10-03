@@ -46,6 +46,36 @@ export class StudentController {
     const rollValue = req.query.roll;
 
     const groupValue = req.query.group;
+    // Multi-value filters and sorting for the admin list's column popovers.
+    // NOTE: feature added to frozen legacy route by explicit user decision; port to Nest with the student module.
+    const splitList = (v: unknown) =>
+      typeof v === 'string' && v.trim()
+        ? v
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined;
+    const levels = splitList(req.query.levels)
+      ?.map((s) => parseInt(s, 10))
+      .filter(Number.isFinite);
+    const sections = splitList(req.query.sections);
+    const groups = splitList(req.query.groups);
+    // Subject ids, plus 'none' for students without a 4th subject.
+    const fourthSubjects = splitList(req.query.fourthSubjects)?.filter(
+      (s) => s === 'none' || Number.isFinite(parseInt(s, 10)),
+    );
+    const sortValue = req.query.sort;
+    const sort =
+      sortValue === 'name' ||
+      sortValue === 'roll' ||
+      sortValue === 'class' ||
+      sortValue === 'section' ||
+      sortValue === 'group' ||
+      sortValue === 'fourth'
+        ? sortValue
+        : undefined;
+    const order = req.query.order === 'desc' ? 'desc' : 'asc';
+    const searchBy = req.query.searchBy === 'name' ? 'name' : undefined;
     const page = typeof pageValue === 'string' ? parseInt(pageValue, 10) : NaN;
     const limit = typeof limitValue === 'string' ? parseInt(limitValue, 10) : NaN;
     const roll = typeof rollValue === 'string' ? parseInt(rollValue, 10) : NaN;
@@ -61,7 +91,10 @@ export class StudentController {
       (typeof sectionValue === 'string' && sectionValue.trim().length > 0) ||
       (typeof religionValue === 'string' && religionValue.trim().length > 0) ||
       (typeof rollValue === 'string' && rollValue.trim().length > 0) ||
-      (typeof groupValue === 'string' && groupValue.trim().length > 0);
+      (typeof groupValue === 'string' && groupValue.trim().length > 0) ||
+      Boolean(
+        levels?.length || sections?.length || groups?.length || fourthSubjects?.length || sort,
+      );
 
     if (isPaginatedRequest) {
       const result = await StudentService.getStudentsPaginated(
@@ -75,6 +108,13 @@ export class StudentController {
           religion,
           roll,
           group,
+          levels,
+          sections,
+          groups,
+          fourthSubjects,
+          sort,
+          order,
+          searchBy,
         },
         req.user,
       );

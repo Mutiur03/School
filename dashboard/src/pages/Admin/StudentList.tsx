@@ -1,23 +1,49 @@
 import axios from 'axios';
-import React, { useCallback, useDeferredValue, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useRef, useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { Search, UserMinus, RotateCw, User, CalendarDays } from 'lucide-react';
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  ImageUp,
+  Info,
+  KeyRound,
+  Layers,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RotateCw,
+  Trash2,
+  Upload,
+  User,
+  UserMinus,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import * as XLSX from 'xlsx';
 import { readAdminXlsxWorkbook } from '@/utils/safeXlsxRead';
-import Loading from '@/components/Loading';
 import {
-  PageHeader,
   SectionCard,
-  StatsCard,
   Popup,
   ConfirmationPopup,
   TabNav,
-  FilterSelection,
-  FilterField,
+  StatusBadge,
+  TablePagination,
   filterSelectClassName,
 } from '@/components';
-import DeleteConfirmation from '@/components/DeleteConfimation';
 import ActionButton from '@/components/ActionButton';
 import { useForm, type UseFormRegister } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,12 +60,14 @@ import {
 import { Input } from '@/components/ui/input';
 import ErrorMessage from '@/components/ErrorMessage';
 import { getFileUrl } from '@/lib/backend';
+import { cn } from '@/lib/utils';
 import { downloadBlob, openBlobInNewTab } from '@school/common-ui/blob';
 import { notifyBulkStudentUpload, readBulkStudentCounts } from '@/lib/bulkStudentUploadFeedback';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Student } from '@/types/students';
 import type { Subject } from '@/types/subjects';
-import { useStudents } from '@/queries/students.queries';
+import { useStudents, toStudentListQuery, type StudentSortKey } from '@/queries/students.queries';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import { useSubjects } from '@/queries/subject.queries';
 import {
   useUpdateFourthSubjectMutation,
@@ -50,295 +78,343 @@ import { StudentAttendanceView } from '@/components/students/StudentAttendanceVi
 
 type StudentFormData = StudentFormSchemaData;
 
-const StudentRow = React.memo(
-  ({
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+const fourthSubjectOptions = (allSubjects: Subject[], student: Student) =>
+  allSubjects.filter(
+    (s) =>
+      s.subject_type !== 'main' &&
+      s.class === Number(student.class) &&
+      (!student.group || !s.group || s.group === student.group),
+  );
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+const DialogHeader = ({
+  id,
+  title,
+  onClose,
+}: {
+  id?: string;
+  title: string;
+  onClose: () => void;
+}) => (
+  <div className="border-border flex items-center justify-between border-b px-5 py-4">
+    <h2 id={id} className="text-base font-semibold">
+      {title}
+    </h2>
+    <CloseButton onClick={onClose} />
+  </div>
+);
+
+// Student photos are 7:9 passport crops; keep that ratio so heads aren't cut off.
+const StudentAvatar = ({ student }: { student: Student }) => {
+  const size = 'h-9 w-7';
+  return student.image ? (
+    <img
+      src={getFileUrl(student.image)}
+      alt=""
+      loading="lazy"
+      className={`border-border ${size} shrink-0 rounded border object-cover object-top`}
+    />
+  ) : (
+    <div
+      className={`bg-muted text-muted-foreground ${size} flex shrink-0 items-center justify-center rounded text-xs font-semibold`}
+    >
+      {student.name.charAt(0).toUpperCase()}
+    </div>
+  );
+};
+
+// Styled selects (Chromium base-select) wrap long values. A <button><selectedcontent>
+// child lets CSS (index.css) truncate with "…". Added via DOM: React doesn't know
+// <selectedcontent> and warns about <button> inside <select>. Other browsers ignore it.
+const truncateSelectedValue = (el: HTMLSelectElement | null) => {
+  if (!el || el.querySelector(':scope > button')) return;
+  const button = document.createElement('button');
+  button.append(document.createElement('selectedcontent'));
+  el.prepend(button);
+};
+
+type FourthSubjectFieldProps = {
+  student: Student;
+  allSubjects: Subject[];
+  readOnly?: boolean;
+  disabled?: boolean;
+  onChange: (studentId: number, subjectId: number | null) => void;
+  className?: string;
+};
+
+const FourthSubjectField = ({
+  student,
+  allSubjects,
+  readOnly,
+  disabled,
+  onChange,
+  className,
+}: FourthSubjectFieldProps) => {
+  if (Number(student.class) < 9) return <span className="text-muted-foreground">—</span>;
+  if (readOnly) {
+    return <span>{allSubjects.find((s) => s.id === student.fourth_subject_id)?.name || '—'}</span>;
+  }
+  return (
+    <select
+      ref={truncateSelectedValue}
+      aria-label={`4th subject for ${student.name}`}
+      title={allSubjects.find((s) => s.id === student.fourth_subject_id)?.name}
+      className={cn(filterSelectClassName, 'h-8 text-xs', className)}
+      value={student.fourth_subject_id || ''}
+      disabled={disabled}
+      onChange={(e) => onChange(student.id, e.target.value ? Number(e.target.value) : null)}
+    >
+      <option value="">None</option>
+      {fourthSubjectOptions(allSubjects, student).map((sub) => (
+        <option key={sub.id} value={sub.id}>
+          {sub.name}
+        </option>
+      ))}
+    </select>
+  );
+};
+
+// Checkbox + Student columns stay pinned while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky z-[1] bg-inherit';
+const stickyEdge = 'max-xl:shadow-[1px_0_0_var(--border)]';
+
+type StudentItemProps = {
+  student: Student;
+  isSelected: boolean;
+  onToggleSelect: (studentId: number) => void;
+  onPhoto: (student: Student) => void;
+  onEdit: (student: Student) => void;
+  onView: (student: Student) => void;
+  onDelete: (student: Student) => void;
+  allSubjects: Subject[];
+  onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
+  isUpdatingFourthSubject?: boolean;
+  showSeniorColumns?: boolean;
+  readOnly?: boolean;
+};
+
+const sameItemProps = (prev: StudentItemProps, next: StudentItemProps) =>
+  prev.isSelected === next.isSelected &&
+  prev.student === next.student &&
+  prev.onToggleSelect === next.onToggleSelect &&
+  prev.allSubjects === next.allSubjects &&
+  prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
+  prev.onFourthSubjectChange === next.onFourthSubjectChange &&
+  prev.showSeniorColumns === next.showSeniorColumns &&
+  prev.readOnly === next.readOnly;
+
+const RowActions = ({
+  student,
+  onView,
+  onEdit,
+  onPhoto,
+  onDelete,
+  readOnly,
+}: Pick<
+  StudentItemProps,
+  'student' | 'onView' | 'onEdit' | 'onPhoto' | 'onDelete' | 'readOnly'
+>) =>
+  readOnly ? (
+    <ActionButton action="view" iconOnly onClick={() => onView(student)} />
+  ) : (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton action="edit" iconOnly onClick={() => onEdit(student)} />
+      {/* modal={false}: menu items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton iconOnly label="More actions" icon={<MoreHorizontal size={16} />} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {student.name}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => onView(student)}>
+            <Eye /> View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onPhoto(student)}>
+            <ImageUp /> Upload photo
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => onDelete(student)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+const StudentRow = React.memo((props: StudentItemProps) => {
+  const {
     student,
     isSelected,
     onToggleSelect,
-    onImageUpload,
-    onEdit,
     onView,
-    onDelete,
     allSubjects,
     onFourthSubjectChange,
     isUpdatingFourthSubject,
     showSeniorColumns,
     readOnly,
-  }: {
-    student: Student;
-    isSelected: boolean;
-    onToggleSelect: (studentId: number) => void;
-    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>, student: Student) => void;
-    onEdit: (student: Student) => void;
-    onView: (student: Student) => void;
-    onDelete: (student: Student) => void;
-    allSubjects: Subject[];
-    onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
-    isUpdatingFourthSubject?: boolean;
-    showSeniorColumns?: boolean;
-    readOnly?: boolean;
-  }) => {
-    return (
-      <tr
-        key={student.id}
-        className={`transition-colors ${isSelected ? 'bg-sidebar-accent' : 'hover:bg-muted/50'}`}
-        style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 3.5rem' }}
-      >
-        {!readOnly && (
-          <td className="whitespace-nowrap px-2 py-2 text-center text-sm sm:px-4 sm:py-3">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect(student.id)}
-              aria-label={`Select ${student.name}`}
-              className="h-4 w-4"
-            />
-          </td>
-        )}
-        <td className="whitespace-nowrap px-2 py-2 text-sm font-medium sm:px-4 sm:py-3">
-          <div className="flex items-center gap-3">
-            {student.image ? (
-              <img
-                src={getFileUrl(student.image)}
-                alt="Student"
-                className="border-border h-10 w-10 rounded-full border object-cover"
-              />
-            ) : (
-              <div className="bg-muted text-foreground flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold">
-                {student.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span>{student.name}</span>
-              {!student.available && (
-                <span className="text-destructive bg-destructive/10 mt-0.5 w-fit rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                  Inactive
-                </span>
-              )}
-            </div>
-          </div>
+  } = props;
+  return (
+    // Row colours are opaque (color-mix) so the pinned cells, which inherit them,
+    // hide the columns scrolling underneath on narrow screens.
+    <tr
+      className={`transition-colors ${
+        isSelected
+          ? 'bg-[color-mix(in_oklab,var(--primary)_6%,var(--card))]'
+          : 'bg-card hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]'
+      }`}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 3.25rem' }}
+    >
+      {!readOnly && (
+        <td className={cn(stickyCell, 'left-0 w-10 px-3 py-2')}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(student.id)}
+            aria-label={`Select ${student.name}`}
+            className="h-4 w-4 align-middle"
+          />
         </td>
-        <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.roll}</td>
-        <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.class}</td>
-        <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.section}</td>
-        {showSeniorColumns && (
-          <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">
-            {student.group || ''}
-          </td>
-        )}
-        {showSeniorColumns && (
-          <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">
-            {Number(student.class) >= 9 ? (
-              readOnly ? (
-                <span>
-                  {allSubjects.find((s) => s.id === student.fourth_subject_id)?.name || '-'}
-                </span>
-              ) : (
-                <select
-                  className="bg-card focus:ring-primary min-w-[120px] rounded border px-2 py-1 text-xs outline-none focus:ring-1"
-                  value={student.fourth_subject_id || ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : null;
-                    onFourthSubjectChange(student.id, val);
-                  }}
-                  disabled={isUpdatingFourthSubject}
-                >
-                  <option value="">None</option>
-                  {allSubjects
-                    .filter((s: Subject) => s.subject_type !== 'main')
-                    .filter((s: Subject) => s.class === Number(student.class))
-                    .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
-                    .map((sub: Subject) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                </select>
-              )
-            ) : (
-              <span className="text-muted-foreground opacity-50">-</span>
-            )}
-          </td>
-        )}
-
-        <td className="w-1 whitespace-nowrap px-2 py-2 text-right text-sm sm:px-4 sm:py-3">
-          <div className="inline-flex justify-end gap-1.5">
-            {!readOnly && (
-              <>
-                <ActionButton action="photo" asLabel htmlFor={`file-upload-${student.id}`} />
-                <input
-                  type="file"
-                  id={`file-upload-${student.id}`}
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => onImageUpload(e, student)}
-                />
-              </>
-            )}
-            <ActionButton action="view" onClick={() => onView(student)} />
-            {!readOnly && (
-              <>
-                <ActionButton action="edit" onClick={() => onEdit(student)} />
-                <DeleteConfirmation
-                  onDelete={() => onDelete(student)}
-                  msg={`Are you sure you want to delete ${student.name}?`}
-                />
-              </>
-            )}
-          </div>
-        </td>
-      </tr>
-    );
-  },
-  (prev, next) =>
-    prev.isSelected === next.isSelected &&
-    prev.student === next.student &&
-    prev.onToggleSelect === next.onToggleSelect &&
-    prev.allSubjects === next.allSubjects &&
-    prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
-    prev.onFourthSubjectChange === next.onFourthSubjectChange &&
-    prev.showSeniorColumns === next.showSeniorColumns &&
-    prev.readOnly === next.readOnly,
-);
-
-const StudentCard = React.memo(
-  ({
-    student,
-    isSelected,
-    onToggleSelect,
-    onImageUpload,
-    onEdit,
-    onView,
-    onDelete,
-    allSubjects,
-    onFourthSubjectChange,
-    isUpdatingFourthSubject,
-    showSeniorColumns,
-    readOnly,
-  }: {
-    student: Student;
-    isSelected: boolean;
-    onToggleSelect: (studentId: number) => void;
-    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>, student: Student) => void;
-    onEdit: (student: Student) => void;
-    onView: (student: Student) => void;
-    onDelete: (student: Student) => void;
-    allSubjects: Subject[];
-    onFourthSubjectChange: (studentId: number, subjectId: number | null) => void;
-    isUpdatingFourthSubject?: boolean;
-    showSeniorColumns?: boolean;
-    readOnly?: boolean;
-  }) => {
-    return (
-      <li
-        className={`border-border space-y-3 border-b p-4 last:border-b-0 ${isSelected ? 'bg-sidebar-accent' : ''}`}
+      )}
+      <td
+        className={cn(stickyCell, stickyEdge, readOnly ? 'left-0' : 'left-10', 'px-3 py-2 sm:px-4')}
       >
-        <div className="flex items-start gap-3">
-          {!readOnly && (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect(student.id)}
-              aria-label={`Select ${student.name}`}
-              className="mt-1 h-4 w-4 shrink-0"
-            />
-          )}
-          {student.image ? (
-            <img
-              src={getFileUrl(student.image)}
-              alt=""
-              className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
-            />
-          ) : (
-            <div className="bg-muted text-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold">
-              {student.name.charAt(0).toUpperCase()}
+        <div className="flex max-w-[11rem] items-center gap-3 sm:max-w-none">
+          <StudentAvatar student={student} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onView(student)}
+                className="focus-visible:ring-ring truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+              >
+                {student.name}
+              </button>
+              {!student.available && <StatusBadge status="inactive" className="shrink-0" />}
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-foreground truncate font-medium">{student.name}</p>
-              {!student.available && (
-                <span className="text-destructive bg-destructive/10 rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                  Inactive
-                </span>
-              )}
-            </div>
-            <p className="text-muted-foreground mt-1 text-xs tabular-nums">
-              Roll {student.roll} · Class {student.class} · Sec {student.section}
-              {showSeniorColumns && student.group ? ` · ${student.group}` : ''}
-            </p>
+            {student.father_name && (
+              <p className="text-muted-foreground truncate text-xs">{student.father_name}</p>
+            )}
           </div>
         </div>
+      </td>
+      <td className="px-4 py-2 text-sm tabular-nums">{student.roll}</td>
+      <td className="px-4 py-2 text-sm tabular-nums">{student.class}</td>
+      <td className="px-4 py-2 text-sm">{student.section}</td>
+      {showSeniorColumns && (
+        <td className="px-4 py-2 text-sm">
+          {student.group || <span className="text-muted-foreground">—</span>}
+        </td>
+      )}
+      {showSeniorColumns && (
+        <td className="px-4 py-2 text-sm">
+          <FourthSubjectField
+            student={student}
+            allSubjects={allSubjects}
+            readOnly={readOnly}
+            disabled={isUpdatingFourthSubject}
+            onChange={onFourthSubjectChange}
+          />
+        </td>
+      )}
+      <td className="whitespace-nowrap px-3 py-2 text-right">
+        <RowActions {...props} />
+      </td>
+    </tr>
+  );
+}, sameItemProps);
 
-        {showSeniorColumns && Number(student.class) >= 9 && !readOnly ? (
-          <label className="block space-y-1">
-            <span className="text-muted-foreground text-xs font-medium">4th Subject</span>
-            <select
-              className="bg-card focus:ring-primary w-full rounded border px-2 py-2 text-sm outline-none focus:ring-1"
-              value={student.fourth_subject_id || ''}
-              onChange={(e) => {
-                const val = e.target.value ? Number(e.target.value) : null;
-                onFourthSubjectChange(student.id, val);
-              }}
-              disabled={isUpdatingFourthSubject}
-            >
-              <option value="">None</option>
-              {allSubjects
-                .filter((s: Subject) => s.subject_type !== 'main')
-                .filter((s: Subject) => s.class === Number(student.class))
-                .filter((s: Subject) => !student.group || !s.group || s.group === student.group)
-                .map((sub: Subject) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-        ) : null}
-
-        {showSeniorColumns && Number(student.class) >= 9 && readOnly ? (
-          <p className="text-muted-foreground text-xs">
-            4th: {allSubjects.find((s) => s.id === student.fourth_subject_id)?.name || '—'}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap justify-end gap-1.5">
-          {!readOnly && (
-            <>
-              <ActionButton action="photo" asLabel htmlFor={`file-upload-mobile-${student.id}`} />
-              <input
-                type="file"
-                id={`file-upload-mobile-${student.id}`}
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onImageUpload(e, student)}
-              />
-            </>
-          )}
-          <ActionButton action="view" onClick={() => onView(student)} />
-          {!readOnly && (
-            <>
-              <ActionButton action="edit" onClick={() => onEdit(student)} />
-              <DeleteConfirmation
-                onDelete={() => onDelete(student)}
-                msg={`Are you sure you want to delete ${student.name}?`}
-              />
-            </>
-          )}
-        </div>
-      </li>
-    );
-  },
-  (prev, next) =>
-    prev.isSelected === next.isSelected &&
-    prev.student === next.student &&
-    prev.onToggleSelect === next.onToggleSelect &&
-    prev.allSubjects === next.allSubjects &&
-    prev.isUpdatingFourthSubject === next.isUpdatingFourthSubject &&
-    prev.onFourthSubjectChange === next.onFourthSubjectChange &&
-    prev.showSeniorColumns === next.showSeniorColumns &&
-    prev.readOnly === next.readOnly,
+const FormSection = ({
+  title,
+  className,
+  children,
+}: {
+  title: string;
+  className?: string;
+  children: React.ReactNode;
+}) => (
+  <section className={className}>
+    <h3 className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wider">
+      {title}
+    </h3>
+    {children}
+  </section>
 );
+
+const Field = ({
+  label,
+  required,
+  error,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
+}) => (
+  <div className="space-y-1.5">
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </span>
+      {children}
+    </label>
+    {error && <ErrorMessage message={error} />}
+  </div>
+);
+
+const demoRows: Record<string, string>[] = [
+  {
+    name: 'Rahim Uddin',
+    father_name: 'Karim Uddin',
+    mother_name: 'Ayesha Begum',
+    father_phone: '01712345678',
+    mother_phone: '01812345678',
+    village: 'Shantinagar',
+    post_office: 'Sadar',
+    upazila: 'Sadar',
+    district: 'Dhaka',
+    dob: '15/08/2008',
+    class: '8',
+    roll: '12',
+    section: 'A',
+    religion: 'Islam',
+    group: '',
+    has_stipend: 'No',
+  },
+  {
+    name: 'Nusrat Jahan',
+    father_name: 'Mizanur Rahman',
+    mother_name: 'Shirin Akter',
+    father_phone: '01912345678',
+    mother_phone: '01612345678',
+    village: 'Uttar Para',
+    post_office: 'Town',
+    upazila: 'Kotwali',
+    district: 'Chattogram',
+    dob: '20/01/2007',
+    class: '9',
+    roll: '5',
+    section: 'B',
+    religion: 'Islam',
+    group: 'Science',
+    has_stipend: 'Yes',
+  },
+];
 
 const defaultFormValues: StudentFormData = {
   name: '',
@@ -411,15 +487,23 @@ function addressTextFieldProps(
 function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(() => new Set());
+  const [allMatchingSelected, setAllMatchingSelected] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoTargetRef = useRef<Student | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [classFilter, setClassFilter] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('');
+  const [classFilters, setClassFilters] = useState<string[]>([]);
+  const [sectionFilters, setSectionFilters] = useState<string[]>([]);
+  const [groupFilters, setGroupFilters] = useState<string[]>([]);
+  const [fourthFilters, setFourthFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<{ key: StudentSortKey; order: SortOrder } | null>(null);
   const [rollFilter, setRollFilter] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [year, setYear] = useState(new Date().getFullYear());
   const currentYear = new Date().getFullYear();
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const deferredRollFilter = useDeferredValue(rollFilter);
   const [popup, setPopup] = useState<{
     visible: boolean;
     type: string;
@@ -561,23 +645,26 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
 
   const invalidateStudents = () => queryClient.invalidateQueries({ queryKey: ['students', year] });
 
+  const listParams = {
+    year,
+    levels: classFilters.map(Number),
+    sections: sectionFilters,
+    groups: groupFilters,
+    // Each option value is the comma-joined ids for one subject name (class 9 and 10 rows).
+    fourthSubjects: fourthFilters.flatMap((v) => v.split(',')),
+    sort: sort?.key,
+    order: sort?.order,
+    roll: deferredRollFilter ? Number(deferredRollFilter) : undefined,
+    search: deferredSearchQuery.trim() || undefined,
+    searchBy: 'name' as const,
+  };
+
   const {
     data: studentsResponse,
     isLoading: loading,
     error: studentsError,
     refetch: refetchStudents,
-  } = useStudents(
-    {
-      year,
-      page,
-      limit,
-      level: classFilter ? Number(classFilter) : undefined,
-      section: sectionFilter || undefined,
-      roll: rollFilter ? Number(rollFilter) : undefined,
-      search: deferredSearchQuery.trim() ? deferredSearchQuery.trim() : undefined,
-    },
-    { keepPreviousPage: true },
-  );
+  } = useStudents({ ...listParams, page, limit }, { keepPreviousPage: true });
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
 
   const showSeniorColumns = useMemo(() => {
@@ -592,20 +679,23 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
 
   useEffect(() => {
     setPage(1);
-  }, [year, classFilter, sectionFilter, rollFilter, deferredSearchQuery]);
+    setAllMatchingSelected(false);
+  }, [
+    year,
+    classFilters,
+    sectionFilters,
+    groupFilters,
+    fourthFilters,
+    sort,
+    deferredRollFilter,
+    deferredSearchQuery,
+  ]);
 
-  // Sequential filter auto-reset logic
-  useEffect(() => {
-    if (!loading && studentsResponse && meta?.filtered === 0) {
-      if (rollFilter) {
-        setRollFilter('');
-      } else if (sectionFilter) {
-        setSectionFilter('');
-      } else if (classFilter) {
-        setClassFilter('');
-      }
-    }
-  }, [loading, studentsResponse, meta?.filtered, rollFilter, sectionFilter, classFilter]);
+  // Section options depend on the picked classes, so a class change drops section picks.
+  const onClassFiltersChange = (values: string[]) => {
+    setClassFilters(values);
+    setSectionFilters([]);
+  };
 
   const uploadImageToR2 = async (file: File, studentId: number) => {
     const key = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
@@ -654,7 +744,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   };
 
   const handleEdit = (student: Student) => {
-    if (isExcelUpload) setIsExcelUpload(false);
+    setIsExcelUpload(false);
     setIsEditing(true);
     setSelectedStudent(student);
     reset({
@@ -677,7 +767,6 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
       available: student.available,
     });
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const deleteMutation = useMutation({
@@ -716,10 +805,6 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     return (meta?.availableSections || []).sort();
   }, [meta?.availableSections]);
 
-  const sortedUniqueRolls = useMemo(() => {
-    return (meta?.availableRolls || []).sort((a, b) => a - b);
-  }, [meta?.availableRolls]);
-
   const visibleStudentIds = useMemo(() => students.map((student) => student.id), [students]);
   const visibleStudentIdSet = useMemo(() => new Set(visibleStudentIds), [visibleStudentIds]);
 
@@ -736,6 +821,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     visibleStudentIds.length > 0 && selectedVisibleCount === visibleStudentIds.length;
 
   const onToggleSelect = useCallback((studentId: number) => {
+    setAllMatchingSelected(false);
     setSelectedStudentIds((prev) => {
       const next = new Set(prev);
       if (next.has(studentId)) next.delete(studentId);
@@ -753,7 +839,8 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   }, []);
 
   const handleSelectAllVisible = () => {
-    if (allVisibleSelected) {
+    if (allVisibleSelected || allMatchingSelected) {
+      setAllMatchingSelected(false);
       setSelectedStudentIds((prev) => {
         const next = new Set(prev);
         visibleStudentIdSet.forEach((id) => next.delete(id));
@@ -770,10 +857,11 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   };
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (studentIds: number[]) => axios.delete('/api/students', { data: { studentIds } }),
+    mutationFn: async () =>
+      axios.delete('/api/students', { data: { studentIds: await getBulkIds() } }),
     onSuccess: (response) => {
       toast.success(response.data?.message || 'Selected students deleted successfully.');
-      setSelectedStudentIds(new Set());
+      clearSelection();
       invalidateStudents();
     },
     onError: (error) => {
@@ -785,10 +873,10 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   });
 
   const bulkRotateMutation = useMutation({
-    mutationFn: async (studentIds: number[]) => {
+    mutationFn: async () => {
       const response = await axios.post(
         '/api/students/password-rotations',
-        { studentIds },
+        { studentIds: await getBulkIds() },
         { responseType: 'blob' },
       );
       return response.data;
@@ -796,7 +884,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     onSuccess: (data) => {
       downloadBlob(new Blob([data]), 'rotated_passwords.xlsx');
       toast.success('Passwords rotated successfully. Excel downloaded.');
-      setSelectedStudentIds(new Set());
+      clearSelection();
       invalidateStudents();
     },
     onError: (error) => {
@@ -814,6 +902,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   };
 
   useEffect(() => {
+    setAllMatchingSelected(false);
     setSelectedStudentIds((prev) => {
       const existing = new Set(students.map((student) => student.id));
       const next = new Set<number>();
@@ -1050,46 +1139,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
   };
 
   const handleDownloadDemoExcel = () => {
-    const demoData = [
-      {
-        name: 'Rahim Uddin',
-        father_name: 'Karim Uddin',
-        mother_name: 'Ayesha Begum',
-        father_phone: '01712345678',
-        mother_phone: '01812345678',
-        village: 'Shantinagar',
-        post_office: 'Sadar',
-        upazila: 'Sadar',
-        district: 'Dhaka',
-        dob: '15/08/2008',
-        class: '8',
-        roll: '12',
-        section: 'A',
-        religion: 'Islam',
-        group: '',
-        has_stipend: 'No',
-      },
-      {
-        name: 'Nusrat Jahan',
-        father_name: 'Mizanur Rahman',
-        mother_name: 'Shirin Akter',
-        father_phone: '01912345678',
-        mother_phone: '01612345678',
-        village: 'Uttar Para',
-        post_office: 'Town',
-        upazila: 'Kotwali',
-        district: 'Chattogram',
-        dob: '20/01/2007',
-        class: '9',
-        roll: '5',
-        section: 'B',
-        religion: 'Islam',
-        group: 'Science',
-        has_stipend: 'Yes',
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(demoData, {
+    const worksheet = XLSX.utils.json_to_sheet(demoRows, {
       header: demoExcelColumns,
     });
     const workbook = XLSX.utils.book_new();
@@ -1200,604 +1250,532 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
     setPreview(null);
     removeImageMutation.mutate(selectedStudent.id);
   };
+
+  // ponytail: pages through the list API at its 200-row cap; add an ids-only endpoint if a school passes a few thousand students.
+  const fetchAllMatchingIds = async () => {
+    const ids: number[] = [];
+    for (let p = 1; ; p++) {
+      const res = await axios.get('/api/students', {
+        params: toStudentListQuery({ ...listParams, page: p, limit: 200 }),
+      });
+      const payload = res.data?.data as { data?: Student[]; meta?: { totalPages?: number } };
+      ids.push(...(payload?.data ?? []).map((s) => s.id));
+      if (p >= (payload?.meta?.totalPages ?? 0)) return ids;
+    }
+  };
+
+  const getBulkIds = () =>
+    allMatchingSelected ? fetchAllMatchingIds() : Promise.resolve(Array.from(selectedStudentIds));
+
+  const clearSelection = () => {
+    setSelectedStudentIds(new Set());
+    setAllMatchingSelected(false);
+  };
+
+  const filtersActive = Boolean(
+    searchQuery ||
+    classFilters.length ||
+    sectionFilters.length ||
+    groupFilters.length ||
+    fourthFilters.length ||
+    rollFilter,
+  );
+  const clearFilters = () => {
+    setSearchQuery('');
+    setClassFilters([]);
+    setSectionFilters([]);
+    setGroupFilters([]);
+    setFourthFilters([]);
+    setRollFilter('');
+  };
+
+  const openForm = (excel: boolean) => {
+    reset(defaultFormValues);
+    setIsEditing(false);
+    setSelectedStudent(null);
+    setIsExcelUpload(excel);
+    setShowForm(true);
+  };
+
+  const onPhoto = useCallback((student: Student) => {
+    photoTargetRef.current = student;
+    photoInputRef.current?.click();
+  }, []);
+
+  const onFourthSubjectChange = useCallback(
+    (studentId: number, subjectId: number | null) => {
+      updateFourthSubjectMutation.mutate(
+        { studentId, year, subjectId },
+        { onSuccess: () => refetchStudents() },
+      );
+    },
+    [updateFourthSubjectMutation, year, refetchStudents],
+  );
+  const updatingFourthSubjectId = updateFourthSubjectMutation.isPending
+    ? updateFourthSubjectMutation.variables?.studentId
+    : null;
+
+  const selectedCount = allMatchingSelected ? (meta?.filtered ?? 0) : selectedStudentIds.size;
+  const filteredCount = meta?.filtered ?? 0;
+
+  const columns: { label: string; className?: string }[] = [
+    { label: 'Student' },
+    { label: 'Roll', className: 'w-24' },
+    { label: 'Class', className: 'w-32' },
+    { label: 'Section', className: 'w-32' },
+    ...(showSeniorColumns
+      ? [
+          { label: 'Group', className: 'w-28' },
+          { label: '4th subject', className: 'w-44' },
+        ]
+      : []),
+    { label: 'Actions', className: 'w-px' },
+  ];
+  const colSpan = columns.length + (readOnly ? 0 : 1);
+
+  const itemProps = (student: Student): StudentItemProps => ({
+    student,
+    isSelected: allMatchingSelected || selectedStudentIds.has(student.id),
+    onToggleSelect,
+    onPhoto,
+    onEdit: handleEdit,
+    onView: onViewStudent,
+    onDelete: setDeleteTarget,
+    allSubjects: allSubjectsData,
+    onFourthSubjectChange,
+    isUpdatingFourthSubject: updatingFourthSubjectId === student.id,
+    showSeniorColumns,
+    readOnly,
+  });
+
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {errorMessage ? (
+        <>
+          <p>{errorMessage}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => refetchStudents()}>
+            <RotateCw /> Retry
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>No students match these filters.</p>
+          {filtersActive && (
+            <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+              <X /> Clear filters
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const summary = meta
+    ? [
+        `${filtersActive ? `${filteredCount.toLocaleString()} of ` : ''}${plural(meta.total, 'student')}`,
+        meta.stipendCount != null ? `${meta.stipendCount.toLocaleString()} on stipend` : null,
+        readOnly ? 'read only' : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ' ';
+
+  const isSeniorClass = watchedClass === 9 || watchedClass === 10;
+
+  // Only subjects students actually have as 4th subject, one entry per name.
+  const fourthIdsByName = new Map<string, number[]>();
+  for (const s of meta?.availableFourthSubjects ?? []) {
+    fourthIdsByName.set(s.name, [...(fourthIdsByName.get(s.name) ?? []), s.id]);
+  }
+  const fourthSubjectFilterOptions = Array.from(fourthIdsByName, ([name, ids]) => ({
+    value: ids.join(','),
+    label: name,
+  }));
+
+  const sortKeyByLabel: Record<string, StudentSortKey> = {
+    Student: 'name',
+    Roll: 'roll',
+    Class: 'class',
+    Section: 'section',
+    Group: 'group',
+    '4th subject': 'fourth',
+  };
+  const sortProps = (key: StudentSortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
+  // Desktop column headers: label opens a Sort + Filter menu.
+  const columnHeaders: Record<string, React.ReactNode> = {
+    Student: (
+      <ColumnHeaderMenu
+        label="Student"
+        {...sortProps('name')}
+        filterInput={{
+          value: searchQuery,
+          onChange: setSearchQuery,
+          placeholder: 'Student name…',
+        }}
+      />
+    ),
+    Roll: (
+      <ColumnHeaderMenu
+        label="Roll"
+        {...sortProps('roll')}
+        filterInput={{
+          value: rollFilter,
+          onChange: setRollFilter,
+          placeholder: 'Roll number',
+          type: 'number',
+        }}
+      />
+    ),
+    Class: (
+      <ColumnHeaderMenu
+        label="Class"
+        {...sortProps('class')}
+        options={sortedUniqueClasses.map((c) => ({ value: String(c), label: `Class ${c}` }))}
+        selected={classFilters}
+        onSelectedChange={onClassFiltersChange}
+      />
+    ),
+    Section: (
+      <ColumnHeaderMenu
+        label="Section"
+        {...sortProps('section')}
+        options={sortedUniqueSections.map((s) => ({ value: s, label: `Section ${s}` }))}
+        selected={sectionFilters}
+        onSelectedChange={setSectionFilters}
+      />
+    ),
+    Group: (
+      <ColumnHeaderMenu
+        label="Group"
+        {...sortProps('group')}
+        options={VALID_GROUPS.map((g) => ({ value: g, label: g }))}
+        selected={groupFilters}
+        onSelectedChange={setGroupFilters}
+      />
+    ),
+    '4th subject': (
+      <ColumnHeaderMenu
+        label="4th subject"
+        {...sortProps('fourth')}
+        options={[{ value: 'none', label: 'None' }, ...fourthSubjectFilterOptions]}
+        selected={fourthFilters}
+        onSelectedChange={setFourthFilters}
+        align="end"
+      />
+    ),
+    Actions: filtersActive ? (
+      <ActionButton iconOnly label="Clear filters" icon={<X size={16} />} onClick={clearFilters} />
+    ) : (
+      <span className="sr-only">Actions</span>
+    ),
+  };
+
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Student List"
-        description={
-          readOnly
-            ? 'View all student records (read only).'
-            : 'Manage student records, add new students or upload via Excel.'
-        }
-      >
-        {!readOnly && !showForm && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setBulkFourthOpen(true)}
-              disabled={loading}
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">Student List</h1>
+            <select
+              aria-label="Session year"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className={cn(filterSelectClassName, 'h-8 w-auto font-medium')}
             >
-              Bulk 4th Subject
-            </Button>
-            <Button type="button" onClick={() => setShowForm((prev) => !prev)} disabled={loading}>
-              {loading ? 'Loading…' : '+ Add Student'}
+              {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                <option key={y} value={y}>
+                  Session {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap gap-2">
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline">
+                  More <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Import</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => openForm(true)}>
+                  <FileSpreadsheet /> Upload from Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleDownloadDemoExcel}>
+                  <Download /> Download Excel template
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowFormatInfo(true)}>
+                  <Info /> Excel format guide
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Class 9–10</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => setBulkFourthOpen(true)}>
+                  <Layers /> Bulk 4th subject
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button type="button" onClick={() => openForm(false)}>
+              <Plus /> Add student
             </Button>
           </div>
         )}
-      </PageHeader>
-      {!readOnly && showForm && (
-        <SectionCard className="mb-6 overflow-hidden">
-          <h2 className="text-foreground mb-6 text-xl font-bold">
-            {isEditing ? 'Update Student Info' : 'Add New Student'}
-          </h2>
-          {!isEditing && (
-            <div className="border-border mb-6 flex gap-1 border-b">
-              <button
-                type="button"
-                onClick={() => setIsExcelUpload(false)}
-                className={`relative px-3 pb-2 text-sm font-medium transition-colors ${
-                  !isExcelUpload
-                    ? 'text-primary border-primary border-b-2'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Form
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsExcelUpload(true)}
-                className={`relative px-3 pb-2 text-sm font-medium transition-colors ${
-                  isExcelUpload
-                    ? 'text-primary border-primary border-b-2'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Excel Upload
-              </button>
-            </div>
-          )}
-          <div className="space-y-4 sm:space-y-6">
-            {!isExcelUpload ? (
-              <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
-                <div className="border-border bg-muted/40 rounded-lg border p-4">
-                  <div className="flex flex-col items-center justify-center">
-                    <p className="mb-2 text-sm font-medium">Student Image</p>
-                    <label className="border-border aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border bg-white transition-colors hover:border-blue-500 sm:w-32 dark:border-gray-600 dark:bg-gray-700">
-                      {preview ? (
-                        <img src={preview} alt="Preview" className="h-full w-full object-cover" />
-                      ) : isEditing && selectedStudent?.image ? (
-                        <img
-                          src={getFileUrl(selectedStudent.image)}
-                          alt="Student"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-muted-foreground text-center text-xs sm:text-sm">
-                          Click to upload
-                        </span>
-                      )}
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    {isEditing && selectedStudent?.image && (
-                      <button
-                        onClick={removeImage}
-                        type="button"
-                        className="text-destructive mt-2 flex items-center justify-center gap-2 text-sm hover:cursor-pointer hover:underline"
-                      >
-                        Remove Image
-                      </button>
+      </header>
+
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll it sideways.
+            ponytail: header only sticks at xl+, where the table fits without horizontal scroll. */}
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[48rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="bg-muted border-border border-b">
+                {!readOnly && (
+                  <th className={cn(stickyCell, 'left-0 w-10 px-3 py-2.5')}>
+                    <input
+                      type="checkbox"
+                      checked={allMatchingSelected || allVisibleSelected}
+                      onChange={handleSelectAllVisible}
+                      aria-label="Select all students on this page"
+                      className="h-4 w-4 align-middle"
+                    />
+                  </th>
+                )}
+                {columns.map((col) => (
+                  <th
+                    key={col.label}
+                    aria-sort={
+                      sort && sortKeyByLabel[col.label] === sort.key
+                        ? sort.order === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                    className={cn(
+                      'text-muted-foreground px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.label === 'Student' &&
+                        cn(stickyCell, stickyEdge, readOnly ? 'left-0' : 'left-10', 'px-3 sm:px-4'),
+                      col.label === 'Actions' && 'px-3 text-right',
+                      col.className,
                     )}
-                  </div>
-                </div>
-
-                <fieldset className="border-border bg-card rounded-lg border p-4 sm:p-5">
-                  <legend className="border-primary border-l-2 px-2 text-sm font-semibold sm:text-base">
-                    Personal Information
-                  </legend>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Name <span className="text-destructive">*</span>
-                      </label>
-                      <Input type="text" placeholder="Full Name" {...register('name')} />
-                      {errors.name && <ErrorMessage message={errors.name.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Father Name <span className="text-destructive">*</span>
-                      </label>
-                      <Input type="text" placeholder="Father's Name" {...register('father_name')} />
-                      {errors.father_name && <ErrorMessage message={errors.father_name.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Mother Name <span className="text-destructive">*</span>
-                      </label>
-                      <Input type="text" placeholder="Mother's Name" {...register('mother_name')} />
-                      {errors.mother_name && <ErrorMessage message={errors.mother_name.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Date of Birth <span className="text-destructive">*</span>
-                      </label>
-                      <Input
-                        type="date"
-                        lang="en-GB"
-                        placeholder="dd/mm/yyyy"
-                        {...register('dob')}
-                      />
-                      {errors.dob && <ErrorMessage message={errors.dob.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Father Phone <span className="text-destructive">*</span>
-                      </label>
-                      <Input
-                        type="text"
-                        placeholder="Father's Phone"
-                        maxLength={11}
-                        {...register('father_phone')}
-                      />
-                      {errors.father_phone && (
-                        <ErrorMessage message={errors.father_phone.message} />
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">Mother Phone</label>
-                      <Input
-                        type="text"
-                        placeholder="Mother's Phone"
-                        maxLength={11}
-                        {...register('mother_phone')}
-                      />
-                      {errors.mother_phone && (
-                        <ErrorMessage message={errors.mother_phone.message} />
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Religion <span className="text-destructive">*</span>
-                      </label>
-                      <select
-                        {...register('religion')}
-                        className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                      >
-                        <option value="">Select Religion</option>
-                        {RELIGION.map((religion: string) => (
-                          <option key={religion} value={religion}>
-                            {religion}
-                          </option>
-                        ))}
-                      </select>
-
-                      {errors.religion && <ErrorMessage message={errors.religion.message} />}
-                    </div>
-                  </div>
-                </fieldset>
-
-                <fieldset className="border-border bg-card rounded-lg border p-4 sm:p-5">
-                  <legend className="border-primary border-l-2 px-2 text-sm font-semibold sm:text-base">
-                    Academic Information
-                  </legend>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Class <span className="text-destructive">*</span>
-                      </label>
-                      <Input type="text" placeholder="Class" {...register('class')} />
-                      {errors.class && <ErrorMessage message={errors.class.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Roll <span className="text-destructive">*</span>
-                      </label>
-                      <Input type="text" placeholder="Roll" {...register('roll')} />
-                      {errors.roll && <ErrorMessage message={errors.roll.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Section <span className="text-destructive">*</span>
-                      </label>
-                      <Input type="text" placeholder="Section" {...register('section')} />
-                      {errors.section && <ErrorMessage message={errors.section.message} />}
-                    </div>
-                    {(watchedClass === 9 || watchedClass === 10) && (
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-medium">
-                          Group <span className="text-destructive">*</span>
-                        </label>
-                        <select
-                          {...register('group')}
-                          disabled={!(watchedClass === 9 || watchedClass === 10)}
-                          className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="">Select Group</option>
-                          {(VALID_GROUPS as readonly string[]).map((group: string) => (
-                            <option key={group} value={group}>
-                              {group}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.group && <ErrorMessage message={errors.group.message} />}
-                      </div>
-                    )}
-                  </div>
-                </fieldset>
-
-                <fieldset className="border-border bg-card rounded-lg border p-4 sm:p-5">
-                  <legend className="border-primary border-l-2 px-2 text-sm font-semibold sm:text-base">
-                    Address Information
-                  </legend>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">Village</label>
-                      <Input
-                        type="text"
-                        placeholder="Village"
-                        {...addressTextFieldProps('village', register)}
-                      />
-                      {errors.village && <ErrorMessage message={errors.village.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">Post Office</label>
-                      <Input
-                        type="text"
-                        placeholder="Post Office"
-                        {...addressTextFieldProps('post_office', register)}
-                      />
-                      {errors.post_office && <ErrorMessage message={errors.post_office.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">Upazila</label>
-                      <Input
-                        type="text"
-                        placeholder="Upazila"
-                        {...addressTextFieldProps('upazila', register)}
-                      />
-                      {errors.upazila && <ErrorMessage message={errors.upazila.message} />}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">District</label>
-                      <Input
-                        type="text"
-                        placeholder="District"
-                        {...addressTextFieldProps('district', register)}
-                      />
-                      {errors.district && <ErrorMessage message={errors.district.message} />}
-                    </div>
-                  </div>
-                </fieldset>
-
-                <div className="border-border bg-muted/40 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-muted-foreground text-xs">
-                    Fields marked with <span className="text-destructive">*</span> are mandatory.
-                  </p>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:gap-5">
-                    <label className="flex items-center space-x-2 text-sm font-medium">
-                      <input type="checkbox" {...register('has_stipend')} className="h-4 w-4" />
-                      <span>Has Stipend</span>
-                    </label>
-                    {isEditing && (
-                      <label className="flex cursor-not-allowed items-center space-x-2 text-sm font-medium opacity-50">
-                        <input
-                          type="checkbox"
-                          {...register('available')}
-                          className="h-4 w-4"
-                          disabled
-                        />
-                        <span>Active Student</span>
-                      </label>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-card/95 supports-backdrop-filter:bg-card/70 border-border sticky bottom-0 flex justify-between border-t pt-4 backdrop-blur">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancel}
-                    type="button"
-                    disabled={formMutation.isPending}
-                    className="min-w-24"
                   >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={formMutation.isPending} className="min-w-28">
-                    {formMutation.isPending
-                      ? isEditing
-                        ? 'Updating Student…'
-                        : 'Adding Student…'
-                      : isEditing
-                        ? 'Update'
-                        : 'Add Student'}
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={sendToBackend} className="space-y-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Excel File Upload</h3>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleDownloadDemoExcel}
-                      className="h-8 px-3"
-                    >
-                      Download Demo Excel
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => setShowFormatInfo(true)}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold transition-colors"
-                      title="View Excel format requirements"
-                    >
-                      i
-                    </button>
-                  </div>
-                </div>
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="excelFile"
-                    name="excelFile"
-                    accept=".xlsx, .xls"
-                    onClick={(e) => {
-                      const target = e.target as HTMLInputElement;
-                      target.value = '';
-                      setFileUploaded(false);
-                      setJsonData(null);
-                      setexcelfile(null);
-                    }}
-                    onChange={(e) => {
-                      handleFileUpload(e);
-                    }}
-                    className="absolute h-full w-full cursor-pointer opacity-0"
-                    required
-                    ref={fileref}
-                  />
-                  <label
-                    htmlFor="excelFile"
-                    className="border-border flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors hover:border-blue-500 dark:border-gray-600"
-                  >
-                    <div className="bg-primary/10 mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-                      {fileUploaded ? (
-                        <svg
-                          className="text-primary h-8 w-8"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="text-primary h-8 w-8"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-muted-foreground font-medium">
-                      {fileUploaded ? `File Uploaded: ${excelfile?.name}` : 'Upload Excel File'}
-                    </span>
-                    {!fileUploaded && (
-                      <span className="text-muted-foreground text-sm">
-                        .xlsx or .xls files only
-                      </span>
-                    )}
-                  </label>
-                </div>
-                <div className="flex justify-between">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={handleCancel}
-                    disabled={excelMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={!fileUploaded || excelMutation.isPending}>
-                    {excelMutation.isPending ? 'Uploading Students…' : 'Upload'}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </SectionCard>
-      )}
-      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <StatsCard label="Total Students" value={meta?.total ?? 0} loading={loading} />
-        <StatsCard
-          label="With Stipend"
-          value={students.filter((s) => s.has_stipend).length}
-          color="emerald"
+                    {columnHeaders[col.label] ?? col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {loading ? (
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={colSpan} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : students.length > 0 ? (
+                students.map((student) => <StudentRow key={student.id} {...itemProps(student)} />)
+              ) : (
+                <tr>
+                  <td colSpan={colSpan}>{emptyState}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <TablePagination
+          page={page}
+          totalPages={meta?.totalPages ?? 0}
+          limit={limit}
           loading={loading}
+          totalFiltered={meta ? filteredCount : undefined}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
         />
-      </div>
-      <FilterSelection className="mb-6">
-        <FilterField label="Search" wide>
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name or phone…"
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-              }}
-            />
+      </SectionCard>
+
+      {!readOnly && hasSelectedStudents && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 shadow-lg"
+        >
+          <div className="flex items-center gap-2">
+            <CloseButton onClick={clearSelection} />
+            <p className="text-sm font-medium tabular-nums">
+              {plural(selectedCount, 'student')} selected
+            </p>
           </div>
-        </FilterField>
-        <FilterField label="Class">
-          <select
-            className={filterSelectClassName}
-            value={classFilter}
-            onChange={(e) => {
-              setClassFilter(e.target.value);
-            }}
-          >
-            <option value="">All Classes</option>
-            {sortedUniqueClasses.map((classNum: number) => (
-              <option key={classNum} value={classNum}>
-                Class {classNum}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Section">
-          <select
-            className={filterSelectClassName}
-            value={sectionFilter}
-            onChange={(e) => {
-              setSectionFilter(e.target.value);
-            }}
-          >
-            <option value="">All Sections</option>
-            {sortedUniqueSections.map((section: string) => (
-              <option key={section} value={section}>
-                {section}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Roll">
-          <select
-            className={filterSelectClassName}
-            value={rollFilter}
-            onChange={(e) => setRollFilter(e.target.value)}
-          >
-            <option value="">All Rolls</option>
-            {sortedUniqueRolls.map((roll: number) => (
-              <option key={roll} value={roll}>
-                {roll}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Year">
-          <select
-            value={year}
-            onChange={(e) => {
-              setYear(Number(e.target.value));
-            }}
-            className={filterSelectClassName}
-          >
-            {Array.from({ length: 3 }, (_, i) => (
-              <option key={i} value={currentYear - 1 + i}>
-                {currentYear - 1 + i}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-      </FilterSelection>
+          {allVisibleSelected && !allMatchingSelected && filteredCount > students.length && (
+            <button
+              type="button"
+              onClick={() => setAllMatchingSelected(true)}
+              className="text-primary text-sm font-medium hover:underline"
+            >
+              Select all {filteredCount.toLocaleString()} matching
+            </button>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkRotateOpen(true)}
+              disabled={bulkRotateMutation.isPending}
+            >
+              {bulkRotateMutation.isPending ? <Loader2 className="animate-spin" /> : <KeyRound />}
+              Rotate passwords
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />}
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
       {!readOnly && (
         <>
+          {/* One hidden input serves every row's "Upload photo" menu item. */}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              if (photoTargetRef.current) handleIndivisualImageUpload(e, photoTargetRef.current);
+              e.target.value = '';
+            }}
+          />
+          <ConfirmationPopup
+            open={deleteTarget !== null}
+            onOpenChange={(o) => !o && setDeleteTarget(null)}
+            onConfirm={() => {
+              if (deleteTarget) handleDelete(deleteTarget);
+              setDeleteTarget(null);
+            }}
+            confirmLabel="Delete student"
+            msg={`Delete ${deleteTarget?.name ?? 'this student'}? This cannot be undone.`}
+          />
+          <ConfirmationPopup
+            open={bulkDeleteOpen}
+            onOpenChange={setBulkDeleteOpen}
+            onConfirm={() => {
+              setBulkDeleteOpen(false);
+              bulkDeleteMutation.mutate();
+            }}
+            confirmLabel="Delete students"
+            msg={`This will permanently delete ${plural(selectedCount, 'student')}. This cannot be undone.`}
+          />
+          <ConfirmationPopup
+            open={bulkRotateOpen}
+            onOpenChange={setBulkRotateOpen}
+            onConfirm={() => {
+              setBulkRotateOpen(false);
+              bulkRotateMutation.mutate();
+            }}
+            confirmLabel="Rotate passwords"
+            variant="default"
+            msg={`This will generate new passwords for ${plural(selectedCount, 'student')} and download an Excel file with the new credentials. Old passwords stop working.`}
+          />
+
           <Popup
             open={bulkFourthOpen}
             onOpenChange={setBulkFourthOpen}
             size="md"
-            aria-label="Bulk update 4th subject"
+            aria-labelledby="bulk-fourth-title"
           >
-            <div className="space-y-4 p-5">
-              <div>
-                <h3 className="text-foreground text-lg font-semibold">Bulk Update 4th Subject</h3>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Set or clear the 4th subject for one class + group in {year}. Science, Commerce,
-                  and Humanities must be updated separately.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Class</label>
+            <DialogHeader
+              id="bulk-fourth-title"
+              title="Bulk update 4th subject"
+              onClose={() => setBulkFourthOpen(false)}
+            />
+            <div className="space-y-4 px-5 py-4">
+              <p className="text-muted-foreground text-sm">
+                Applies to every student in one class and group for session {year}.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Class" required>
                   <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                    className={filterSelectClassName}
                     value={bulkFourthClass}
                     onChange={(e) => {
                       setBulkFourthClass(e.target.value as '9' | '10' | '');
                       setBulkFourthSubjectId('');
                     }}
                   >
-                    <option value="">Select class</option>
+                    <option value="">Select</option>
                     <option value="9">Class 9</option>
                     <option value="10">Class 10</option>
                   </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">
-                    Group <span className="text-destructive">*</span>
-                  </label>
+                </Field>
+                <Field label="Group" required>
                   <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                    className={filterSelectClassName}
                     value={bulkFourthGroup}
                     onChange={(e) => {
                       setBulkFourthGroup(e.target.value);
                       setBulkFourthSubjectId('');
                     }}
                   >
-                    <option value="">Select group</option>
+                    <option value="">Select</option>
                     {VALID_GROUPS.map((g) => (
                       <option key={g} value={g}>
                         {g}
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">4th Subject</label>
-                  <select
-                    className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                    value={bulkFourthSubjectId}
-                    onChange={(e) => setBulkFourthSubjectId(e.target.value)}
-                    disabled={!bulkFourthClass || !bulkFourthGroup}
-                  >
-                    <option value="">Select subject</option>
-                    <option value="__clear__">None (clear)</option>
-                    {bulkFourthSubjects.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                        {sub.group ? ` (${sub.group})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                </Field>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setBulkFourthOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  disabled={
-                    !bulkFourthClass ||
-                    !bulkFourthGroup ||
-                    !bulkFourthSubjectId ||
-                    bulkUpdateFourthSubjectMutation.isPending
-                  }
-                  onClick={() => setBulkFourthConfirmOpen(true)}
+              <Field label="4th subject" required>
+                <select
+                  className={filterSelectClassName}
+                  value={bulkFourthSubjectId}
+                  onChange={(e) => setBulkFourthSubjectId(e.target.value)}
+                  disabled={!bulkFourthClass || !bulkFourthGroup}
                 >
-                  {bulkUpdateFourthSubjectMutation.isPending ? 'Updating…' : 'Apply to all'}
-                </Button>
-              </div>
+                  <option value="">Select subject</option>
+                  <option value="__clear__">None (clear)</option>
+                  {bulkFourthSubjects.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                      {sub.group ? ` (${sub.group})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div className="border-border flex justify-end gap-2 border-t px-5 py-3">
+              <Button type="button" variant="outline" onClick={() => setBulkFourthOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  !bulkFourthClass ||
+                  !bulkFourthGroup ||
+                  !bulkFourthSubjectId ||
+                  bulkUpdateFourthSubjectMutation.isPending
+                }
+                onClick={() => setBulkFourthConfirmOpen(true)}
+              >
+                {bulkUpdateFourthSubjectMutation.isPending ? 'Updating…' : 'Apply to all'}
+              </Button>
             </div>
           </Popup>
           <ConfirmationPopup
@@ -1825,503 +1803,435 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                   }" for all Class ${bulkFourthClass} ${bulkFourthGroup} students (${year})? This overwrites existing 4th subjects.`
             }
           />
+
+          <Popup
+            open={showForm}
+            onOpenChange={(o) => !o && handleCancel()}
+            size="2xl"
+            aria-labelledby="student-form-title"
+          >
+            <DialogHeader
+              id="student-form-title"
+              title={isEditing ? 'Edit student' : 'Add students'}
+              onClose={handleCancel}
+            />
+            {!isEditing && (
+              <div className="px-5 pt-3">
+                <TabNav
+                  tabs={[
+                    { id: 'form', label: 'Single student', icon: <User className="h-4 w-4" /> },
+                    {
+                      id: 'excel',
+                      label: 'Excel upload',
+                      icon: <FileSpreadsheet className="h-4 w-4" />,
+                    },
+                  ]}
+                  activeTab={isExcelUpload ? 'excel' : 'form'}
+                  onTabChange={(id) => setIsExcelUpload(id === 'excel')}
+                />
+              </div>
+            )}
+            <div className="px-5 pt-4">
+              {!isExcelUpload ? (
+                <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid gap-6 sm:grid-cols-[7rem_1fr]">
+                    <div className="flex flex-col items-center gap-2 sm:items-start">
+                      <label className="border-border bg-muted/40 hover:border-ring aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed transition-colors sm:w-28">
+                        {preview ? (
+                          <img src={preview} alt="Preview" className="h-full w-full object-cover" />
+                        ) : isEditing && selectedStudent?.image ? (
+                          <img
+                            src={getFileUrl(selectedStudent.image)}
+                            alt="Student"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground flex flex-col items-center gap-1 text-xs">
+                            <ImageUp className="h-5 w-5" />
+                            Photo
+                          </span>
+                        )}
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {isEditing && selectedStudent?.image && (
+                        <button
+                          onClick={removeImage}
+                          type="button"
+                          className="text-destructive text-xs hover:underline"
+                        >
+                          Remove photo
+                        </button>
+                      )}
+                    </div>
+
+                    <FormSection title="Personal">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <Field label="Name" required error={errors.name?.message}>
+                          <Input type="text" placeholder="Full name" {...register('name')} />
+                        </Field>
+                        <Field label="Date of birth" required error={errors.dob?.message}>
+                          <Input type="date" lang="en-GB" {...register('dob')} />
+                        </Field>
+                        <Field label="Father's name" required error={errors.father_name?.message}>
+                          <Input type="text" {...register('father_name')} />
+                        </Field>
+                        <Field label="Father's phone" required error={errors.father_phone?.message}>
+                          <Input
+                            type="tel"
+                            inputMode="numeric"
+                            placeholder="01XXXXXXXXX"
+                            maxLength={11}
+                            {...register('father_phone')}
+                          />
+                        </Field>
+                        <Field label="Mother's name" required error={errors.mother_name?.message}>
+                          <Input type="text" {...register('mother_name')} />
+                        </Field>
+                        <Field label="Mother's phone" error={errors.mother_phone?.message}>
+                          <Input
+                            type="tel"
+                            inputMode="numeric"
+                            placeholder="01XXXXXXXXX"
+                            maxLength={11}
+                            {...register('mother_phone')}
+                          />
+                        </Field>
+                        <Field label="Religion" required error={errors.religion?.message}>
+                          <select {...register('religion')} className={filterSelectClassName}>
+                            <option value="">Select</option>
+                            {RELIGION.map((religion: string) => (
+                              <option key={religion} value={religion}>
+                                {religion}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                    </FormSection>
+                  </div>
+
+                  <FormSection title="Academic">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <Field label="Class" required error={errors.class?.message}>
+                        <select {...register('class')} className={filterSelectClassName}>
+                          <option value="">Select</option>
+                          {[6, 7, 8, 9, 10].map((c) => (
+                            <option key={c} value={c}>
+                              Class {c}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Section" required error={errors.section?.message}>
+                        <Input
+                          type="text"
+                          list="student-section-options"
+                          placeholder="A"
+                          {...register('section', {
+                            setValueAs: (v) => String(v ?? '').toUpperCase(),
+                          })}
+                        />
+                        <datalist id="student-section-options">
+                          {(meta?.availableSections ?? []).map((s) => (
+                            <option key={s} value={s} />
+                          ))}
+                        </datalist>
+                      </Field>
+                      <Field label="Roll" required error={errors.roll?.message}>
+                        <Input type="text" inputMode="numeric" {...register('roll')} />
+                      </Field>
+                      {isSeniorClass && (
+                        <Field label="Group" required error={errors.group?.message}>
+                          <select {...register('group')} className={filterSelectClassName}>
+                            <option value="">Select</option>
+                            {(VALID_GROUPS as readonly string[]).map((group: string) => (
+                              <option key={group} value={group}>
+                                {group}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      )}
+                    </div>
+                  </FormSection>
+
+                  <FormSection title="Address">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label="Village" error={errors.village?.message}>
+                        <Input type="text" {...addressTextFieldProps('village', register)} />
+                      </Field>
+                      <Field label="Post office" error={errors.post_office?.message}>
+                        <Input type="text" {...addressTextFieldProps('post_office', register)} />
+                      </Field>
+                      <Field label="Upazila" error={errors.upazila?.message}>
+                        <Input type="text" {...addressTextFieldProps('upazila', register)} />
+                      </Field>
+                      <Field label="District" error={errors.district?.message}>
+                        <Input type="text" {...addressTextFieldProps('district', register)} />
+                      </Field>
+                    </div>
+                  </FormSection>
+
+                  <label className="flex w-fit items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" {...register('has_stipend')} className="h-4 w-4" />
+                    Receives stipend
+                  </label>
+
+                  <div className="bg-card border-border sticky bottom-0 -mx-5 flex items-center justify-between gap-3 border-t px-5 py-3">
+                    <p className="text-muted-foreground text-xs">
+                      <span className="text-destructive">*</span> required
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleCancel}
+                        type="button"
+                        disabled={formMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={formMutation.isPending}>
+                        {formMutation.isPending && <Loader2 className="animate-spin" />}
+                        {isEditing ? 'Save changes' : 'Add student'}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={sendToBackend} className="space-y-4 pb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-muted-foreground text-sm">Up to 500 students per file.</p>
+                    <div className="flex gap-4 text-sm">
+                      <button
+                        type="button"
+                        onClick={handleDownloadDemoExcel}
+                        className="text-primary inline-flex items-center gap-1 font-medium hover:underline"
+                      >
+                        <Download className="h-4 w-4" /> Template
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowFormatInfo(true)}
+                        className="text-primary inline-flex items-center gap-1 font-medium hover:underline"
+                      >
+                        <Info className="h-4 w-4" /> Format guide
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="excelFile"
+                      name="excelFile"
+                      accept=".xlsx, .xls"
+                      onClick={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        target.value = '';
+                        setFileUploaded(false);
+                        setJsonData(null);
+                        setexcelfile(null);
+                      }}
+                      onChange={handleFileUpload}
+                      className="absolute h-full w-full cursor-pointer opacity-0"
+                      required
+                      ref={fileref}
+                    />
+                    <label
+                      htmlFor="excelFile"
+                      className="border-border hover:border-ring flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors"
+                    >
+                      {fileUploaded ? (
+                        <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                      ) : (
+                        <Upload className="text-muted-foreground h-8 w-8" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {fileUploaded ? excelfile?.name : 'Choose an Excel file'}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {jsonData
+                          ? `${plural(jsonData.length, 'student')} ready to upload`
+                          : '.xlsx or .xls'}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={handleCancel}
+                      disabled={excelMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={!jsonData || excelMutation.isPending}>
+                      {excelMutation.isPending && <Loader2 className="animate-spin" />}
+                      {jsonData ? `Upload ${plural(jsonData.length, 'student')}` : 'Upload'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </Popup>
         </>
       )}
-      <SectionCard noPadding className="mb-6">
-        {!readOnly && hasSelectedStudents && (
-          <div className="bg-muted border-border flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-foreground text-sm font-medium">
-              {selectedStudentIds.size} student(s) selected
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setBulkRotateOpen(true)}
-              disabled={bulkRotateMutation.isPending}
-              className="w-full sm:w-auto"
-            >
-              {bulkRotateMutation.isPending
-                ? 'Rotating…'
-                : `Rotate ${selectedStudentIds.size} Passwords`}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleBulkDelete}
-              disabled={bulkDeleteMutation.isPending}
-              className="w-full sm:w-auto"
-            >
-              {bulkDeleteMutation.isPending
-                ? 'Deleting…'
-                : `Delete ${selectedStudentIds.size} Selected`}
-            </Button>
-            <ConfirmationPopup
-              open={bulkDeleteOpen}
-              onOpenChange={setBulkDeleteOpen}
-              onConfirm={() => {
-                setBulkDeleteOpen(false);
-                bulkDeleteMutation.mutate(Array.from(selectedStudentIds));
-              }}
-              confirmLabel="Confirm Delete"
-              msg={`This will permanently delete ${selectedStudentIds.size} selected student(s). This action cannot be undone.`}
-            />
-            <ConfirmationPopup
-              open={bulkRotateOpen}
-              onOpenChange={setBulkRotateOpen}
-              onConfirm={() => {
-                setBulkRotateOpen(false);
-                bulkRotateMutation.mutate(Array.from(selectedStudentIds));
-              }}
-              confirmLabel="Rotate Passwords"
-              variant="default"
-              msg={`This will regenerate new passwords for ${selectedStudentIds.size} selected student(s). An Excel file with new credentials will be downloaded. This action cannot be undone.`}
-            />
-          </div>
-        )}
-        {/* Desktop table */}
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-muted border-border border-b">
-                {!readOnly && (
-                  <th className="w-12 px-4 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={handleSelectAllVisible}
-                      aria-label="Select all students"
-                      className="h-4 w-4"
-                    />
-                  </th>
-                )}
-                {['Student', 'Roll', 'Class', 'Section', 'Group', '4th Subject', 'Actions']
-                  .filter(
-                    (header) =>
-                      (header !== '4th Subject' && header !== 'Group') || showSeniorColumns,
-                  )
-                  .map((header) => (
-                    <th
-                      key={header}
-                      className={`text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider ${header === 'Actions' ? 'w-1 whitespace-nowrap text-right' : 'text-center sm:text-left'}`}
-                    >
-                      {header}
-                    </th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={(showSeniorColumns ? 8 : 6) - (readOnly ? 1 : 0)}
-                    className="py-12 text-center"
-                  >
-                    <Loading />
-                  </td>
-                </tr>
-              ) : students.length > 0 ? (
-                students.map((student) => (
-                  <StudentRow
-                    key={student.id}
-                    student={student}
-                    isSelected={selectedStudentIds.has(student.id)}
-                    onToggleSelect={onToggleSelect}
-                    onImageUpload={handleIndivisualImageUpload}
-                    onEdit={handleEdit}
-                    onView={onViewStudent}
-                    onDelete={handleDelete}
-                    allSubjects={allSubjectsData}
-                    onFourthSubjectChange={(studentId, subjectId) => {
-                      updateFourthSubjectMutation.mutate(
-                        {
-                          studentId,
-                          year,
-                          subjectId,
-                        },
-                        {
-                          onSuccess: () => refetchStudents(),
-                        },
-                      );
-                    }}
-                    isUpdatingFourthSubject={updateFourthSubjectMutation.isPending}
-                    showSeniorColumns={showSeniorColumns}
-                    readOnly={readOnly}
-                  />
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={(showSeniorColumns ? 8 : 6) - (readOnly ? 1 : 0)}
-                    className="text-muted-foreground px-4 py-12 text-center text-sm dark:text-gray-400"
-                  >
-                    {errorMessage || 'No students found matching your criteria.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
 
-        {/* Mobile cards */}
-        <div className="lg:hidden">
-          {loading ? (
-            <div className="py-12 text-center">
-              <Loading />
-            </div>
-          ) : students.length > 0 ? (
-            <ul>
-              {students.map((student) => (
-                <StudentCard
-                  key={student.id}
-                  student={student}
-                  isSelected={selectedStudentIds.has(student.id)}
-                  onToggleSelect={onToggleSelect}
-                  onImageUpload={handleIndivisualImageUpload}
-                  onEdit={handleEdit}
-                  onView={onViewStudent}
-                  onDelete={handleDelete}
-                  allSubjects={allSubjectsData}
-                  onFourthSubjectChange={(studentId, subjectId) => {
-                    updateFourthSubjectMutation.mutate(
-                      {
-                        studentId,
-                        year,
-                        subjectId,
-                      },
-                      {
-                        onSuccess: () => refetchStudents(),
-                      },
-                    );
-                  }}
-                  isUpdatingFourthSubject={updateFourthSubjectMutation.isPending}
-                  showSeniorColumns={showSeniorColumns}
-                  readOnly={readOnly}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm dark:text-gray-400">
-              {errorMessage || 'No students found matching your criteria.'}
-            </p>
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard className="mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-muted-foreground text-sm">
-            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Rows</span>
-              <select
-                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                {[25, 50, 100].map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const totalPages = meta?.totalPages ?? 0;
-              const currentPage = page;
-              const maxVisible = 7;
-              if (totalPages <= maxVisible) {
-                return Array.from({ length: totalPages }, (_, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    variant={i + 1 === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(i + 1)}
-                    disabled={loading}
-                  >
-                    {i + 1}
-                  </Button>
-                ));
-              }
-              const pages: (number | string)[] = [];
-              const half = Math.floor(maxVisible / 2);
-              let start = Math.max(1, currentPage - half);
-              const end = Math.min(totalPages, start + maxVisible - 1);
-              if (end - start < maxVisible - 1) {
-                start = Math.max(1, end - maxVisible + 1);
-              }
-              if (start > 1) {
-                pages.push(1);
-                if (start > 2) pages.push('...');
-              }
-              for (let i = start; i <= end; i++) {
-                pages.push(i);
-              }
-              if (end < totalPages) {
-                if (end < totalPages - 1) pages.push('...');
-                pages.push(totalPages);
-              }
-              return pages.map((p, idx) =>
-                p === '...' ? (
-                  <span key={idx} className="text-muted-foreground px-2">
-                    ...
-                  </span>
-                ) : (
-                  <Button
-                    key={idx}
-                    type="button"
-                    variant={p === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(p as number)}
-                    disabled={loading}
-                  >
-                    {p}
-                  </Button>
-                ),
-              );
-            })()}
-          </div>
-        </div>
-      </SectionCard>
       {popup.visible && popup.student && (
         <Popup
           open
           onOpenChange={(o) => !o && closePopup()}
-          size={viewTab === 'attendance' ? 'full' : 'lg'}
-          aria-label="Student Details"
+          size="2xl"
+          aria-labelledby="student-details-title"
         >
-          {popup.type === 'view' && (
-            <>
-              <div className="border-border flex items-center justify-between border-b px-5 py-4">
-                <h2 className="text-base font-semibold">Student details</h2>
-                <button
-                  onClick={closePopup}
-                  className="text-muted-foreground hover:text-foreground text-xl leading-none transition-colors"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="px-5 pt-4">
-                <TabNav
-                  tabs={[
-                    {
-                      id: 'profile',
-                      label: 'Profile',
-                      icon: <User className="h-4 w-4" />,
-                    },
-                    {
-                      id: 'attendance',
-                      label: 'Attendance',
-                      icon: <CalendarDays className="h-4 w-4" />,
-                    },
-                  ]}
-                  activeTab={viewTab}
-                  onTabChange={(tabId) =>
-                    setViewTab(tabId === 'attendance' ? 'attendance' : 'profile')
-                  }
-                />
-              </div>
-
-              <div className="max-h-[70vh] overflow-y-auto px-5 py-4">
-                {viewTab === 'profile' ? (
-                  <StudentProfileView student={popup.student} compact />
+          <DialogHeader id="student-details-title" title="Student details" onClose={closePopup} />
+          <div className="px-5 pt-3">
+            <TabNav
+              tabs={[
+                { id: 'profile', label: 'Profile', icon: <User className="h-4 w-4" /> },
+                {
+                  id: 'attendance',
+                  label: 'Attendance',
+                  icon: <CalendarDays className="h-4 w-4" />,
+                },
+              ]}
+              activeTab={viewTab}
+              onTabChange={(tabId) => setViewTab(tabId === 'attendance' ? 'attendance' : 'profile')}
+            />
+          </div>
+          <div className="h-[60vh] overflow-y-auto px-5 py-4">
+            {viewTab === 'profile' ? (
+              <StudentProfileView student={popup.student} compact />
+            ) : (
+              <StudentAttendanceView studentId={popup.student.id} initialYear={year} embedded />
+            )}
+          </div>
+          {!readOnly && (
+            <div className="border-border flex flex-wrap items-center gap-2 border-t px-5 py-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const student = popup.student!;
+                  closePopup();
+                  handleEdit(student);
+                }}
+              >
+                <Pencil /> Edit
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={testimonialMutation.isPending}
+                onClick={() => testimonialMutation.mutate(popup.student!.id)}
+              >
+                {testimonialMutation.isPending && <Loader2 className="animate-spin" />}
+                Generate certificate
+              </Button>
+              <div className="ml-auto">
+                {popup.student.available ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    disabled={tcMutation.isPending}
+                    onClick={() => setTcConfirmOpen(true)}
+                  >
+                    <UserMinus /> Give TC
+                  </Button>
                 ) : (
-                  <StudentAttendanceView studentId={popup.student.id} initialYear={year} embedded />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={reactivateMutation.isPending}
+                    onClick={() => handleReactivate(popup.student!)}
+                  >
+                    <RotateCw /> Reactivate
+                  </Button>
                 )}
               </div>
-
-              <div className="border-border flex flex-wrap items-center justify-between gap-2 border-t px-5 py-3">
-                {!readOnly ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="default"
-                      disabled={testimonialMutation.isPending}
-                      onClick={() => testimonialMutation.mutate(popup.student!.id)}
-                    >
-                      {testimonialMutation.isPending ? (
-                        <span className="flex items-center gap-2">
-                          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v8z"
-                            />
-                          </svg>
-                          Generating…
-                        </span>
-                      ) : (
-                        'Generate Certificate'
-                      )}
-                    </Button>
-
-                    {popup.student.available && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="border-red-200 text-red-600 shadow-sm transition-[color,background-color,border-color] duration-200 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-                        disabled={tcMutation.isPending}
-                        onClick={() => setTcConfirmOpen(true)}
-                      >
-                        <UserMinus className="mr-2 h-4 w-4" />
-                        Give TC
-                      </Button>
-                    )}
-
-                    {!popup.student.available && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="border-amber-200 text-amber-600 shadow-sm transition-[color,background-color,border-color] duration-200 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
-                        disabled={reactivateMutation.isPending}
-                        onClick={() => handleReactivate(popup.student!)}
-                      >
-                        <RotateCw className="mr-2 h-4 w-4" />
-                        Reactivate
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div />
-                )}
-
-                <Button onClick={closePopup} variant="outline" type="button">
-                  Close
-                </Button>
-
-                {!readOnly && (
-                  <ConfirmationPopup
-                    open={tcConfirmOpen}
-                    onOpenChange={setTcConfirmOpen}
-                    onConfirm={() => {
-                      setTcConfirmOpen(false);
-                      if (popup.student) tcMutation.mutate(popup.student.id);
-                    }}
-                    confirmLabel="Confirm Issue TC"
-                    variant="destructive"
-                    msg={`Are you sure you want to issue a Transfer Certificate (TC) to ${popup.student.name}? This will mark them as inactive and they will no longer appear in active student lists.`}
-                  />
-                )}
-              </div>
-            </>
+              <ConfirmationPopup
+                open={tcConfirmOpen}
+                onOpenChange={setTcConfirmOpen}
+                onConfirm={() => {
+                  setTcConfirmOpen(false);
+                  if (popup.student) tcMutation.mutate(popup.student.id);
+                }}
+                confirmLabel="Issue TC"
+                variant="destructive"
+                msg={`Issue a Transfer Certificate to ${popup.student.name}? They will be marked inactive and removed from active student lists.`}
+              />
+            </div>
           )}
         </Popup>
       )}
 
-      {showFormatInfo && (
-        <Popup open onOpenChange={(o) => !o && setShowFormatInfo(false)} size="2xl">
-          <div className="p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Excel File Format Requirements</h2>
-              <button
-                onClick={() => setShowFormatInfo(false)}
-                className="text-muted-foreground hover:text-foreground text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-muted-foreground text-sm">
-                Use one standard format with required columns. Each row is validated before upload.
-              </p>
-
-              <div className="bg-muted/40 border-border rounded-sm border p-4">
-                <h3 className="mb-2 font-medium">Required Excel Format</h3>
-                <p className="text-muted-foreground mb-2 text-sm">
-                  Required columns for every upload:
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="font-medium">Required Columns:</div>
-                  <div></div>
-
-                  <div>• name</div>
-                  <div>• father_name</div>
-
-                  <div>• mother_name</div>
-                  <div>• father_phone</div>
-
-                  <div>• has_stipend (optional)</div>
-                  <div>• village</div>
-
-                  <div>• mother_phone (optional)</div>
-                  <div>• post_office</div>
-                  <div>• upazila</div>
-
-                  <div>• district</div>
-                  <div>• dob</div>
-
-                  <div>• class</div>
-
-                  <div>• roll</div>
-                  <div>• section</div>
-
-                  <div>• group</div>
-                  <div></div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="font-medium">Important Notes:</h3>
-                <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
-                  <li>
-                    <strong>Date Format:</strong> Use DD/MM/YYYY format for date of birth (e.g.,
-                    15/08/2005)
-                  </li>
-                  <li>
-                    <strong>Father Phone:</strong> Mandatory and should be 11 digits in Bangladesh
-                    format (e.g., 01XXXXXXXXX)
-                  </li>
-                  <li>
-                    <strong>Mother Phone:</strong> Optional and should be 11 digits and start with
-                    01 (e.g., 01XXXXXXXXX)
-                  </li>
-                  <li>
-                    <strong>has_stipend:</strong> Use "Yes" or "No"
-                  </li>
-                  <li>
-                    <strong>group:</strong> Required only for classes 9 and 10
-                    (Science/Commerce/Humanities)
-                  </li>
-                  <li>
-                    <strong>File Format:</strong> Only .xlsx or .xls files are accepted
-                  </li>
-                  <li>First row should contain column headers (case-insensitive)</li>
-                </ul>
-              </div>
-
-              <div className="bg-muted/40 border-border rounded-sm border p-3">
-                <p className="text-foreground text-sm">
-                  <strong>💡 Tip:</strong> Keep column names exactly as shown above and ensure
-                  required fields are filled for every row.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowFormatInfo(false)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm px-4 py-2 transition"
-              >
-                Got it
-              </button>
-            </div>
+      <Popup
+        open={showFormatInfo}
+        onOpenChange={setShowFormatInfo}
+        size="2xl"
+        aria-labelledby="excel-format-title"
+      >
+        <DialogHeader
+          id="excel-format-title"
+          title="Excel format"
+          onClose={() => setShowFormatInfo(false)}
+        />
+        <div className="space-y-4 px-5 py-4">
+          <p className="text-muted-foreground text-sm">
+            First row must hold these column names (case doesn't matter). Each row is checked before
+            upload.
+          </p>
+          <div className="border-border overflow-x-auto rounded-lg border">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Column</th>
+                  <th className="px-3 py-2 font-semibold">Required</th>
+                  <th className="px-3 py-2 font-semibold">Example</th>
+                </tr>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {demoExcelColumns.map((col) => (
+                  <tr key={col}>
+                    <td className="px-3 py-1.5 font-mono text-xs">{col}</td>
+                    <td className="px-3 py-1.5">
+                      {excelRequiredHeaders.includes(col) ? (
+                        'Yes'
+                      ) : col === 'group' ? (
+                        'Class 9–10'
+                      ) : (
+                        <span className="text-muted-foreground">No</span>
+                      )}
+                    </td>
+                    <td className="text-muted-foreground px-3 py-1.5">
+                      {demoRows[1][col] || demoRows[0][col]}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </Popup>
-      )}
+          <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
+            <li>dob uses DD/MM/YYYY.</li>
+            <li>Phone numbers are 11 digits starting with 01.</li>
+            <li>has_stipend is Yes or No.</li>
+            <li>group is Science, Commerce or Humanities.</li>
+          </ul>
+        </div>
+        <div className="border-border flex justify-end gap-2 border-t px-5 py-3">
+          <Button type="button" variant="outline" onClick={handleDownloadDemoExcel}>
+            <Download /> Download template
+          </Button>
+          <Button type="button" onClick={() => setShowFormatInfo(false)}>
+            Got it
+          </Button>
+        </div>
+      </Popup>
     </div>
   );
 }

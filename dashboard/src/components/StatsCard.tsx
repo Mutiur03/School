@@ -69,7 +69,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className={`mb-1 text-sm font-medium ${colors.label}`}>{label}</p>
+          <p className="text-muted-foreground mb-1 text-sm font-medium">{label}</p>
           {loading ? (
             <Skeleton className="w-15 mt-1 h-8" />
           ) : (
