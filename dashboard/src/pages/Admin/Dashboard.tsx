@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LineChart,
@@ -7,29 +7,59 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Users, UserCheck, Calendar, Bell, GraduationCap, ClipboardList } from 'lucide-react';
-import { PageHeader, SectionCard, StatsCard, TabNav } from '@/components';
-import type { TabItem } from '@/components';
+import { AlertTriangle, Bell, CalendarPlus, ChevronRight, MapPin, UserCheck } from 'lucide-react';
+import { SectionCard } from '@/components';
 import { Button } from '@/components/ui/button';
 import { getFileUrl } from '@/lib/backend';
 import {
   ATTENDANCE_RANGES,
   type AttendanceRange,
+  type DashboardOverview,
   useDashboardAttendance,
   useDashboardOverview,
 } from '@/queries/dashboard.queries';
 
-const COLORS = {
-  present: '#3b82f6', // Blue
-  absent: '#ef4444', // Red
-  run_awayed: '#f59e0b', // Amber
+const SERIES = [
+  { key: 'present', label: 'Present', color: '#2563eb' },
+  { key: 'absent', label: 'Absent', color: '#dc2626' },
+  { key: 'run_awayed', label: 'Ran away', color: '#d97706' },
+] as const;
+
+const fmtDate = (d: string | Date) =>
+  new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+type Exam = DashboardOverview['examSchedule'][number];
+type ExamStatus = 'Ongoing' | 'Upcoming' | 'Completed';
+
+const examStatus = (exam: Exam, now: Date): ExamStatus => {
+  if (new Date(exam.start_date) > now) return 'Upcoming';
+  if (new Date(exam.end_date) >= now) return 'Ongoing';
+  return 'Completed';
 };
 
+const STATUS_STYLE: Record<ExamStatus, string> = {
+  Ongoing: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  Upcoming: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
+  Completed: 'bg-muted text-muted-foreground',
+};
+const STATUS_ORDER: Record<ExamStatus, number> = { Ongoing: 0, Upcoming: 1, Completed: 2 };
+
+const ViewAll = ({ to }: { to: string }) => (
+  <Link
+    to={to}
+    className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-0.5 rounded text-xs font-medium focus-visible:outline-none focus-visible:ring-2"
+  >
+    View all <ChevronRight className="h-3.5 w-3.5" />
+  </Link>
+);
+
+const Empty = ({ children }: { children: ReactNode }) => (
+  <p className="text-muted-foreground py-8 text-center text-sm">{children}</p>
+);
+
 function Dashboard() {
-  const [activeTab, setActiveTab] = useState<string>('overview');
   const [attendanceDays, setAttendanceDays] = useState<AttendanceRange>(7);
 
   const {
@@ -46,544 +76,295 @@ function Dashboard() {
     isFetching: attendanceFetching,
   } = useDashboardAttendance(attendanceDays);
 
-  const quickStats = dashboardData?.quickStats ?? {
-    students: 0,
-    teachers: 0,
-    events: 0,
-  };
-  const announcements = dashboardData?.announcements ?? [];
-  const events = dashboardData?.events ?? [];
-  const examSchedule = dashboardData?.examSchedule ?? [];
-
-  const tabs: TabItem[] = [
-    {
-      id: 'overview',
-      label: 'Overview',
-      icon: <GraduationCap className="h-4 w-4" />,
-    },
-    {
-      id: 'attendance',
-      label: 'Attendance',
-      icon: <UserCheck className="h-4 w-4" />,
-    },
-    {
-      id: 'announcements',
-      label: 'Notices',
-      icon: <Bell className="h-4 w-4" />,
-    },
-    { id: 'events', label: 'Events', icon: <Calendar className="h-4 w-4" /> },
-    {
-      id: 'exams',
-      label: 'Exams',
-      icon: <ClipboardList className="h-4 w-4" />,
-    },
-  ];
-
   if (overviewPending) {
     return (
-      <div className="mx-auto max-w-7xl animate-pulse space-y-8 p-4 text-gray-500 sm:p-6 lg:p-8">
-        <div className="bg-muted h-12 w-64 rounded-lg"></div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-muted h-32 rounded-xl"></div>
-          ))}
+      <div className="mx-auto max-w-7xl animate-pulse space-y-6 p-4 sm:p-6 lg:p-8">
+        <div className="bg-muted h-10 w-56 rounded-lg" />
+        <div className="bg-muted h-24 rounded-xl" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="bg-muted h-80 rounded-xl lg:col-span-2" />
+          <div className="bg-muted h-80 rounded-xl" />
         </div>
-        <div className="bg-muted h-10 w-full max-w-md rounded-lg"></div>
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <div className="bg-muted h-96 rounded-xl"></div>
-          <div className="bg-muted h-96 rounded-xl"></div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="bg-muted h-56 rounded-xl" />
+          <div className="bg-muted h-56 rounded-xl" />
         </div>
       </div>
     );
   }
 
   if (overviewError) {
-    const errorMessage =
-      overviewQueryError instanceof Error ? overviewQueryError.message : 'An error occurred';
-
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <SectionCard className="w-full max-w-md p-8 text-center">
-          <div className="text-destructive mb-4 text-6xl">⚠️</div>
-          <h2 className="mb-2 text-xl font-bold">Something went wrong</h2>
-          <p className="text-muted-foreground mb-6">{errorMessage}</p>
+      <div className="flex min-h-[60vh] items-center justify-center p-4">
+        <SectionCard className="w-full max-w-md text-center">
+          <AlertTriangle className="text-destructive mx-auto mb-3 h-8 w-8" />
+          <h2 className="mb-1 text-lg font-semibold">Couldn't load the dashboard</h2>
+          <p className="text-muted-foreground mb-5 text-sm">
+            {overviewQueryError instanceof Error ? overviewQueryError.message : 'An error occurred'}
+          </p>
           <Button type="button" onClick={() => refetchOverview()}>
-            Try Again
+            Try again
           </Button>
         </SectionCard>
       </div>
     );
   }
 
-  const renderAttendanceSection = (title: string) => {
-    const hasData = attendanceData.length > 0;
-    const chartInitialLoad = attendancePending && !hasData;
-    const chartRefreshing = attendanceFetching && hasData;
+  const { quickStats, announcements, events, examSchedule } = dashboardData;
+  const now = new Date();
 
-    const rangeSelector = (
-      <div className="bg-muted/30 flex items-center gap-1 rounded-lg border p-1">
-        {ATTENDANCE_RANGES.map((range) => (
-          <button
-            key={range}
-            type="button"
-            onClick={() => setAttendanceDays(range)}
-            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
-              attendanceDays === range
-                ? 'bg-card text-primary border-border border shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+  const latest = attendanceData.at(-1);
+  const latestTotal = latest ? latest.present + latest.absent + latest.run_awayed : 0;
+  const latestRate =
+    latest && latestTotal ? Math.round((latest.present / latestTotal) * 100) : null;
+
+  const kpis = [
+    { label: 'Students', value: quickStats.students, to: '/admin/students/student-list' },
+    { label: 'Teachers', value: quickStats.teachers, to: '/admin/administration/teacher-list' },
+    { label: 'Upcoming events', value: quickStats.events, to: '/admin/events' },
+    {
+      label: 'Attendance',
+      value: latestRate === null ? '—' : `${latestRate}%`,
+      hint: latest ? `${latest.present} of ${latestTotal} · ${latest.name}` : 'No records yet',
+      to: '/admin/attendance',
+    },
+  ];
+
+  const exams = examSchedule
+    .map((exam) => ({ ...exam, status: examStatus(exam, now) }))
+    .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+
+  const hasChartData = attendanceData.length > 0;
+  const chartLoading = attendancePending || attendanceFetching;
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">
+            {now.toLocaleDateString('en-GB', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/admin/attendance">
+              <UserCheck /> Attendance
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/admin/notice">
+              <Bell /> Post notice
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/admin/events">
+              <CalendarPlus /> Add event
+            </Link>
+          </Button>
+        </div>
+      </header>
+
+      <section
+        aria-label="Key figures"
+        className="bg-card border-border grid grid-cols-2 overflow-hidden rounded-xl border shadow-sm lg:grid-cols-4"
+      >
+        {kpis.map((kpi, i) => (
+          <Link
+            key={kpi.label}
+            to={kpi.to}
+            className={`hover:bg-muted/50 focus-visible:ring-ring border-border group px-5 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${
+              i % 2 === 1 ? 'border-l' : ''
+            } ${i >= 2 ? 'border-t lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}
           >
-            {range}d
-          </button>
+            <p className="text-muted-foreground flex items-center justify-between text-xs font-medium uppercase tracking-wide">
+              {kpi.label}
+              <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+            </p>
+            <p className="mt-1 text-2xl font-bold tabular-nums">{kpi.value}</p>
+            {kpi.hint && <p className="text-muted-foreground truncate text-xs">{kpi.hint}</p>}
+          </Link>
         ))}
-      </div>
-    );
+      </section>
 
-    return (
-      <SectionCard title={title} headerAction={rangeSelector} className="w-full">
-        {hasData || chartInitialLoad ? (
-          <div className="flex flex-col">
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <SectionCard
+          title="Attendance"
+          className="lg:col-span-2"
+          headerAction={
             <div
-              className={`h-64 w-full transition-opacity sm:h-72 ${
-                chartRefreshing || chartInitialLoad ? 'opacity-60' : 'opacity-100'
-              }`}
+              role="group"
+              aria-label="Date range"
+              className="bg-muted/40 flex items-center gap-1 self-start rounded-lg border p-0.5"
+            >
+              {ATTENDANCE_RANGES.map((range) => (
+                <button
+                  key={range}
+                  type="button"
+                  aria-pressed={attendanceDays === range}
+                  onClick={() => setAttendanceDays(range)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    attendanceDays === range
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {range}d
+                </button>
+              ))}
+            </div>
+          }
+        >
+          <div className="mb-3 flex flex-wrap gap-4">
+            {SERIES.map((s) => (
+              <span key={s.key} className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+                {s.label}
+              </span>
+            ))}
+          </div>
+          {hasChartData || attendancePending ? (
+            <div
+              className={`h-64 w-full transition-opacity ${chartLoading ? 'opacity-60' : 'opacity-100'}`}
             >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={attendanceData}
-                  margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
+                  margin={{ top: 4, right: 8, left: -24, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid vertical={false} stroke="#94a3b8" strokeOpacity={0.2} />
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
-                    dy={10}
+                    dy={8}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
+                    allowDecimals={false}
                     tick={{ fill: '#94a3b8', fontSize: 11 }}
                   />
                   <Tooltip
                     contentStyle={{
-                      borderRadius: '12px',
-                      border: 'none',
-                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      background: 'var(--popover)',
+                      color: 'var(--popover-foreground)',
+                      fontSize: 12,
                     }}
                   />
-                  <Legend
-                    verticalAlign="bottom"
-                    align="center"
-                    content={(props) => {
-                      const { payload } = props;
-                      return (
-                        <div className="mt-6 flex justify-center gap-6">
-                          {payload?.map((entry: any, index: number) => (
-                            <div key={`item-${index}`} className="flex items-center gap-2">
-                              <div
-                                className="h-3 w-3 rounded-full border-2 bg-white shadow-sm"
-                                style={{ borderColor: entry.color }}
-                              />
-                              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                {entry.value}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="present"
-                    stroke={COLORS.present}
-                    strokeWidth={2.5}
-                    dot={{
-                      r: 4,
-                      fill: '#fff',
-                      stroke: COLORS.present,
-                      strokeWidth: 2,
-                    }}
-                    activeDot={{
-                      r: 6,
-                      fill: COLORS.present,
-                      stroke: '#fff',
-                      strokeWidth: 2,
-                    }}
-                    name="Present"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="run_awayed"
-                    stroke={COLORS.run_awayed}
-                    strokeWidth={2.5}
-                    dot={{
-                      r: 4,
-                      fill: '#fff',
-                      stroke: COLORS.run_awayed,
-                      strokeWidth: 2,
-                    }}
-                    activeDot={{
-                      r: 6,
-                      fill: COLORS.run_awayed,
-                      stroke: '#fff',
-                      strokeWidth: 2,
-                    }}
-                    name="Ran Away"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="absent"
-                    stroke={COLORS.absent}
-                    strokeWidth={2.5}
-                    dot={{
-                      r: 4,
-                      fill: '#fff',
-                      stroke: COLORS.absent,
-                      strokeWidth: 2,
-                    }}
-                    activeDot={{
-                      r: 6,
-                      fill: COLORS.absent,
-                      stroke: '#fff',
-                      strokeWidth: 2,
-                    }}
-                    name="Absent"
-                  />
+                  {SERIES.map((s) => (
+                    <Line
+                      key={s.key}
+                      type="monotone"
+                      dataKey={s.key}
+                      name={s.label}
+                      stroke={s.color}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, strokeWidth: 0 }}
+                    />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        ) : (
-          <div className="text-muted-foreground flex flex-col items-center justify-center py-12">
-            <GraduationCap className="mb-4 h-16 w-16 opacity-20" />
-            <p>No attendance data recorded yet.</p>
-          </div>
-        )}
-      </SectionCard>
-    );
-  };
+          ) : (
+            <Empty>No attendance recorded in this range.</Empty>
+          )}
+        </SectionCard>
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-8">
-            <div className="space-y-6 lg:space-y-8">
-              {renderAttendanceSection('Attendance Overview')}
-              <SectionCard title="Quick Summary">
-                <div className="space-y-4">
-                  {[
-                    {
-                      label: 'Total Students',
-                      value: quickStats.students,
-                      icon: <Users className="h-4 w-4 text-blue-500" />,
-                    },
-                    {
-                      label: 'Active Teachers',
-                      value: quickStats.teachers,
-                      icon: <UserCheck className="h-4 w-4 text-green-500" />,
-                    },
-                    {
-                      label: 'Upcoming Events',
-                      value: quickStats.events,
-                      icon: <Calendar className="h-4 w-4 text-yellow-500" />,
-                    },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="hover:bg-muted/50 flex items-center justify-between rounded-lg p-3 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="bg-background border-border rounded-full border p-2 shadow-sm">
-                          {stat.icon}
-                        </div>
-                        <span className="text-sm font-medium sm:text-base">{stat.label}</span>
-                      </div>
-                      <span className="text-lg font-bold">{stat.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
-            </div>
-            <div className="space-y-6 lg:space-y-8">
-              <SectionCard
-                title="Recent Notices"
-                headerAction={
-                  <Link
-                    to="/admin/notice"
-                    className="text-primary focus-visible:ring-primary rounded text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
-                  >
-                    View All
-                  </Link>
-                }
-              >
-                <div className="space-y-4">
-                  {announcements.length > 0 ? (
-                    announcements.slice(0, 3).map((notice) => (
-                      <a
-                        href={getFileUrl(notice.url)}
-                        target="_blank"
-                        key={notice.id}
-                        className="border-primary bg-muted/30 hover:bg-muted/50 group block cursor-pointer rounded-r-lg border-l-4 p-4 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
-                      >
-                        <div className="mb-2 flex items-start justify-between">
-                          <h4 className="group-hover:text-primary line-clamp-1 text-sm font-semibold transition-colors sm:text-base">
-                            {notice.title}
-                          </h4>
-                          <span className="text-muted-foreground shrink-0 text-[10px] sm:text-xs">
-                            {new Date(notice.date).toLocaleDateString('en-GB', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                      </a>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground py-8 text-center">No recent notices.</p>
-                  )}
-                </div>
-              </SectionCard>
-              <SectionCard
-                title="Upcoming Events"
-                headerAction={
-                  <Link
-                    to="/admin/events"
-                    className="text-primary focus-visible:ring-primary rounded text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
-                  >
-                    View All
-                  </Link>
-                }
-              >
-                <div className="space-y-4">
-                  {events.length > 0 ? (
-                    events.slice(0, 3).map((event) => (
-                      <div
-                        key={event.id}
-                        className="hover:bg-muted/30 hover:border-border flex gap-4 rounded-lg border border-transparent p-3 transition-colors"
-                      >
-                        <div className="bg-primary/10 text-primary flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg">
-                          <span className="text-xs font-bold uppercase">
-                            {new Date(event.date).toLocaleString('en-GB', {
-                              month: 'short',
-                            })}
-                          </span>
-                          <span className="text-lg font-bold leading-tight">
-                            {new Date(event.date).getDate()}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="line-clamp-1 text-sm font-semibold sm:text-base">
-                            {event.title}
-                          </h4>
-                          <p className="text-muted-foreground flex items-center gap-1 text-xs">
-                            <Calendar className="h-3 w-3" />
-                            {event.location}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground py-8 text-center">No upcoming events.</p>
-                  )}
-                </div>
-              </SectionCard>
-            </div>
-          </div>
-        );
-      case 'attendance':
-        return renderAttendanceSection('Attendance Trend Analysis');
-      case 'announcements':
-        return (
-          <SectionCard title="Notices & Announcements">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {announcements.map((notice) => (
-                <a
-                  href={getFileUrl(notice.url)}
-                  target="_blank"
-                  key={notice.id}
-                  className="border-border hover:border-primary/50 bg-card block rounded-xl border p-5 transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-md"
+        <SectionCard title="Exams" headerAction={<ViewAll to="/admin/settings/add-exam" />}>
+          {exams.length === 0 ? (
+            <Empty>No exams scheduled.</Empty>
+          ) : (
+            <ul className="divide-border -my-2 divide-y">
+              {exams.slice(0, 6).map((exam) => (
+                <li
+                  key={`${exam.name}-${exam.start_date}`}
+                  className="flex items-start gap-3 py-2.5"
                 >
-                  <div className="mb-3 flex items-start justify-between">
-                    <span className="bg-primary/10 text-primary rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
-                      Notice
-                    </span>
-                    <span className="text-muted-foreground text-xs">
-                      {new Date(notice.date).toLocaleDateString()}
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{exam.name}</p>
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      {fmtDate(exam.start_date)} – {fmtDate(exam.end_date)}
+                    </p>
                   </div>
-                  <h4 className="group-hover:text-primary mb-2 font-bold transition-colors">
-                    {notice.title}
-                  </h4>
-                </a>
-              ))}
-            </div>
-          </SectionCard>
-        );
-      case 'events':
-        return (
-          <SectionCard title="Scheduled Events">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="border-border bg-card group overflow-hidden rounded-xl border transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:shadow-lg"
-                >
-                  <div className="bg-primary/5 border-border group-hover:bg-primary/10 flex h-32 items-center justify-center border-b transition-colors">
-                    <Calendar className="text-primary h-12 w-12 opacity-20" />
-                  </div>
-                  <div className="p-5">
-                    <h4 className="mb-3 line-clamp-2 font-bold">{event.title}</h4>
-                    <div className="space-y-2">
-                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(event.date).toLocaleDateString()}
-                      </div>
-                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                        <Users className="h-3.5 w-3.5" />
-                        {event.location}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        );
-      case 'exams':
-        return (
-          <SectionCard title="Examination Schedule" noPadding>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[640px]">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="bg-muted/50 border-border/50 sticky left-0 z-20 border-r px-6 py-4 text-left text-xs font-bold uppercase tracking-wider shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                      Exam Name
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                      Start Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                      End Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-border divide-y">
-                  {examSchedule.map((exam, index) => {
-                    const now = new Date();
-                    const start = new Date(exam.start_date);
-                    const end = new Date(exam.end_date);
-                    const isUpcoming = start > now;
-                    const isOngoing = now >= start && now <= end;
-
-                    return (
-                      <tr key={index} className="hover:bg-muted/20 transition-colors">
-                        <td className="bg-card border-border/50 sticky left-0 z-10 border-r px-6 py-4 text-sm font-semibold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                          {exam.name}
-                        </td>
-                        <td className="text-muted-foreground px-6 py-4 text-sm">
-                          {start.toLocaleDateString()}
-                        </td>
-                        <td className="text-muted-foreground px-6 py-4 text-sm">
-                          {end.toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${isOngoing ? 'bg-green-500/10 text-green-500' : isUpcoming ? 'bg-blue-500/10 text-blue-500' : 'bg-muted text-muted-foreground'}`}
-                          >
-                            {isOngoing ? 'Ongoing' : isUpcoming ? 'Upcoming' : 'Completed'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {examSchedule.length === 0 && (
-                <div className="text-muted-foreground py-12 text-center">No exams scheduled.</div>
-              )}
-            </div>
-            <ul className="space-y-3 p-4 lg:hidden">
-              {examSchedule.length === 0 ? (
-                <li className="text-muted-foreground py-8 text-center text-sm">
-                  No exams scheduled.
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[exam.status]}`}
+                  >
+                    {exam.status}
+                  </span>
                 </li>
-              ) : (
-                examSchedule.map((exam, index) => {
-                  const now = new Date();
-                  const start = new Date(exam.start_date);
-                  const end = new Date(exam.end_date);
-                  const isUpcoming = start > now;
-                  const isOngoing = now >= start && now <= end;
-                  return (
-                    <li key={index} className="border-border space-y-2 rounded-xl border p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold">{exam.name}</p>
-                        <span
-                          className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase ${isOngoing ? 'bg-green-500/10 text-green-500' : isUpcoming ? 'bg-blue-500/10 text-blue-500' : 'bg-muted text-muted-foreground'}`}
-                        >
-                          {isOngoing ? 'Ongoing' : isUpcoming ? 'Upcoming' : 'Completed'}
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground text-xs">
-                        {start.toLocaleDateString()} – {end.toLocaleDateString()}
-                      </p>
-                    </li>
-                  );
-                })
-              )}
+              ))}
             </ul>
-          </SectionCard>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Campus Dashboard"
-        description={`Welcome back, Administrator. Last updated: ${new Date().toLocaleTimeString()}.`}
-      />
-
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <StatsCard
-          label="Total Students"
-          value={quickStats.students}
-          icon={<Users className="h-6 w-6" />}
-          color="blue"
-          loading={false}
-        />
-        <StatsCard
-          label="Active Faculty"
-          value={quickStats.teachers}
-          icon={<UserCheck className="h-6 w-6" />}
-          color="emerald"
-          loading={false}
-        />
-        <StatsCard
-          label="Scheduled Events"
-          value={quickStats.events}
-          icon={<Calendar className="h-6 w-6" />}
-          color="amber"
-          loading={false}
-        />
+          )}
+        </SectionCard>
       </div>
 
-      <div className="space-y-6">
-        <TabNav tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <SectionCard title="Recent notices" headerAction={<ViewAll to="/admin/notice" />}>
+          {announcements.length === 0 ? (
+            <Empty>No recent notices.</Empty>
+          ) : (
+            <ul className="divide-border -my-2 divide-y">
+              {announcements.slice(0, 5).map((notice) => (
+                <li key={notice.id}>
+                  <a
+                    href={getFileUrl(notice.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-primary group flex items-center gap-3 py-2.5"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:underline">
+                      {notice.title}
+                    </span>
+                    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                      {fmtDate(notice.date)}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
 
-        <div key={activeTab} className="animate-fade-in-up">
-          {renderTabContent()}
-        </div>
+        <SectionCard title="Upcoming events" headerAction={<ViewAll to="/admin/events" />}>
+          {events.length === 0 ? (
+            <Empty>No upcoming events.</Empty>
+          ) : (
+            <ul className="divide-border -my-2 divide-y">
+              {events.slice(0, 5).map((event) => {
+                const date = new Date(event.date);
+                return (
+                  <li key={event.id} className="flex items-center gap-3 py-2.5">
+                    <div className="border-border flex w-11 shrink-0 flex-col items-center rounded-md border py-1 leading-none">
+                      <span className="text-muted-foreground text-[10px] font-semibold uppercase">
+                        {date.toLocaleString('en-GB', { month: 'short' })}
+                      </span>
+                      <span className="text-base font-bold tabular-nums">{date.getDate()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{event.title}</p>
+                      {event.location && (
+                        <p className="text-muted-foreground flex items-center gap-1 truncate text-xs">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {event.location}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </SectionCard>
       </div>
     </div>
   );

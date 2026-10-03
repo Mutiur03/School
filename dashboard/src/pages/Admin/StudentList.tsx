@@ -95,25 +95,27 @@ const StudentRow = React.memo(
             />
           </td>
         )}
-        <td className="flex items-center gap-3 whitespace-nowrap px-2 py-2 text-sm font-medium sm:px-4 sm:py-3">
-          {student.image ? (
-            <img
-              src={getFileUrl(student.image)}
-              alt="Student"
-              className="border-border h-10 w-10 rounded-full border object-cover"
-            />
-          ) : (
-            <div className="bg-muted text-foreground flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold">
-              {student.name.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div className="flex flex-col">
-            <span>{student.name}</span>
-            {!student.available && (
-              <span className="text-destructive bg-destructive/10 mt-0.5 w-fit rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                Inactive
-              </span>
+        <td className="whitespace-nowrap px-2 py-2 text-sm font-medium sm:px-4 sm:py-3">
+          <div className="flex items-center gap-3">
+            {student.image ? (
+              <img
+                src={getFileUrl(student.image)}
+                alt="Student"
+                className="border-border h-10 w-10 rounded-full border object-cover"
+              />
+            ) : (
+              <div className="bg-muted text-foreground flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold">
+                {student.name.charAt(0).toUpperCase()}
+              </div>
             )}
+            <div className="flex flex-col">
+              <span>{student.name}</span>
+              {!student.available && (
+                <span className="text-destructive bg-destructive/10 mt-0.5 w-fit rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                  Inactive
+                </span>
+              )}
+            </div>
           </div>
         </td>
         <td className="whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-3">{student.roll}</td>
@@ -160,7 +162,7 @@ const StudentRow = React.memo(
         )}
 
         <td className="w-1 whitespace-nowrap px-2 py-2 text-right text-sm sm:px-4 sm:py-3">
-          <div className="inline-flex flex-wrap justify-end gap-1.5">
+          <div className="inline-flex justify-end gap-1.5">
             {!readOnly && (
               <>
                 <ActionButton action="photo" asLabel htmlFor={`file-upload-${student.id}`} />
