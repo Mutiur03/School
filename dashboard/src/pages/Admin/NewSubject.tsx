@@ -3,21 +3,42 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { readAdminXlsxWorkbook } from '@/utils/safeXlsxRead';
-import { Search } from 'lucide-react';
+import {
+  ChevronDown,
+  Copy,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  Info,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  PageHeader,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   SectionCard,
-  StatsCard,
   Popup,
-  FilterSelection,
-  FilterField,
+  ConfirmationPopup,
+  TablePagination,
   filterSelectClassName,
 } from '@/components';
-import DeleteConfirmation from '@/components/DeleteConfimation';
 import ActionButton from '@/components/ActionButton';
-import Loading from '@/components/Loading';
+import { ColumnHeaderMenu } from '@/components/ColumnHeaderMenu';
+import { cn } from '@/lib/utils';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -36,337 +57,110 @@ import {
 import type { Subject } from '@/types/subjects';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
-// --- Sub-components (Memoized for performance) ---
+const CLASSES = [6, 7, 8, 9, 10];
 
-const SubjectStats = React.memo(
-  ({
-    filteredCount,
-    totalCount,
-    loading,
-  }: {
-    filteredCount: number;
-    totalCount: number;
-    loading: boolean;
-  }) => (
-    <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
-      <StatsCard
-        label="Total Subjects"
-        value={filteredCount === totalCount ? `${totalCount}` : `${filteredCount}/${totalCount}`}
-        loading={loading}
-      />
-    </div>
-  ),
+/** Columns the Excel import rejects the file without. */
+const MANDATORY_COLUMNS = ['name', 'class', 'full_mark', 'year', 'assessment_type', 'priority'];
+
+const TYPE_OPTIONS = [
+  { value: 'main', label: 'Main (group)' },
+  { value: 'paper', label: 'Paper (part)' },
+  { value: 'single', label: 'Single subject' },
+];
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+const dash = <span className="text-muted-foreground">—</span>;
+
+// Pinned Subject column while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit max-xl:shadow-[1px_0_0_var(--border)]';
+
+const pickerClass = cn(filterSelectClassName, 'h-8 w-auto font-medium');
+
+const noWheel = (e: React.WheelEvent<HTMLInputElement>) => (e.target as HTMLInputElement).blur();
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring pointer-coarse:p-2.5 rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
 );
 
-const SubjectTableRow = React.memo(
-  ({
-    subject,
-    isFirstChild,
-    onShowInfo,
-    onEdit,
-    onDelete,
-  }: {
-    subject: Subject;
-    isFirstChild: boolean;
-    onShowInfo: (s: Subject) => void;
-    onEdit: (s: Subject) => void;
-    onDelete: (id: number) => void;
-  }) => (
-    <tr
-      className={`hover:bg-muted/30 transition-colors ${subject.subject_type === 'paper' ? 'bg-muted/10' : ''} ${isFirstChild && subject.subject_type !== 'paper' ? 'border-border/50 border-t-2' : ''}`}
-    >
-      <td
-        className={`border-border/50 border-r px-4 py-3 text-sm font-medium ${subject.subject_type === 'paper' ? 'bg-muted/10' : 'bg-card'}`}
-      >
-        <div className="flex items-center gap-2">
-          {subject.subject_type === 'paper' && (
-            <div className="border-border/50 ml-2 h-4 w-4 shrink-0 rounded-bl-md border-b-2 border-l-2" />
-          )}
-          <div className="flex flex-col">
-            <span>{subject.name}</span>
-            <div className="mt-0.5 flex items-center gap-2">
-              {subject.priority > 0 && (
-                <span className="text-muted-foreground text-[10px] font-normal">
-                  Priority: {subject.priority}
-                </span>
-              )}
-              {subject.assessment_type === 'continuous' && (
-                <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tighter text-blue-600">
-                  CAS
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </td>
-      <td className="px-4 py-3 text-xs">
-        {subject.subject_type === 'main' ? (
-          <span className="text-primary font-bold uppercase tracking-wider">Main</span>
-        ) : subject.subject_type === 'paper' ? (
-          <span className="text-muted-foreground uppercase tracking-wider">Paper</span>
-        ) : (
-          <span className="text-muted-foreground/50 capitalize italic">Single</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-sm">
-        <div className="flex flex-col">
-          <span>Class {subject.class}</span>
-          {subject.group && (
-            <span className="text-primary text-[10px] font-bold uppercase tracking-wider">
-              {subject.group}
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3 text-sm font-medium">{subject.full_mark}</td>
-      <td className="px-4 py-3 text-sm font-medium text-emerald-600">{subject.pass_mark}</td>
-      <td className="w-1 whitespace-nowrap px-4 py-3 text-right">
-        <div className="inline-flex flex-wrap justify-end gap-1.5">
-          <ActionButton action="view" onClick={() => onShowInfo(subject)} />
-          <ActionButton action="edit" onClick={() => onEdit(subject)} />
-          <DeleteConfirmation
-            onDelete={() => onDelete(subject.id)}
-            msg={`Permanently delete "${subject.name}" for class ${subject.class}? This action cannot be undone.`}
-          />
-        </div>
-      </td>
-    </tr>
-  ),
+const TypeLabel = ({ type }: { type: Subject['subject_type'] }) =>
+  type === 'main' ? (
+    <span className="text-primary text-xs font-bold uppercase tracking-wider">Main</span>
+  ) : type === 'paper' ? (
+    <span className="text-muted-foreground text-xs uppercase tracking-wider">Paper</span>
+  ) : (
+    <span className="text-muted-foreground text-xs capitalize italic">Single</span>
+  );
+
+const CasBadge = () => (
+  <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight text-blue-600 dark:text-blue-400">
+    CAS
+  </span>
 );
 
-const SubjectMobileCard = React.memo(
-  ({
-    subject,
-    onShowInfo,
-    onEdit,
-    onDelete,
-  }: {
-    subject: Subject;
-    onShowInfo: (s: Subject) => void;
-    onEdit: (s: Subject) => void;
-    onDelete: (id: number) => void;
-  }) => (
-    <li
-      className={`border-border space-y-3 border-b p-4 ${subject.subject_type === 'paper' ? 'bg-muted/10' : ''}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {subject.subject_type === 'paper' && (
-              <div className="border-border/50 h-3 w-3 shrink-0 rounded-bl-md border-b-2 border-l-2" />
-            )}
-            <p className="text-foreground truncate text-sm font-semibold">{subject.name}</p>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-              Class {subject.class}
-            </span>
-            {subject.group ? (
-              <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
-                {subject.group}
-              </span>
-            ) : null}
-            {subject.subject_type === 'main' ? (
-              <span className="text-primary text-[10px] font-bold uppercase tracking-wider">
-                Main
-              </span>
-            ) : subject.subject_type === 'paper' ? (
-              <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
-                Paper
-              </span>
-            ) : (
-              <span className="text-muted-foreground/50 text-[10px] capitalize italic">Single</span>
-            )}
-            {subject.assessment_type === 'continuous' ? (
-              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tighter text-blue-600">
-                CAS
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-1.5">
-          <ActionButton action="view" onClick={() => onShowInfo(subject)} />
-          <ActionButton action="edit" onClick={() => onEdit(subject)} />
-          <DeleteConfirmation
-            onDelete={() => onDelete(subject.id)}
-            msg={`Permanently delete "${subject.name}" for class ${subject.class}? This action cannot be undone.`}
-          />
-        </div>
-      </div>
-      <dl className="grid grid-cols-3 gap-2 text-sm">
-        <div>
-          <dt className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-            Full Mark
-          </dt>
-          <dd className="font-medium">{subject.full_mark}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-            Pass Mark
-          </dt>
-          <dd className="font-medium text-emerald-600">{subject.pass_mark}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-            Priority
-          </dt>
-          <dd className="font-medium">{subject.priority > 0 ? subject.priority : '—'}</dd>
-        </div>
-      </dl>
-    </li>
-  ),
-);
+// --- Create / edit form ---
 
-const SubjectFilters = React.memo(
-  ({
-    filterYear,
-    setFilterYear,
-    filterClass,
-    setFilterClass,
-    filterGroup,
-    setFilterGroup,
-    filterType,
-    setFilterType,
-    searchTerm,
-    setSearchTerm,
-  }: {
-    filterYear: number;
-    setFilterYear: (v: number) => void;
-    filterClass: number | 'all';
-    setFilterClass: (v: number | 'all') => void;
-    filterGroup: string | 'all';
-    setFilterGroup: (v: string | 'all') => void;
-    filterType: string | 'all';
-    setFilterType: (v: string | 'all') => void;
-    searchTerm: string;
-    setSearchTerm: (v: string) => void;
-  }) => (
-    <>
-      <FilterField label="Year">
-        <select
-          value={filterYear}
-          onChange={(e) => setFilterYear(Number(e.target.value))}
-          className={filterSelectClassName}
-        >
-          <option value={new Date().getFullYear() + 1}>{new Date().getFullYear() + 1}</option>
-          <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
-          <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
-        </select>
-      </FilterField>
+const SubjectForm = ({
+  register,
+  handleSubmit,
+  errors,
+  isSubmitting,
+  subjects,
+  onCancel,
+  onChange,
+  setValue,
+  control,
+}: {
+  register: any;
+  handleSubmit: any;
+  errors: any;
+  isSubmitting: boolean;
+  subjects: Subject[];
+  onCancel: () => void;
+  onChange: (e: any) => void;
+  setValue: any;
+  control: any;
+}) => {
+  const formData = useWatch({ control });
+  const subjectType = formData.subject_type;
+  const classNum = Number(formData.class);
+  const assessmentType = formData.assessment_type;
+  const markingScheme = formData.marking_scheme;
+  const required = markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>;
 
-      <FilterField label="Class">
-        <select
-          value={filterClass}
-          onChange={(e) =>
-            setFilterClass(e.target.value === 'all' ? 'all' : Number(e.target.value))
-          }
-          className={filterSelectClassName}
-        >
-          <option value="all">All Classes</option>
-          {[6, 7, 8, 9, 10].map((c) => (
-            <option key={c} value={c}>
-              Class {c}
-            </option>
-          ))}
-        </select>
-      </FilterField>
+  // Cross-field validation for breakdown marks
+  const validateBreakdown = () => {
+    if (markingScheme !== 'BREAKDOWN') return true;
+    if (subjectType === 'main') return true;
 
-      <FilterField label="Group">
-        <select
-          value={filterGroup}
-          disabled={filterClass !== 'all' && (filterClass as number) < 9}
-          onChange={(e) => setFilterGroup(e.target.value)}
-          className={filterSelectClassName}
-        >
-          <option value="all">All Groups</option>
-          <option value="">General</option>
-          {VALID_GROUPS.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
-      </FilterField>
+    const cq = Number(formData.cq_mark) || 0;
+    const mcq = Number(formData.mcq_mark) || 0;
+    const prac = Number(formData.practical_mark) || 0;
 
-      <FilterField label="Type">
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className={filterSelectClassName}
-        >
-          <option value="all">All Types</option>
-          <option value="main">Main (Groups)</option>
-          <option value="paper">Paper (Parts)</option>
-          <option value="single">Single Subject</option>
-        </select>
-      </FilterField>
+    return cq > 0 || mcq > 0 || prac > 0 || 'At least one mark (CQ/MCQ/Prac) is required';
+  };
 
-      <FilterField label="Search Subject" wide>
-        <div className="relative">
-          <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-          <Input
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 pl-9"
-          />
-        </div>
-      </FilterField>
-    </>
-  ),
-);
+  const totalBreakdown =
+    (Number(formData.cq_mark) || 0) +
+    (Number(formData.mcq_mark) || 0) +
+    (Number(formData.practical_mark) || 0);
+  const totalPassBreakdown =
+    (Number(formData.cq_pass_mark) || 0) +
+    (Number(formData.mcq_pass_mark) || 0) +
+    (Number(formData.practical_pass_mark) || 0);
 
-const SubjectForm = React.memo(
-  ({
-    register,
-    handleSubmit,
-    errors,
-    isSubmitting,
-    subjects,
-    onCancel,
-    onChange,
-    setValue,
-    control,
-  }: {
-    register: any;
-    handleSubmit: any;
-    errors: any;
-    isSubmitting: boolean;
-    subjects: Subject[];
-    onCancel: () => void;
-    onChange: (e: any) => void;
-    setValue: any;
-    control: any;
-  }) => {
-    const formData = useWatch({ control });
-    const subjectType = formData.subject_type;
-    const classNum = Number(formData.class);
-    const assessmentType = formData.assessment_type;
-    const markingScheme = formData.marking_scheme;
+  const breakdownLabel = 'text-muted-foreground flex items-center gap-1 text-xs uppercase';
 
-    // Cross-field validation for breakdown marks
-    const validateBreakdown = () => {
-      if (markingScheme !== 'BREAKDOWN') return true;
-      if (subjectType === 'main') return true;
-
-      const cq = Number(formData.cq_mark) || 0;
-      const mcq = Number(formData.mcq_mark) || 0;
-      const prac = Number(formData.practical_mark) || 0;
-
-      return cq > 0 || mcq > 0 || prac > 0 || 'At least one mark (CQ/MCQ/Prac) is required';
-    };
-
-    const totalBreakdown =
-      (Number(formData.cq_mark) || 0) +
-      (Number(formData.mcq_mark) || 0) +
-      (Number(formData.practical_mark) || 0);
-    const totalPassBreakdown =
-      (Number(formData.cq_pass_mark) || 0) +
-      (Number(formData.mcq_pass_mark) || 0) +
-      (Number(formData.practical_pass_mark) || 0);
-
-    return (
-      <form onSubmit={handleSubmit} className="space-y-4">
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
@@ -389,7 +183,7 @@ const SubjectForm = React.memo(
                 onChange(e);
                 register('class').onChange(e);
               }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onWheel={noWheel}
             />
             <ErrorMessage message={errors.class?.message} />
           </div>
@@ -404,14 +198,12 @@ const SubjectForm = React.memo(
               {...register('full_mark')}
               placeholder={subjectType === 'main' ? 'Auto-calculated' : 'e.g. 100'}
               disabled={subjectType === 'main'}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onWheel={noWheel}
               className={subjectType === 'main' ? 'bg-muted cursor-not-allowed' : ''}
             />
             <ErrorMessage message={errors.full_mark?.message} />
             {subjectType === 'main' && (
-              <p className="text-primary mt-1 animate-pulse text-[10px] font-medium">
-                ✨ Automatically calculated from child subjects
-              </p>
+              <p className="text-muted-foreground text-xs">Calculated from its papers</p>
             )}
           </div>
           <div className="space-y-1.5">
@@ -422,7 +214,7 @@ const SubjectForm = React.memo(
               type="number"
               {...register('pass_mark')}
               placeholder={assessmentType === 'continuous' ? 'Optional for CAS' : 'e.g. 33'}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onWheel={noWheel}
             />
             <ErrorMessage message={errors.pass_mark?.message} />
           </div>
@@ -439,7 +231,7 @@ const SubjectForm = React.memo(
                 onChange(e);
                 register('subject_type').onChange(e);
               }}
-              className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              className={filterSelectClassName}
             >
               <option value="single">Single Subject</option>
               <option value="main">Main Subject (Group)</option>
@@ -448,14 +240,11 @@ const SubjectForm = React.memo(
             <ErrorMessage message={errors.subject_type?.message} />
           </div>
           {subjectType === 'paper' && (
-            <div className="animate-in fade-in slide-in-from-left-2 space-y-1.5 duration-200">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">
                 Parent Subject <span className="text-destructive">*</span>
               </label>
-              <select
-                {...register('parent_id')}
-                className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-              >
+              <select {...register('parent_id')} className={filterSelectClassName}>
                 <option value="">Select Parent Subject</option>
                 {subjects
                   .filter((s) => s.subject_type === 'main' && s.class === classNum)
@@ -478,8 +267,8 @@ const SubjectForm = React.memo(
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Assessment Type</label>
-            <div className="flex h-10 items-center gap-4 px-1">
-              <label className="flex cursor-pointer items-center gap-2">
+            <div className="flex h-9 items-center gap-4 px-1">
+              <label className="pointer-coarse:py-2 flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
                   value="exam"
@@ -493,7 +282,7 @@ const SubjectForm = React.memo(
                 />
                 <span className="text-sm">Exam Based</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2">
+              <label className="pointer-coarse:py-2 flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
                   value="continuous"
@@ -518,7 +307,7 @@ const SubjectForm = React.memo(
               </label>
               <select
                 {...register('marking_scheme' as any)}
-                className="bg-card border-border text-foreground focus:ring-primary/30 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                className={filterSelectClassName}
                 value={markingScheme}
                 onChange={(e) => {
                   setValue('marking_scheme' as any, e.target.value as any);
@@ -533,7 +322,10 @@ const SubjectForm = React.memo(
         </div>
 
         <fieldset
-          className={`rounded-lg border p-4 transition-colors ${markingScheme === 'BREAKDOWN' ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}
+          className={cn(
+            'rounded-lg border p-4 transition-colors',
+            markingScheme === 'BREAKDOWN' ? 'border-primary/30 bg-primary/5' : 'border-border',
+          )}
         >
           <legend className="flex items-center gap-2 px-2 text-sm font-semibold">
             {markingScheme === 'BREAKDOWN'
@@ -578,91 +370,59 @@ const SubjectForm = React.memo(
 
           <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <label className="text-muted-foreground flex items-center gap-1 text-xs uppercase">
-                CQ Mark{' '}
-                {markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>}
-              </label>
+              <label className={breakdownLabel}>CQ Mark {required}</label>
               <Input
                 type="number"
                 {...register('cq_mark', { validate: validateBreakdown })}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                onWheel={noWheel}
               />
               <ErrorMessage message={errors.cq_mark?.message} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-muted-foreground flex items-center gap-1 text-xs uppercase">
-                MCQ Mark{' '}
-                {markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>}
-              </label>
+              <label className={breakdownLabel}>MCQ Mark {required}</label>
               <Input
                 type="number"
                 {...register('mcq_mark', { validate: validateBreakdown })}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                onWheel={noWheel}
               />
               <ErrorMessage message={errors.mcq_mark?.message} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-muted-foreground flex items-center gap-1 text-xs uppercase">
-                Practical Mark{' '}
-                {markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>}
-              </label>
+              <label className={breakdownLabel}>Practical Mark {required}</label>
               <Input
                 type="number"
                 {...register('practical_mark', { validate: validateBreakdown })}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                onWheel={noWheel}
               />
               <ErrorMessage message={errors.practical_mark?.message} />
             </div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="space-y-1.5 align-middle">
-              <label className="text-muted-foreground flex items-center gap-1 text-xs uppercase">
-                CQ Pass{' '}
-                {markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>}
-              </label>
-              <Input
-                type="number"
-                {...register('cq_pass_mark')}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              />
+            <div className="space-y-1.5">
+              <label className={breakdownLabel}>CQ Pass {required}</label>
+              <Input type="number" {...register('cq_pass_mark')} onWheel={noWheel} />
               <ErrorMessage message={errors.cq_pass_mark?.message} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-muted-foreground flex items-center gap-1 text-xs uppercase">
-                MCQ Pass{' '}
-                {markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>}
-              </label>
-              <Input
-                type="number"
-                {...register('mcq_pass_mark')}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              />
+              <label className={breakdownLabel}>MCQ Pass {required}</label>
+              <Input type="number" {...register('mcq_pass_mark')} onWheel={noWheel} />
               <ErrorMessage message={errors.mcq_pass_mark?.message} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-muted-foreground flex items-center gap-1 text-xs uppercase">
-                Practical Pass{' '}
-                {markingScheme === 'BREAKDOWN' && <span className="text-destructive">*</span>}
-              </label>
-              <Input
-                type="number"
-                {...register('practical_pass_mark')}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              />
+              <label className={breakdownLabel}>Practical Pass {required}</label>
+              <Input type="number" {...register('practical_pass_mark')} onWheel={noWheel} />
               <ErrorMessage message={errors.practical_pass_mark?.message} />
             </div>
           </div>
         </fieldset>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div
-            className={`space-y-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 ${classNum >= 9 ? 'opacity-100' : 'pointer-events-none opacity-40'}`}
-          >
+          <div className="space-y-1.5">
             <label className="text-sm font-medium">Group</label>
             <select
               {...register('group')}
               disabled={classNum < 9}
-              className="bg-card border-border text-foreground focus:ring-primary/30 disabled:bg-muted/50 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              className={filterSelectClassName}
             >
               <option value="">
                 {classNum >= 9 ? 'General (Common for all)' : 'Not Required for Class 6-8'}
@@ -677,71 +437,62 @@ const SubjectForm = React.memo(
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Year</label>
-            <Input type="number" {...register('year')} readOnly className="bg-muted opacity-80" />
+            <Input type="number" {...register('year')} readOnly className="bg-muted" />
             <ErrorMessage message={errors.year?.message} />
           </div>
         </div>
+      </div>
 
-        <div className="border-border mt-6 flex items-center justify-between border-t pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button disabled={isSubmitting} type="submit">
-            {isSubmitting ? 'Processing...' : formData.id ? 'Update Subject' : 'Submit Subject'}
-          </Button>
-        </div>
-      </form>
-    );
-  },
-);
+      <div className="border-border flex items-center justify-end gap-2 border-t px-5 py-3">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button disabled={isSubmitting} type="submit">
+          {isSubmitting && <Loader2 className="animate-spin" />}
+          {formData.id ? 'Save changes' : 'Create subject'}
+        </Button>
+      </div>
+    </form>
+  );
+};
 
-const ExcelUploadForm = React.memo(
-  ({
-    onSubmitFile,
-    onDownloadDemo,
-    onShowFormatInfo,
-    fileUploaded,
-    isSubmitting,
-    excelFileRef,
-    onFileUpload,
-    onCancel,
-  }: {
-    onSubmitFile: any;
-    onDownloadDemo: () => void;
-    onShowFormatInfo: () => void;
-    fileUploaded: boolean;
-    isSubmitting: boolean;
-    excelFileRef: any;
-    onFileUpload: (e: any) => void;
-    onCancel: () => void;
-  }) => (
-    <form onSubmit={onSubmitFile} className="space-y-4">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="space-y-1">
-          <h3 className="text-lg font-medium">Excel File Upload</h3>
-          <p className="text-muted-foreground text-xs italic">
-            Required columns: name, class, full_mark, pass_mark, year
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onDownloadDemo}
-            className="h-8 px-3 text-xs"
-          >
-            Download Demo Excel
+// --- Excel upload ---
+
+const ExcelUploadForm = ({
+  onSubmitFile,
+  onDownloadDemo,
+  onShowFormatInfo,
+  fileUploaded,
+  isSubmitting,
+  excelFileRef,
+  onFileUpload,
+  onCancel,
+}: {
+  onSubmitFile: (e: FormEvent) => void;
+  onDownloadDemo: () => void;
+  onShowFormatInfo: () => void;
+  fileUploaded: boolean;
+  isSubmitting: boolean;
+  excelFileRef: React.RefObject<HTMLInputElement | null>;
+  onFileUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  onCancel: () => void;
+}) => (
+  <form onSubmit={onSubmitFile}>
+    <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-muted-foreground text-sm">
+          Required columns: {MANDATORY_COLUMNS.join(', ')}
+        </p>
+        <div className="flex gap-1">
+          <Button type="button" variant="outline" size="sm" onClick={onDownloadDemo}>
+            <Download /> Template
           </Button>
-          <button
-            type="button"
-            onClick={onShowFormatInfo}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold transition-colors"
-            title="View Excel format requirements"
-          >
-            i
-          </button>
+          <Button type="button" variant="ghost" size="sm" onClick={onShowFormatInfo}>
+            <Info /> Format guide
+          </Button>
         </div>
       </div>
+      {/* The transparent file input covers the drop zone, so dropping a file works natively. */}
       <div className="relative">
         <input
           type="file"
@@ -749,66 +500,56 @@ const ExcelUploadForm = React.memo(
           accept=".xlsx, .xls"
           ref={excelFileRef}
           onChange={onFileUpload}
-          className="absolute h-full w-full cursor-pointer opacity-0"
+          className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
           required
         />
         <label
           htmlFor="excelFile"
-          className="border-border hover:border-primary/50 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors"
+          className="border-border hover:bg-muted/50 peer-focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-8 text-center transition-colors peer-focus-visible:ring-2"
         >
-          <div className="bg-primary/10 text-primary mb-4 flex h-12 w-12 items-center justify-center rounded-full">
-            {fileUploaded ? (
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            ) : (
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-            )}
-          </div>
+          {fileUploaded ? (
+            <FileSpreadsheet size={20} className="text-primary" />
+          ) : (
+            <Upload size={20} className="text-muted-foreground" />
+          )}
           <span className="text-sm font-medium">
-            {fileUploaded ? 'File Ready to Upload' : 'Drop Excel file here or click to browse'}
+            {fileUploaded ? 'File ready to upload' : 'Upload Excel file'}
           </span>
-          <span className="text-muted-foreground mt-1 text-xs">.xlsx or .xls files only</span>
+          <span className="text-muted-foreground text-xs">
+            Click or drop a .xlsx / .xls file here
+          </span>
         </label>
       </div>
-      <div className="flex justify-between pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={!fileUploaded || isSubmitting}>
-          {isSubmitting ? 'Uploading...' : 'Upload Subjects'}
-        </Button>
-      </div>
-    </form>
-  ),
+    </div>
+    <div className="border-border flex items-center justify-end gap-2 border-t px-5 py-3">
+      <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+        Cancel
+      </Button>
+      <Button type="submit" disabled={!fileUploaded || isSubmitting}>
+        {isSubmitting && <Loader2 className="animate-spin" />}
+        {isSubmitting ? 'Uploading…' : 'Upload subjects'}
+      </Button>
+    </div>
+  </form>
 );
 
 const NewSubject: React.FC = () => {
   const { confirm, dialog } = useConfirmDialog();
-  const { data: subjects = [], isLoading: isLoadingSubjects } = useSubjects();
+  const { data: subjects = [], isLoading: isLoadingSubjects, isError } = useSubjects();
   const addSubjectsMutation = useAddSubjects();
   const updateSubjectMutation = useUpdateSubject();
   const deleteSubjectMutation = useDeleteSubject();
   const cloneSubjectsMutation = useCloneSubjects();
 
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const currentYear = new Date().getFullYear();
+  const [filterYear, setFilterYear] = useState<number>(currentYear);
   const [filterClass, setFilterClass] = useState<number | 'all'>('all');
   const [filterGroup, setFilterGroup] = useState<string | 'all'>('all');
-  const [filterType, setFilterType] = useState<string | 'all'>('all');
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(100);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -851,6 +592,7 @@ const NewSubject: React.FC = () => {
   });
 
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'form' | 'file'>('form');
   const editingId = watch('id');
 
@@ -880,7 +622,6 @@ const NewSubject: React.FC = () => {
   const [fileUploaded, setFileUploaded] = useState<boolean>(false);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [showFormatInfo, setShowFormatInfo] = useState<boolean>(false);
-  const [showSubjectDetails, setShowSubjectDetails] = useState<boolean>(false);
 
   const excelFileRef = useRef<HTMLInputElement>(null);
 
@@ -888,8 +629,7 @@ const NewSubject: React.FC = () => {
     setValue('year', filterYear);
   }, [filterYear, setValue]);
 
-  const isLoading =
-    isLoadingSubjects ||
+  const isBusy =
     addSubjectsMutation.isPending ||
     updateSubjectMutation.isPending ||
     deleteSubjectMutation.isPending;
@@ -953,29 +693,12 @@ const NewSubject: React.FC = () => {
         const isBreakdownScheme = data.marking_scheme === 'BREAKDOWN';
         const isNotMain = data.subject_type !== 'main';
 
-        console.log('Submitting subject data:', {
-          name: data.name,
-          class: data.class,
-          group: data.group || 'General',
-          marking_scheme: data.marking_scheme,
-          isBreakdownScheme,
-          isNotMain,
-          cq: data.cq_mark,
-          mcq: data.mcq_mark,
-          prac: data.practical_mark,
-        });
-
         if (isBreakdownScheme && isNotMain) {
           const cq = Number(data.cq_mark) || 0;
           const mcq = Number(data.mcq_mark) || 0;
           const prac = Number(data.practical_mark) || 0;
 
           if (cq <= 0 && mcq <= 0 && prac <= 0) {
-            console.error('Validation failed: At least one breakdown mark required.', {
-              cq,
-              mcq,
-              prac,
-            });
             setError('cq_mark', { type: 'manual', message: 'CQ Mark required if MCQ/Prac are 0' });
             setError('mcq_mark', { type: 'manual', message: 'MCQ Mark required if CQ/Prac are 0' });
             setError('practical_mark', {
@@ -1017,7 +740,7 @@ const NewSubject: React.FC = () => {
         }
       }
     },
-    [uploadMethod, subjects, updateSubjectMutation, addSubjectsMutation, resetFormData],
+    [uploadMethod, subjects, updateSubjectMutation, addSubjectsMutation, resetFormData, setError],
   );
 
   const onError = useCallback((errors: any) => {
@@ -1025,7 +748,7 @@ const NewSubject: React.FC = () => {
     toast.error('Please fix the validation errors in the form.');
   }, []);
 
-  // Improved Excel upload pipeline (Memoized)
+  // Excel upload pipeline: parse, normalise, validate every row, then hold for submit.
   const handleFileUpload = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
       const file = event.target.files?.[0];
@@ -1039,16 +762,8 @@ const NewSubject: React.FC = () => {
         try {
           const { sheet } = readAdminXlsxWorkbook(arrayBuffer);
           const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
-          const mandatoryColumns = [
-            'name',
-            'class',
-            'full_mark',
-            'year',
-            'assessment_type',
-            'priority',
-          ];
           const sheetHeaders = (rawData[0] || []) as string[];
-          const missingColumns = mandatoryColumns.filter((col) => !sheetHeaders.includes(col));
+          const missingColumns = MANDATORY_COLUMNS.filter((col) => !sheetHeaders.includes(col));
           if (missingColumns.length > 0) {
             toast.error(`Excel file is missing required columns: ${missingColumns.join(', ')}`);
             setFileUploaded(false);
@@ -1178,9 +893,9 @@ const NewSubject: React.FC = () => {
             return;
           }
           const subjectsToUpload: any[] = normalizedRows.map((row) => {
-            // Optimization: Let the backend handle auto-grouping via subject_group.
-            // We set subject_type to 'single' if parent_id is null to pass frontend/backend validation.
-            // The backend will promote it to 'paper' if a subject_group matches.
+            // Let the backend handle auto-grouping via subject_group.
+            // subject_type is 'single' when parent_id is null so validation passes;
+            // the backend promotes it to 'paper' if a subject_group matches.
             return {
               ...row,
               subject_type: row.subject_type || 'single',
@@ -1232,53 +947,59 @@ const NewSubject: React.FC = () => {
         }
         setShowForm(false);
       } catch (err: any) {
-        // Error handling is inside the mutation's onError
+        // Error toast is raised by the mutation's onError
         console.error('Upload error:', err);
-        // If we want to show specifically which subjects failed in a bulk upload, we'd need better server feedback
       }
     },
     [jsonData, addSubjectsMutation],
   );
 
-  const deleteSubject = useCallback(
-    async (id: number): Promise<void> => {
-      try {
-        await deleteSubjectMutation.mutateAsync(id);
-      } catch (error) {
-        console.error('Delete error:', error);
-      }
-    },
-    [deleteSubjectMutation],
-  );
+  const deleteSubject = async (subject: Subject): Promise<void> => {
+    try {
+      await deleteSubjectMutation.mutateAsync(subject.id);
+      setSelectedSubject((s) => (s?.id === subject.id ? null : s));
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
+  };
 
-  const editSubject = useCallback(
-    (subject: Subject): void => {
-      reset({
-        id: subject.id,
-        name: subject.name,
-        class: subject.class as any,
-        full_mark: subject.full_mark as any,
-        pass_mark: subject.pass_mark as any,
-        cq_mark: (subject.cq_mark || 0) as any,
-        mcq_mark: (subject.mcq_mark || 0) as any,
-        practical_mark: (subject.practical_mark || 0) as any,
-        cq_pass_mark: (subject.cq_pass_mark || 0) as any,
-        mcq_pass_mark: (subject.mcq_pass_mark || 0) as any,
-        practical_pass_mark: (subject.practical_pass_mark || 0) as any,
-        group: subject.group || '',
-        year: subject.year,
-        subject_type: subject.subject_type,
-        parent_id: (subject.parent_id || null) as any,
-        assessment_type: subject.assessment_type,
-        marking_scheme: (subject as any).marking_scheme || 'TOTAL',
-        priority: subject.priority as any,
-      });
-      setUploadMethod('form');
-      setShowForm(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
-    [reset],
-  );
+  const editSubject = (subject: Subject): void => {
+    reset({
+      id: subject.id,
+      name: subject.name,
+      class: subject.class as any,
+      full_mark: subject.full_mark as any,
+      pass_mark: subject.pass_mark as any,
+      cq_mark: (subject.cq_mark || 0) as any,
+      mcq_mark: (subject.mcq_mark || 0) as any,
+      practical_mark: (subject.practical_mark || 0) as any,
+      cq_pass_mark: (subject.cq_pass_mark || 0) as any,
+      mcq_pass_mark: (subject.mcq_pass_mark || 0) as any,
+      practical_pass_mark: (subject.practical_pass_mark || 0) as any,
+      group: subject.group || '',
+      year: subject.year,
+      subject_type: subject.subject_type,
+      parent_id: (subject.parent_id || null) as any,
+      assessment_type: subject.assessment_type,
+      marking_scheme: subject.marking_scheme || 'TOTAL',
+      priority: subject.priority as any,
+    });
+    setSelectedSubject(null);
+    setUploadMethod('form');
+    setShowForm(true);
+  };
+
+  const openCreate = () => {
+    resetFormData();
+    setUploadMethod('form');
+    setShowForm(true);
+  };
+
+  const openUpload = () => {
+    resetFormData();
+    setUploadMethod('file');
+    setShowForm(true);
+  };
 
   const handleCancel = useCallback(() => {
     resetFormData();
@@ -1291,20 +1012,22 @@ const NewSubject: React.FC = () => {
     setShowForm(false);
   }, [resetFormData]);
 
-  const showSubjectInfo = useCallback((subject: Subject): void => {
-    setSelectedSubject(subject);
-    setShowSubjectDetails(true);
-  }, []);
+  const yearSubjects = useMemo(
+    () => subjects.filter((s) => s.year === filterYear),
+    [subjects, filterYear],
+  );
+  const mainCount = yearSubjects.filter((s) => s.subject_type === 'main').length;
+  const paperCount = yearSubjects.filter((s) => s.subject_type === 'paper').length;
+  const subjectNames = useMemo(() => new Map(subjects.map((s) => [s.id, s.name])), [subjects]);
 
-  const stats = useMemo(() => {
-    const yearSubjects = subjects.filter((s) => s.year === filterYear);
-    return {
-      total: yearSubjects.length,
-    };
-  }, [subjects, filterYear]);
+  const filtersActive =
+    filterClass !== 'all' ||
+    filterGroup !== 'all' ||
+    filterTypes.length > 0 ||
+    Boolean(searchTerm.trim());
 
   const filteredSubjects = useMemo(() => {
-    let baseFilter = subjects.filter((subject) => subject.year === filterYear);
+    let baseFilter = yearSubjects;
 
     if (filterClass !== 'all') {
       baseFilter = baseFilter.filter((s) => s.class === filterClass);
@@ -1312,15 +1035,15 @@ const NewSubject: React.FC = () => {
     if (filterGroup !== 'all') {
       baseFilter = baseFilter.filter((s) => (s.group || '') === filterGroup);
     }
-    if (filterType !== 'all') {
-      baseFilter = baseFilter.filter((s) => s.subject_type === filterType);
+    if (filterTypes.length > 0) {
+      baseFilter = baseFilter.filter((s) => filterTypes.includes(s.subject_type));
     }
     if (debouncedSearchTerm) {
       const term = debouncedSearchTerm.toLowerCase();
       baseFilter = baseFilter.filter((s) => s.name.toLowerCase().includes(term));
     }
 
-    // Enhanced sorting logic:
+    // Class → priority → main/single/paper → name; papers follow their main subject.
     const sorted = [...baseFilter].sort((a, b) => {
       if (a.class !== b.class) return a.class - b.class;
       if (a.priority !== b.priority) return a.priority - b.priority;
@@ -1359,22 +1082,21 @@ const NewSubject: React.FC = () => {
     });
 
     return result;
-  }, [subjects, filterYear, filterClass, filterGroup, filterType, debouncedSearchTerm]);
+  }, [yearSubjects, filterClass, filterGroup, filterTypes, debouncedSearchTerm]);
 
-  const onResetFilters = useCallback(() => {
-    setFilterYear(new Date().getFullYear());
+  const totalPages = Math.ceil(filteredSubjects.length / limit);
+  const pageRows = filteredSubjects.slice((page - 1) * limit, page * limit);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterYear, filterClass, filterGroup, filterTypes, debouncedSearchTerm, limit]);
+
+  const clearFilters = () => {
     setFilterClass('all');
     setFilterGroup('all');
-    setFilterType('all');
+    setFilterTypes([]);
     setSearchTerm('');
-  }, []);
-
-  const handleEdit = useCallback((subject: Subject) => editSubject(subject), [editSubject]);
-  const handleDelete = useCallback((id: number) => deleteSubject(id), [deleteSubject]);
-  const handleShowInfo = useCallback(
-    (subject: Subject) => showSubjectInfo(subject),
-    [showSubjectInfo],
-  );
+  };
 
   const handleClone = useCallback(async () => {
     const fromYear = filterYear - 1;
@@ -1395,428 +1117,595 @@ const NewSubject: React.FC = () => {
     }
   }, [filterYear, cloneSubjectsMutation, confirm]);
 
-  return (
-    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      {dialog}
-      <PageHeader
-        title="Subject Management"
-        description="Manage school subjects, marks, and groups."
-      >
-        {!showForm && (
-          <div className="flex gap-2">
+  const canClone = !isLoadingSubjects && !isBusy && yearSubjects.length === 0;
+
+  const summary = isLoadingSubjects
+    ? ' '
+    : [
+        `${plural(yearSubjects.length, 'subject')} in ${filterYear}`,
+        `${mainCount.toLocaleString()} main`,
+        plural(paperCount, 'paper'),
+        ...(filtersActive ? [`${filteredSubjects.length.toLocaleString()} shown`] : []),
+      ].join(' · ');
+
+  const columns: { label: string; className?: string; header: React.ReactNode }[] = [
+    {
+      label: 'Subject',
+      className: cn(stickyCell, 'px-3 sm:px-4'),
+      header: (
+        <ColumnHeaderMenu
+          label="Subject"
+          filterInput={{ value: searchTerm, onChange: setSearchTerm, placeholder: 'Name…' }}
+        />
+      ),
+    },
+    {
+      label: 'Type',
+      className: 'w-32',
+      header: (
+        <ColumnHeaderMenu
+          label="Type"
+          options={TYPE_OPTIONS}
+          selected={filterTypes}
+          onSelectedChange={setFilterTypes}
+        />
+      ),
+    },
+    { label: 'Class', className: 'w-32', header: 'Class' },
+    { label: 'Full mark', className: 'w-24 text-right', header: 'Full mark' },
+    { label: 'Pass mark', className: 'w-24 text-right', header: 'Pass mark' },
+    { label: 'Order', className: 'w-20 text-right', header: 'Order' },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      header: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={clearFilters}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
+
+  const rowActions = (subject: Subject) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton
+        action="view"
+        iconOnly
+        className="pointer-coarse:h-11 pointer-coarse:w-11"
+        onClick={() => setSelectedSubject(subject)}
+      />
+      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton
+            iconOnly
+            label="More actions"
+            icon={<MoreHorizontal size={16} />}
+            className="pointer-coarse:h-11 pointer-coarse:w-11"
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {subject.name}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => setSelectedSubject(subject)}>
+            <Eye /> View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => editSubject(subject)}>
+            <Pencil /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(subject)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {isError ? (
+        <p>Couldn't load subjects. Try again in a moment.</p>
+      ) : filtersActive ? (
+        <>
+          <p>No subjects match these filters.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            <X /> Clear filters
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>No subjects for {filterYear} yet.</p>
+          <div className="flex flex-wrap justify-center gap-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={handleClone}
-              disabled={isLoading || stats.total > 0}
-              title={stats.total > 0 ? 'Year already has subjects' : `Clone from ${filterYear - 1}`}
+              disabled={!canClone}
             >
-              {cloneSubjectsMutation.isPending ? 'Cloning...' : `Clone from ${filterYear - 1}`}
+              <Copy /> Clone from {filterYear - 1}
             </Button>
-            <Button type="button" onClick={() => setShowForm((prev) => !prev)} disabled={isLoading}>
-              {isLoading ? 'Loading...' : '+ Add New Subject'}
+            <Button type="button" variant="outline" size="sm" onClick={openCreate}>
+              <Plus /> Add subject
             </Button>
           </div>
-        )}
-      </PageHeader>
-
-      {showForm && (
-        <SectionCard className="animate-in fade-in slide-in-from-top-4 mb-6 duration-300">
-          <h2 className="text-foreground mb-6 text-xl font-bold">
-            {editingId ? 'Edit Subject' : 'Add New Subject'}
-          </h2>
-          {!editingId && (
-            <div className="border-border mb-6 flex gap-1 border-b">
-              <button
-                onClick={() => handleMethodChange('form')}
-                className={`relative px-3 pb-2 text-sm font-medium transition-colors ${
-                  uploadMethod === 'form'
-                    ? 'text-primary border-primary border-b-2'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Form
-              </button>
-              <button
-                onClick={() => handleMethodChange('file')}
-                className={`relative px-3 pb-2 text-sm font-medium transition-colors ${
-                  uploadMethod === 'file'
-                    ? 'text-primary border-primary border-b-2'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Excel Upload
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-4 sm:space-y-6">
-            {uploadMethod === 'form' ? (
-              <SubjectForm
-                register={register}
-                handleSubmit={handleSub(onSubmit as any, onError)}
-                errors={errors}
-                isSubmitting={isSubmitting}
-                subjects={subjects}
-                onCancel={handleCancel}
-                onChange={handleChange}
-                setValue={setValue}
-                control={control}
-              />
-            ) : (
-              <ExcelUploadForm
-                onSubmitFile={onSubmitFile}
-                onDownloadDemo={handleDownloadDemoExcel}
-                onShowFormatInfo={() => setShowFormatInfo(true)}
-                fileUploaded={fileUploaded}
-                isSubmitting={isSubmitting}
-                excelFileRef={excelFileRef}
-                onFileUpload={handleFileUpload}
-                onCancel={handleCancel}
-              />
-            )}
-          </div>
-        </SectionCard>
+        </>
       )}
-      <SubjectStats
-        filteredCount={filteredSubjects.length}
-        totalCount={stats.total}
-        loading={isLoading}
-      />
+    </div>
+  );
 
-      <FilterSelection
-        className="mb-6"
-        headerAction={
-          <Button variant="outline" size="sm" onClick={onResetFilters} className="h-9 text-xs">
-            Reset
-          </Button>
-        }
-      >
-        <SubjectFilters
-          filterYear={filterYear}
-          setFilterYear={setFilterYear}
-          filterClass={filterClass}
-          setFilterClass={setFilterClass}
-          filterGroup={filterGroup}
-          setFilterGroup={setFilterGroup}
-          filterType={filterType}
-          setFilterType={setFilterType}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
-      </FilterSelection>
+  const detail = selectedSubject;
+  const breakdownParts = detail
+    ? [
+        { label: 'CQ', mark: detail.cq_mark, pass: detail.cq_pass_mark },
+        { label: 'MCQ', mark: detail.mcq_mark, pass: detail.mcq_pass_mark },
+        { label: 'Practical', mark: detail.practical_mark, pass: detail.practical_pass_mark },
+      ]
+    : [];
 
-      <SectionCard className="mb-6">
-        {/* Mobile cards — avoid sticky/min-width table crush */}
-        <div className="block xl:hidden">
-          {isLoading ? (
-            <div className="text-muted-foreground py-20 text-center">
-              <Loading />
-            </div>
-          ) : filteredSubjects.length > 0 ? (
-            <ul className="-mx-4 sm:mx-0">
-              {filteredSubjects.map((subject) => (
-                <SubjectMobileCard
-                  key={subject.id}
-                  subject={subject}
-                  onShowInfo={handleShowInfo}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
+  return (
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      {dialog}
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="mr-1 text-2xl font-bold">Subjects</h1>
+            <select
+              aria-label="Session year"
+              value={filterYear}
+              onChange={(e) => setFilterYear(Number(e.target.value))}
+              className={cn(pickerClass, 'tabular-nums')}
+            >
+              {[currentYear + 1, currentYear, currentYear - 1].map((y) => (
+                <option key={y} value={y}>
+                  Session {y}
+                </option>
               ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-              No subjects found with the selected filters. Try adjusting your filters or adding a
-              new subject.
-            </p>
-          )}
+            </select>
+            <select
+              aria-label="Class"
+              value={filterClass}
+              onChange={(e) =>
+                setFilterClass(e.target.value === 'all' ? 'all' : Number(e.target.value))
+              }
+              className={pickerClass}
+            >
+              <option value="all">All classes</option>
+              {CLASSES.map((c) => (
+                <option key={c} value={c}>
+                  Class {c}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Group"
+              value={filterGroup}
+              disabled={filterClass !== 'all' && filterClass < 9}
+              onChange={(e) => setFilterGroup(e.target.value)}
+              className={pickerClass}
+            >
+              <option value="all">All groups</option>
+              <option value="">General</option>
+              {VALID_GROUPS.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline">
+                More <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>Session {filterYear}</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={handleClone} disabled={!canClone}>
+                <Copy />
+                <span className="flex flex-col">
+                  {cloneSubjectsMutation.isPending ? 'Cloning…' : `Clone from ${filterYear - 1}`}
+                  {yearSubjects.length > 0 && (
+                    <span className="text-muted-foreground text-xs">Year already has subjects</span>
+                  )}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Import</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={openUpload}>
+                <FileSpreadsheet /> Upload from Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleDownloadDemoExcel}>
+                <Download /> Download Excel template
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowFormatInfo(true)}>
+                <Info /> Excel format guide
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button type="button" onClick={openCreate} disabled={isBusy}>
+            <Plus /> Add subject
+          </Button>
+        </div>
+      </header>
 
-        <div className="-mx-4 hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] sm:mx-0 xl:block">
-          <table className="w-full min-w-[800px] border-collapse text-left">
-            <thead>
-              <tr className="bg-muted/50 border-border border-b">
-                {['Subject', 'Type', 'Class', 'Full Mark', 'Pass Mark', 'Actions'].map((h) => (
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[46rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                {columns.map((col) => (
                   <th
-                    key={h}
-                    className={`text-muted-foreground px-4 py-3 text-xs font-semibold uppercase tracking-wider ${h === 'Actions' ? 'w-1 whitespace-nowrap text-right' : ''} ${h === 'Subject' ? 'bg-muted/50' : ''}`}
+                    key={col.label}
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.className,
+                    )}
                   >
-                    {h}
+                    {col.header}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="text-muted-foreground py-20 text-center">
-                    <Loading />
-                  </td>
-                </tr>
-              ) : filteredSubjects.length > 0 ? (
-                filteredSubjects.map((subject, index) => {
-                  const isFirstChild =
-                    index === 0 ||
-                    filteredSubjects[index - 1].class !== subject.class ||
-                    (filteredSubjects[index - 1].subject_type === 'main' &&
-                      subject.subject_type === 'paper' &&
-                      filteredSubjects[index - 1].id === subject.parent_id);
-
-                  return (
-                    <SubjectTableRow
-                      key={subject.id}
-                      subject={subject}
-                      isFirstChild={isFirstChild}
-                      onShowInfo={handleShowInfo}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
-                  );
-                })
+              {isLoadingSubjects ? (
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={columns.length} className="px-4 py-2">
+                      <Skeleton className="h-8 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : pageRows.length > 0 ? (
+                pageRows.map((subject) => (
+                  // Opaque row colours so the pinned Subject cell hides what scrolls under it.
+                  <tr
+                    key={subject.id}
+                    className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                  >
+                    <td className={cn(stickyCell, 'px-3 py-2 sm:px-4')}>
+                      <div className="flex max-w-[16rem] items-center gap-2 sm:max-w-md">
+                        {subject.subject_type === 'paper' && (
+                          <span
+                            aria-hidden
+                            className="border-border ml-2 h-4 w-4 shrink-0 -translate-y-1 rounded-bl-md border-b-2 border-l-2"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSubject(subject)}
+                          className="focus-visible:ring-ring pointer-coarse:py-2 block min-w-0 truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                        >
+                          {subject.name}
+                        </button>
+                        {subject.assessment_type === 'continuous' && <CasBadge />}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <TypeLabel type={subject.subject_type} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-sm">
+                      <p>Class {subject.class}</p>
+                      {subject.group && (
+                        <p className="text-primary text-[10px] font-bold uppercase tracking-wider">
+                          {subject.group}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm font-medium tabular-nums">
+                      {subject.full_mark ?? dash}
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {subject.pass_mark ?? dash}
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm tabular-nums">
+                      {subject.priority ?? dash}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      {rowActions(subject)}
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-muted-foreground px-4 py-12 text-center text-sm">
-                    No subjects found with the selected filters. Try adjusting your filters or
-                    adding a new subject.
-                  </td>
+                  <td colSpan={columns.length}>{emptyState}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          totalFiltered={filteredSubjects.length}
+          limitOptions={[50, 100, 200]}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+        />
       </SectionCard>
 
-      <Popup open={showSubjectDetails} onOpenChange={setShowSubjectDetails} size="md">
-        <div className="p-6">
-          <div className="border-border mb-6 flex items-center justify-between border-b pb-4">
-            <h2 className="font-heading text-xl font-bold">Subject Details</h2>
-            <button
-              onClick={() => setShowSubjectDetails(false)}
-              className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
-            >
-              ×
-            </button>
-          </div>
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteSubject(deleteTarget);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete subject"
+        msg={
+          deleteTarget
+            ? `Permanently delete "${deleteTarget.name}" for class ${deleteTarget.class}? This action cannot be undone.`
+            : undefined
+        }
+      />
 
-          {selectedSubject && (
-            <div className="space-y-6">
-              <div className="bg-primary/5 border-primary/10 flex items-center justify-between rounded-xl border p-5">
-                <div>
-                  <h3 className="text-primary text-2xl font-bold tracking-tight">
-                    {selectedSubject.name}
-                  </h3>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="bg-primary text-primary-foreground rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest">
-                      Class {selectedSubject.class}
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      {selectedSubject.group || 'General'}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-widest">
-                    Academic Year
-                  </span>
-                  <span className="text-lg font-bold">{selectedSubject.year}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted/30 border-border rounded-xl border p-4">
-                  <span className="text-muted-foreground mb-1 block text-[10px] font-bold uppercase tracking-widest">
-                    Full Mark
-                  </span>
-                  <span className="text-2xl font-bold">{selectedSubject.full_mark}</span>
-                </div>
-                <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 p-4">
-                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-emerald-600">
-                    Pass Mark
-                  </span>
-                  <span className="text-2xl font-bold text-emerald-600">
-                    {selectedSubject.pass_mark}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-muted-foreground flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
-                  <span className="bg-primary h-4 w-1 rounded-full"></span>
-                  Marks Distribution
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-muted/40 border-border/50 rounded-lg border p-3 text-center">
-                    <span className="text-muted-foreground block text-[9px] font-bold uppercase tracking-wider">
-                      CQ
-                    </span>
-                    <span className="text-sm font-bold">{selectedSubject.cq_mark || 0}</span>
-                    <div className="bg-border mx-2 my-1 h-px"></div>
-                    <span className="text-muted-foreground text-[8px] uppercase tracking-tighter">
-                      Pass: {selectedSubject.cq_pass_mark || 0}
-                    </span>
-                  </div>
-                  <div className="bg-muted/40 border-border/50 rounded-lg border p-3 text-center">
-                    <span className="text-muted-foreground block text-[9px] font-bold uppercase tracking-wider">
-                      MCQ
-                    </span>
-                    <span className="text-sm font-bold">{selectedSubject.mcq_mark || 0}</span>
-                    <div className="bg-border mx-2 my-1 h-px"></div>
-                    <span className="text-muted-foreground text-[8px] uppercase tracking-tighter">
-                      Pass: {selectedSubject.mcq_pass_mark || 0}
-                    </span>
-                  </div>
-                  <div className="bg-muted/40 border-border/50 rounded-lg border p-3 text-center">
-                    <span className="text-muted-foreground block text-[9px] font-bold uppercase tracking-wider">
-                      Practical
-                    </span>
-                    <span className="text-sm font-bold">{selectedSubject.practical_mark || 0}</span>
-                    <div className="bg-border mx-2 my-1 h-px"></div>
-                    <span className="text-muted-foreground text-[8px] uppercase tracking-tighter">
-                      Pass: {selectedSubject.practical_pass_mark || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button onClick={() => setShowSubjectDetails(false)} className="w-full sm:w-auto">
-                  Close Details
-                </Button>
-              </div>
-            </div>
-          )}
+      {/* Create / edit / Excel upload */}
+      <Popup
+        open={showForm}
+        onOpenChange={(o) =>
+          !o && !isSubmitting && !addSubjectsMutation.isPending && handleCancel()
+        }
+        size="2xl"
+        aria-labelledby="subject-form-title"
+      >
+        <div className="border-border flex items-center justify-between border-b px-5 py-4">
+          <h2 id="subject-form-title" className="text-base font-semibold">
+            {editingId ? 'Edit subject' : 'New subject'}
+          </h2>
+          <CloseButton onClick={handleCancel} />
         </div>
+        {!editingId && (
+          <div className="border-border flex gap-1 border-b px-5" role="tablist">
+            {(
+              [
+                ['form', 'Form'],
+                ['file', 'Excel upload'],
+              ] as const
+            ).map(([method, label]) => (
+              <button
+                key={method}
+                type="button"
+                role="tab"
+                aria-selected={uploadMethod === method}
+                onClick={() => handleMethodChange(method)}
+                className={cn(
+                  'pointer-coarse:py-3 -mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                  uploadMethod === method
+                    ? 'text-primary border-primary'
+                    : 'text-muted-foreground hover:text-foreground border-transparent',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {uploadMethod === 'form' ? (
+          <SubjectForm
+            register={register}
+            handleSubmit={handleSub(onSubmit as any, onError)}
+            errors={errors}
+            isSubmitting={isSubmitting}
+            subjects={subjects}
+            onCancel={handleCancel}
+            onChange={handleChange}
+            setValue={setValue}
+            control={control}
+          />
+        ) : (
+          <ExcelUploadForm
+            onSubmitFile={onSubmitFile}
+            onDownloadDemo={handleDownloadDemoExcel}
+            onShowFormatInfo={() => setShowFormatInfo(true)}
+            fileUploaded={fileUploaded}
+            isSubmitting={isSubmitting || addSubjectsMutation.isPending}
+            excelFileRef={excelFileRef}
+            onFileUpload={handleFileUpload}
+            onCancel={handleCancel}
+          />
+        )}
       </Popup>
 
-      <Popup open={showFormatInfo} onOpenChange={setShowFormatInfo} size="lg">
-        <div className="p-6">
-          <div className="border-border mb-6 flex items-center justify-between border-b pb-4">
-            <h2 className="font-heading text-xl font-bold">Excel Format Guide</h2>
-            <button
-              onClick={() => setShowFormatInfo(false)}
-              className="text-muted-foreground hover:text-foreground text-2xl transition-colors"
-            >
-              ×
-            </button>
+      {/* Details */}
+      {detail && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setSelectedSubject(null)}
+          size="md"
+          aria-labelledby="subject-details-title"
+        >
+          <div className="border-border flex items-center justify-between border-b px-5 py-4">
+            <h2 id="subject-details-title" className="text-base font-semibold">
+              Subject details
+            </h2>
+            <CloseButton onClick={() => setSelectedSubject(null)} />
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-muted/50 border-border rounded-xl border border-dashed p-5">
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
-                <span className="bg-primary h-1.5 w-1.5 animate-pulse rounded-full"></span>
-                Required Columns
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {['name', 'class', 'full_mark', 'pass_mark', 'year'].map((col) => (
-                  <span
-                    key={col}
-                    className="bg-background border-border rounded-md border px-3 py-1.5 font-mono text-xs shadow-sm"
-                  >
-                    {col}
-                  </span>
-                ))}
-                <span className="bg-primary/5 border-primary/20 text-primary rounded-md border px-3 py-1.5 font-mono text-xs shadow-sm">
-                  group
-                </span>
-                <span className="bg-primary/5 border-primary/20 text-primary rounded-md border px-3 py-1.5 font-mono text-xs shadow-sm">
-                  subject_group
-                </span>
-                <span className="bg-primary/5 border-primary/20 text-primary rounded-md border px-3 py-1.5 font-mono text-xs shadow-sm">
-                  priority
-                </span>
-                <span className="bg-primary/5 border-primary/20 text-primary rounded-md border px-3 py-1.5 font-mono text-xs shadow-sm">
-                  assessment_type
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    1
-                  </div>
-                  <p>
-                    <strong>name:</strong> The full title of the subject (e.g. Mathematics,
-                    Physics).
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    2
-                  </div>
-                  <p>
-                    <strong>class:</strong> Only numeric values between 6 and 10 are accepted.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    3
-                  </div>
-                  <p>
-                    <strong>full_mark:</strong> Total assignable marks for the subject.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    4
-                  </div>
-                  <p>
-                    <strong>pass_mark:</strong> Minimum marks required to pass.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    5
-                  </div>
-                  <p>
-                    <strong>group:</strong> Optional. Science/Humanities/Commerce (Common for all if
-                    empty).
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    6
-                  </div>
-                  <p>
-                    <strong>year:</strong> Four-digit academic year (e.g. {new Date().getFullYear()}
-                    ).
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="bg-primary/10 text-primary mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
-                    7
-                  </div>
-                  <p>
-                    <strong>marking_scheme:</strong> Optional. [TOTAL | BREAKDOWN]. Defaults to
-                    TOTAL for all classes.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-              <Search className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600" />
-              <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
-                <strong>Pro Tip:</strong> Optional fields like `cq_mark`, `mcq_mark`, and
-                `practical_mark` (and their respective pass marks) can also be added as columns for
-                automatic breakdown.
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <div>
+              <p className="flex items-center gap-2 text-lg font-semibold leading-tight">
+                {detail.name}
+                {detail.assessment_type === 'continuous' && <CasBadge />}
+              </p>
+              <p className="text-muted-foreground mt-1 text-sm tabular-nums">
+                Class {detail.class} · {detail.group || 'General'} · Session {detail.year}
               </p>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <Button
-                onClick={() => setShowFormatInfo(false)}
-                variant="default"
-                className="w-full sm:w-auto"
-              >
-                Understood
-              </Button>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Type</dt>
+                <dd className="mt-0.5">
+                  <TypeLabel type={detail.subject_type} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Parent subject</dt>
+                <dd className="mt-0.5">
+                  {detail.parent_id ? (subjectNames.get(detail.parent_id) ?? dash) : dash}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Full mark</dt>
+                <dd className="mt-0.5 text-xl font-semibold tabular-nums">
+                  {detail.full_mark ?? dash}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Pass mark</dt>
+                <dd className="mt-0.5 text-xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {detail.pass_mark ?? dash}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Assessment</dt>
+                <dd className="mt-0.5">
+                  {detail.assessment_type === 'continuous' ? 'Continuous' : 'Exam based'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Marking scheme</dt>
+                <dd className="mt-0.5">
+                  {detail.marking_scheme === 'BREAKDOWN'
+                    ? 'Breakdown'
+                    : detail.marking_scheme === 'TOTAL'
+                      ? 'Total only'
+                      : dash}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground text-xs font-medium">Order</dt>
+                <dd className="mt-0.5 tabular-nums">
+                  {detail.priority ?? dash}
+                </dd>
+              </div>
+            </dl>
+
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">Marks distribution</h3>
+              <table className="border-border w-full overflow-hidden rounded-lg border text-sm">
+                <thead>
+                  <tr className="bg-muted text-foreground/70 text-xs">
+                    <th className="px-3 py-1.5 text-left font-semibold">Part</th>
+                    <th className="px-3 py-1.5 text-right font-semibold">Mark</th>
+                    <th className="px-3 py-1.5 text-right font-semibold">Pass</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-border divide-y tabular-nums">
+                  {breakdownParts.map((p) => (
+                    <tr key={p.label}>
+                      <td className="px-3 py-1.5">{p.label}</td>
+                      <td className="px-3 py-1.5 text-right">{p.mark ?? dash}</td>
+                      <td className="px-3 py-1.5 text-right">{p.pass ?? dash}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
+
+          <div className="border-border flex flex-wrap items-center gap-2 border-t px-5 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeleteTarget(detail)}
+            >
+              <Trash2 /> Delete
+            </Button>
+            <Button type="button" className="ml-auto" onClick={() => editSubject(detail)}>
+              <Pencil /> Edit subject
+            </Button>
+          </div>
+        </Popup>
+      )}
+
+      {/* Excel format guide */}
+      <Popup
+        open={showFormatInfo}
+        onOpenChange={setShowFormatInfo}
+        size="lg"
+        aria-labelledby="subject-format-title"
+      >
+        <div className="border-border flex items-center justify-between border-b px-5 py-4">
+          <h2 id="subject-format-title" className="text-base font-semibold">
+            Excel format guide
+          </h2>
+          <CloseButton onClick={() => setShowFormatInfo(false)} />
+        </div>
+
+        <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4 text-sm">
+          <div className="space-y-2">
+            <p className="font-medium">Required columns</p>
+            <div className="flex flex-wrap gap-1.5">
+              {MANDATORY_COLUMNS.map((col) => (
+                <code
+                  key={col}
+                  className="bg-muted border-border rounded border px-2 py-0.5 font-mono text-xs"
+                >
+                  {col}
+                </code>
+              ))}
+            </div>
+            <p className="font-medium">Optional columns</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['pass_mark', 'group', 'subject_group', 'marking_scheme'].map((col) => (
+                <code
+                  key={col}
+                  className="bg-primary/5 border-primary/20 text-primary rounded border px-2 py-0.5 font-mono text-xs"
+                >
+                  {col}
+                </code>
+              ))}
+            </div>
+          </div>
+
+          <dl className="space-y-2">
+            {[
+              ['name', 'The full title of the subject (e.g. Mathematics, Physics).'],
+              ['class', 'Only numeric values between 6 and 10 are accepted.'],
+              ['full_mark', 'Total assignable marks for the subject.'],
+              ['pass_mark', 'Minimum marks required to pass (required for exam subjects).'],
+              ['group', 'Optional. Science/Humanities/Commerce (common for all if empty).'],
+              ['year', `Four-digit academic year (e.g. ${currentYear}).`],
+              ['assessment_type', 'exam or continuous.'],
+              ['priority', 'Sort order; 0 or higher.'],
+              ['marking_scheme', 'Optional. TOTAL or BREAKDOWN. Defaults to TOTAL.'],
+            ].map(([col, text]) => (
+              <div key={col} className="flex gap-2">
+                <dt className="w-32 shrink-0 font-mono text-xs leading-5">{col}</dt>
+                <dd className="text-muted-foreground">{text}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+            <p className="text-xs font-medium text-yellow-700 dark:text-yellow-400">
+              Optional fields like <code>cq_mark</code>, <code>mcq_mark</code> and{' '}
+              <code>practical_mark</code> (and their pass marks) can also be added as columns for
+              automatic breakdown.
+            </p>
+          </div>
+        </div>
+
+        <div className="border-border flex items-center justify-end border-t px-5 py-3">
+          <Button type="button" onClick={() => setShowFormatInfo(false)}>
+            Understood
+          </Button>
         </div>
       </Popup>
     </div>

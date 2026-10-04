@@ -24,6 +24,18 @@ export class DuplicateAdmissionFormError extends ApiError {
   }
 }
 
+// Admin list column sorts (query `sort` key → column).
+const ADMISSION_SQL_SORT: Record<string, string> = {
+  name: 'student_name_en',
+  status: 'status',
+  date: 'created_at',
+};
+const ADMISSION_NUMERIC_SORT: Record<string, string> = {
+  class: 'admission_class',
+  userId: 'admission_user_id',
+};
+const NUMERIC_COLLATOR = new Intl.Collator('en', { numeric: true });
+
 const checkDuplicates = async (data: Record<string, any>, excludeId: string | null = null) => {
   const duplicates: Array<{ field: string; message: string }> = [];
 
@@ -183,6 +195,22 @@ export class AdmissionFormService {
       ];
     }
 
+    // NOTE: sort added to frozen legacy route by explicit user decision (admin column sort);
+    // port to Nest with the admission module. class/user id are VARCHAR numbers, so they sort
+    // in JS with a numeric collator (SQL would put "10" before "6").
+    const dir = query.order === 'asc' ? 'asc' : 'desc';
+    const sqlField = ADMISSION_SQL_SORT[query.sort as string];
+    const orderBy: any = sqlField ? [{ [sqlField]: dir }, { id: 'desc' }] : { created_at: 'desc' };
+    const numericField = ADMISSION_NUMERIC_SORT[query.sort as string];
+    const sortNumeric = (rows: any[]) =>
+      numericField
+        ? rows.sort(
+            (a, b) =>
+              (dir === 'asc' ? 1 : -1) *
+              NUMERIC_COLLATOR.compare(a[numericField] ?? '', b[numericField] ?? ''),
+          )
+        : rows;
+
     if (isPaginatedRequest) {
       const pageNum = typeof page === 'number' ? page : parseInt(String(page ?? ''), 10);
       const limitNum = typeof limit === 'number' ? limit : parseInt(String(limit ?? ''), 10);
@@ -198,18 +226,21 @@ export class AdmissionFormService {
         prisma.admission_form.count({ where }),
         prisma.admission_form.count({ where: { ...statsWhere, status: 'pending' } }),
         prisma.admission_form.count({ where: { ...statsWhere, status: 'approved' } }),
+        // Numeric sort needs every filtered row, then slices the page in JS.
         prisma.admission_form.findMany({
           where,
-          orderBy: { created_at: 'desc' },
-          skip,
-          take: normalizedLimit,
+          orderBy,
+          ...(numericField ? {} : { skip, take: normalizedLimit }),
         }),
       ]);
+      const pageForms = numericField
+        ? sortNumeric(forms).slice(skip, skip + normalizedLimit)
+        : forms;
 
       const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
 
       return {
-        data: forms,
+        data: pageForms,
         meta: {
           total,
           pending,
@@ -221,10 +252,7 @@ export class AdmissionFormService {
       };
     }
 
-    return prisma.admission_form.findMany({
-      where,
-      orderBy: { created_at: 'desc' },
-    });
+    return sortNumeric(await prisma.admission_form.findMany({ where, orderBy }));
   }
 
   static async getFormById(id: string) {

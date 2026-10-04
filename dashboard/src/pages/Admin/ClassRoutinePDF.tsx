@@ -1,235 +1,238 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { FileText, Upload, Loader2 } from 'lucide-react';
-import { PageHeader, SectionCard } from '@/components';
+import { useRef, useState } from 'react';
+import axios, { type AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, ExternalLink, FileText, Loader2, Trash2, Upload } from 'lucide-react';
+import { ConfirmationPopup, SectionCard } from '@/components';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { uploadToR2 } from '@/lib/uploadToR2';
 import { getFileUrl } from '@/lib/backend';
-import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import { formatDay } from '@/lib/utils';
 
 interface PDFData {
-  id: string;
+  id: number;
   pdf_url: string;
   download_url: string;
+  created_at?: string;
+}
+
+/** Message from a failed axios call, falling back to `fallback`. */
+const apiError = (err: unknown, fallback: string) => {
+  const data = (err as AxiosError<{ message?: string; error?: string }>).response?.data;
+  return data?.message || data?.error || fallback;
+};
+
+/** Single-PDF slot: file card (View / Download / Replace / Remove) or dropzone, plus preview. */
+export function PdfDocument({
+  label,
+  loading,
+  file,
+  uploading,
+  progress,
+  onPick,
+  onRemove,
+}: {
+  label: string;
+  loading: boolean;
+  file: { viewUrl: string; downloadUrl: string; meta: string } | null;
+  uploading: boolean;
+  progress: number;
+  onPick: (file: File) => void;
+  onRemove?: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const pick = (picked: File | undefined) => {
+    if (inputRef.current) inputRef.current.value = '';
+    if (!picked) return;
+    if (picked.type !== 'application/pdf') {
+      toast.error('Please select a valid PDF file');
+      return;
+    }
+    onPick(picked);
+  };
+
+  return (
+    <SectionCard className="mb-6">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => pick(e.target.files?.[0])}
+      />
+      {loading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : uploading ? (
+        <div
+          className="border-border flex items-center gap-3 rounded-lg border p-3"
+          aria-live="polite"
+        >
+          <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" aria-hidden="true" />
+          <p className="text-sm font-medium tabular-nums">Uploading… {progress}%</p>
+        </div>
+      ) : file ? (
+        <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
+          <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
+            <FileText size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">Current {label}</p>
+            <p className="text-muted-foreground text-xs">{file.meta}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-1">
+            <Button type="button" variant="ghost" size="sm" asChild>
+              <a href={file.viewUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink /> View
+              </a>
+            </Button>
+            <Button type="button" variant="ghost" size="sm" asChild>
+              <a href={file.downloadUrl} target="_blank" rel="noopener noreferrer" download>
+                <Download /> Download
+              </a>
+            </Button>
+            {onRemove && (
+              <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
+                <Trash2 /> Remove
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload /> Replace
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            pick(e.dataTransfer.files[0]);
+          }}
+          className="border-border hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-10 text-center transition-colors focus-visible:outline-none focus-visible:ring-2"
+        >
+          <Upload size={20} className="text-muted-foreground" />
+          <span className="text-sm font-medium">Upload {label} PDF</span>
+          <span className="text-muted-foreground text-xs">
+            Not uploaded · click or drop a file here
+          </span>
+        </button>
+      )}
+
+      {file && !loading && (
+        <div className="border-border mt-4 overflow-hidden rounded-lg border">
+          <iframe
+            src={file.viewUrl}
+            title={`${label} PDF`}
+            className="h-[min(70vh,600px)] min-h-[240px] w-full border-0"
+          >
+            <p>
+              Your browser doesn&apos;t support PDFs.{' '}
+              <a href={file.viewUrl} target="_blank" rel="noopener noreferrer">
+                Download the PDF
+              </a>
+            </p>
+          </iframe>
+        </div>
+      )}
+    </SectionCard>
+  );
 }
 
 function ClassRoutinePDF() {
-  const { confirm, dialog } = useConfirmDialog();
-  const [pdf, setPDF] = useState<PDFData | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
-  const fetchPDF = async (): Promise<void> => {
+  const { data: pdf = null, isLoading } = useQuery({
+    queryKey: ['class-routine-pdf'],
+    queryFn: async () => {
+      const res = await axios.get<{ data: PDFData[] }>('/api/class-routine/pdf');
+      return res.data.data[0] ?? null;
+    },
+  });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['class-routine-pdf'] });
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    setProgress(0);
     try {
-      const res = await axios.get('/api/class-routine/pdf');
-      setPDF(res.data.data[0] || null);
-    } catch {
-      setPDF(null);
+      const key = await uploadToR2('/api/class-routine/presigned-url', file, setProgress);
+      if (pdf) await axios.put(`/api/class-routine/pdf/${pdf.id}`, { key });
+      else await axios.post('/api/class-routine/pdf', { key });
+      await refresh();
+      toast.success(pdf ? 'Class routine replaced' : 'Class routine uploaded');
+    } catch (err) {
+      toast.error(apiError(err, pdf ? 'Failed to update PDF' : 'Failed to upload PDF'));
     } finally {
-      setIsLoading(false);
+      setUploading(false);
+      setProgress(0);
     }
   };
 
-  useEffect(() => {
-    fetchPDF();
-  }, []);
-
-  const handleUpload = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (!file) return;
-    setUploading(true);
-    setProgress(0);
-    try {
-      const key = await uploadToR2('/api/class-routine/presigned-url', file, setProgress);
-      await axios.post('/api/class-routine/pdf', { key });
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchPDF();
-    } catch {
-      alert('Failed to upload PDF');
-    }
-    setUploading(false);
-    setProgress(0);
-  };
-
-  const handleUpdate = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (!file || !pdf) return;
-    setUploading(true);
-    setProgress(0);
-    try {
-      const key = await uploadToR2('/api/class-routine/presigned-url', file, setProgress);
-      await axios.put(`/api/class-routine/pdf/${pdf.id}`, { key });
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchPDF();
-    } catch {
-      alert('Failed to update PDF');
-    }
-    setUploading(false);
-    setProgress(0);
-  };
-
-  const handleDelete = async (): Promise<void> => {
+  const remove = async () => {
     if (!pdf) return;
-    const ok = await confirm({
-      title: 'Delete PDF?',
-      msg: 'Delete this class routine PDF?',
-      confirmLabel: 'Delete',
-    });
-    if (!ok) return;
-    await axios.delete(`/api/class-routine/pdf/${pdf.id}`);
-    setPDF(null);
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    fetchPDF();
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const selected = event.target.files?.[0];
-    if (selected && selected.type === 'application/pdf') {
-      setFile(selected);
-    } else if (selected) {
-      alert('Please select a valid PDF file');
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } else {
-      setFile(null);
+    try {
+      await axios.delete(`/api/class-routine/pdf/${pdf.id}`);
+      await refresh();
+      toast.success('Class routine removed');
+    } catch (err) {
+      toast.error(apiError(err, 'Failed to delete PDF'));
     }
   };
-
-  const previewUrl = pdf ? getFileUrl(pdf.pdf_url) : '';
-  const downloadUrl = pdf ? getFileUrl(pdf.download_url) : '';
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      {dialog}
-      <PageHeader
-        title="Class Routine PDF"
-        description="Upload and preview the class routine PDF for public display."
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <header className="mb-4">
+        <h1 className="text-2xl font-bold">Class routine</h1>
+        <p className="text-muted-foreground mt-1 text-sm tabular-nums">
+          {isLoading
+            ? ' '
+            : pdf
+              ? `PDF shown on the public website${pdf.created_at ? ` · added ${formatDay(pdf.created_at.split('T')[0])}` : ''}`
+              : 'Not uploaded'}
+        </p>
+      </header>
+
+      <PdfDocument
+        label="class routine"
+        loading={isLoading}
+        uploading={uploading}
+        progress={progress}
+        file={
+          pdf
+            ? {
+                viewUrl: getFileUrl(pdf.pdf_url),
+                downloadUrl: getFileUrl(pdf.download_url),
+                meta: 'PDF · shown on the public website',
+              }
+            : null
+        }
+        onPick={(file) => void upload(file)}
+        onRemove={() => setConfirmRemove(true)}
       />
 
-      <SectionCard
-        title={pdf ? 'Update Class Routine PDF' : 'Upload Class Routine PDF'}
-        icon={<Upload size={20} />}
-      >
-        <form onSubmit={pdf ? handleUpdate : handleUpload} className="space-y-4">
-          <div>
-            <label htmlFor="routine-upload" className="mb-2 block text-sm font-medium">
-              Select PDF File
-            </label>
-            <input
-              ref={fileInputRef}
-              id="routine-upload"
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileSelect}
-              disabled={uploading}
-              className="text-muted-foreground block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-            />
-          </div>
-
-          {file && (
-            <div className="text-muted-foreground text-sm">
-              Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-            </div>
-          )}
-
-          {uploading && progress > 0 && (
-            <div className="text-muted-foreground text-sm">Uploading: {progress}%</div>
-          )}
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" disabled={!file || uploading} className="w-full sm:w-auto">
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading {progress}%...
-                </>
-              ) : pdf ? (
-                'Update PDF'
-              ) : (
-                'Upload PDF'
-              )}
-            </Button>
-            {pdf && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={uploading}
-                className="w-full sm:w-auto"
-              >
-                Delete
-              </Button>
-            )}
-          </div>
-        </form>
-      </SectionCard>
-
-      <SectionCard title="Current Class Routine" icon={<FileText size={20} />}>
-        {isLoading ? (
-          <div className="bg-muted/40 flex h-96 items-center justify-center rounded-lg">
-            <div className="text-muted-foreground">Loading...</div>
-          </div>
-        ) : pdf ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-3 text-sm">
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary font-medium underline"
-                >
-                  View
-                </a>
-                <a
-                  href={downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download
-                  className="text-primary font-medium underline"
-                >
-                  Download
-                </a>
-              </div>
-              <Button asChild variant="default" className="bg-green-600 hover:bg-green-700">
-                <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                  Download PDF
-                </a>
-              </Button>
-            </div>
-
-            <div className="overflow-hidden rounded-lg border">
-              <iframe
-                src={previewUrl}
-                width="100%"
-                height="600"
-                title="Class Routine PDF"
-                className="h-[min(70vh,600px)] min-h-[240px] w-full border-0"
-              >
-                <p>
-                  Your browser doesn't support PDFs.{' '}
-                  <a href={previewUrl} target="_blank" rel="noopener noreferrer">
-                    Download the PDF
-                  </a>
-                </p>
-              </iframe>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-muted/40 flex h-96 items-center justify-center rounded-lg">
-            <div className="text-muted-foreground text-center">
-              <FileText className="mx-auto mb-4 h-12 w-12" />
-              <p>No routine PDF uploaded yet</p>
-            </div>
-          </div>
-        )}
-      </SectionCard>
+      <ConfirmationPopup
+        open={confirmRemove}
+        onOpenChange={setConfirmRemove}
+        title="Remove class routine?"
+        msg="Delete this class routine PDF? It disappears from the website until you upload another."
+        confirmLabel="Remove PDF"
+        onConfirm={() => {
+          setConfirmRemove(false);
+          void remove();
+        }}
+      />
     </div>
   );
 }

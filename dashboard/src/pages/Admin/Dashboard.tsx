@@ -22,7 +22,7 @@ import {
 } from '@/queries/dashboard.queries';
 
 const SERIES = [
-  { key: 'present', label: 'Present', color: '#2563eb' },
+  { key: 'present', label: 'Present', color: 'var(--primary)' },
   { key: 'absent', label: 'Absent', color: '#dc2626' },
   { key: 'run_awayed', label: 'Ran away', color: '#d97706' },
 ] as const;
@@ -42,7 +42,7 @@ const examStatus = (exam: Exam, now: Date): ExamStatus => {
 const STATUS_STYLE: Record<ExamStatus, string> = {
   Ongoing: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
   Upcoming: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  Completed: 'bg-muted text-muted-foreground',
+  Completed: 'bg-muted text-foreground/70',
 };
 const STATUS_ORDER: Record<ExamStatus, number> = { Ongoing: 0, Upcoming: 1, Completed: 2 };
 
@@ -142,13 +142,15 @@ function Dashboard() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground mt-1 text-sm">
             {now.toLocaleDateString('en-GB', {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
               year: 'numeric',
-            })}
+            })}{' '}
+            · {quickStats.students.toLocaleString()} students ·{' '}
+            {quickStats.teachers.toLocaleString()} teachers
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -182,11 +184,13 @@ function Dashboard() {
               i % 2 === 1 ? 'border-l' : ''
             } ${i >= 2 ? 'border-t lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}
           >
-            <p className="text-muted-foreground flex items-center justify-between text-xs font-medium uppercase tracking-wide">
+            <p className="text-muted-foreground flex items-center justify-between text-xs font-medium">
               {kpi.label}
               <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
             </p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{kpi.value}</p>
+            <p className="mt-0.5 text-xl font-semibold tabular-nums">
+              {typeof kpi.value === 'number' ? kpi.value.toLocaleString() : kpi.value}
+            </p>
             {kpi.hint && <p className="text-muted-foreground truncate text-xs">{kpi.hint}</p>}
           </Link>
         ))}
@@ -208,7 +212,7 @@ function Dashboard() {
                   type="button"
                   aria-pressed={attendanceDays === range}
                   onClick={() => setAttendanceDays(range)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  className={`pointer-coarse:px-3 pointer-coarse:py-2 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                     attendanceDays === range
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -237,19 +241,22 @@ function Dashboard() {
                   data={attendanceData}
                   margin={{ top: 4, right: 8, left: -24, bottom: 0 }}
                 >
-                  <CartesianGrid vertical={false} stroke="#94a3b8" strokeOpacity={0.2} />
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    fontSize={11}
+                    stroke="var(--muted-foreground)"
+                    minTickGap={16}
                     dy={8}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
                     allowDecimals={false}
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    fontSize={11}
+                    stroke="var(--muted-foreground)"
                   />
                   <Tooltip
                     contentStyle={{

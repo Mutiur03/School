@@ -1,9 +1,19 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import axios from 'axios';
-import { RefreshCw, FileText, Loader2, Settings } from 'lucide-react';
+import {
+  ExternalLink,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Settings,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import {
   admissionNoticeUploadSchema,
   admissionSettingsDefaultValues,
@@ -14,23 +24,92 @@ import {
 import { putFileToPresignedUrl } from '@/lib/uploadToR2';
 import { withUploadedKey, withoutField } from '@/lib/r2UploadPayload';
 import { getFileUrl } from '@/lib/backend';
-import { PageHeader, SectionCard } from '@/components';
+import { cn } from '@/lib/utils';
+import { ConfirmationPopup, SectionCard } from '@/components';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface Notice {
-  notice_key: string | null;
-  url: string | null;
-}
+const CLASSES = ['6', '7', '8', '9'] as const;
+
+type Raw = Record<string, unknown>;
+
+const str = (v: unknown) => (typeof v === 'string' ? v : '');
+
+/** Maps the API row (snake_case, with legacy camelCase fallbacks) onto form values. */
+const toFormValues = (data: Raw): AdmissionSettingsFormInput => {
+  const pick = (snake: string, camel: string) => str(data[snake] ?? data[camel]);
+  const perClass = Object.fromEntries(
+    CLASSES.flatMap((c) => [
+      [
+        `attachment_instruction_class${c}`,
+        pick(`attachment_instruction_class${c}`, `attachmentInstructionClass${c}`),
+      ],
+      [`list_type_class${c}`, pick(`list_type_class${c}`, `listTypeClass${c}`)],
+      [`user_id_class${c}`, pick(`user_id_class${c}`, `userIdClass${c}`)],
+      [`serial_no_class${c}`, pick(`serial_no_class${c}`, `serialNoClass${c}`)],
+    ]),
+  );
+  return {
+    ...admissionSettingsDefaultValues,
+    ...perClass,
+    admission_year:
+      data.admission_year != null && data.admission_year !== 0 ? String(data.admission_year) : '',
+    admission_open:
+      typeof data.admission_open === 'boolean'
+        ? data.admission_open
+        : admissionSettingsDefaultValues.admission_open,
+    instruction: (data.instruction as string) ?? admissionSettingsDefaultValues.instruction,
+    ingikar: str(data.ingikar),
+    class_list: pick('class_list', 'classList'),
+    notice_key: noticeKeyOf(data),
+  };
+};
+
+const noticeKeyOf = (data: Raw): string | null =>
+  str(data.notice_key) ||
+  (typeof data.public_id === 'string' && !data.public_id.startsWith('http')
+    ? data.public_id
+    : null);
+
+const Field = ({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  children: ReactNode;
+}) => (
+  <div className="space-y-1.5">
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">{label}</span>
+      {children}
+    </label>
+    {hint && !error && <p className="text-muted-foreground text-xs">{hint}</p>}
+    {error && <p className="text-destructive text-xs">{error}</p>}
+  </div>
+);
+
+const FormSection = ({ title, children }: { title: string; children: ReactNode }) => (
+  <section className="space-y-4">
+    <h3 className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+      {title}
+    </h3>
+    {children}
+  </section>
+);
 
 function AdmissionSettings() {
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
     watch,
-    getValues,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<AdmissionSettingsFormInput, unknown, AdmissionSettingsData>({
     resolver: zodResolver(admissionSettingsSchema),
     defaultValues: admissionSettingsDefaultValues,
@@ -38,109 +117,50 @@ function AdmissionSettings() {
 
   const noticeKey = watch('notice_key');
   const [noticeFile, setNoticeFile] = useState<File | null>(null);
-  const [currentNotice, setCurrentNotice] = useState<Notice | null>(null);
-  const [formLoading, setFormLoading] = useState<boolean>(false);
-  const [formMessage, setFormMessage] = useState<string>('');
-  const [isEdit, setIsEdit] = useState<boolean>(false);
+  const noticeInputRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+
+  const settingsQuery = useQuery({
+    queryKey: ['admission-settings'],
+    queryFn: async () => (await axios.get('/api/admission')).data as Raw | null,
+  });
+  const saved = settingsQuery.data;
+  const isEdit = Boolean(saved);
 
   useEffect(() => {
-    fetchAdmissionSettings();
-  }, []);
+    if (settingsQuery.isSuccess)
+      reset(saved ? toFormValues(saved) : admissionSettingsDefaultValues);
+  }, [saved, settingsQuery.isSuccess, reset]);
 
-  const fetchAdmissionSettings = async () => {
-    try {
-      const res = await axios.get('/api/admission');
+  const savedNoticeKey = saved ? noticeKeyOf(saved) : null;
+  const previewUrl = saved ? str(saved.preview_url) || str(saved.previewUrl) : '';
+  const currentNoticeUrl = previewUrl
+    ? getFileUrl(previewUrl)
+    : noticeKey
+      ? getFileUrl(noticeKey)
+      : null;
+  const hasNotice = Boolean(previewUrl || savedNoticeKey || noticeKey);
 
-      if (res.data) {
-        const data = res.data;
-        const resolvedNoticeKey =
-          data.notice_key ||
-          (typeof data.public_id === 'string' && !data.public_id.startsWith('http')
-            ? data.public_id
-            : null);
-
-        reset({
-          admission_year:
-            data.admission_year != null && data.admission_year !== 0
-              ? String(data.admission_year)
-              : '',
-          admission_open:
-            typeof data.admission_open === 'boolean'
-              ? data.admission_open
-              : admissionSettingsDefaultValues.admission_open,
-          instruction: data.instruction ?? admissionSettingsDefaultValues.instruction,
-          attachment_instruction_class6:
-            data.attachment_instruction_class6 ?? data.attachmentInstructionClass6 ?? '',
-          attachment_instruction_class7:
-            data.attachment_instruction_class7 ?? data.attachmentInstructionClass7 ?? '',
-          attachment_instruction_class8:
-            data.attachment_instruction_class8 ?? data.attachmentInstructionClass8 ?? '',
-          attachment_instruction_class9:
-            data.attachment_instruction_class9 ?? data.attachmentInstructionClass9 ?? '',
-          ingikar: data.ingikar ?? '',
-          class_list: data.class_list ?? data.classList ?? '',
-          list_type_class6: data.list_type_class6 ?? data.listTypeClass6 ?? '',
-          list_type_class7: data.list_type_class7 ?? data.listTypeClass7 ?? '',
-          list_type_class8: data.list_type_class8 ?? data.listTypeClass8 ?? '',
-          list_type_class9: data.list_type_class9 ?? data.listTypeClass9 ?? '',
-          user_id_class6: data.user_id_class6 ?? data.userIdClass6 ?? '',
-          user_id_class7: data.user_id_class7 ?? data.userIdClass7 ?? '',
-          user_id_class8: data.user_id_class8 ?? data.userIdClass8 ?? '',
-          user_id_class9: data.user_id_class9 ?? data.userIdClass9 ?? '',
-          serial_no_class6: data.serial_no_class6 ?? data.serialNoClass6 ?? '',
-          serial_no_class7: data.serial_no_class7 ?? data.serialNoClass7 ?? '',
-          serial_no_class8: data.serial_no_class8 ?? data.serialNoClass8 ?? '',
-          serial_no_class9: data.serial_no_class9 ?? data.serialNoClass9 ?? '',
-          notice_key: resolvedNoticeKey,
-        });
-
-        if (data.preview_url || resolvedNoticeKey) {
-          const noticeUrl = getFileUrl(
-            data.preview_url || data.previewUrl || getFileUrl(resolvedNoticeKey),
-          );
-
-          setCurrentNotice({
-            notice_key: resolvedNoticeKey,
-            url: noticeUrl || null,
-          });
-        } else {
-          setCurrentNotice(null);
-          setNoticeFile(null);
-        }
-        setIsEdit(true);
-      } else {
-        reset(admissionSettingsDefaultValues);
-        setIsEdit(false);
-      }
-    } catch (error) {
-      console.error('Failed to fetch admission settings:', error);
-      setFormMessage('Error: Failed to load settings');
+  const pickNotice = (file: File | null | undefined) => {
+    if (noticeInputRef.current) noticeInputRef.current.value = '';
+    if (!file) {
+      setNoticeFile(null);
+      return;
     }
-  };
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
     const parsed = admissionNoticeUploadSchema.safeParse({
       filename: file.name,
       filetype: file.type,
     });
-
     if (!parsed.success) {
-      setFormMessage(parsed.error.issues[0]?.message ?? 'Error: Only PDF files are allowed');
-      e.target.value = '';
+      toast.error(parsed.error.issues[0]?.message ?? 'Only PDF files are allowed');
       return;
     }
-
     setNoticeFile(file);
-    setFormMessage('');
   };
 
   const onSubmit = async (values: AdmissionSettingsData) => {
-    setFormLoading(true);
-    setFormMessage('');
-
+    setSaving(true);
     try {
       let uploadedNoticeKey: string | undefined;
 
@@ -149,464 +169,327 @@ function AdmissionSettings() {
           filename: noticeFile.name,
           filetype: noticeFile.type,
         });
-
         const { data: urlData } = await axios.post('/api/admission/upload-url', uploadPayload);
-
-        if (!urlData.success) {
-          throw new Error('Failed to get upload URL');
-        }
-
+        if (!urlData.success) throw new Error('Failed to get upload URL');
         await putFileToPresignedUrl(urlData.data.uploadUrl, noticeFile, noticeFile.type);
         uploadedNoticeKey = urlData.data.key;
       }
 
-      const settingsPayload = withoutField(values, 'notice_key');
       const res = await axios.put(
         '/api/admission',
-        withUploadedKey(settingsPayload, 'notice_key', uploadedNoticeKey),
+        withUploadedKey(withoutField(values, 'notice_key'), 'notice_key', uploadedNoticeKey),
       );
 
       if (res?.data?.success) {
         toast.success(isEdit ? 'Settings updated' : 'Settings created');
-        setFormMessage('Settings saved successfully');
         setNoticeFile(null);
-        if (uploadedNoticeKey) {
-          setValue('notice_key', uploadedNoticeKey);
-        }
       } else {
         toast.error('Failed to save settings');
-        setFormMessage('Error: Failed to save settings');
       }
     } catch {
       toast.error('An unexpected error occurred');
-      setFormMessage('Error: An unexpected error occurred');
     } finally {
-      fetchAdmissionSettings();
-      setFormLoading(false);
+      await settingsQuery.refetch();
+      setSaving(false);
     }
   };
 
   const removeNotice = async () => {
+    setSaving(true);
     try {
-      setFormLoading(true);
       const res = await axios.delete('/api/admission');
       if (res?.data?.success) {
-        await fetchAdmissionSettings();
         setNoticeFile(null);
-        reset({ ...getValues(), notice_key: null });
-        setCurrentNotice(null);
-        setFormMessage('Notice removed');
+        await settingsQuery.refetch();
+        toast.success('Notice removed');
       } else {
-        setFormMessage('Error: Failed to remove notice');
+        toast.error('Failed to remove notice');
       }
     } catch {
-      setFormMessage('Error: Failed to remove notice');
+      toast.error('Failed to remove notice');
     } finally {
-      setFormLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleRefresh = () => {
-    fetchAdmissionSettings();
+  const discard = () => {
+    reset();
+    setNoticeFile(null);
   };
 
-  const currentNoticeUrl = currentNotice?.url || (noticeKey ? getFileUrl(noticeKey) : null);
+  const showBar = settingsQuery.isSuccess && (!isEdit || isDirty || Boolean(noticeFile));
+
+  const summary = saved
+    ? [
+        saved.admission_year ? `Admission ${String(saved.admission_year)}` : 'Year not set',
+        saved.admission_open === true ? 'Accepting applications' : 'Closed',
+        hasNotice ? 'Notice uploaded' : 'No notice',
+      ].join(' · ')
+    : settingsQuery.isSuccess
+      ? 'Not configured yet'
+      : ' ';
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Admission Settings" description="Configure admission options and notices">
-        <Button type="button" onClick={handleRefresh} variant="outline">
-          <RefreshCw size={16} />
-          Refresh
-        </Button>
-      </PageHeader>
-
-      {formMessage && (
-        <div
-          className={`rounded-lg p-3 ${
-            formMessage.includes('Error')
-              ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900 dark:text-red-200'
-              : 'border border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900 dark:text-green-200'
-          }`}
-        >
-          {formMessage}
+    <div className="mx-auto flex min-h-full max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Admission settings</h1>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">
+            {settingsQuery.isLoading ? <Skeleton className="h-4 w-56" /> : summary}
+          </p>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => settingsQuery.refetch()}
+          disabled={settingsQuery.isFetching}
+        >
+          <RefreshCw className={cn(settingsQuery.isFetching && 'animate-spin')} /> Refresh
+        </Button>
+      </header>
+
+      {settingsQuery.isLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+      ) : settingsQuery.isError ? (
+        <SectionCard>
+          <div className="text-muted-foreground flex flex-col items-center gap-3 py-8 text-center text-sm">
+            <p>Couldn't load admission settings.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => settingsQuery.refetch()}
+            >
+              <RefreshCw /> Try again
+            </Button>
+          </div>
+        </SectionCard>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col">
+          <div className="space-y-6">
+            <label className="border-border bg-card flex cursor-pointer items-start gap-3 rounded-xl border p-4 shadow-sm">
+              <input type="checkbox" {...register('admission_open')} className="mt-0.5 h-4 w-4" />
+              <span>
+                <span className="block text-sm font-medium">Accept admission applications</span>
+                <span className="text-muted-foreground block text-sm">
+                  Students can submit their admission forms while this is on.
+                </span>
+              </span>
+            </label>
+
+            <SectionCard title="General" icon={<Settings size={20} />}>
+              <div className="space-y-8">
+                <FormSection title="Admission">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Admission year" error={errors.admission_year?.message}>
+                      <Input
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={4}
+                        minLength={4}
+                        {...register('admission_year')}
+                        placeholder="e.g. 2025"
+                        className="tabular-nums"
+                      />
+                    </Field>
+                    <Field label="Class list" error={errors.class_list?.message}>
+                      <Input
+                        {...register('class_list')}
+                        placeholder="e.g. Six, Seven, Eight, Nine, Ten"
+                      />
+                    </Field>
+                  </div>
+                </FormSection>
+
+                <FormSection title="Notice">
+                  <input
+                    ref={noticeInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden
+                    onChange={(e) => pickNotice(e.target.files?.[0])}
+                  />
+                  {noticeFile || hasNotice ? (
+                    <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
+                      <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
+                        <FileText size={20} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {noticeFile ? noticeFile.name : 'Current notice'}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {noticeFile
+                            ? `${(noticeFile.size / 1024 / 1024).toFixed(2)} MB · uploads when you save`
+                            : 'PDF · shown to applicants on the admission page'}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-1">
+                        {noticeFile ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => pickNotice(null)}
+                          >
+                            <X /> Clear
+                          </Button>
+                        ) : (
+                          currentNoticeUrl && (
+                            <Button type="button" variant="ghost" size="sm" asChild>
+                              <a href={currentNoticeUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink /> View
+                              </a>
+                            </Button>
+                          )
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => noticeInputRef.current?.click()}
+                        >
+                          <Upload /> Replace
+                        </Button>
+                        {!noticeFile && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            disabled={saving}
+                            onClick={() => setRemoveOpen(true)}
+                          >
+                            <Trash2 /> Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => noticeInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        pickNotice(e.dataTransfer.files[0]);
+                      }}
+                      className="border-border hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2"
+                    >
+                      <Upload size={20} className="text-muted-foreground" />
+                      <span className="text-sm font-medium">Upload notice PDF</span>
+                      <span className="text-muted-foreground text-xs">
+                        Click or drop a file here · PDF only
+                      </span>
+                    </button>
+                  )}
+                </FormSection>
+
+                <FormSection title="Instructions">
+                  <Field
+                    label="Instruction"
+                    hint="What to bring, deadlines and steps for applicants."
+                    error={errors.instruction?.message}
+                  >
+                    <Textarea {...register('instruction')} className="h-24" />
+                  </Field>
+                  <Field
+                    label="ছাত্রের অঙ্গীকারনামা"
+                    hint="Printed on generated admission PDFs."
+                    error={errors.ingikar?.message}
+                  >
+                    <Textarea {...register('ingikar')} className="h-28" />
+                  </Field>
+                </FormSection>
+              </div>
+            </SectionCard>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              {CLASSES.map((c) => (
+                <SectionCard key={c} title={`Class ${c}`}>
+                  <div className="space-y-4">
+                    <Field
+                      label="User IDs"
+                      hint="Separate IDs with commas."
+                      error={errors[`user_id_class${c}`]?.message}
+                    >
+                      <Input
+                        {...register(`user_id_class${c}`)}
+                        placeholder={`User IDs for class ${c}`}
+                      />
+                    </Field>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="List type" error={errors[`list_type_class${c}`]?.message}>
+                        <Input {...register(`list_type_class${c}`)} placeholder="e.g. Merit-1" />
+                      </Field>
+                      <Field label="Serial no." error={errors[`serial_no_class${c}`]?.message}>
+                        <Input {...register(`serial_no_class${c}`)} placeholder="e.g. 1-100" />
+                      </Field>
+                    </div>
+                    <Field
+                      label="Attachment instructions"
+                      error={errors[`attachment_instruction_class${c}`]?.message}
+                    >
+                      <Textarea
+                        {...register(`attachment_instruction_class${c}`)}
+                        className="h-24"
+                      />
+                    </Field>
+                  </div>
+                </SectionCard>
+              ))}
+            </div>
+          </div>
+
+          {showBar && <div aria-hidden className="min-h-6 flex-1" />}
+          {showBar && (
+            <div
+              role="region"
+              aria-label="Unsaved settings"
+              className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 shadow-lg"
+            >
+              <p className="text-sm font-medium">
+                {isEdit ? 'Unsaved changes' : 'Settings not created yet'}
+              </p>
+              <div className="flex gap-2">
+                {isEdit && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={discard}
+                    disabled={saving}
+                  >
+                    Discard
+                  </Button>
+                )}
+                <Button type="submit" size="sm" disabled={saving}>
+                  {saving && <Loader2 className="animate-spin" />}
+                  {isEdit ? 'Save settings' : 'Create settings'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </form>
       )}
 
-      <SectionCard
-        title={isEdit ? 'Update Configuration' : 'Create Configuration'}
-        icon={<Settings size={20} />}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="bg-primary/10 border-primary rounded-lg border p-4 dark:border-blue-700 dark:bg-blue-900/20">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="admission_open"
-                {...register('admission_open')}
-                className="text-primary bg-input border-border focus:ring-primary h-4 w-4 rounded focus:ring-2 dark:border-gray-600 dark:bg-gray-700"
-              />
-              <label
-                htmlFor="admission_open"
-                className="text-primary text-sm font-medium dark:text-blue-300"
-              >
-                Open Admission for Students
-              </label>
-            </div>
-            <p className="text-primary/80 dark:text-primary/70 mt-2 text-xs">
-              When enabled, students can submit their admission forms
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <label htmlFor="admission_year" className="mb-2 block text-sm font-medium">
-                Admission Year
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="\d*"
-                maxLength={4}
-                minLength={4}
-                id="admission_year"
-                {...register('admission_year')}
-                placeholder="e.g. 2025"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-              {errors.admission_year && (
-                <p className="mt-1 text-xs text-red-500">{errors.admission_year.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="instruction" className="mb-2 block text-sm font-medium">
-                Instruction
-              </label>
-              <textarea
-                id="instruction"
-                {...register('instruction')}
-                placeholder="Enter admission instructions for applicants (what to bring, deadlines, steps)."
-                rows={3}
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-            </div>
-
-            <div>
-              <div className="mt-3">
-                <h3 className="mb-2 text-sm font-medium">
-                  Attachment instructions per class (6 - 9)
-                </h3>
-                <div className="gap-3">
-                  <div>
-                    <label
-                      htmlFor="attachment_instruction_class6"
-                      className="mb-1 block text-xs font-medium"
-                    >
-                      Class 6
-                    </label>
-                    <textarea
-                      id="attachment_instruction_class6"
-                      {...register('attachment_instruction_class6')}
-                      placeholder="Attachment instructions for Class 6"
-                      rows={3}
-                      className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="attachment_instruction_class7"
-                      className="mb-1 block text-xs font-medium"
-                    >
-                      Class 7
-                    </label>
-                    <textarea
-                      id="attachment_instruction_class7"
-                      {...register('attachment_instruction_class7')}
-                      placeholder="Attachment instructions for Class 7"
-                      rows={3}
-                      className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="attachment_instruction_class8"
-                      className="mb-1 block text-xs font-medium"
-                    >
-                      Class 8
-                    </label>
-                    <textarea
-                      id="attachment_instruction_class8"
-                      {...register('attachment_instruction_class8')}
-                      placeholder="Attachment instructions for Class 8"
-                      rows={3}
-                      className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="attachment_instruction_class9"
-                      className="mb-1 block text-xs font-medium"
-                    >
-                      Class 9
-                    </label>
-                    <textarea
-                      id="attachment_instruction_class9"
-                      {...register('attachment_instruction_class9')}
-                      placeholder="Attachment instructions for Class 9"
-                      rows={3}
-                      className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label htmlFor="ingikar" className="mb-2 block text-sm font-medium">
-                ছাত্রের অঙ্গীকারনামা
-              </label>
-              <textarea
-                id="ingikar"
-                {...register('ingikar')}
-                placeholder="Enter the ছাত্রের অঙ্গীকারনামা text that will appear on generated admission PDFs."
-                rows={4}
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-            </div>
-            <div>
-              <label htmlFor="class_list" className="mb-2 block text-sm font-medium">
-                Class List
-              </label>
-              <input
-                type="text"
-                id="class_list"
-                {...register('class_list')}
-                placeholder="e.g. Six, Seven, Eight, Nine, Ten"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="user_id_class6" className="mb-2 block text-sm font-medium">
-                User IDs for Class 6
-              </label>
-              <input
-                type="text"
-                id="user_id_class6"
-                {...register('user_id_class6')}
-                placeholder="Comma separated user ids for class 6"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="list_type_class6" className="mb-1 block text-xs font-medium">
-                    List Type (Class 6)
-                  </label>
-                  <input
-                    type="text"
-                    id="list_type_class6"
-                    {...register('list_type_class6')}
-                    placeholder="e.g. Merit-1"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="serial_no_class6" className="mb-1 block text-xs font-medium">
-                    Serial No. (Class 6)
-                  </label>
-                  <input
-                    type="text"
-                    id="serial_no_class6"
-                    {...register('serial_no_class6')}
-                    placeholder="e.g. 1-100"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="user_id_class7" className="mb-2 block text-sm font-medium">
-                User IDs for Class 7
-              </label>
-              <input
-                type="text"
-                id="user_id_class7"
-                {...register('user_id_class7')}
-                placeholder="Comma separated user ids for class 7"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="list_type_class7" className="mb-1 block text-xs font-medium">
-                    List Type (Class 7)
-                  </label>
-                  <input
-                    type="text"
-                    id="list_type_class7"
-                    {...register('list_type_class7')}
-                    placeholder="e.g. Merit-1"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="serial_no_class7" className="mb-1 block text-xs font-medium">
-                    Serial No. (Class 7)
-                  </label>
-                  <input
-                    type="text"
-                    id="serial_no_class7"
-                    {...register('serial_no_class7')}
-                    placeholder="e.g. 1-100"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="user_id_class8" className="mb-2 block text-sm font-medium">
-                User IDs for Class 8
-              </label>
-              <input
-                type="text"
-                id="user_id_class8"
-                {...register('user_id_class8')}
-                placeholder="Comma separated user ids for class 8"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="list_type_class8" className="mb-1 block text-xs font-medium">
-                    List Type (Class 8)
-                  </label>
-                  <input
-                    type="text"
-                    id="list_type_class8"
-                    {...register('list_type_class8')}
-                    placeholder="e.g. Merit-1"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="serial_no_class8" className="mb-1 block text-xs font-medium">
-                    Serial No. (Class 8)
-                  </label>
-                  <input
-                    type="text"
-                    id="serial_no_class8"
-                    {...register('serial_no_class8')}
-                    placeholder="e.g. 1-100"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="user_id_class9" className="mb-2 block text-sm font-medium">
-                User IDs for Class 9
-              </label>
-              <input
-                type="text"
-                id="user_id_class9"
-                {...register('user_id_class9')}
-                placeholder="Comma separated user ids for class 9"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="list_type_class9" className="mb-1 block text-xs font-medium">
-                    List Type (Class 9)
-                  </label>
-                  <input
-                    type="text"
-                    id="list_type_class9"
-                    {...register('list_type_class9')}
-                    placeholder="e.g. Merit-1"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="serial_no_class9" className="mb-1 block text-xs font-medium">
-                    Serial No. (Class 9)
-                  </label>
-                  <input
-                    type="text"
-                    id="serial_no_class9"
-                    {...register('serial_no_class9')}
-                    placeholder="e.g. 1-100"
-                    className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="notice" className="mb-2 block text-sm font-medium">
-                Notice Document
-              </label>
-
-              {(currentNotice || noticeKey) && (
-                <div className="bg-muted/50 border-border dark:bg-muted/500 mb-3 rounded-lg border p-3 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileText size={18} className="text-red-600" />
-                      <span className="text-sm">Current Notice PDF</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <a
-                        href={currentNoticeUrl || '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary text-sm hover:text-blue-700"
-                      >
-                        View
-                      </a>
-                      <button
-                        type="button"
-                        onClick={removeNotice}
-                        className="text-sm text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <input
-                type="file"
-                id="notice"
-                accept=".pdf"
-                onChange={handleFileChange}
-                title="Upload a PDF file for the admission notice (only .pdf allowed)"
-                aria-label="Upload notice PDF file"
-                className="border-border focus:ring-primary/20 w-full rounded-lg border px-3 py-2 transition-colors focus:border-blue-500 focus:ring-2"
-              />
-              <p className="mt-1 text-xs text-red-500">Only PDF files are allowed</p>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    {isEdit ? 'Updating...' : 'Creating...'}
-                  </>
-                ) : isEdit ? (
-                  'Update'
-                ) : (
-                  'Create'
-                )}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </SectionCard>
+      <ConfirmationPopup
+        open={removeOpen}
+        onOpenChange={setRemoveOpen}
+        onConfirm={() => {
+          setRemoveOpen(false);
+          removeNotice();
+        }}
+        title="Remove notice?"
+        confirmLabel="Remove notice"
+        msg="The notice PDF will be deleted and no longer shown to applicants. This cannot be undone."
+      />
     </div>
   );
 }

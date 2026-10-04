@@ -40,7 +40,8 @@ const Popup = ({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         className={cn(
-          'max-h-[90vh] w-full max-w-[calc(100%-2rem)] overflow-y-auto p-0',
+          // grid-cols-1 = minmax(0,1fr): long unbroken text (file names) truncates instead of widening the dialog
+          'max-h-[90vh] w-full max-w-[calc(100%-2rem)] grid-cols-1 overflow-y-auto p-0',
           sizeClasses[size],
           className,
         )}

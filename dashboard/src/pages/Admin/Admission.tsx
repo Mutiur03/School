@@ -1,24 +1,45 @@
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import axios, { isAxiosError } from 'axios';
+import {
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  MoreHorizontal,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { getFileUrl } from '@/lib/backend';
 import { downloadBlob } from '@school/common-ui/blob';
-import axios from 'axios';
-import { useEffect, useState, useMemo, useDeferredValue } from 'react';
-import { toast } from 'react-hot-toast';
-import { Search, Image as ImageIcon, FileText, Users, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
-  PageHeader,
-  SectionCard,
-  StatsCard,
   StatusBadge,
-  FilterSelection,
-  FilterField,
+  SectionCard,
+  Popup,
+  ConfirmationPopup,
+  TablePagination,
   filterSelectClassName,
-  filterInputClassName,
 } from '@/components';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import ActionButton from '@/components/ActionButton';
-import DeleteConfirmation from '@/components/DeleteConfimation';
-import { formatDateWithTime } from '@/lib/utils';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
+import { cn, formatDateWithTime } from '@/lib/utils';
+
 interface AdmissionData {
   id: string | number;
   status: string;
@@ -26,14 +47,12 @@ interface AdmissionData {
   student_name_bn?: string;
   admission_class?: string;
   section?: string;
-  class?: string;
   admission_user_id?: string;
   roll?: string;
   serial_no?: string;
   birth_reg_no?: string;
   admission_year?: number | string;
   prev_school_passing_year?: number | string;
-  year?: number | string;
   submission_date?: string;
   created_at?: string;
   photo_path?: string;
@@ -83,1282 +102,799 @@ interface AdmissionData {
   qouta?: string;
 }
 
-interface Filters {
-  status: string;
-  class: string;
-  admission_year: string;
-  search: string;
-}
+type ListMeta = {
+  total: number;
+  pending: number;
+  approved: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
 
-interface AdmissionSettingsMeta {
-  class_list?: string | string[];
-  admission_year?: string | number;
-}
+type SortKey = 'name' | 'class' | 'userId' | 'status' | 'date';
 
-interface EditFormData {
-  id?: string | number;
-  status?: string;
-  student_name_en?: string;
-  class?: string;
-  admission_user_id?: string;
-}
+const QUOTA_LABELS: Record<string, string> = {
+  '(GEN)': 'সাধারণ (GEN)',
+  '(DIS)': 'বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)',
+  '(FF)': 'মুক্তিযোদ্ধার সন্তান (FF)',
+  '(GOV)': 'সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)',
+  '(ME)': 'শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)',
+  '(SIB)': 'সহোদর ভাই (SIB)',
+  '(TWN)': 'যমজ (TWN)',
+  '(Mutual Transfer)': 'পারস্পরিক বদলি (Mutual Transfer)',
+  '(Govt. Transfer)': 'সরকারি বদলি (Govt. Transfer)',
+};
+
+const formatQuota = (q?: string) => {
+  if (!q) return null;
+  const normalized = String(q).replace(/\s+/g, ' ').trim();
+  return (
+    QUOTA_LABELS[normalized] ??
+    QUOTA_LABELS[`(${normalized.replace(/[()]/g, '').trim()})`] ??
+    normalized
+  );
+};
+
+const INCOME_LABELS: Record<string, string> = {
+  below_50000: '0 - 50,000',
+  '50000_100000': '50,000 - 100,000',
+  '100001_200000': '100,001 - 200,000',
+  '200001_500000': '200,001 - 500,000',
+  above_500000: 'Above 500,000',
+};
+
+const formatParentIncome = (p?: string) => {
+  if (!p) return null;
+  const key = String(p).trim();
+  return INCOME_LABELS[key] ?? key.replace(/_/g, ' ').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
+};
+
+/** "12/05/2015" or "2015-05-12" → "12 May 2015"; anything else is shown as-is. */
+const formatDateLong = (dateStr?: string) => {
+  if (!dateStr) return null;
+  let d, m, y;
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) [d, m, y] = dateStr.split('/');
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) [y, m, d] = dateStr.split('-');
+  else return dateStr;
+  const date = new Date(`${y}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`);
+  return Number.isNaN(date.getTime())
+    ? dateStr
+    : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
+/** Class list from admission settings: comma list, or one class per line (first column). */
+const parseClassList = (raw: unknown): string[] => {
+  if (Array.isArray(raw)) return raw.map(String);
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  const rows = raw
+    .split(/\r?\n/)
+    .map((r) => r.trim())
+    .filter(Boolean);
+  const split = (r: string) =>
+    r
+      .split(/[,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  return rows.length === 1 ? split(rows[0]) : rows.map((r) => split(r)[0]).filter(Boolean);
+};
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+/** Joins the non-empty parts with ", "; null when nothing is left. */
+const join = (...parts: unknown[]) => parts.filter(Boolean).join(', ') || null;
+
+const address = (a: AdmissionData, prefix: 'present' | 'permanent' | 'guardian') => {
+  const get = (key: string) => (a as unknown as Record<string, unknown>)[`${prefix}_${key}`];
+  const post = [get('post_office'), get('post_code')].filter(Boolean).join('-');
+  return join(get('village_road'), post, get('upazila'), get('district'));
+};
+
+const classOf = (a: AdmissionData) => a.admission_class || a.section || '';
+const userIdOf = (a: AdmissionData) => a.admission_user_id || a.roll || a.serial_no || '';
+const dateOf = (a: AdmissionData) => a.created_at || a.submission_date || '';
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+// Admission photos are passport crops; keep the portrait ratio so heads aren't cut off.
+const AdmissionPhoto = ({ item, className }: { item: AdmissionData; className: string }) =>
+  item.photo_path ? (
+    <img
+      src={getFileUrl(item.photo_path)}
+      alt=""
+      loading="lazy"
+      className={cn('border-border shrink-0 rounded border object-cover object-top', className)}
+    />
+  ) : (
+    <div
+      className={cn(
+        'bg-muted text-muted-foreground flex shrink-0 items-center justify-center rounded text-xs font-semibold',
+        className,
+      )}
+    >
+      {(item.student_name_en || '?').charAt(0).toUpperCase()}
+    </div>
+  );
+
+type DetailRow = [label: string, value: React.ReactNode];
+
+const DetailSection = ({ title, rows }: { title: string; rows: DetailRow[] }) => (
+  <section>
+    <h3 className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
+      {title}
+    </h3>
+    <dl className="border-border divide-border divide-y rounded-lg border text-sm">
+      {rows.map(([label, value]) => (
+        <div key={label} className="grid gap-0.5 px-3 py-2 sm:grid-cols-[10rem_1fr] sm:gap-4">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="min-w-0 break-words">
+            {value || <span className="text-muted-foreground">—</span>}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  </section>
+);
+
+// Pinned Student column while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit max-xl:shadow-[1px_0_0_var(--border)]';
+
+/** Pulls the server's `message` out of a failed blob download. */
+const blobErrorMessage = async (error: unknown, fallback: string) => {
+  if (isAxiosError(error) && error.response?.data instanceof Blob) {
+    try {
+      return JSON.parse(await error.response.data.text()).message || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+};
+
+const fetchPdf = async (id: AdmissionData['id']) => {
+  const res = await axios.get(`/api/admission/form/${id}/pdf`, { responseType: 'blob' });
+  return new Blob([res.data], { type: 'application/pdf' });
+};
 
 function Admission() {
-  const [items, setItems] = useState<AdmissionData[]>([]);
+  const queryClient = useQueryClient();
+  const currentYear = new Date().getFullYear();
+
+  const [filterYear, setFilterYear] = useState<string | null>(null); // null = settings year
+  const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search.trim());
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [classFilter, setClassFilter] = useState('');
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
-  const [meta, setMeta] = useState<{
-    total: number;
-    pending: number;
-    approved: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  } | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [settingsMeta, setSettingsMeta] = useState<AdmissionSettingsMeta>({});
-  const [filters, setFilters] = useState<Filters>({
-    status: 'all',
-    class: '',
-    admission_year: '',
-    search: '',
-  });
-  const deferredFilters = useDeferredValue(filters);
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [selectedAdmission, setSelectedAdmission] = useState<AdmissionData | null>(null);
-  const [showEditModal, setShowEditModal] = useState<boolean>(false);
-  const [editFormData, setEditFormData] = useState<EditFormData>({});
-  const [pdfDownloading, setPdfDownloading] = useState<boolean>(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [detail, setDetail] = useState<AdmissionData | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdmissionData | null>(null);
+  const [pdfBusyId, setPdfBusyId] = useState<AdmissionData['id'] | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadSettings() {
-      try {
-        const res = await axios.get(`/api/admission/`);
-        if (cancelled) return;
-        const data = res.data?.data ?? res.data ?? {};
-        setSettingsMeta({
-          class_list: data.class_list,
-          admission_year: data.admission_year,
-        });
-        if (data.admission_year) {
-          setFilters((prev) =>
-            prev.admission_year ? prev : { ...prev, admission_year: String(data.admission_year) },
-          );
-        }
-      } catch {
-        /* settings optional for list */
-      }
-    }
-    loadSettings();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['admissionSettings'],
+    queryFn: async () => {
+      const res = await axios.get('/api/admission/');
+      return (res.data?.data ?? res.data ?? {}) as {
+        class_list?: string | string[];
+        admission_year?: string | number;
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const settingsYear = settings?.admission_year ? String(settings.admission_year) : '';
+  const year = filterYear ?? settingsYear; // '' = all years
+
+  // Only two statuses exist: one ticked = filter, none or both = all.
+  const statusParam = statusFilters.length === 1 ? statusFilters[0] : 'all';
+  const listParams = {
+    status: statusParam,
+    class: classFilter || undefined,
+    admission_year: year || undefined,
+    search: deferredSearch || undefined,
+    sort: sort?.key,
+    order: sort?.order,
+  };
+  const filterKey = JSON.stringify(listParams);
 
   useEffect(() => {
     setPage(1);
-  }, [deferredFilters]);
+  }, [filterKey]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    async function fetchPage() {
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await axios.get(`/api/admission/form/`, {
-          signal: controller.signal,
-          params: {
-            page,
-            limit,
-            status: deferredFilters.status,
-            class: deferredFilters.class || undefined,
-            admission_year: deferredFilters.admission_year || undefined,
-            search: deferredFilters.search.trim() || undefined,
-          },
-        });
-        const payload = resp.data?.data;
-        if (payload && Array.isArray(payload.data) && payload.meta) {
-          setItems(payload.data);
-          setMeta(payload.meta);
-        } else if (Array.isArray(payload)) {
-          setItems(payload);
-          setMeta(null);
-        } else {
-          setItems([]);
-          setMeta(null);
-        }
-      } catch (err: unknown) {
-        if (axios.isCancel(err) || (err as { name?: string }).name === 'CanceledError') return;
-        if ((err as { name?: string }).name !== 'AbortError')
-          setError((err as Error).message || 'Failed');
-      } finally {
-        setLoading(false);
-      }
+  const {
+    data: listResponse,
+    isFetching,
+    error: listError,
+  } = useQuery({
+    queryKey: ['admissionForms', { page, limit, ...listParams }],
+    queryFn: async () => {
+      const res = await axios.get('/api/admission/form/', {
+        params: { page, limit, ...listParams },
+      });
+      const payload = res.data?.data;
+      if (payload && Array.isArray(payload.data))
+        return { data: payload.data as AdmissionData[], meta: payload.meta as ListMeta };
+      return { data: (Array.isArray(payload) ? payload : []) as AdmissionData[], meta: undefined };
+    },
+    enabled: !settingsLoading,
+    placeholderData: keepPreviousData,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const meta = listResponse?.meta;
+  const loading = settingsLoading || (!listResponse && isFetching);
+  const filtersActive = Boolean(search.trim()) || statusFilters.length > 0 || Boolean(classFilter);
+
+  const items = useMemo(() => listResponse?.data ?? [], [listResponse]);
+
+  const classOptions = useMemo(() => {
+    const fromSettings = parseClassList(settings?.class_list);
+    const seen = (listResponse?.data ?? []).map(classOf).filter(Boolean);
+    return Array.from(new Set([...fromSettings, ...seen, classFilter].filter(Boolean)));
+  }, [settings, listResponse, classFilter]);
+
+  const yearOptions = useMemo(() => {
+    const latest = Number(settingsYear) || currentYear;
+    const years = Array.from({ length: 6 }, (_, i) => latest - i);
+    const selected = Number(year);
+    if (year && !Number.isNaN(selected) && !years.includes(selected)) {
+      years.push(selected);
+      years.sort((a, b) => b - a);
     }
-    fetchPage();
-    return () => controller.abort();
-  }, [page, limit, deferredFilters, refreshKey]);
+    return years;
+  }, [settingsYear, currentYear, year]);
 
-  const year = settingsMeta.admission_year ? String(settingsMeta.admission_year) : '';
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilters([]);
+    setClassFilter('');
+  };
 
-  const stats = useMemo(
-    () => ({
-      total: meta?.total ?? 0,
-      pending: meta?.pending ?? 0,
-    }),
-    [meta],
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: AdmissionData['id']; status: 'approved' | 'pending' }) =>
+      axios.put(`/api/admission/form/${id}/${status === 'pending' ? 'pending' : 'approve'}`),
+    onSuccess: (_, { id, status }) => {
+      toast.success(status === 'approved' ? 'Admission approved' : 'Marked as pending');
+      setDetail((a) => (a?.id === id ? { ...a, status } : a));
+      queryClient.invalidateQueries({ queryKey: ['admissionForms'] });
+    },
+    onError: () => toast.error('Failed to update status'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: AdmissionData['id']) => axios.delete(`/api/admission/form/${id}`),
+    onSuccess: (_, id) => {
+      toast.success('Admission deleted');
+      setDetail((a) => (a?.id === id ? null : a));
+      queryClient.invalidateQueries({ queryKey: ['admissionForms'] });
+    },
+    onError: (err) =>
+      toast.error(
+        (isAxiosError(err) && err.response?.data?.message) || 'Failed to delete admission',
+      ),
+  });
+
+  const setStatus = (a: AdmissionData, status: 'approved' | 'pending') =>
+    statusMutation.mutate({ id: a.id, status });
+
+  const previewPdf = async (a: AdmissionData) => {
+    // Open the tab now, inside the click, so popup blockers allow it.
+    const tab = window.open('', '_blank');
+    try {
+      const url = URL.createObjectURL(await fetchPdf(a.id));
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      tab?.close();
+      toast.error(await blobErrorMessage(error, 'Failed to open PDF'));
+    }
+  };
+
+  const downloadPdf = async (a: AdmissionData) => {
+    if (pdfBusyId !== null) return;
+    setPdfBusyId(a.id);
+    try {
+      downloadBlob(await fetchPdf(a.id), `${a.student_name_en}.pdf`);
+    } catch (error) {
+      toast.error(await blobErrorMessage(error, 'Failed to download PDF'));
+    } finally {
+      setPdfBusyId(null);
+    }
+  };
+
+  const handleExport = async (type: 'sheet' | 'photos') => {
+    const label = type === 'sheet' ? 'Excel sheet' : 'Photos';
+    try {
+      toast.loading(`Preparing ${label.toLowerCase()}…`, { id: 'export' });
+      const res = await axios.get(
+        `/api/admission/form/${type === 'sheet' ? 'excel' : 'images-export'}`,
+        { params: listParams, responseType: 'blob' },
+      );
+      downloadBlob(
+        new Blob([res.data]),
+        type === 'sheet'
+          ? `admissions_export_${new Date().toISOString().slice(0, 10)}.xlsx`
+          : `admission_images_${year || 'all'}.zip`,
+      );
+      toast.success(`${label} exported`, { id: 'export' });
+    } catch (error) {
+      toast.error(await blobErrorMessage(error, `Failed to export ${label.toLowerCase()}`), {
+        id: 'export',
+      });
+    }
+  };
+
+  const summary = meta
+    ? [
+        plural(meta.pending + meta.approved, 'application'),
+        meta.pending ? `${meta.pending.toLocaleString()} pending` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ' ';
+
+  const sortProps = (key: SortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
+
+  const columns: {
+    label: string;
+    sortKey?: SortKey;
+    className?: string;
+    header: React.ReactNode;
+  }[] = [
+    {
+      label: 'Student',
+      sortKey: 'name',
+      className: cn(stickyCell, 'px-3 sm:px-4'),
+      header: (
+        <ColumnHeaderMenu
+          label="Student"
+          {...sortProps('name')}
+          filterInput={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Name, user ID, roll, birth reg…',
+          }}
+        />
+      ),
+    },
+    {
+      label: 'Class',
+      sortKey: 'class',
+      className: 'w-32',
+      header: (
+        <ColumnHeaderMenu
+          label="Class"
+          {...sortProps('class')}
+          options={classOptions.map((c) => ({ value: c, label: c }))}
+          selected={classFilter ? [classFilter] : []}
+          // The API filters one class at a time: the latest tick wins.
+          onSelectedChange={(values) =>
+            setClassFilter(values.filter((v) => v !== classFilter).at(-1) ?? '')
+          }
+        />
+      ),
+    },
+    {
+      label: 'User ID',
+      sortKey: 'userId',
+      className: 'w-32',
+      header: <ColumnHeaderMenu label="User ID" {...sortProps('userId')} />,
+    },
+    {
+      label: 'Status',
+      sortKey: 'status',
+      className: 'w-32',
+      header: (
+        <ColumnHeaderMenu
+          label="Status"
+          {...sortProps('status')}
+          options={[
+            { value: 'pending', label: 'Pending' },
+            { value: 'approved', label: 'Approved' },
+          ]}
+          selected={statusFilters}
+          onSelectedChange={setStatusFilters}
+        />
+      ),
+    },
+    {
+      label: 'Submitted',
+      sortKey: 'date',
+      className: 'w-44',
+      header: <ColumnHeaderMenu label="Submitted" {...sortProps('date')} />,
+    },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      header: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={clearFilters}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
+
+  const rowActions = (a: AdmissionData) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton action="view" iconOnly onClick={() => setDetail(a)} />
+      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton iconOnly label="More actions" icon={<MoreHorizontal size={16} />} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {a.student_name_en}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => setDetail(a)}>
+            <Eye /> View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => previewPdf(a)}>
+            <FileText /> Preview PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => downloadPdf(a)}>
+            <Download /> Download PDF
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {a.status === 'pending' ? (
+            <DropdownMenuItem onSelect={() => setStatus(a, 'approved')}>
+              <CheckCircle2 /> Approve
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onSelect={() => setStatus(a, 'pending')}>
+              <Clock /> Mark as pending
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(a)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 
-  const formatQuota = (q: string | undefined): string | null => {
-    if (!q) return null;
-    const key = String(q).trim();
-    const map: Record<string, string> = {
-      '(GEN)': 'সাধারণ (GEN)',
-      '(DIS)': 'বিশেষ চাহিদা সম্পন্ন ছাত্র (DIS)',
-      '(FF)': 'মুক্তিযোদ্ধার সন্তান (FF)',
-      '(GOV)': 'সরকারী প্রাথমিক বিদ্যালয়ের ছাত্র (GOV)',
-      '(ME)': 'শিক্ষা মন্ত্রণালয়ের কর্মকর্তা-কর্মচারী (ME)',
-      '(SIB)': 'সহোদর ভাই (SIB)',
-      '(TWN)': 'যমজ (TWN)',
-      '(Mutual Transfer)': 'পারস্পরিক বদলি (Mutual Transfer)',
-      '(Govt. Transfer)': 'সরকারি বদলি (Govt. Transfer)',
-    };
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {listError ? (
+        <p>Couldn't load admissions. Try again in a moment.</p>
+      ) : filtersActive ? (
+        <>
+          <p>No admissions match these filters.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            <X /> Clear filters
+          </Button>
+        </>
+      ) : (
+        <p>No admission applications{year ? ` for ${year}` : ''} yet.</p>
+      )}
+    </div>
+  );
 
-    if (key in map) return map[key];
-
-    const normalized = key.replace(/\s+/g, ' ').trim();
-    if (normalized in map) return map[normalized];
-
-    const noParens = normalized.replace(/[()]/g, '').trim();
-    const withParens = `(${noParens})`;
-    if (withParens in map) return map[withParens];
-
-    return normalized;
-  };
-
-  const formatParentIncome = (p: string | undefined): string | null => {
-    if (!p) return null;
-    const key = String(p).trim();
-    const map: Record<string, string> = {
-      below_50000: '0 - 50,000',
-      '50000_100000': '50,000 - 100,000',
-      '100001_200000': '100,001 - 200,000',
-      '200001_500000': '200,001 - 500,000',
-      above_500000: 'Above 500,000',
-    };
-    if (map[key]) return map[key];
-    const fallback = key.replace(/_/g, ' ').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
-    return fallback;
-  };
-
-  function getStatusBadge(st: string) {
-    return <StatusBadge status={st || 'unknown'} />;
-  }
-
-  function handleExport() {
-    (async () => {
-      try {
-        const params = {
-          status: filters.status,
-          search: filters.search,
-          admission_year: filters.admission_year,
-          class: filters.class,
-        };
-        const response = await axios.get(`/api/admission/form/excel`, {
-          responseType: 'blob',
-          params,
-        });
-        const blob = new Blob([response.data], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        });
-        downloadBlob(blob, `admissions_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to export Excel');
-      }
-    })();
-  }
-
-  function handleExportImages() {
-    (async () => {
-      try {
-        const params = {
-          status: filters.status,
-          search: filters.search,
-          admission_year: filters.admission_year,
-          class: filters.class,
-        };
-        const response = await axios.get(`/api/admission/form/images-export`, {
-          responseType: 'blob',
-          params,
-        });
-        const blob = new Blob([response.data], { type: 'application/zip' });
-        const yearPart = params.admission_year ? params.admission_year : 'all';
-        downloadBlob(blob, `admission_images_${yearPart}.zip`);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to export images');
-      }
-    })();
-  }
-
-  function handleViewDetails(id: string | number) {
-    const admission = items.find((x) => x.id === id);
-    setSelectedAdmission(admission || null);
-    setShowModal(true);
-  }
-
-  function handleEdit(id: string | number) {
-    const admission = items.find((x) => x.id === id);
-    setEditFormData(
-      admission
-        ? {
-            id: admission.id,
-            status: admission.status,
-            student_name_en: admission.student_name_en,
-            class: admission.admission_class || admission.section,
-            admission_user_id: admission.admission_user_id || admission.roll || admission.serial_no,
-          }
-        : {},
-    );
-    setShowEditModal(true);
-  }
-
-  async function handleEditSubmit() {
-    if (!editFormData || !editFormData.id) return;
-    try {
-      setLoading(true);
-      if (editFormData.status === 'pending')
-        await axios.put(`/api/admission/form/${editFormData.id}/pending`);
-      else await axios.put(`/api/admission/form/${editFormData.id}/approve`);
-      setRefreshKey((k) => k + 1);
-      toast.success('Status updated');
-    } catch (err: unknown) {
-      console.error(err);
-      setError('Failed to update status');
-    } finally {
-      setLoading(false);
-      setShowEditModal(false);
-    }
-  }
-
-  async function handleDelete(id: string | number) {
-    try {
-      setLoading(true);
-      await axios.delete(`/api/admission/form/${id}`);
-      setRefreshKey((k) => k + 1);
-      toast.success('Admission deleted successfully');
-    } catch (err: unknown) {
-      console.error(err);
-      if (axios.isAxiosError(err))
-        setError(err.response?.data?.message || 'Failed to delete admission');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const detailSections = (a: AdmissionData): [string, DetailRow[]][] => [
+    [
+      'Admission',
+      [
+        ['Class', a.admission_class],
+        ['List type', a.list_type],
+        [
+          'User ID',
+          a.admission_user_id && <span className="font-mono">{a.admission_user_id}</span>,
+        ],
+        ['Serial no', a.serial_no],
+        ['Quota', formatQuota(a.qouta)],
+      ],
+    ],
+    [
+      'Personal',
+      [
+        ['Name (Bangla)', a.student_name_bn],
+        ['Nickname', a.student_nick_name_bn],
+        ['Birth reg. no', a.birth_reg_no && <span className="font-mono">{a.birth_reg_no}</span>],
+        ['Registration no', a.registration_no],
+        ['Date of birth', formatDateLong(a.birth_date)],
+        ['Blood group', a.blood_group],
+        ['Email', a.email],
+        ['Religion', a.religion],
+        ['WhatsApp', a.whatsapp_number],
+      ],
+    ],
+    [
+      'Parents',
+      [
+        ['Father', join(a.father_name_bn, a.father_name_en)],
+        ['Father NID', a.father_nid],
+        ['Father phone', a.father_phone],
+        ['Father profession', a.father_profession],
+        ['Mother', join(a.mother_name_bn, a.mother_name_en)],
+        ['Mother NID', a.mother_nid],
+        ['Mother phone', a.mother_phone],
+        ['Mother profession', a.mother_profession],
+        ['Annual income', formatParentIncome(a.parent_income)],
+      ],
+    ],
+    [
+      'Address',
+      [
+        ['Present', address(a, 'present')],
+        ['Permanent', address(a, 'permanent')],
+      ],
+    ],
+    [
+      'Previous school',
+      [
+        ['School', a.prev_school_name],
+        ['School location', join(a.prev_school_upazila, a.prev_school_district)],
+        ['Section / roll', join(a.section_in_prev_school, a.roll_in_prev_school)],
+        ['Passing year', a.prev_school_passing_year],
+      ],
+    ],
+    [
+      'Guardian',
+      a.guardian_name
+        ? [
+            ['Name', join(a.guardian_name, a.guardian_relation && `(${a.guardian_relation})`)],
+            ['Phone', a.guardian_phone],
+            ['NID', a.guardian_nid],
+            ['Address', address(a, 'guardian')],
+          ]
+        : [['Guardian', 'Parents (no separate guardian)']],
+    ],
+  ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Admissions"
-        description="Review and manage student admission applications."
-      />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatsCard label="Total Applications" value={stats.total} loading={loading} />
-        {stats.pending > 0 && (
-          <StatsCard label="Pending" value={stats.pending} color="amber" loading={loading} />
-        )}
-      </div>
-
-      <FilterSelection
-        headerAction={
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-50"
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">Admissions</h1>
+            <select
+              aria-label="Admission year"
+              value={year}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className={cn(filterSelectClassName, 'h-8 w-auto font-medium tabular-nums')}
             >
-              <FileText size={18} />
-              <span>Export Sheet</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleExportImages}
-              disabled={loading}
-              className="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2 text-white shadow-sm transition-colors disabled:opacity-50"
-            >
-              <ImageIcon size={18} />
-              <span>Export Photos</span>
-            </button>
-          </div>
-        }
-      >
-        <FilterField label="Search" wide>
-          <div className="relative">
-            <Search
-              size={16}
-              className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
-            />
-            <Input
-              type="text"
-              placeholder="Search by name, roll, birth reg..."
-              value={filters.search}
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-              className={`${filterInputClassName} pl-9`}
-            />
-          </div>
-        </FilterField>
-
-        <FilterField label="Status">
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-            className={filterSelectClassName}
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-          </select>
-        </FilterField>
-
-        <FilterField label="Class">
-          <select
-            value={filters.class}
-            onChange={(e) => setFilters((prev) => ({ ...prev, class: e.target.value }))}
-            className={filterSelectClassName}
-          >
-            {(() => {
-              const raw = settingsMeta.class_list || '';
-              let formList: string[] = [];
-
-              if (Array.isArray(raw)) {
-                formList = raw;
-              } else if (typeof raw === 'string' && raw.trim()) {
-                const rows = raw
-                  .split(/\r?\n/)
-                  .map((r) => r.trim())
-                  .filter(Boolean);
-
-                if (rows.length === 1) {
-                  formList = rows[0]
-                    .split(/[,;]+/)
-                    .map((s) => s.trim())
-                    .filter(Boolean);
-                } else {
-                  formList = rows
-                    .map((r) => {
-                      const cols = r
-                        .split(/[,;]+/)
-                        .map((c) => c.trim())
-                        .filter(Boolean);
-                      return cols.length ? cols[0] : null;
-                    })
-                    .filter((item): item is string => item !== null);
-                }
-              }
-              formList = Array.from(new Set(formList));
-
-              const allList = Array.from(
-                new Set((items || []).map((a) => a.admission_class || '').filter(Boolean)),
-              ).sort();
-
-              return (
-                <>
-                  <option value="">All Classes</option>
-                  {formList.map((cls) => (
-                    <option key={`form-${cls}`} value={cls}>
-                      {cls}
-                    </option>
-                  ))}
-                  {allList.filter((c) => !formList.includes(c)).length > 0 && (
-                    <optgroup
-                      label={`Other classes (${
-                        allList.filter((c) => !formList.includes(c)).length
-                      })`}
-                    >
-                      {allList
-                        .filter((c) => !formList.includes(c))
-                        .map((cls) => (
-                          <option key={`all-${cls}`} value={cls}>
-                            {cls}
-                          </option>
-                        ))}
-                    </optgroup>
-                  )}
-                </>
-              );
-            })()}
-          </select>
-        </FilterField>
-
-        <FilterField label="Admission Year">
-          <select
-            value={filters.admission_year}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                admission_year: e.target.value,
-              }))
-            }
-            className={filterSelectClassName}
-          >
-            <option value="">All Years</option>
-            {(() => {
-              let currentYear = null;
-              if (year) {
-                const parsed = Number(year);
-                currentYear = !isNaN(parsed) ? parsed : null;
-              }
-              if (!currentYear) currentYear = new Date().getFullYear();
-
-              const years = [];
-              for (let i = 0; i <= 5; i++) years.push(currentYear - i);
-              return years.map((y) => (
+              <option value="">All years</option>
+              {yearOptions.map((y) => (
                 <option key={y} value={String(y)}>
                   {y}
                 </option>
-              ));
-            })()}
-          </select>
-        </FilterField>
-      </FilterSelection>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline">
+              <Download /> Export <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              {filtersActive ? 'Current filters' : 'All applications'}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => handleExport('sheet')}>
+              <FileSpreadsheet /> Excel sheet
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleExport('photos')}>
+              <ImageIcon /> Photos (ZIP)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </header>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
-      )}
-
-      <SectionCard noPadding className="mb-0">
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-muted border-border border-b">
-                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                  Student
-                </th>
-                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                  Class
-                </th>
-                <th className="text-foreground/70 px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                  User ID
-                </th>
-                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="text-foreground/70 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="text-foreground/70 w-1 whitespace-nowrap px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">
-                  Actions
-                </th>
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[48rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                {columns.map((col) => (
+                  <th
+                    key={col.label}
+                    aria-sort={
+                      sort && col.sortKey === sort.key
+                        ? sort.order === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.className,
+                    )}
+                  >
+                    {col.header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                      <p className="text-muted-foreground text-sm">Loading admissions...</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-muted-foreground py-12 text-center">
-                    No admissions found
-                  </td>
-                </tr>
-              ) : (
-                items.map((admission) => (
-                  <tr key={admission.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {admission.photo_path ? (
-                          <img
-                            className="border-border h-10 w-10 rounded-full border object-cover"
-                            src={`${getFileUrl(admission.photo_path)}`}
-                            alt=""
-                          />
-                        ) : (
-                          <div className="bg-muted text-muted-foreground flex h-10 w-10 items-center justify-center rounded-full">
-                            <Users size={18} />
-                          </div>
-                        )}
-                        <div>
-                          <div className="text-foreground font-medium">
-                            {admission.student_name_en}
-                          </div>
-                          <div className="text-muted-foreground text-sm">
-                            {admission.student_name_bn}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                        {admission.admission_class || admission.section || '-'}
-                      </span>
-                    </td>
-                    <td className="text-muted-foreground px-6 py-4 text-center font-mono font-medium">
-                      {admission.admission_user_id || admission.roll || admission.serial_no || '-'}
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(admission.status)}</td>
-                    <td className="text-muted-foreground px-6 py-4 text-sm">
-                      {formatDateWithTime(admission.created_at || admission.submission_date || '')}
-                    </td>
-                    <td className="w-1 whitespace-nowrap px-6 py-4 text-right">
-                      <div className="inline-flex justify-end gap-2">
-                        <ActionButton
-                          action="view"
-                          onClick={() => handleViewDetails(admission.id)}
-                        />
-                        <ActionButton action="edit" onClick={() => handleEdit(admission.id)} />
-                        <DeleteConfirmation onDelete={() => handleDelete(admission.id)} />
-                      </div>
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={columns.length} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
                     </td>
                   </tr>
                 ))
+              ) : items.length > 0 ? (
+                items.map((a) => (
+                  // Opaque row colours so the pinned Student cell hides what scrolls under it.
+                  <tr
+                    key={a.id}
+                    className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                  >
+                    <td className={cn(stickyCell, 'px-3 py-2 sm:px-4')}>
+                      <div className="flex max-w-[12rem] items-center gap-3 sm:max-w-none">
+                        <AdmissionPhoto item={a} className="h-9 w-7" />
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setDetail(a)}
+                            className="focus-visible:ring-ring block max-w-full truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                          >
+                            {a.student_name_en || '—'}
+                          </button>
+                          {a.student_name_bn && (
+                            <p className="text-muted-foreground truncate text-xs">
+                              {a.student_name_bn}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-sm">{classOf(a) || '—'}</td>
+                    <td className="px-4 py-2 font-mono text-sm tabular-nums">
+                      {userIdOf(a) || '—'}
+                    </td>
+                    <td className="px-4 py-2">
+                      <StatusBadge status={a.status || 'unknown'} />
+                    </td>
+                    <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                      {dateOf(a) ? formatDateWithTime(dateOf(a)) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">{rowActions(a)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length}>{emptyState}</td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="lg:hidden">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12">
-              <Loader2 className="text-primary h-8 w-8 animate-spin" />
-              <p className="text-muted-foreground text-sm">Loading admissions...</p>
-            </div>
-          ) : items.length === 0 ? (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-              No admissions found
-            </p>
-          ) : (
-            <ul className="-mx-0">
-              {items.map((admission) => (
-                <li
-                  key={admission.id}
-                  className="border-border space-y-3 border-b p-4 last:border-b-0"
-                >
-                  <div className="flex items-start gap-3">
-                    {admission.photo_path ? (
-                      <img
-                        className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
-                        src={`${getFileUrl(admission.photo_path)}`}
-                        alt=""
-                      />
-                    ) : (
-                      <div className="bg-muted text-muted-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full">
-                        <Users size={20} />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="text-foreground font-medium">{admission.student_name_en}</div>
-                      <div className="text-muted-foreground text-sm">
-                        {admission.student_name_bn}
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                          Class {admission.admission_class || admission.section || '-'}
-                        </span>
-                        <span className="bg-muted inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-xs font-medium">
-                          {admission.admission_user_id ||
-                            admission.roll ||
-                            admission.serial_no ||
-                            '-'}
-                        </span>
-                        {getStatusBadge(admission.status)}
-                      </div>
-                      <p className="text-muted-foreground mt-2 text-sm">
-                        {formatDateWithTime(
-                          admission.created_at || admission.submission_date || '',
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <ActionButton action="view" onClick={() => handleViewDetails(admission.id)} />
-                    <ActionButton action="edit" onClick={() => handleEdit(admission.id)} />
-                    <DeleteConfirmation onDelete={() => handleDelete(admission.id)} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-muted-foreground text-sm">
-            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
-            {meta?.total != null ? (
-              <span className="text-muted-foreground/80"> · {meta.total} total</span>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Rows</span>
-              <select
-                className={filterSelectClassName}
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                {[50, 100, 200].map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const totalPages = meta?.totalPages ?? 0;
-              const currentPage = page;
-              const maxVisible = 7;
-              if (totalPages <= 0) return null;
-              if (totalPages <= maxVisible) {
-                return Array.from({ length: totalPages }, (_, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    variant={i + 1 === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(i + 1)}
-                    disabled={loading}
-                  >
-                    {i + 1}
-                  </Button>
-                ));
-              }
-              const pages: (number | string)[] = [];
-              const half = Math.floor(maxVisible / 2);
-              let start = Math.max(1, currentPage - half);
-              const end = Math.min(totalPages, start + maxVisible - 1);
-              if (end - start < maxVisible - 1) {
-                start = Math.max(1, end - maxVisible + 1);
-              }
-              if (start > 1) {
-                pages.push(1);
-                if (start > 2) pages.push('...');
-              }
-              for (let i = start; i <= end; i++) {
-                pages.push(i);
-              }
-              if (end < totalPages) {
-                if (end < totalPages - 1) pages.push('...');
-                pages.push(totalPages);
-              }
-              return pages.map((p, idx) =>
-                p === '...' ? (
-                  <span key={idx} className="text-muted-foreground px-2">
-                    ...
-                  </span>
-                ) : (
-                  <Button
-                    key={idx}
-                    type="button"
-                    variant={p === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(p as number)}
-                    disabled={loading}
-                  >
-                    {p}
-                  </Button>
-                ),
-              );
-            })()}
-          </div>
-        </div>
-      </SectionCard>
-
-      {showModal && selectedAdmission && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 p-4 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
+        <TablePagination
+          page={page}
+          totalPages={meta?.totalPages ?? 0}
+          limit={limit}
+          loading={isFetching}
+          totalFiltered={meta?.total}
+          limitOptions={[50, 100, 200]}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
           }}
+        />
+      </SectionCard>
+
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete admission"
+        msg={`Delete the admission application for ${deleteTarget?.student_name_en || 'this student'}? This cannot be undone.`}
+      />
+
+      {detail && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setDetail(null)}
+          size="2xl"
+          aria-labelledby="admission-details-title"
         >
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white text-black shadow-xl">
-            <div className="border-border bg-linear-to-r flex items-center justify-between rounded-t-xl border-b from-blue-500 to-blue-400 p-6 text-white">
-              <div>
-                <h3 className="text-lg font-semibold">Admission Details</h3>
-                <p className="mt-1 text-sm opacity-90">Complete student information</p>
-              </div>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-white transition-colors hover:text-gray-200"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6">
-              {selectedAdmission.photo_path && (
-                <div className="bg-muted/50 border-border mb-6 flex flex-col items-center rounded-lg border p-4">
-                  <h4 className="mb-2 text-sm font-semibold">Student's Photo</h4>
-                  <img
-                    src={`${getFileUrl(selectedAdmission.photo_path)}`}
-                    alt="Student Photo"
-                    className="border-border h-28 w-28 rounded-lg border-2 object-cover shadow"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
-              <div className="border-border bg-muted/50 mb-6 flex flex-wrap gap-x-4 gap-y-1 rounded border px-3 py-2 text-sm font-medium text-gray-800 shadow-sm">
-                <span>Class: {selectedAdmission.admission_class || '-'}</span>
-                <span>Admission User ID: {selectedAdmission.admission_user_id || '-'}</span>
-                <span>Serial No: {selectedAdmission.serial_no || '-'}</span>
-                <span>Qouta Year: {formatQuota(selectedAdmission.qouta) || '-'}</span>
-                <span className="ml-auto">Status: {getStatusBadge(selectedAdmission.status)}</span>
-              </div>
-              <div className="border-border overflow-hidden rounded-lg border bg-white">
-                <div className="max-w-full overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
-                        >
-                          ভর্তি তথ্য (Admission Information)
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Admission Class:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.admission_class || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">List Type:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.list_type || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Admission User ID:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.admission_user_id || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Serial No:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.serial_no || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Qouta:</td>
-                        <td className="px-4 py-2">
-                          {formatQuota(selectedAdmission.qouta) || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
+          <div className="border-border flex items-center justify-between border-b px-5 py-4">
+            <h2 id="admission-details-title" className="text-base font-semibold">
+              Admission details
+            </h2>
+            <CloseButton onClick={() => setDetail(null)} />
+          </div>
 
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
-                        >
-                          ব্যক্তিগত তথ্য (Personal Information)
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="bg-muted/50 px-4 py-2 font-medium">ছাত্রের নাম :</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.student_name_bn || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">
-                          Student's Name (In Capital Letter):
-                        </td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.student_name_en || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="bg-muted/50 px-4 py-2 font-medium">
-                          Student Nickname (BN):
-                        </td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.student_nick_name_bn || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Birth Registration No.:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.birth_reg_no || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Registration Number:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.registration_no || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Date of Birth :</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.birth_date ? (
-                            (() => {
-                              const formatDateLong = (dateStr: string) => {
-                                if (!dateStr) return '';
-                                let d, m, y;
-                                if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-                                  [d, m, y] = dateStr.split('/');
-                                } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                                  [y, m, d] = dateStr.split('-');
-                                } else {
-                                  return dateStr;
-                                }
-                                const dateObj = new Date(`${y}-${m}-${d}`);
-                                if (isNaN(dateObj.getTime())) return dateStr;
-                                return dateObj.toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'long',
-                                  year: 'numeric',
-                                });
-                              };
-                              return formatDateLong(selectedAdmission.birth_date);
-                            })()
-                          ) : (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Blood Group:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.blood_group || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Email Address:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.email || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Religion:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.religion || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
-                        >
-                          অবস্থান (Address)
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Present Address:</td>
-                        <td className="px-4 py-2">
-                          {(() => {
-                            const parts = [
-                              selectedAdmission.present_village_road,
-                              selectedAdmission.present_post_office
-                                ? selectedAdmission.present_post_code
-                                  ? `${selectedAdmission.present_post_office} (${selectedAdmission.present_post_code})`
-                                  : selectedAdmission.present_post_office
-                                : '',
-                              selectedAdmission.present_upazila,
-                              selectedAdmission.present_district,
-                            ]
-                              .filter(Boolean)
-                              .map((s) => String(s).trim())
-                              .filter(Boolean);
-                            return parts.length > 0 ? (
-                              parts.join(', ')
-                            ) : (
-                              <span className="text-gray-400">Not provided</span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Permanent Address:</td>
-                        <td className="px-4 py-2">
-                          {(() => {
-                            const parts = [
-                              selectedAdmission.permanent_village_road,
-                              selectedAdmission.permanent_post_office
-                                ? selectedAdmission.permanent_post_code
-                                  ? `${selectedAdmission.permanent_post_office} (${selectedAdmission.permanent_post_code})`
-                                  : selectedAdmission.permanent_post_office
-                                : '',
-                              selectedAdmission.permanent_upazila,
-                              selectedAdmission.permanent_district,
-                            ]
-                              .filter(Boolean)
-                              .map((s) => String(s).trim())
-                              .filter(Boolean);
-                            return parts.length > 0 ? (
-                              parts.join(', ')
-                            ) : (
-                              <span className="text-gray-400">Not provided</span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="border-b bg-blue-100 px-4 py-3 text-lg font-bold text-blue-800"
-                        >
-                          অভিভাবক / পূর্বের স্কুল (Guardian / Previous School)
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Guardian Info:</td>
-                        <td className="px-4 py-2">
-                          {(() => {
-                            const parts = [
-                              selectedAdmission.guardian_name
-                                ? `Name: ${selectedAdmission.guardian_name}`
-                                : '',
-                              selectedAdmission.guardian_relation
-                                ? `Relation: ${selectedAdmission.guardian_relation}`
-                                : '',
-                              selectedAdmission.guardian_phone
-                                ? `Phone: ${selectedAdmission.guardian_phone}`
-                                : '',
-                              selectedAdmission.guardian_nid
-                                ? `NID: ${selectedAdmission.guardian_nid}`
-                                : '',
-                            ].filter(Boolean);
-                            return parts.length > 0 ? (
-                              parts.join(', ')
-                            ) : (
-                              <span className="text-gray-400">Not provided</span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Guardian Address:</td>
-                        <td className="px-4 py-2">
-                          {(() => {
-                            const parts = [
-                              selectedAdmission.guardian_village_road,
-                              selectedAdmission.guardian_post_office
-                                ? selectedAdmission.guardian_post_code
-                                  ? `${selectedAdmission.guardian_post_office} (${selectedAdmission.guardian_post_code})`
-                                  : selectedAdmission.guardian_post_office
-                                : '',
-                              selectedAdmission.guardian_upazila,
-                              selectedAdmission.guardian_district,
-                            ]
-                              .filter(Boolean)
-                              .map((s) => String(s).trim())
-                              .filter(Boolean);
-                            return parts.length > 0 ? (
-                              parts.join(', ')
-                            ) : (
-                              <span className="text-gray-400">Not provided</span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">
-                          Previous School Name & Address:
-                        </td>
-                        <td className="px-4 py-2">
-                          {(() => {
-                            const parts = [
-                              selectedAdmission.prev_school_name,
-                              selectedAdmission.prev_school_upazila,
-                              selectedAdmission.prev_school_district,
-                            ]
-                              .filter(Boolean)
-                              .map((s) => String(s).trim());
-                            return parts.length > 0 ? (
-                              parts.join(', ')
-                            ) : (
-                              <span className="text-gray-400">Not provided</span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">
-                          Previous School Academic Info:
-                        </td>
-                        <td className="px-4 py-2">
-                          {(() => {
-                            const parts = [];
-                            if (selectedAdmission.section_in_prev_school)
-                              parts.push(`Section: ${selectedAdmission.section_in_prev_school}`);
-                            if (selectedAdmission.roll_in_prev_school)
-                              parts.push(`Roll: ${selectedAdmission.roll_in_prev_school}`);
-                            if (selectedAdmission.prev_school_passing_year)
-                              parts.push(`Year: ${selectedAdmission.prev_school_passing_year}`);
-                            return parts.length > 0 ? (
-                              parts.join(' / ')
-                            ) : (
-                              <span className="text-gray-400">Not provided</span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Father's Name (BN):</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.father_name_bn || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Father's Name (EN):</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.father_name_en || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">
-                          Father's National ID Number:
-                        </td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.father_nid || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Father's Mobile Number:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.father_phone || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Mother's Name (BN):</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.mother_name_bn || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Mother's Name (EN):</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.mother_name_en || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">
-                          Mother's National ID Number:
-                        </td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.mother_nid || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Mother's Mobile Number:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.mother_phone || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Father's Profession:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.father_profession || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="bg-muted/50 border-b">
-                        <td className="bg-muted px-4 py-2 font-medium">Mother's Profession:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.mother_profession || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">
-                          Parent's Annual Income:
-                        </td>
-                        <td className="px-4 py-2">
-                          {formatParentIncome(selectedAdmission.parent_income) || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Whatsapp Number:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.whatsapp_number || (
-                            <span className="text-gray-400">Not provided</span>
-                          )}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="bg-muted/50 px-4 py-2 font-medium">Submission Date:</td>
-                        <td className="px-4 py-2">
-                          {selectedAdmission.submission_date ? (
-                            formatDateWithTime(selectedAdmission.submission_date || '')
-                          ) : (
-                            <span className="text-gray-400">Not available</span>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <div className="border-border bg-muted/50 flex items-center justify-between border-t p-6">
-              <div className="text-muted-foreground text-sm">
-                Admission ID: {selectedAdmission.id}
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={async () => {
-                    if (!selectedAdmission || pdfDownloading) return;
-                    setPdfDownloading(true);
-                    try {
-                      const response = await axios.get(
-                        `/api/admission/form/${selectedAdmission.id}/pdf`,
-                        { responseType: 'blob' },
-                      );
-                      const blob = new Blob([response.data], {
-                        type: 'application/pdf',
-                      });
-                      downloadBlob(blob, `${selectedAdmission.student_name_en}.pdf`);
-                    } catch (err) {
-                      console.error(err);
-                      setError('Failed to download PDF');
-                    } finally {
-                      setPdfDownloading(false);
-                    }
-                  }}
-                  disabled={pdfDownloading}
-                  className="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {pdfDownloading ? (
-                    <span className="inline-block h-4 w-4 animate-spin border-b-2 border-white"></span>
-                  ) : (
-                    <>Download PDF</>
+          <div className="max-h-[65vh] space-y-6 overflow-y-auto px-5 py-4">
+            <div className="flex items-start gap-4">
+              <AdmissionPhoto item={detail} className="h-28 w-[5.5rem] text-2xl" />
+              <div className="min-w-0 space-y-2">
+                <div>
+                  <p className="text-lg font-semibold leading-tight">
+                    {detail.student_name_en || '—'}
+                  </p>
+                  {detail.student_name_bn && (
+                    <p className="text-muted-foreground text-sm">{detail.student_name_bn}</p>
                   )}
-                </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="bg-muted rounded-lg px-4 py-2 transition-colors hover:bg-gray-200"
-                >
-                  Close
-                </button>
+                </div>
+                <StatusBadge status={detail.status || 'unknown'} />
+                <p className="text-muted-foreground text-sm tabular-nums">
+                  {join(
+                    classOf(detail) && `Class ${classOf(detail)}`,
+                    userIdOf(detail) && `User ID ${userIdOf(detail)}`,
+                    `Admission year ${detail.admission_year ?? '—'}`,
+                  )}
+                </p>
               </div>
             </div>
+            {detailSections(detail).map(([title, rows]) => (
+              <DetailSection key={title} title={title} rows={rows} />
+            ))}
+            <p className="text-muted-foreground text-xs">
+              Submitted {detail.submission_date ? formatDateWithTime(detail.submission_date) : '—'}{' '}
+              · ID {detail.id}
+            </p>
           </div>
-        </div>
-      )}
 
-      {showEditModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 p-4 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowEditModal(false);
-          }}
-        >
-          <div className="relative mx-auto w-96 rounded-md border bg-white p-5 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Update Admission Status</h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="hover:text-muted-foreground text-gray-400"
-              >
-                ×
-              </button>
-            </div>
-            <div className="mb-4">
-              <div className="text-muted-foreground mb-3 text-sm">
-                <strong>Student:</strong> {editFormData.student_name_en || 'N/A'}
-                <br />
-                <strong>Class:</strong> {editFormData.class || 'N/A'} |{' '}
-                <strong>Admission User ID:</strong> {editFormData.admission_user_id || 'N/A'}
-              </div>
-              <label className="mb-2 block text-sm font-medium">Admission Status</label>
-              <select
-                value={editFormData.status || 'pending'}
-                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                className="border-border focus:ring-primary/20 w-full rounded border px-3 py-2 text-black focus:border-blue-500 focus:ring-2 dark:bg-white"
-              >
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-              </select>
-              <p className="mt-1 text-xs text-red-500">
-                Only status can be modified for existing admissions
-              </p>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="border-border rounded border bg-red-500 px-4 py-2 hover:bg-red-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditSubmit}
-                className="bg-primary hover:bg-primary/90 rounded px-4 py-2 text-white"
-              >
-                Update Status
-              </button>
+          <div className="border-border flex flex-wrap items-center gap-2 border-t px-5 py-3">
+            <Button type="button" variant="outline" onClick={() => previewPdf(detail)}>
+              <FileText /> Preview PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pdfBusyId !== null}
+              onClick={() => downloadPdf(detail)}
+            >
+              {pdfBusyId === detail.id ? <Loader2 className="animate-spin" /> : <Download />}
+              Download PDF
+            </Button>
+            <div className="ml-auto">
+              {detail.status === 'pending' ? (
+                <Button
+                  type="button"
+                  disabled={statusMutation.isPending}
+                  onClick={() => setStatus(detail, 'approved')}
+                >
+                  {statusMutation.isPending ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 />
+                  )}
+                  Approve
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={statusMutation.isPending}
+                  onClick={() => setStatus(detail, 'pending')}
+                >
+                  <Clock /> Mark as pending
+                </Button>
+              )}
             </div>
           </div>
-        </div>
+        </Popup>
       )}
     </div>
   );

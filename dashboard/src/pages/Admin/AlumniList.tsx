@@ -1,226 +1,432 @@
 import axios from 'axios';
-import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
-import { GraduationCap, Loader2, Search, Users } from 'lucide-react';
-import { PageHeader, SectionCard, FilterSelection, FilterField } from '@/components';
-import { Input } from '@/components/ui/input';
+import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Eye, MoreHorizontal, RotateCw, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { SectionCard, Popup, StatusBadge, TablePagination } from '@/components';
+import ActionButton from '@/components/ActionButton';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
+import { getFileUrl } from '@/lib/backend';
+import { cn } from '@/lib/utils';
 
-interface Student {
-  id: string;
+// Shape of GET /api/students/alumni (students table rows, password omitted).
+interface Alumnus {
+  id: number;
+  login_id: string;
   name: string;
-  phone: number;
-  roll: number;
+  father_name?: string | null;
+  mother_name?: string | null;
+  father_phone?: string | null;
+  mother_phone?: string | null;
   batch: string;
-  section: string;
-  address: string;
-  dob?: string;
+  dob?: string | null;
+  image?: string | null;
+  available: boolean;
+  has_stipend?: boolean;
+  religion?: string | null;
+  village?: string | null;
+  post_office?: string | null;
+  upazila?: string | null;
+  district?: string | null;
 }
 
+type SortKey = 'name' | 'batch' | 'district';
+
+const dash = <span className="text-muted-foreground">—</span>;
+const address = (a: Alumnus) =>
+  [a.village, a.post_office, a.upazila, a.district].filter(Boolean).join(', ');
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+// Student photos are 7:9 passport crops; keep that ratio so heads aren't cut off.
+const Avatar = ({ a, size = 'h-9 w-7' }: { a: Alumnus; size?: string }) =>
+  a.image ? (
+    <img
+      src={getFileUrl(a.image)}
+      alt=""
+      loading="lazy"
+      className={`border-border ${size} shrink-0 rounded border object-cover object-top`}
+    />
+  ) : (
+    <div
+      className={`bg-muted text-muted-foreground ${size} flex shrink-0 items-center justify-center rounded text-xs font-semibold`}
+    >
+      {a.name.charAt(0).toUpperCase()}
+    </div>
+  );
+
+// Student column stays pinned while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit';
+const stickyEdge = 'max-xl:shadow-[1px_0_0_var(--border)]';
+
 function AlumniList() {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [batchFilter, setBatchFilter] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [batchFilters, setBatchFilters] = useState<string[]>([]);
+  const [districtFilters, setDistrictFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [viewing, setViewing] = useState<Alumnus | null>(null);
+  const deferredSearch = useDeferredValue(search);
 
-  useEffect(() => {
-    const getStudentList = async () => {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        const response = await axios.get('/api/students/alumni');
-        setStudents(response.data.data || []);
-      } catch (error) {
-        console.error('Error fetching alumni:', error);
-        setLoadError('Failed to load alumni list.');
-        toast.error('Failed to load alumni list');
-      } finally {
-        setLoading(false);
-      }
+  const {
+    data: alumni = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['students', 'alumni'],
+    queryFn: async () => (await axios.get('/api/students/alumni')).data.data as Alumnus[],
+  });
+
+  const batches = useMemo(
+    () => [...new Set(alumni.map((a) => a.batch))].sort((a, b) => b.localeCompare(a)),
+    [alumni],
+  );
+  const districts = useMemo(
+    () => [...new Set(alumni.map((a) => a.district).filter((d): d is string => !!d))].sort(),
+    [alumni],
+  );
+
+  const filtered = useMemo(() => {
+    const q = deferredSearch.trim().toLowerCase();
+    const rows = alumni.filter(
+      (a) =>
+        (!q ||
+          a.name.toLowerCase().includes(q) ||
+          a.father_phone?.includes(q) ||
+          a.mother_phone?.includes(q)) &&
+        (!batchFilters.length || batchFilters.includes(a.batch)) &&
+        (!districtFilters.length || districtFilters.includes(a.district ?? '')),
+    );
+    if (!sort) return rows; // API order: batch desc, name asc
+    const dir = sort.order === 'asc' ? 1 : -1;
+    return [...rows].sort((x, y) => dir * (x[sort.key] ?? '').localeCompare(y[sort.key] ?? ''));
+  }, [alumni, deferredSearch, batchFilters, districtFilters, sort]);
+
+  const totalPages = Math.ceil(filtered.length / limit);
+  const currentPage = Math.min(page, Math.max(totalPages, 1));
+  const rows = filtered.slice((currentPage - 1) * limit, currentPage * limit);
+
+  const filtersActive = Boolean(search || batchFilters.length || districtFilters.length);
+  const clearFilters = () => {
+    setSearch('');
+    setBatchFilters([]);
+    setDistrictFilters([]);
+    setPage(1);
+  };
+  const withReset =
+    <T,>(set: (v: T) => void) =>
+    (v: T) => {
+      set(v);
+      setPage(1);
     };
-    getStudentList();
-  }, []);
 
-  const batches = [...new Set(students.map((s) => s.batch))].sort((a, b) => b.localeCompare(a));
-  const sections = [...new Set(students.map((s) => s.section))];
+  const sortProps = (key: SortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
+  const ariaSort = (key?: SortKey) =>
+    key && sort?.key === key ? (sort.order === 'asc' ? 'ascending' : 'descending') : undefined;
 
-  const filteredStudents = students
-    .filter(
-      (student) =>
-        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.phone?.toString().includes(searchQuery),
-    )
-    .filter((student) => (batchFilter ? student.batch === batchFilter : true))
-    .filter((student) => (sectionFilter ? student.section === sectionFilter : true))
-    .sort((a, b) => a.batch.localeCompare(b.batch));
+  const columns: { label: string; node: ReactNode; sortKey?: SortKey; className?: string }[] = [
+    {
+      label: 'Student',
+      sortKey: 'name',
+      node: (
+        <ColumnHeaderMenu
+          label="Student"
+          {...sortProps('name')}
+          filterInput={{
+            value: search,
+            onChange: withReset(setSearch),
+            placeholder: 'Name or phone…',
+          }}
+        />
+      ),
+    },
+    {
+      label: 'Batch',
+      sortKey: 'batch',
+      className: 'w-32',
+      node: (
+        <ColumnHeaderMenu
+          label="Batch"
+          {...sortProps('batch')}
+          options={batches.map((b) => ({ value: b, label: b }))}
+          selected={batchFilters}
+          onSelectedChange={withReset(setBatchFilters)}
+        />
+      ),
+    },
+    { label: 'Phone', node: 'Phone', className: 'w-36' },
+    {
+      label: 'Address',
+      sortKey: 'district',
+      node: (
+        <ColumnHeaderMenu
+          label="Address"
+          {...sortProps('district')}
+          options={districts.map((d) => ({ value: d, label: d }))}
+          selected={districtFilters}
+          onSelectedChange={withReset(setDistrictFilters)}
+        />
+      ),
+    },
+    { label: 'DOB', node: 'DOB', className: 'w-32' },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      node: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={clearFilters}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
+
+  const summary = isLoading
+    ? ' '
+    : [
+        `${filtersActive ? `${filtered.length.toLocaleString()} of ` : ''}${alumni.length.toLocaleString()} ${alumni.length === 1 ? 'alumnus' : 'alumni'}`,
+        batches.length ? `${batches.length} batch${batches.length === 1 ? '' : 'es'}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+  const details: [string, ReactNode][] = viewing
+    ? [
+        ['Login ID', viewing.login_id],
+        ['Batch', viewing.batch],
+        ["Father's name", viewing.father_name],
+        ["Mother's name", viewing.mother_name],
+        ["Father's phone", viewing.father_phone],
+        ["Mother's phone", viewing.mother_phone],
+        ['Date of birth', viewing.dob?.slice(0, 10)],
+        ['Religion', viewing.religion],
+        ['Stipend', viewing.has_stipend == null ? null : viewing.has_stipend ? 'Yes' : 'No'],
+        ['Address', address(viewing)],
+      ]
+    : [];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Alumni List"
-        description="Browse and filter former students by batch, section, or name."
-      />
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold">Alumni List</h1>
+        <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+      </header>
 
-      <FilterSelection>
-        <FilterField label="Search" wide>
-          <div className="relative">
-            <Search size={18} className="text-muted-foreground absolute left-3 top-2.5" />
-            <Input
-              type="search"
-              name="alumni-search"
-              placeholder="Search by name or phone…"
-              autoComplete="off"
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </FilterField>
-
-        <FilterField label="Batch">
-          <Select
-            value={batchFilter || '__all__'}
-            onValueChange={(v) => setBatchFilter(v === '__all__' ? '' : v)}
-          >
-            <SelectTrigger className="w-full" aria-label="Filter by batch">
-              <SelectValue placeholder="All Batches" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Batches</SelectItem>
-              {batches.map((batch) => (
-                <SelectItem key={batch} value={batch}>
-                  {batch}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-
-        <FilterField label="Section">
-          <Select
-            value={sectionFilter || '__all__'}
-            onValueChange={(v) => setSectionFilter(v === '__all__' ? '' : v)}
-          >
-            <SelectTrigger className="w-full" aria-label="Filter by section">
-              <SelectValue placeholder="All Sections" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All Sections</SelectItem>
-              {sections.map((section) => (
-                <SelectItem key={section} value={section}>
-                  {section}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
-      </FilterSelection>
-
-      <SectionCard
-        noPadding
-        title="Alumni"
-        icon={<GraduationCap size={20} />}
-        description={
-          loading
-            ? undefined
-            : `${filteredStudents.length} student${filteredStudents.length === 1 ? '' : 's'}`
-        }
-      >
-        {loading ? (
-          <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Loading alumni…
-          </div>
-        ) : loadError ? (
-          <p className="text-destructive px-6 py-8 text-center text-sm">{loadError}</p>
-        ) : filteredStudents.length > 0 ? (
-          <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="bg-muted/40 border-border border-b">
-                    {['Name', 'Phone', 'Roll', 'Batch', 'Section', 'Address', 'DOB'].map(
-                      (header) => (
-                        <th
-                          key={header}
-                          className="text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider"
-                        >
-                          {header}
-                        </th>
-                      ),
+      <SectionCard noPadding className="mb-6">
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[48rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                {columns.map((col) => (
+                  <th
+                    key={col.label}
+                    aria-sort={ariaSort(col.sortKey)}
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.label === 'Student' && cn(stickyCell, stickyEdge, 'px-3 sm:px-4'),
+                      col.className,
                     )}
+                  >
+                    {col.node}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {isLoading ? (
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={columns.length} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-border divide-y">
-                  {filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-medium">{student.name}</td>
-                      <td className="px-4 py-3">{student.phone ? `0${student.phone}` : '—'}</td>
-                      <td className="px-4 py-3 tabular-nums">{student.roll}</td>
-                      <td className="px-4 py-3">{student.batch}</td>
-                      <td className="px-4 py-3">{student.section}</td>
-                      <td className="max-w-xs break-words px-4 py-3">{student.address}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        {student.dob?.slice(0, 10) || '—'}
+                ))
+              ) : rows.length > 0 ? (
+                rows.map((a) => {
+                  const phone = a.father_phone || a.mother_phone;
+                  return (
+                    // Opaque row colour so the pinned cell hides columns scrolling beneath it.
+                    <tr
+                      key={a.id}
+                      className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                    >
+                      <td className={cn(stickyCell, stickyEdge, 'px-3 py-2 sm:px-4')}>
+                        <div className="flex max-w-[11rem] items-center gap-3 sm:max-w-none">
+                          <Avatar a={a} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setViewing(a)}
+                                className="focus-visible:ring-ring truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                              >
+                                {a.name}
+                              </button>
+                              {!a.available && (
+                                <StatusBadge status="inactive" className="shrink-0" />
+                              )}
+                            </div>
+                            {a.father_name && (
+                              <p className="text-muted-foreground truncate text-xs">
+                                {a.father_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-sm tabular-nums">{a.batch}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                        {phone || dash}
+                      </td>
+                      <td className="max-w-xs px-4 py-2 text-sm">
+                        <span className="line-clamp-2">{address(a) || dash}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                        {a.dob?.slice(0, 10) || dash}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        {/* modal={false}: menu items open dialogs; a modal menu would leave pointer-events locked */}
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild>
+                            <ActionButton
+                              iconOnly
+                              label="More actions"
+                              icon={<MoreHorizontal size={16} />}
+                            />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuLabel className="truncate normal-case tracking-normal">
+                              {a.name}
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => setViewing(a)}>
+                              <Eye /> View details
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={columns.length}>
+                    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+                      {error ? (
+                        <>
+                          <p>Failed to load alumni list.</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => refetch()}
+                          >
+                            <RotateCw /> Retry
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <p>
+                            {filtersActive ? 'No alumni match these filters.' : 'No alumni yet.'}
+                          </p>
+                          {filtersActive && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={clearFilters}
+                            >
+                              <X /> Clear filters
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            <ul className="divide-border divide-y lg:hidden">
-              {filteredStudents.map((student) => (
-                <li key={student.id} className="space-y-2 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="wrap-break-word min-w-0 flex-1 text-sm font-semibold">
-                      {student.name}
-                    </p>
-                    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                      Roll {student.roll}
-                    </span>
-                  </div>
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <div>
-                      <dt className="text-muted-foreground">Phone</dt>
-                      <dd>{student.phone ? `0${student.phone}` : '—'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Batch</dt>
-                      <dd>{student.batch || '—'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Section</dt>
-                      <dd>{student.section || '—'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">DOB</dt>
-                      <dd>{student.dob?.slice(0, 10) || '—'}</dd>
-                    </div>
-                    <div className="col-span-2">
-                      <dt className="text-muted-foreground">Address</dt>
-                      <dd className="wrap-break-word">{student.address || '—'}</dd>
-                    </div>
-                  </dl>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 py-12 text-sm">
-            <Users className="h-8 w-8 opacity-50" />
-            No alumni found.
-          </div>
-        )}
+        <TablePagination
+          page={currentPage}
+          totalPages={totalPages}
+          limit={limit}
+          loading={isLoading}
+          totalFiltered={isLoading ? undefined : filtered.length}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+        />
       </SectionCard>
+
+      <Popup
+        open={viewing !== null}
+        onOpenChange={(o) => !o && setViewing(null)}
+        size="lg"
+        aria-labelledby="alumnus-title"
+      >
+        {viewing && (
+          <>
+            <div className="border-border flex items-center justify-between border-b px-5 py-4">
+              <h2 id="alumnus-title" className="text-base font-semibold">
+                Alumnus details
+              </h2>
+              <CloseButton onClick={() => setViewing(null)} />
+            </div>
+            <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+              <div className="flex items-center gap-4">
+                <Avatar a={viewing} size="h-[4.5rem] w-14" />
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-semibold">{viewing.name}</p>
+                  {!viewing.available && <StatusBadge status="inactive" className="mt-1" />}
+                </div>
+              </div>
+              <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                {details.map(([label, value]) => (
+                  <div key={label} className={label === 'Address' ? 'sm:col-span-2' : undefined}>
+                    <dt className="text-muted-foreground text-xs">{label}</dt>
+                    <dd className="wrap-break-word">{value || '—'}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <div className="border-border flex justify-end border-t px-5 py-3">
+              <Button type="button" variant="outline" onClick={() => setViewing(null)}>
+                Close
+              </Button>
+            </div>
+          </>
+        )}
+      </Popup>
     </div>
   );
 }

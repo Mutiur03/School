@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { CalendarDays, CircleDollarSign, Clock3, Loader2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CircleDollarSign, Clock3, ShieldCheck } from 'lucide-react';
 import {
   SUBSCRIPTION_DATE_FIELD_LABELS,
   SUBSCRIPTION_STATUS_FIELDS,
   type SubscriptionDateField,
 } from '@school/shared-schemas';
-import { PageHeader, SectionCard } from '@/components';
+import { SectionCard } from '@/components';
+import { Button } from '@/components/ui/button';
 import {
   BILLING_STATUS_CLASSES,
   BILLING_STATUS_LABELS,
@@ -20,62 +22,67 @@ const accessLabel: Record<SubscriptionDetails['access_state'], string> = {
   locked: 'Access locked',
 };
 
-const accessBadgeClass: Record<SubscriptionDetails['access_state'], string> = {
-  active: 'border-current/25 bg-white/55 dark:bg-black/15',
-  grace: 'border-amber-300/60 bg-amber-100/70 dark:bg-amber-950/40',
-  locked: 'border-red-300/60 bg-red-100/70 dark:bg-red-950/40',
+const accessDot: Record<SubscriptionDetails['access_state'], string> = {
+  active: 'bg-emerald-500',
+  grace: 'bg-amber-500',
+  locked: 'bg-red-500',
 };
 
 const STATUS_SUMMARY: Record<SubscriptionDetails['status'], string> = {
-  trialing: 'Free trial access — locks when the trial ends.',
-  active: 'Annual plan · billed every 12 months',
-  past_due: 'Payment overdue — grace access only until lock',
+  trialing: 'Free trial access â€” locks when the trial ends.',
+  active: 'Annual plan Â· billed every 12 months',
+  past_due: 'Payment overdue â€” grace access only until lock',
   suspended: 'Access suspended by the platform administrator',
   expired: 'Annual period has ended',
   cancelled: 'Subscription cancelled',
 };
 
-export default function Billing() {
-  const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+const Row = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="flex justify-between gap-4">
+    <dt className="text-muted-foreground">{label}</dt>
+    <dd className="text-right font-medium">{children}</dd>
+  </div>
+);
 
-  useEffect(() => {
-    let active = true;
-    axios
-      .get<{ data: SubscriptionDetails }>('/api/schools/billing')
-      .then((response) => {
-        if (active) setSubscription(response.data.data);
-      })
-      .catch(() => {
-        if (active) setError('Billing details could not be loaded. Refresh the page to try again.');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+export default function Billing() {
+  const {
+    data: subscription,
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['billing'],
+    queryFn: async () =>
+      (await axios.get<{ data: SubscriptionDetails }>('/api/schools/billing')).data.data,
+  });
 
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Billing"
-        description="View your school’s subscription status and access timeline."
-      />
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold">Billing</h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          {subscription
+            ? `${BILLING_STATUS_LABELS[subscription.status]} Â· ${subscription.plan_name} Â· ${accessLabel[subscription.access_state]}`
+            : 'Your schoolâ€™s subscription status and access timeline.'}
+        </p>
+      </header>
 
-      {loading ? (
-        <div className="text-muted-foreground flex min-h-64 items-center justify-center gap-2 text-sm">
-          <Loader2 className="h-5 w-5 animate-spin" /> Loading billing details…
+      {isPending ? (
+        <div className="animate-pulse space-y-6">
+          <div className="bg-muted h-24 rounded-xl" />
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="bg-muted h-40 rounded-xl" />
+            <div className="bg-muted h-40 rounded-xl" />
+          </div>
         </div>
-      ) : error || !subscription ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800"
-        >
-          {error || 'Billing details are unavailable.'}
-        </div>
+      ) : isError || !subscription ? (
+        <SectionCard className="text-center">
+          <AlertTriangle className="text-destructive mx-auto mb-3 h-8 w-8" />
+          <p className="mb-4 text-sm">Billing details could not be loaded.</p>
+          <Button type="button" onClick={() => refetch()}>
+            Try again
+          </Button>
+        </SectionCard>
       ) : (
         <BillingContent subscription={subscription} />
       )}
@@ -84,7 +91,7 @@ export default function Billing() {
 }
 
 function BillingContent({ subscription }: { subscription: SubscriptionDetails }) {
-  const { status } = subscription;
+  const { status, access_state } = subscription;
   const visibleFields = SUBSCRIPTION_STATUS_FIELDS[status].visible;
   const showPlanCard = status !== 'trialing' && status !== 'cancelled';
   const showRenewal = status === 'active' || status === 'past_due';
@@ -113,52 +120,58 @@ function BillingContent({ subscription }: { subscription: SubscriptionDetails })
 
   return (
     <div className="space-y-6">
-      <section className={`rounded-2xl border p-6 ${BILLING_STATUS_CLASSES[status]}`}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest">Subscription status</p>
-            <h2 className="mt-2 text-3xl font-bold">{BILLING_STATUS_LABELS[status]}</h2>
-            <p className="mt-2 text-sm opacity-80">{STATUS_SUMMARY[status]}</p>
-            <span
-              className={`mt-3 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${accessBadgeClass[subscription.access_state]}`}
-            >
-              {accessLabel[subscription.access_state]}
-            </span>
-          </div>
-          {subscription.access_state !== 'locked' && (
-            <div className="border-current/20 rounded-xl border bg-white/55 px-4 py-3 text-right dark:bg-black/10">
-              <p className="text-3xl font-bold tabular-nums">
-                {subscription.access_state === 'grace'
-                  ? subscription.grace_days_remaining
-                  : subscription.days_remaining}
-              </p>
-              <p className="text-xs font-medium uppercase">
-                {subscription.access_state === 'grace' ? 'grace days left' : 'days remaining'}
-              </p>
-            </div>
-          )}
+      <section
+        aria-label="Subscription status"
+        className="border-border bg-card grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border px-5 py-4 shadow-sm sm:grid-cols-4"
+      >
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs font-medium">Status</p>
+          <span
+            className={`mt-1 inline-flex rounded-full border px-2.5 py-0.5 text-sm font-semibold ${BILLING_STATUS_CLASSES[status]}`}
+          >
+            {BILLING_STATUS_LABELS[status]}
+          </span>
         </div>
+        <div className="min-w-0">
+          <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+            <span className={`h-1.5 w-1.5 rounded-full ${accessDot[access_state]}`} aria-hidden />
+            Access
+          </p>
+          <p className="mt-0.5 text-xl font-semibold">{accessLabel[access_state]}</p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs font-medium">
+            {access_state === 'grace' ? 'Grace days left' : 'Days remaining'}
+          </p>
+          <p className="mt-0.5 text-xl font-semibold tabular-nums">
+            {access_state === 'locked'
+              ? 'â€”'
+              : access_state === 'grace'
+                ? subscription.grace_days_remaining
+                : subscription.days_remaining}
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs font-medium">Access ends</p>
+          <p className="mt-0.5 text-xl font-semibold tabular-nums">
+            {showAccessEnds ? formatBillingDate(subscription.access_ends_at) : 'â€”'}
+          </p>
+        </div>
+        <p className="text-muted-foreground col-span-full text-sm">{STATUS_SUMMARY[status]}</p>
       </section>
 
       <div className={`grid grid-cols-1 gap-5 ${showPlanCard ? 'md:grid-cols-2' : ''}`}>
         {showPlanCard ? (
           <SectionCard title="Plan" icon={<CircleDollarSign size={20} />}>
             <dl className="space-y-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Plan</dt>
-                <dd className="font-medium">{subscription.plan_name}</dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Billing cycle</dt>
-                <dd className="font-medium">Annual</dd>
-              </div>
+              <Row label="Plan">{subscription.plan_name}</Row>
+              <Row label="Billing cycle">Annual</Row>
               {showRenewal ? (
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Renewal</dt>
-                  <dd className="flex items-center gap-1.5 font-medium">
+                <Row label="Renewal">
+                  <span className="inline-flex items-center gap-1.5">
                     <Clock3 className="h-4 w-4" /> Every 12 months
-                  </dd>
-                </div>
+                  </span>
+                </Row>
               ) : null}
             </dl>
           </SectionCard>
@@ -167,10 +180,9 @@ function BillingContent({ subscription }: { subscription: SubscriptionDetails })
         <SectionCard title="Dates" icon={<CalendarDays size={20} />}>
           <dl className="space-y-4 text-sm">
             {filteredRows.map((row) => (
-              <div key={row.label} className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">{row.label}</dt>
-                <dd className="font-medium">{formatBillingDate(row.value)}</dd>
-              </div>
+              <Row key={row.label} label={row.label}>
+                {formatBillingDate(row.value)}
+              </Row>
             ))}
           </dl>
         </SectionCard>

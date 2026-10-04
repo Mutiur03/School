@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Plus, Search } from 'lucide-react';
+import { AlertTriangle, Plus, Search, X } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PageHeader, FilterSelection, FilterField, filterSelectClassName } from '@/components';
+import { SectionCard, filterSelectClassName } from '@/components';
+import ActionButton from '@/components/ActionButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import {
   useAssignedExamTypes,
   useCreateExam,
@@ -15,11 +18,21 @@ import {
 } from '@/queries/exam.queries';
 import { ExamFormDialog, EXAM_CLASSES } from './exam-form-dialog';
 import { ExamSessionRail, yearEndGaps } from './exam-session-rail';
-import { ExamWorkbenchCard, ExamWorkbenchCardSkeleton } from './exam-workbench-card';
+import { ExamWorkbenchRow, stickyCell } from './exam-workbench-card';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 type StatusFilter = 'all' | 'draft' | 'published' | 'year-end';
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+const columns: { label: string; className?: string }[] = [
+  { label: 'Exam', className: cn(stickyCell, 'px-3 sm:px-4') },
+  { label: 'Dates' },
+  { label: 'Results' },
+  { label: 'Routine' },
+  { label: 'Actions', className: 'w-px px-3 text-right' },
+];
 
 function ExamPDFRoutine() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,23 +43,28 @@ function ExamPDFRoutine() {
   const dialog = searchParams.get('dialog');
   const editId = Number(searchParams.get('edit')) || null;
 
-  const { data: exams = [], isLoading } = useExams();
+  const { data: exams = [], isLoading, isError } = useExams();
   const { data: examTypes = [] } = useAssignedExamTypes();
   const createExam = useCreateExam();
   const updateExam = useUpdateExam();
   const toggleVisibility = useToggleExamVisibility();
 
-  const setParam = (key: string, value: string, fallback = '') => {
+  const updateParams = (apply: (next: URLSearchParams) => void) => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (!value || value === fallback) next.delete(key);
-        else next.set(key, value);
+        apply(next);
         return next;
       },
       { replace: true },
     );
   };
+
+  const setParam = (key: string, value: string, fallback = '') =>
+    updateParams((next) => {
+      if (!value || value === fallback) next.delete(key);
+      else next.set(key, value);
+    });
 
   const years = useMemo(() => {
     const fromData = exams.map((exam) => exam.exam_year);
@@ -75,45 +93,47 @@ function ExamPDFRoutine() {
     });
   }, [yearExams, query, status, classFilter]);
 
+  const filtersActive = Boolean(query.trim()) || status !== 'all' || classFilter !== 'all';
+  const clearFilters = () =>
+    updateParams((next) => {
+      next.delete('q');
+      next.delete('status');
+      next.delete('class');
+    });
+
   const gaps = yearEndGaps(yearExams);
   const editingExam = editId ? (exams.find((exam) => exam.id === editId) ?? null) : null;
   const formOpen = dialog === 'create' || (dialog === 'edit' && !!editingExam);
 
-  const openCreate = () => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('dialog', 'create');
-        next.delete('edit');
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const published = yearExams.filter((exam) => exam.visible).length;
+  const withRoutine = yearExams.filter((exam) => exam.routine).length;
+  const summary = isLoading
+    ? ' '
+    : yearExams.length === 0
+      ? `No exams in ${year}`
+      : [
+          plural(yearExams.length, 'exam'),
+          `${published.toLocaleString()} published`,
+          `${withRoutine.toLocaleString()} with routine PDF`,
+        ].join(' · ');
 
-  const openEdit = (exam: Exam) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('dialog', 'edit');
-        next.set('edit', String(exam.id));
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const openCreate = () =>
+    updateParams((next) => {
+      next.set('dialog', 'create');
+      next.delete('edit');
+    });
 
-  const closeForm = () => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('dialog');
-        next.delete('edit');
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const openEdit = (exam: Exam) =>
+    updateParams((next) => {
+      next.set('dialog', 'edit');
+      next.set('edit', String(exam.id));
+    });
+
+  const closeForm = () =>
+    updateParams((next) => {
+      next.delete('dialog');
+      next.delete('edit');
+    });
 
   const scrollToExam = (examId: number) => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -122,82 +142,55 @@ function ExamPDFRoutine() {
       ?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
   };
 
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {isError ? (
+        <p>Couldn&apos;t load exams. Try again in a moment.</p>
+      ) : yearExams.length === 0 ? (
+        <>
+          <p>No exams in {year} yet.</p>
+          <Button type="button" variant="outline" size="sm" onClick={openCreate}>
+            <Plus /> Create exam
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>No exams match these filters.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            <X /> Clear filters
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Exam Management"
-        description="Run the session calendar: create exams, publish results, attach routines."
-      >
-        <Button type="button" onClick={openCreate}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Create Exam
-        </Button>
-      </PageHeader>
-
-      <FilterSelection>
-        <FilterField label="Session year" htmlFor="exam-year">
-          <select
-            id="exam-year"
-            className={filterSelectClassName}
-            value={year}
-            onChange={(e) => setParam('year', e.target.value, String(CURRENT_YEAR))}
-          >
-            {years.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Status" htmlFor="exam-status">
-          <select
-            id="exam-status"
-            className={filterSelectClassName}
-            value={status}
-            onChange={(e) => setParam('status', e.target.value, 'all')}
-          >
-            <option value="all">All statuses</option>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="year-end">Year end</option>
-          </select>
-        </FilterField>
-        <FilterField label="Class" htmlFor="exam-class">
-          <select
-            id="exam-class"
-            className={filterSelectClassName}
-            value={classFilter}
-            onChange={(e) => setParam('class', e.target.value, 'all')}
-          >
-            <option value="all">All classes</option>
-            {EXAM_CLASSES.map((level) => (
-              <option key={level} value={level}>
-                Class {level}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Search exams" htmlFor="exam-search" wide>
-          <div className="relative">
-            <Search
-              className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
-              aria-hidden="true"
-            />
-            <Input
-              id="exam-search"
-              name="q"
-              value={query}
-              placeholder="Search by name…"
-              className="h-9 pl-8"
-              onChange={(e) => setParam('q', e.target.value)}
-            />
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">Exams</h1>
+            <select
+              aria-label="Session year"
+              value={year}
+              onChange={(e) => setParam('year', e.target.value, String(CURRENT_YEAR))}
+              className={cn(filterSelectClassName, 'h-8 w-auto font-medium')}
+            >
+              {years.map((value) => (
+                <option key={value} value={value}>
+                  Session {value}
+                </option>
+              ))}
+            </select>
           </div>
-        </FilterField>
-      </FilterSelection>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        <Button type="button" onClick={openCreate}>
+          <Plus /> Create exam
+        </Button>
+      </header>
 
-      <div className="mt-6">
-        <ExamSessionRail exams={yearExams} onSelect={scrollToExam} />
-      </div>
+      <ExamSessionRail exams={yearExams} onSelect={scrollToExam} />
 
       {gaps.length > 0 ? (
         <Alert className="mb-4 border-amber-500/50 bg-amber-50 text-amber-950 dark:bg-amber-950/50 dark:text-amber-50 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
@@ -210,45 +203,106 @@ function ExamPDFRoutine() {
         </Alert>
       ) : null}
 
-      {isLoading ? (
-        <ul className="space-y-3" aria-busy="true" aria-label="Loading exams">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <li key={index}>
-              <ExamWorkbenchCardSkeleton />
-            </li>
-          ))}
-        </ul>
-      ) : filtered.length === 0 ? (
-        <div className="border-border rounded-xl border px-6 py-16 text-center">
-          <p className="text-foreground text-sm font-medium">
-            {yearExams.length === 0 ? `No exams in ${year}` : 'No exams match these filters'}
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {yearExams.length === 0
-              ? 'Create the first exam for this session.'
-              : 'Clear search or status to see the rest of the session.'}
-          </p>
-          {yearExams.length === 0 ? (
-            <Button type="button" className="mt-4" onClick={openCreate}>
-              Create Exam
-            </Button>
-          ) : null}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
+          <Search
+            className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2"
+            aria-hidden="true"
+          />
+          <Input
+            name="q"
+            aria-label="Search exams"
+            value={query}
+            placeholder="Search by name…"
+            className="h-9 pl-8"
+            onChange={(e) => setParam('q', e.target.value)}
+          />
         </div>
-      ) : (
-        <ul className="space-y-3">
-          {filtered.map((exam) => (
-            <li key={exam.id}>
-              <ExamWorkbenchCard
-                exam={exam}
-                onEdit={openEdit}
-                onTogglePublish={(item) =>
-                  toggleVisibility.mutate({ id: item.id, visible: !item.visible })
-                }
-              />
-            </li>
+        <select
+          aria-label="Status"
+          className={cn(filterSelectClassName, 'w-auto')}
+          value={status}
+          onChange={(e) => setParam('status', e.target.value, 'all')}
+        >
+          <option value="all">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="year-end">Year end</option>
+        </select>
+        <select
+          aria-label="Class"
+          className={cn(filterSelectClassName, 'w-auto')}
+          value={classFilter}
+          onChange={(e) => setParam('class', e.target.value, 'all')}
+        >
+          <option value="all">All classes</option>
+          {EXAM_CLASSES.map((level) => (
+            <option key={level} value={level}>
+              Class {level}
+            </option>
           ))}
-        </ul>
-      )}
+        </select>
+      </div>
+
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[48rem] border-collapse text-left">
+            <thead>
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                {columns.map((col) => (
+                  <th
+                    key={col.label}
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.className,
+                    )}
+                  >
+                    {col.label !== 'Actions' ? (
+                      col.label
+                    ) : filtersActive ? (
+                      <ActionButton
+                        iconOnly
+                        label="Clear filters"
+                        icon={<X size={16} />}
+                        onClick={clearFilters}
+                      />
+                    ) : (
+                      <span className="sr-only">Actions</span>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {isLoading ? (
+                Array.from({ length: 4 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={columns.length} className="px-4 py-2">
+                      <Skeleton className="h-10 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : filtered.length > 0 ? (
+                filtered.map((exam) => (
+                  <ExamWorkbenchRow
+                    key={exam.id}
+                    exam={exam}
+                    onEdit={openEdit}
+                    onTogglePublish={(item) =>
+                      toggleVisibility.mutate({ id: item.id, visible: !item.visible })
+                    }
+                  />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length}>{emptyState}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
 
       <ExamFormDialog
         open={formOpen}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
@@ -6,30 +6,37 @@ import {
   CheckCircle2,
   Circle,
   Download,
-  Users,
-  Calendar,
-  FileSpreadsheet,
-  RefreshCw,
-  Trophy,
+  FileText,
   GraduationCap,
-  ClipboardCheck,
+  MoreHorizontal,
+  RefreshCw,
+  SlidersHorizontal,
+  Trophy,
+  Users,
+  X,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  PageHeader,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  ActionButton,
+  Popup,
   SectionCard,
-  FilterSelection,
-  FilterField,
-  filterSelectClassName,
   TablePagination,
+  filterSelectClassName,
 } from '@/components';
-import Loading from '@/components/Loading';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { cn } from '@/lib/utils';
-import { useStudents } from '@/queries/students.queries';
+import { useStudents, type StudentSortKey } from '@/queries/students.queries';
 import { useExams } from '@/queries/exam.queries';
 import {
   useUpdatePromotionStatus,
@@ -48,39 +55,52 @@ import {
   type GraduationPreview,
   type PromotionPassRule,
 } from '@/queries/promotion.queries';
-import { PromotionPreviewDialog } from '@/pages/Admin/PromotionPreviewDialog';
+import {
+  CloseButton,
+  PromotionPreviewDialog,
+  thClass,
+  theadRowClass,
+} from '@/pages/Admin/PromotionPreviewDialog';
 import { GraduationPreviewDialog } from '@/pages/Admin/GraduationPreviewDialog';
 import { yearEndGaps } from '@/pages/Admin/exam-session-rail';
 import { openBlobInNewTab } from '@school/common-ui/blob';
 import type { Student } from '@/types/students';
 
 const PAGE_SIZE_KEY = 'promotionReviewPageSize';
+const YEAR_KEY = 'generateResultYear';
+const FILTERS_KEY = 'generateResultFilters';
+const GROUPS = ['Science', 'Humanities', 'Commerce'];
+
+type Filters = { levels: string[]; sections: string[]; groups: string[] };
+const NO_FILTERS: Filters = { levels: [], sections: [], groups: [] };
+
+// sessionStorage can throw (private mode, blocked storage); the page works without it.
+const readStore = (key: string) => {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const writeStore = (key: string, value: string) => {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+};
+
+// Merit + Student columns stay pinned while the table scrolls sideways.
+const stickyCell = 'sticky z-[1] bg-inherit';
+const stickyEdge = 'shadow-[1px_0_0_var(--border)]';
 
 function StatusBadge({ status }: { status?: string }) {
-  if (status === 'Passed') {
-    return (
-      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
-        Passed
-      </Badge>
-    );
-  }
-  if (status === 'Failed') {
-    return (
-      <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-700">
-        Failed
-      </Badge>
-    );
-  }
-  if (status === 'Pending') {
-    return (
-      <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-800">
-        Pending
-      </Badge>
-    );
-  }
   if (status === 'Graduated') {
     return (
-      <Badge variant="outline" className="border-sky-500/40 bg-sky-500/10 text-sky-800">
+      <Badge
+        variant="outline"
+        className="border-sky-500/40 bg-sky-500/10 text-sky-800 dark:text-sky-300"
+      >
         Graduated
       </Badge>
     );
@@ -97,10 +117,7 @@ function StatusOverrideSelect({
   disabled?: boolean;
   onChange: (student: Student, status: EnrollmentStatus) => void;
 }) {
-  if (student.status === 'Graduated') {
-    return <StatusBadge status={student.status} />;
-  }
-
+  if (student.status === 'Graduated') return <StatusBadge status={student.status} />;
   const value = ENROLLMENT_STATUS_OPTIONS.includes(student.status as EnrollmentStatus)
     ? (student.status as EnrollmentStatus)
     : 'Pending';
@@ -110,7 +127,13 @@ function StatusOverrideSelect({
       value={value}
       disabled={disabled}
       aria-label={`Override status for ${student.name || 'student'}`}
-      className={cn(filterSelectClassName, 'h-8 min-w-[6.5rem] px-2 text-xs')}
+      className={cn(
+        filterSelectClassName,
+        'h-8 w-auto min-w-[6.5rem] text-xs',
+        value === 'Passed' && 'text-emerald-700 dark:text-emerald-400',
+        value === 'Failed' && 'text-red-700 dark:text-red-400',
+        value === 'Pending' && 'text-amber-800 dark:text-amber-300',
+      )}
       onChange={(e) => onChange(student, e.target.value as EnrollmentStatus)}
     >
       {ENROLLMENT_STATUS_OPTIONS.map((option) => (
@@ -122,101 +145,121 @@ function StatusOverrideSelect({
   );
 }
 
-function ReadinessItem({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
-  const Icon = ok ? CheckCircle2 : Circle;
-  return (
-    <li className="flex gap-3 text-sm">
-      <Icon
-        className={cn('mt-0.5 h-4 w-4 shrink-0', ok ? 'text-emerald-600' : 'text-muted-foreground')}
-        aria-hidden="true"
-      />
-      <span>
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground mt-0.5 block text-xs">{detail}</span>
-      </span>
-    </li>
-  );
-}
-
 function meritBadgeClass(merit?: number) {
   if (merit === 1) return 'bg-amber-500 text-white';
   if (merit === 2) return 'bg-zinc-400 text-white';
   if (merit === 3) return 'bg-amber-700 text-white';
-  return 'bg-muted text-muted-foreground';
+  return 'bg-muted text-foreground/80';
+}
+
+function Step({
+  n,
+  title,
+  icon,
+  done,
+  detail,
+  children,
+}: {
+  n: number;
+  title: string;
+  icon: ReactNode;
+  done: boolean;
+  detail: ReactNode;
+  children: ReactNode;
+}) {
+  const Check = done ? CheckCircle2 : Circle;
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 shrink-0">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            {n} · {title}
+            <Check
+              className={cn(
+                'h-3.5 w-3.5 shrink-0',
+                done ? 'text-emerald-600' : 'text-muted-foreground',
+              )}
+              aria-label={done ? 'Done' : 'Not done'}
+            />
+          </p>
+          <p className="text-muted-foreground mt-0.5 text-xs">{detail}</p>
+        </div>
+      </div>
+      <div className="mt-auto flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
 }
 
 const GenerateResult = () => {
   const currentYear = new Date().getFullYear();
   const { confirm, dialog } = useConfirmDialog();
-  const [year, setYear] = useState<number>(currentYear);
-  const [classSection, setClassSection] = useState<string>('');
-  const [group, setGroup] = useState<string>('');
-  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [year, setYear] = useState<number>(() => {
+    const y = Number(readStore(YEAR_KEY));
+    return y >= currentYear - 4 && y <= currentYear ? y : currentYear;
+  });
+  const [filters, setFilters] = useState<Filters>(() => {
+    try {
+      return { ...NO_FILTERS, ...JSON.parse(readStore(FILTERS_KEY) || '{}') };
+    } catch {
+      return NO_FILTERS;
+    }
+  });
+  const [sort, setSort] = useState<{ key: StudentSortKey; order: SortOrder } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<PromotionPreview | null>(null);
   const [graduationOpen, setGraduationOpen] = useState(false);
   const [graduationData, setGraduationData] = useState<GraduationPreview | null>(null);
   const [overridingId, setOverridingId] = useState<number | null>(null);
+  const [rulesDraft, setRulesDraft] = useState<PromotionPassRule[] | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(() => {
-    const stored = sessionStorage.getItem(PAGE_SIZE_KEY);
-    const n = stored ? Number(stored) : 50;
+    const n = Number(readStore(PAGE_SIZE_KEY));
     return [25, 50, 100, 200].includes(n) ? n : 50;
   });
 
   const { data: exams = [] } = useExams();
   const yearExams = useMemo(() => exams.filter((exam) => exam.exam_year === year), [exams, year]);
   const gaps = useMemo(() => yearEndGaps(yearExams), [yearExams]);
+  const yearEndReady = gaps.length === 0;
 
   const { data: yearStats } = usePromotionYearStats(year);
   const { data: passRules = [] } = usePromotionPassRules(year);
-  const [localPassRules, setLocalPassRules] = useState<PromotionPassRule[]>(() =>
-    PROMOTION_PASS_CLASSES.map((cls) => ({ class: cls, max_failed: 0 })),
-  );
-  const { mutateAsync: savePassRules, isPending: isSavingPassRules } = useSavePromotionPassRules();
+  const { mutate: savePassRules, isPending: isSavingPassRules } = useSavePromotionPassRules();
 
-  useEffect(() => {
-    if (passRules.length > 0) {
-      setLocalPassRules(passRules);
-    }
-  }, [passRules]);
-
-  const passRulesByClass = useMemo(
-    () => Object.fromEntries(localPassRules.map((r) => [r.class, r.max_failed])),
-    [localPassRules],
-  );
-
-  const passRulesDirty = useMemo(() => {
-    if (passRules.length === 0) return false;
-    return localPassRules.some((rule) => {
-      const saved = passRules.find((r) => r.class === rule.class);
-      return (saved?.max_failed ?? 0) !== rule.max_failed;
-    });
-  }, [localPassRules, passRules]);
-
-  const passRulesSummary = useMemo(
+  // Saved rules per class; a class with no saved rule is strict (0 fails allowed).
+  const savedRules = useMemo<PromotionPassRule[]>(
     () =>
-      localPassRules
-        .map(
-          (r) => `Class ${r.class}: ${r.max_failed} fail${r.max_failed === 1 ? '' : 's'} allowed`,
-        )
-        .join(' · '),
-    [localPassRules],
+      PROMOTION_PASS_CLASSES.map((cls) => ({
+        class: cls,
+        max_failed: passRules.find((r) => r.class === cls)?.max_failed ?? 0,
+      })),
+    [passRules],
   );
+  const passRulesByClass = useMemo(
+    () => Object.fromEntries(savedRules.map((r) => [r.class, r.max_failed])),
+    [savedRules],
+  );
+  const passRulesSummary = savedRules.map((r) => `${r.class}: ${r.max_failed}`).join(' · ');
 
   const {
     data: studentsResponse,
     isLoading: studentsLoading,
     isFetching: studentsFetching,
     error: studentsError,
-  } = useStudents({
-    year,
-    page,
-    limit,
-    level: selectedClass ? Number(selectedClass) : undefined,
-    section: classSection || undefined,
-    group: Number(selectedClass) >= 9 && group ? group : undefined,
-  });
+  } = useStudents(
+    {
+      year,
+      page,
+      limit,
+      levels: filters.levels.map(Number),
+      sections: filters.sections,
+      groups: filters.groups,
+      sort: sort?.key,
+      order: sort?.order,
+    },
+    { keepPreviousPage: true },
+  );
 
   const { mutate: updateStatus, isPending: isUpdatingStatus } = useUpdatePromotionStatus();
   const { mutate: fetchPreview, isPending: isPreviewLoading } = usePromotionPreview();
@@ -226,100 +269,73 @@ const GenerateResult = () => {
   const { mutate: graduateClass10, isPending: isGraduating } = useGraduateClass10();
   const { mutate: overrideStatus } = useOverrideEnrollmentStatus();
 
-  const students = studentsResponse?.data ?? [];
+  const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
   const meta = studentsResponse?.meta;
-  const totalPages = meta?.totalPages ?? 0;
   const totalFiltered = meta?.filtered ?? 0;
-  const listLoading = studentsLoading || studentsFetching;
-  const loading = listLoading || isUpdatingStatus || isGeneratingRoll || isGraduating;
   const promoteBusy = isPreviewLoading || isGeneratingRoll;
   const graduationBusy = isGraduationPreviewLoading || isGraduating;
 
-  useEffect(() => {
-    const storedYear = sessionStorage.getItem('generateResultYear');
-    const storedClass = sessionStorage.getItem('generateResultClass');
-    const storedSection = sessionStorage.getItem('generateResultSection');
-    const storedGroup = sessionStorage.getItem('generateResultGroup');
+  // Default order is merit within the page; a header sort hands ordering to the server.
+  const rows = useMemo(
+    () =>
+      sort
+        ? students
+        : [...students].sort(
+            (a, b) =>
+              (a.final_merit || 9999) - (b.final_merit || 9999) ||
+              a.class - b.class ||
+              (a.section || '').localeCompare(b.section || '') ||
+              (Number(a.roll) || 0) - (Number(b.roll) || 0),
+          ),
+    [students, sort],
+  );
 
-    if (storedYear) {
-      const y = Number(storedYear);
-      setYear(y >= currentYear - 1 && y <= currentYear ? y : currentYear);
-    }
-    if (storedClass) setSelectedClass(storedClass);
-    if (storedSection) setClassSection(storedSection);
-    if (storedGroup) setGroup(storedGroup);
-  }, []);
+  const promo = yearStats?.promotion;
+  const class10 = yearStats?.class10;
+  const meritAssigned = yearStats?.merit_assigned ?? false;
+  const nextYearTotal = yearStats?.next_year_enrollments ?? 0;
+  const class10Graduated = (class10?.graduated ?? 0) > 0;
 
   const handleYearChange = (value: string) => {
     setYear(Number(value));
     setPage(1);
-    sessionStorage.setItem('generateResultYear', value);
+    writeStore(YEAR_KEY, value);
   };
 
-  const handleClassChange = (value: string) => {
-    setSelectedClass(value);
-    setGroup('');
-    setClassSection('');
+  const updateFilters = (patch: Partial<Filters>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
     setPage(1);
-    sessionStorage.setItem('generateResultClass', value);
+    writeStore(FILTERS_KEY, JSON.stringify(next));
   };
+  const filtersActive = filters.levels.length + filters.sections.length + filters.groups.length > 0;
 
-  const handleSectionChange = (value: string) => {
-    setClassSection(value);
-    setPage(1);
-    sessionStorage.setItem('generateResultSection', value);
-  };
+  const sortProps = (key: StudentSortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => {
+      setSort(order ? { key, order } : null);
+      setPage(1);
+    },
+  });
 
-  const handleGroupChange = (value: string) => {
-    setGroup(value);
-    setPage(1);
-    sessionStorage.setItem('generateResultGroup', value);
-  };
-
-  const statusSummary = yearStats?.promotion ?? { passed: 0, failed: 0, pending: 0, total: 0 };
-  const class10Summary = yearStats?.class10 ?? { passed: 0, failed: 0, graduated: 0, total: 0 };
-  const meritAssigned = yearStats?.merit_assigned ?? false;
-  const nextYearTotal = yearStats?.next_year_enrollments ?? 0;
-  const class10Graduated = class10Summary.graduated > 0;
-
-  const yearEndReady = gaps.length === 0;
-
-  const handlePassRuleChange = (cls: number, raw: string) => {
-    const max_failed = Math.max(0, Math.min(15, Number.parseInt(raw, 10) || 0));
-    setLocalPassRules((prev) =>
-      prev.map((rule) => (rule.class === cls ? { ...rule, max_failed } : rule)),
-    );
-  };
-
-  const persistPassRules = async (silent = false) => {
-    if (!passRulesDirty) return;
-    await savePassRules({ year, rules: localPassRules, silent });
+  const blockIfNotReady = () => {
+    if (yearEndReady) return false;
+    toast.error(`Missing year-end exams for class ${gaps.join(', ')}`);
+    return true;
   };
 
   const handleGenerateResult = async () => {
-    if (!yearEndReady) {
-      toast.error(`Missing year-end exams for class ${gaps.join(', ')}`);
-      return;
-    }
-    try {
-      await persistPassRules(true);
-    } catch {
-      return;
-    }
+    if (blockIfNotReady()) return;
     const ok = await confirm({
       title: 'Generate pass/fail?',
-      msg: `Recalculate pass/fail for all students in ${year} from year-end marks.\n\nAllowed failed subjects: ${passRulesSummary}.\n\nManual overrides may be overwritten.`,
+      msg: `Recalculate pass/fail for all students in ${year} from year-end marks.\n\nAllowed failed subjects by class — ${passRulesSummary}.\n\nManual overrides may be overwritten.`,
       confirmLabel: 'Generate',
     });
-    if (!ok) return;
-    updateStatus(year);
+    if (ok) updateStatus(year);
   };
 
   const handleOpenPreview = () => {
-    if (!yearEndReady) {
-      toast.error(`Missing year-end exams for class ${gaps.join(', ')}`);
-      return;
-    }
+    if (blockIfNotReady()) return;
     setPreviewOpen(true);
     setPreviewData(null);
     fetchPreview(year, {
@@ -345,10 +361,7 @@ const GenerateResult = () => {
   };
 
   const handleOpenGraduationPreview = () => {
-    if (!yearEndReady) {
-      toast.error(`Missing year-end exams for class ${gaps.join(', ')}`);
-      return;
-    }
+    if (blockIfNotReady()) return;
     setGraduationOpen(true);
     setGraduationData(null);
     fetchGraduationPreview(year, {
@@ -385,65 +398,42 @@ const GenerateResult = () => {
     );
   };
 
-  const filteredStudents = useMemo(() => {
-    return [...students].sort(
-      (a, b) =>
-        (a.final_merit || 9999) - (b.final_merit || 9999) ||
-        a.class - b.class ||
-        (a.section || '').localeCompare(b.section || '') ||
-        (Number(a.roll) || 0) - (Number(b.roll) || 0),
-    );
-  }, [students]);
-
-  const downloadSessionMarksheet = async (studentId: number) => {
-    try {
-      const response = await axios.get(`/api/marks/${studentId}/${year}/download`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      openBlobInNewTab(blob);
-    } catch {
-      toast.error('Failed to download session marksheet');
-    }
+  const handleSaveRules = () => {
+    if (!rulesDraft) return;
+    savePassRules({ year, rules: rulesDraft }, { onSuccess: () => setRulesDraft(null) });
   };
 
-  const downloadAllMarksheetPDF = async () => {
+  const downloadPdf = async (url: string, error: string) => {
     try {
-      const response = await axios.get(`/api/marks/all/${year}`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      openBlobInNewTab(blob);
+      const response = await axios.get(url, { responseType: 'blob' });
+      openBlobInNewTab(new Blob([response.data], { type: 'application/pdf' }));
     } catch {
-      toast.error('Failed to download all marksheets');
+      toast.error(error);
     }
   };
+  const downloadSessionMarksheet = (studentId: number) =>
+    downloadPdf(`/api/marks/${studentId}/${year}/download`, 'Failed to download session marksheet');
+  const downloadAllMarksheetPDF = () =>
+    downloadPdf(`/api/marks/all/${year}`, 'Failed to download all marksheets');
 
-  const renderStudentRow = (student: Student, compact?: boolean) => (
-    <>
-      <span
-        className={cn(
-          'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-          meritBadgeClass(student.final_merit),
-        )}
-      >
-        {student.final_merit || '—'}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className={cn('truncate font-semibold uppercase', compact ? 'text-sm' : '')}>
-          {student.name || 'N/A'}
-        </p>
-        {!compact && (
-          <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-            Class {student.class} · Roll {student.roll || 'N/A'} · Sec {student.section || 'N/A'}
-          </p>
-        )}
-      </div>
-    </>
-  );
+  const summary = promo
+    ? `${promo.total.toLocaleString()} in classes 6–9 · ${promo.passed} passed · ${promo.failed} failed · ${promo.pending} pending · promotes into ${year + 1}`
+    : `Promotes into ${year + 1}`;
+
+  const classOptions = (meta?.availableClasses ?? [6, 7, 8, 9, 10]).map((c) => ({
+    value: String(c),
+    label: `Class ${c}`,
+  }));
+  const sectionOptions = (meta?.availableSections ?? ['A', 'B', 'C', 'D']).map((s) => ({
+    value: s,
+    label: `Section ${s}`,
+  }));
+
+  const colCount = 10;
+  const showSkeleton = studentsLoading && students.length === 0;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       {dialog}
       <PromotionPreviewDialog
         open={previewOpen}
@@ -461,435 +451,280 @@ const GenerateResult = () => {
         onOpenChange={setGraduationOpen}
         onConfirm={handleConfirmGraduation}
       />
-      <PageHeader
-        title="Year-End Promotion"
-        description="Pass/fail, promote classes 6–9, then graduate class 10 — all from year-end marks."
-      />
 
-      <SectionCard title="Academic year" icon={<Calendar className="h-5 w-5" />}>
-        <div className="max-w-xs space-y-2">
-          <Label htmlFor="promotion-year">Session year</Label>
-          <select
-            id="promotion-year"
-            value={year}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className={filterSelectClassName}
-          >
-            {Array.from({ length: 5 }, (_, i) => (
-              <option key={i} value={currentYear - i}>
-                {currentYear - i}
-              </option>
-            ))}
-          </select>
-          <p className="text-muted-foreground text-xs">
-            Promotion creates enrollments for <strong>{year + 1}</strong>.
-          </p>
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">Year-End Promotion</h1>
+            <select
+              aria-label="Session year"
+              value={year}
+              onChange={(e) => handleYearChange(e.target.value)}
+              className={cn(filterSelectClassName, 'h-8 w-auto font-medium')}
+            >
+              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                <option key={y} value={y}>
+                  Session {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
         </div>
-      </SectionCard>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void downloadAllMarksheetPDF()}
+          disabled={totalFiltered === 0}
+        >
+          <Download /> All session PDFs
+        </Button>
+      </header>
 
-      <SectionCard
-        title="Readiness"
-        icon={<ClipboardCheck className="h-5 w-5 text-sky-600" />}
-        description={`Checks for ${year} before you promote`}
-      >
-        <ul className="space-y-3">
-          <ReadinessItem
-            ok={yearEndReady}
-            label="Year-end exams"
-            detail={
-              yearEndReady
-                ? 'Every active class has a year-end exam.'
-                : `Missing for class ${gaps.join(', ')} — create them in Exam Management.`
-            }
-          />
-          <ReadinessItem
-            ok={statusSummary.failed + statusSummary.passed > 0}
-            label="Pass / fail (classes 6–9)"
-            detail={`${statusSummary.passed} passed · ${statusSummary.failed} failed · ${statusSummary.pending} pending`}
-          />
-          <ReadinessItem
-            ok={meritAssigned}
-            label="Merit & next-year rolls"
-            detail={
-              meritAssigned
-                ? 'Merit ranks assigned — review the list below.'
-                : 'Run Step 2 after pass/fail to assign merit and rolls.'
-            }
-          />
-          <ReadinessItem
-            ok={nextYearTotal === 0 || meritAssigned}
-            label={`Next year (${year + 1})`}
-            detail={
-              nextYearTotal === 0
-                ? 'No enrollments yet — safe to promote.'
-                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running will replace them.`
-            }
-          />
-          <ReadinessItem
-            ok={class10Graduated || class10Summary.total === 0}
-            label="Class 10 graduation"
-            detail={
-              class10Summary.total === 0
-                ? 'No active class-10 students for this year.'
-                : class10Graduated
-                  ? `${class10Summary.graduated} graduated · ${class10Summary.passed} pending · ${class10Summary.failed} failed`
-                  : `${class10Summary.total} active · ${class10Summary.passed} passed · ${class10Summary.failed} failed — run Step 3 after pass/fail`
-            }
-          />
-        </ul>
-      </SectionCard>
-
-      {gaps.length > 0 ? (
-        <Alert className="border-amber-500/50 bg-amber-50 text-amber-950 dark:bg-amber-950/50 dark:text-amber-50 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
+      {!yearEndReady && (
+        <Alert className="mb-6 border-amber-500/50 bg-amber-50 text-amber-950 dark:bg-amber-950/50 dark:text-amber-50 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
           <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           <AlertTitle>Missing year-end exam</AlertTitle>
           <AlertDescription>
             No year-end exam for class {gaps.join(', ')}. Pass/fail and promotion need one covering
-            each class.
+            each class — create them in Exam Management.
           </AlertDescription>
         </Alert>
-      ) : null}
+      )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <SectionCard
-          title="Step 1 · Pass / Fail"
+      <div className="border-border bg-card divide-border mb-6 grid divide-y rounded-xl border shadow-sm lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+        <Step
+          n={1}
+          title="Pass / fail"
           icon={<RefreshCw className="h-5 w-5 text-blue-600" />}
-          description="Set how many failed subjects still count as pass, then generate from year-end marks."
+          done={(promo?.passed ?? 0) + (promo?.failed ?? 0) > 0}
+          detail={
+            <>
+              Allowed failed subjects by class — {passRulesSummary}. Override single students in the
+              table.
+            </>
+          }
         >
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold">Allowed failed subjects (per class)</Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {localPassRules.map((rule) => (
-                  <label
-                    key={rule.class}
-                    className="border-border flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-sm"
-                  >
-                    <span className="text-muted-foreground text-xs font-medium">
-                      Class {rule.class}
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={15}
-                      value={rule.max_failed}
-                      onChange={(e) => handlePassRuleChange(rule.class, e.target.value)}
-                      className="border-input bg-background h-8 w-14 rounded-md border px-2 text-center text-sm tabular-nums"
-                      aria-label={`Allowed failed subjects for class ${rule.class}`}
-                    />
-                  </label>
-                ))}
-              </div>
-              <p className="text-muted-foreground text-xs">
-                0 = strict (any failed subject fails). A student passes when failed subjects ≤ this
-                limit.
-              </p>
-              {passRulesDirty ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isSavingPassRules}
-                  onClick={() => void persistPassRules(false)}
-                  className="h-8"
-                >
-                  {isSavingPassRules ? 'Saving…' : 'Save rules'}
-                </Button>
-              ) : null}
-            </div>
-            <Button
-              onClick={() => void handleGenerateResult()}
-              disabled={isUpdatingStatus || isSavingPassRules || !yearEndReady}
-              className="h-11 w-full font-bold"
-            >
-              {isUpdatingStatus ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Generate pass/fail
-            </Button>
-            <p className="text-muted-foreground text-center text-xs">
-              Override individual statuses in the review table below if needed.
-            </p>
-          </div>
-        </SectionCard>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleGenerateResult()}
+            disabled={isUpdatingStatus || !yearEndReady}
+          >
+            <RefreshCw className={cn(isUpdatingStatus && 'animate-spin')} />
+            Generate pass/fail
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setRulesDraft(savedRules)}
+          >
+            <SlidersHorizontal /> Pass rules
+          </Button>
+        </Step>
 
-        <SectionCard
-          title="Step 2 · Merit & promotion"
+        <Step
+          n={2}
+          title="Merit & promotion"
           icon={<Users className="h-5 w-5 text-indigo-500" />}
-          description="Preview merit ranks and next-year rolls for classes 6–9, then confirm."
+          done={meritAssigned}
+          detail={
+            <>
+              Classes 6–9 → {year + 1}.{' '}
+              {nextYearTotal === 0
+                ? 'No enrollments there yet — safe to promote.'
+                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces them.`}
+            </>
+          }
         >
-          <div className="space-y-4">
-            <Button
-              onClick={handleOpenPreview}
-              disabled={promoteBusy || !yearEndReady}
-              variant="secondary"
-              className="border-border h-11 w-full border font-bold"
-            >
-              {promoteBusy ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trophy className="mr-2 h-4 w-4" />
-              )}
-              Review & promote
-            </Button>
-            <p className="text-muted-foreground text-center text-xs">
-              Opens a preview of merit, sections, and rolls before anything is saved.
-            </p>
-          </div>
-        </SectionCard>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleOpenPreview}
+            disabled={promoteBusy || !yearEndReady}
+          >
+            {promoteBusy ? <RefreshCw className="animate-spin" /> : <Trophy />}
+            Review & promote
+          </Button>
+        </Step>
 
-        <SectionCard
-          title="Step 3 · Class 10"
+        <Step
+          n={3}
+          title="Class 10 graduation"
           icon={<GraduationCap className="h-5 w-5 text-sky-600" />}
-          description="Graduate passed SSC students to alumni; retain failed students in class 10."
+          done={class10Graduated || class10?.total === 0}
+          detail={
+            !class10
+              ? 'Graduate passed SSC students to alumni; retain failed students in class 10.'
+              : class10.total === 0
+                ? 'No active class-10 students for this year.'
+                : class10Graduated
+                  ? `${class10.graduated} graduated · ${class10.passed} pending · ${class10.failed} failed`
+                  : `${class10.total} active · ${class10.passed} passed · ${class10.failed} failed`
+          }
         >
-          <div className="space-y-4">
-            <Button
-              onClick={handleOpenGraduationPreview}
-              disabled={graduationBusy || !yearEndReady}
-              variant="secondary"
-              className="border-border h-11 w-full border font-bold"
-            >
-              {graduationBusy ? (
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <GraduationCap className="mr-2 h-4 w-4" />
-              )}
-              Review & graduate
-            </Button>
-            <p className="text-muted-foreground text-center text-xs">
-              Sets SSC batch, marks inactive, and appears in Alumni list.
-            </p>
-          </div>
-        </SectionCard>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleOpenGraduationPreview}
+            disabled={graduationBusy || !yearEndReady}
+          >
+            {graduationBusy ? <RefreshCw className="animate-spin" /> : <GraduationCap />}
+            Review & graduate
+          </Button>
+        </Step>
       </div>
 
-      <FilterSelection>
-        <FilterField label="Class" htmlFor="promotion-class">
-          <select
-            id="promotion-class"
-            value={selectedClass}
-            onChange={(e) => handleClassChange(e.target.value)}
-            className={filterSelectClassName}
-          >
-            <option value="">All classes</option>
-            {[6, 7, 8, 9, 10].map((num) => (
-              <option key={num} value={String(num)}>
-                Class {num}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Section" htmlFor="promotion-section">
-          <select
-            id="promotion-section"
-            value={classSection}
-            onChange={(e) => handleSectionChange(e.target.value)}
-            className={filterSelectClassName}
-            disabled={!selectedClass}
-          >
-            <option value="">All sections</option>
-            {['A', 'B', 'C', 'D'].map((section) => (
-              <option key={section} value={section}>
-                {section}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Group" htmlFor="promotion-group">
-          <select
-            id="promotion-group"
-            value={group}
-            onChange={(e) => handleGroupChange(e.target.value)}
-            className={filterSelectClassName}
-            disabled={!selectedClass || Number(selectedClass) < 9}
-          >
-            <option value="">All groups</option>
-            {['Science', 'Humanities', 'Commerce'].map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-      </FilterSelection>
-
-      {totalFiltered > students.length ? (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Use the pager below — {totalFiltered.toLocaleString()} students match these filters.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      <SectionCard
-        noPadding
-        title="Review"
-        icon={<FileSpreadsheet className="text-primary h-5 w-5" />}
-        description={
-          studentsError
-            ? 'Failed to load students'
-            : `${totalFiltered.toLocaleString()} match · page ${page} of ${Math.max(totalPages, 1)}`
-        }
-        headerAction={
-          filteredStudents.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={downloadAllMarksheetPDF}
-              className="border-primary/20 bg-primary/5 text-primary hover:bg-primary h-8 w-full gap-1.5 px-3 font-medium shadow-none hover:text-white sm:w-auto"
-            >
-              <Download className="h-3.5 w-3.5" />
-              All session PDFs
-            </Button>
-          )
-        }
-      >
-        <div className={cn('lg:hidden', listLoading && students.length > 0 && 'opacity-50')}>
-          {loading && students.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-16">
-              <Loading />
-            </div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="text-muted-foreground px-4 py-16 text-center italic">
-              {studentsError ? 'Could not load students.' : 'No students match these filters.'}
-            </div>
-          ) : (
-            <ul className="divide-border divide-y">
-              {filteredStudents.map((student) => (
-                <li key={student.enrollment_id} className="space-y-3 p-4">
-                  <div className="flex items-start gap-3">{renderStudentRow(student, true)}</div>
-                  <label className="block space-y-1">
-                    <span className="text-muted-foreground text-xs font-medium">Pass / fail</span>
-                    <StatusOverrideSelect
-                      student={student}
-                      disabled={overridingId === student.enrollment_id}
-                      onChange={handleStatusOverride}
-                    />
-                  </label>
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <div className="bg-primary/5 min-w-0 rounded-md px-2 py-1.5">
-                      <dt className="text-muted-foreground">Next roll</dt>
-                      <dd className="text-primary font-semibold tabular-nums">
-                        {student.next_year_roll || '—'}
-                      </dd>
-                    </div>
-                    <div className="bg-primary/5 min-w-0 rounded-md px-2 py-1.5">
-                      <dt className="text-muted-foreground">Next sec</dt>
-                      <dd className="text-primary font-semibold">
-                        {student.next_year_section || '—'}
-                      </dd>
-                    </div>
-                  </dl>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 w-full"
-                    onClick={() => downloadSessionMarksheet(student.id)}
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Session PDF
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
+      <SectionCard noPadding>
         <div
           className={cn(
-            'hidden min-h-[300px] max-w-full overflow-x-auto overscroll-x-contain lg:block',
-            listLoading && students.length > 0 && 'opacity-50',
+            'overflow-x-auto',
+            studentsFetching && !studentsLoading && 'opacity-60 transition-opacity',
           )}
         >
-          <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm">
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-muted/50 border-border">
-                <th className="bg-muted/50 sticky left-0 z-30 w-14 min-w-14 border-b border-r px-3 py-4 text-center font-bold">
-                  Merit
+          <table className="w-full min-w-[56rem] border-collapse text-left">
+            <thead>
+              <tr className={theadRowClass}>
+                <th className={cn(thClass, stickyCell, 'left-0 w-14 px-3 text-center')}>Merit</th>
+                <th className={cn(thClass, stickyCell, stickyEdge, 'left-14 px-4')}>
+                  <ColumnHeaderMenu label="Student" {...sortProps('name')} />
                 </th>
-                <th className="bg-muted/50 sticky left-14 z-30 min-w-44 border-b border-r px-3 py-4 font-bold shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)]">
-                  Student
+                <th className={cn(thClass, 'px-4')}>
+                  <ColumnHeaderMenu
+                    label="Class"
+                    {...sortProps('class')}
+                    options={classOptions}
+                    selected={filters.levels}
+                    onSelectedChange={(levels) => updateFilters({ levels })}
+                  />
                 </th>
-                <th className="w-32 border-b px-4 py-4 text-center font-bold">Status</th>
-                <th className="w-20 border-b px-4 py-4 text-center font-bold">Fails</th>
-                <th className="w-16 border-b px-4 py-4 text-center font-bold">Roll</th>
-                <th className="w-16 border-b px-4 py-4 text-center font-bold">Sec</th>
-                <th className="bg-primary/5 w-24 border-b px-4 py-4 text-center font-bold">
-                  Next roll
+                <th className={cn(thClass, 'px-4')}>
+                  <ColumnHeaderMenu
+                    label="Sec"
+                    {...sortProps('section')}
+                    options={sectionOptions}
+                    selected={filters.sections}
+                    onSelectedChange={(sections) => updateFilters({ sections })}
+                  />
                 </th>
-                <th className="bg-primary/5 w-24 border-b px-4 py-4 text-center font-bold">
-                  Next sec
+                <th className={cn(thClass, 'px-4')}>
+                  <ColumnHeaderMenu
+                    label="Group"
+                    {...sortProps('group')}
+                    options={GROUPS.map((g) => ({ value: g, label: g }))}
+                    selected={filters.groups}
+                    onSelectedChange={(groups) => updateFilters({ groups })}
+                  />
                 </th>
-                <th className="w-28 border-b px-4 py-4 text-center font-bold">PDF</th>
+                <th className={cn(thClass, 'px-4')}>
+                  <ColumnHeaderMenu label="Roll" {...sortProps('roll')} />
+                </th>
+                <th className={cn(thClass, 'px-4')}>Status</th>
+                <th className={cn(thClass, 'px-4 text-center')} title="Failed subjects / allowed">
+                  Fails
+                </th>
+                <th className={cn(thClass, 'px-4 text-center')}>Next sec · roll</th>
+                <th className={cn(thClass, 'px-3 text-right')}>
+                  {filtersActive ? (
+                    <ActionButton
+                      iconOnly
+                      label="Clear filters"
+                      icon={<X size={16} />}
+                      onClick={() => updateFilters(NO_FILTERS)}
+                    />
+                  ) : (
+                    <span className="sr-only">Actions</span>
+                  )}
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {loading && students.length === 0 ? (
+            <tbody className="divide-border divide-y">
+              {showSkeleton ? (
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={colCount} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-20 text-center">
-                    <Loading />
-                  </td>
-                </tr>
-              ) : filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="text-muted-foreground py-20 text-center italic">
+                  <td
+                    colSpan={colCount}
+                    className="text-muted-foreground py-16 text-center text-sm"
+                  >
                     {studentsError
                       ? 'Could not load students.'
                       : 'No students match these filters.'}
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((student) => (
-                  <tr key={student.enrollment_id} className="hover:bg-muted/30 border-border/50">
-                    <td className="bg-card sticky left-0 z-10 border-r px-3 py-3 text-center">
+                rows.map((student) => (
+                  <tr
+                    key={student.enrollment_id ?? student.id}
+                    className="bg-card text-sm transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                  >
+                    <td className={cn(stickyCell, 'left-0 w-14 px-3 py-2 text-center')}>
                       <span
                         className={cn(
-                          'inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold',
+                          'inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold tabular-nums',
                           meritBadgeClass(student.final_merit),
                         )}
                       >
                         {student.final_merit || '—'}
                       </span>
                     </td>
-                    <td className="bg-card sticky left-14 z-10 min-w-44 border-r px-3 py-3 font-medium shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)]">
-                      <span className="block truncate uppercase">{student.name || 'N/A'}</span>
-                      <span className="text-muted-foreground text-xs">Class {student.class}</span>
+                    <td className={cn(stickyCell, stickyEdge, 'left-14 px-4 py-2')}>
+                      <span className="block max-w-[12rem] truncate font-medium uppercase sm:max-w-[16rem]">
+                        {student.name || '—'}
+                      </span>
                     </td>
-                    <td className="border-r px-2 py-3 text-center">
+                    <td className="px-4 py-2 tabular-nums">{student.class}</td>
+                    <td className="px-4 py-2">{student.section || '—'}</td>
+                    <td className="px-4 py-2">
+                      {student.group || <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-2 tabular-nums">{student.roll || '—'}</td>
+                    <td className="px-4 py-2">
                       <StatusOverrideSelect
                         student={student}
                         disabled={overridingId === student.enrollment_id}
                         onChange={handleStatusOverride}
                       />
                     </td>
-                    <td className="text-muted-foreground border-r px-4 py-3 text-center text-xs tabular-nums">
+                    <td className="text-muted-foreground px-4 py-2 text-center text-xs tabular-nums">
                       {student.fail_count != null
                         ? `${student.fail_count}/${passRulesByClass[student.class] ?? 0}`
                         : '—'}
                     </td>
-                    <td className="border-r px-4 py-3 text-center tabular-nums">{student.roll}</td>
-                    <td className="border-r px-4 py-3 text-center">{student.section}</td>
-                    <td className="text-primary bg-primary/5 border-r px-4 py-3 text-center font-semibold tabular-nums">
-                      {student.next_year_roll || '—'}
+                    <td className="text-primary px-4 py-2 text-center font-semibold tabular-nums">
+                      {student.next_year_section || student.next_year_roll
+                        ? `${student.next_year_section || '—'} · ${student.next_year_roll || '—'}`
+                        : '—'}
                     </td>
-                    <td className="text-primary bg-primary/5 border-r px-4 py-3 text-center font-semibold">
-                      {student.next_year_section || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1 px-2"
-                        onClick={() => downloadSessionMarksheet(student.id)}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </Button>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <ActionButton
+                            iconOnly
+                            label="More actions"
+                            icon={<MoreHorizontal size={16} />}
+                          />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+                            {student.name}
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onSelect={() => void downloadSessionMarksheet(student.id)}
+                          >
+                            <FileText /> Session marksheet PDF
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))
@@ -897,22 +732,78 @@ const GenerateResult = () => {
             </tbody>
           </table>
         </div>
-        {totalPages > 0 ? (
-          <TablePagination
-            page={page}
-            totalPages={totalPages}
-            limit={limit}
-            loading={listLoading}
-            totalFiltered={totalFiltered}
-            onPageChange={setPage}
-            onLimitChange={(next) => {
-              setLimit(next);
-              setPage(1);
-              sessionStorage.setItem(PAGE_SIZE_KEY, String(next));
-            }}
-          />
-        ) : null}
+
+        <TablePagination
+          page={page}
+          totalPages={meta?.totalPages ?? 0}
+          limit={limit}
+          loading={studentsFetching}
+          totalFiltered={meta ? totalFiltered : undefined}
+          onPageChange={setPage}
+          onLimitChange={(next) => {
+            setLimit(next);
+            setPage(1);
+            writeStore(PAGE_SIZE_KEY, String(next));
+          }}
+        />
       </SectionCard>
+
+      <Popup
+        open={rulesDraft !== null}
+        onOpenChange={(o) => !o && setRulesDraft(null)}
+        size="md"
+        aria-labelledby="pass-rules-title"
+      >
+        <div className="border-border flex items-center justify-between border-b px-5 py-4">
+          <h2 id="pass-rules-title" className="text-base font-semibold">
+            Pass rules · {year}
+          </h2>
+          <CloseButton onClick={() => setRulesDraft(null)} />
+        </div>
+        <div className="max-h-[65vh] space-y-3 overflow-y-auto px-5 py-4">
+          <p className="text-muted-foreground text-sm">
+            Allowed failed subjects per class. 0 = strict (any failed subject fails). A student
+            passes when failed subjects ≤ this limit.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {rulesDraft?.map((rule) => (
+              <label
+                key={rule.class}
+                className="border-border flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-sm"
+              >
+                <span className="font-medium">Class {rule.class}</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={15}
+                  value={rule.max_failed}
+                  onChange={(e) => {
+                    const max_failed = Math.max(
+                      0,
+                      Math.min(15, Number.parseInt(e.target.value, 10) || 0),
+                    );
+                    setRulesDraft(
+                      (prev) =>
+                        prev?.map((r) => (r.class === rule.class ? { ...r, max_failed } : r)) ??
+                        null,
+                    );
+                  }}
+                  className="border-input bg-background h-8 w-14 rounded-md border px-2 text-center text-sm tabular-nums"
+                  aria-label={`Allowed failed subjects for class ${rule.class}`}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="border-border flex items-center justify-end gap-2 border-t px-5 py-3">
+          <Button type="button" variant="outline" onClick={() => setRulesDraft(null)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSaveRules} disabled={isSavingPassRules}>
+            {isSavingPassRules ? 'Saving…' : 'Save rules'}
+          </Button>
+        </div>
+      </Popup>
     </div>
   );
 };

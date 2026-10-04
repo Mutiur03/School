@@ -2,26 +2,11 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import Loading from '@/components/Loading';
-import {
-  PageHeader,
-  SectionCard,
-  FilterSelection,
-  FilterField,
-  filterSelectClassName,
-} from '@/components';
-import {
-  Search,
-  Download,
-  Info,
-  GraduationCap,
-  Users,
-  Layers,
-  FileSpreadsheet,
-  FileText,
-  X,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { SectionCard, Popup, ActionButton, filterSelectClassName } from '@/components';
+import { ColumnHeaderMenu } from '@/components/ColumnHeaderMenu';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { Download, FileText, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useExams } from '@/queries/exam.queries';
 import {
@@ -75,8 +60,30 @@ const loadViewMarksFilters = (): ViewMarksFilters | null => {
 };
 
 const saveViewMarksFilters = (filters: ViewMarksFilters) => {
-  localStorage.setItem(VIEW_MARKS_STORAGE_KEY, JSON.stringify(filters));
+  try {
+    localStorage.setItem(VIEW_MARKS_STORAGE_KEY, JSON.stringify(filters));
+  } catch {
+    /* storage unavailable: just don't remember */
+  }
 };
+
+// Pinned Roll + Student columns; opaque backgrounds hide the subject columns scrolling under them.
+const stickyRoll = 'sticky left-0 z-[1] w-16 min-w-16 bg-inherit';
+const stickyName =
+  'sticky left-16 z-[1] min-w-[10rem] bg-inherit shadow-[1px_0_0_var(--border)] sm:min-w-[14rem]';
+const theadRow =
+  'border-border [&>th]:bg-muted text-foreground/70 border-b text-xs font-semibold uppercase tracking-wider [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]';
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring pointer-coarse:p-2.5 rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
 
 let cachedInitialFilters: ViewMarksFilters | undefined;
 
@@ -100,7 +107,7 @@ const ViewMarks = () => {
   const [exam, setExam] = useState(() => getInitialViewMarksFilters().exam);
   const [section, setSection] = useState(() => getInitialViewMarksFilters().section);
   const [group, setGroup] = useState(() => getInitialViewMarksFilters().group);
-  const [showDetailsPopup, setShowDetailsPopup] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<StudentMarkResponse | null>(null);
 
   // Queries
@@ -205,8 +212,7 @@ const ViewMarks = () => {
     setGroup('');
   };
 
-  const downloadMarksheet = async (id: number, event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
+  const downloadMarksheet = async (id: number) => {
     const loadingToast = toast.loading('Generating transcript...');
     downloadProgressToastRef.current = loadingToast;
 
@@ -306,25 +312,34 @@ const ViewMarks = () => {
     }
   };
 
-  const showStudentDetails = (student: StudentMarkResponse) => {
-    setSelectedStudent(student);
-    setShowDetailsPopup(true);
-  };
+  const isTeacher = user?.role === 'teacher' && Boolean((user as UserWithLevels).levels);
+  const teacherLevels = (user as UserWithLevels | null)?.levels ?? [];
 
-  const closeDetailsPopup = () => {
-    setShowDetailsPopup(false);
-    setSelectedStudent(null);
-  };
+  const classOptions = (classList[exam] || []).filter((cls) => {
+    if (user?.role === 'admin') return true;
+    if (isTeacher) {
+      return teacherLevels.some((l) => l.class_name === Number(cls) && l.year === Number(year));
+    }
+    return false;
+  });
+  const sectionOptions = availableSections.filter((sec) => {
+    if (user?.role === 'admin') return true;
+    if (isTeacher) {
+      return teacherLevels.some(
+        (l) => l.class_name === Number(className) && l.section === sec && l.year === Number(year),
+      );
+    }
+    return false;
+  });
 
-  const filteredData = marksData
-    .filter((student) => {
-      if (!student.marks || student.marks.length === 0) return false;
-      const hasAnyMarks = student.marks.some((m) => m.marks !== null && m.marks !== undefined);
-      if (!hasAnyMarks) return false;
-      const sectionMatch = !section || (student.section || '') === section;
-      const groupMatch = !group || (student.group || '') === group;
-      return sectionMatch && groupMatch;
-    })
+  // Students in the picked section/group; only those with at least one entered mark are listed.
+  const scoped = marksData.filter(
+    (student) =>
+      (!section || (student.section || '') === section) &&
+      (!group || (student.group || '') === group),
+  );
+  const withMarks = scoped
+    .filter((student) => student.marks?.some((m) => m.marks !== null && m.marks !== undefined))
     .sort((a, b) => {
       const secCmp = (a.section || '').localeCompare(b.section || '', undefined, {
         numeric: true,
@@ -336,349 +351,249 @@ const ViewMarks = () => {
       if (rollA !== rollB) return rollA - rollB;
       return (a.name || '').localeCompare(b.name || '');
     });
+  const query = searchQuery.trim().toLowerCase();
+  const filteredData = query
+    ? withMarks.filter(
+        (s) => (s.name || '').toLowerCase().includes(query) || String(s.roll).includes(query),
+      )
+    : withMarks;
+  const noMarksCount = scoped.length - withMarks.length;
+
+  const showSection = !section;
+  const colSpan = subjects.length + 3;
+  const pickerClass = cn(filterSelectClassName, 'h-8 w-auto font-medium');
+  const ready = Boolean(className && exam);
+
+  const summary = !ready
+    ? 'Pick an exam and class to see results.'
+    : marksLoading
+      ? 'Loading results…'
+      : [
+          `${exam} ${year} · Class ${className}${section ? ` ${section}` : ''}${group ? ` · ${group}` : ''}`,
+          `${withMarks.length.toLocaleString()} students with marks`,
+          noMarksCount > 0 ? `${noMarksCount.toLocaleString()} with none entered` : null,
+          `${subjects.length} subjects`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+  const emptyMessage = !ready
+    ? 'Pick an exam and class to see results.'
+    : examsLoading
+      ? 'Refreshing exams…'
+      : query
+        ? `No students match "${searchQuery}".`
+        : 'No marks found for these filters.';
+
+  const detailMarks = (selectedStudent?.marks ?? [])
+    .slice()
+    .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
+  const detailBreakdown = detailMarks.some(
+    (mark) => mark.subject_info?.marking_scheme === 'BREAKDOWN',
+  );
+  const part = (mark: (typeof detailMarks)[number], value: number | null) =>
+    mark.subject_info?.marking_scheme === 'BREAKDOWN' ? (value ?? '—') : '—';
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Class Results"
-        description={
-          className
-            ? `Viewing marks for Class ${className}, ${exam} (${year})`
-            : 'Analyze and manage student academic performance.'
-        }
-      />
-
-      <FilterSelection>
-        <FilterField label="Year">
-          <select
-            className={filterSelectClassName}
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-          >
-            {Array.from({ length: 5 }, (_, i) => (
-              <option key={i} value={new Date().getFullYear() - i}>
-                {new Date().getFullYear() - i}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Exam">
-          <select
-            className={filterSelectClassName}
-            value={exam}
-            onChange={(e) => handleExamChange(e.target.value)}
-          >
-            <option value="">Select Exam</option>
-            {examList.map((exam, index) => (
-              <option key={index} value={exam}>
-                {exam}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Class">
-          <select
-            className={filterSelectClassName}
-            value={className}
-            onChange={(e) => handleClassChange(e.target.value)}
-            disabled={!exam}
-          >
-            <option value="">Select Class</option>
-            {(classList[exam] || [])
-              .filter((cls) => {
-                if (user?.role === 'admin') return true;
-                if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
-                  return (user as UserWithLevels).levels?.some(
-                    (l: TeacherLevel) => l.class_name === Number(cls) && l.year === Number(year),
-                  );
-                }
-                return false;
-              })
-              .map((cls, index) => (
-                <option key={index} value={cls}>
-                  {`Class ${cls}`}
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">Class results</h1>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Year"
+              className={cn(pickerClass, 'tabular-nums')}
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                <option key={y} value={y}>
+                  {y}
                 </option>
               ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Section">
-          <select
-            className={filterSelectClassName}
-            value={section}
-            onChange={(e) => setSection(e.target.value)}
-            disabled={!className || availableSections.length === 0}
-          >
-            <option value="">All Sections</option>
-            {availableSections
-              .filter((sec) => {
-                if (user?.role === 'admin') return true;
-                if (user?.role === 'teacher' && (user as UserWithLevels).levels) {
-                  return (user as UserWithLevels).levels?.some(
-                    (l: TeacherLevel) =>
-                      l.class_name === Number(className) &&
-                      l.section === sec &&
-                      l.year === Number(year),
-                  );
-                }
-                return false;
-              })
-              .map((sec, index) => (
-                <option key={index} value={sec}>
-                  {sec}
+            </select>
+            <select
+              aria-label="Exam"
+              className={pickerClass}
+              value={exam}
+              onChange={(e) => handleExamChange(e.target.value)}
+            >
+              <option value="">Select exam</option>
+              {examList.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
-          </select>
-        </FilterField>
-
-        <FilterField label="Group">
-          <select
-            className={filterSelectClassName}
-            value={group}
-            onChange={(e) => setGroup(e.target.value)}
-            disabled={!className || availableGroups.length === 0}
-          >
-            <option value="">All Groups</option>
-            {availableGroups.map((grp, index) => (
-              <option key={index} value={grp}>
-                {grp}
-              </option>
-            ))}
-          </select>
-        </FilterField>
-      </FilterSelection>
+            </select>
+            <select
+              aria-label="Class"
+              className={pickerClass}
+              value={className}
+              onChange={(e) => handleClassChange(e.target.value)}
+              disabled={!exam}
+            >
+              <option value="">Select class</option>
+              {classOptions.map((cls) => (
+                <option key={cls} value={cls}>
+                  Class {cls}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Section"
+              className={pickerClass}
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
+              disabled={!className || availableSections.length === 0}
+            >
+              <option value="">All sections</option>
+              {sectionOptions.map((sec) => (
+                <option key={sec} value={sec}>
+                  Section {sec}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Group"
+              className={pickerClass}
+              value={group}
+              onChange={(e) => setGroup(e.target.value)}
+              disabled={!className || availableGroups.length === 0}
+            >
+              <option value="">All groups</option>
+              {availableGroups.map((grp) => (
+                <option key={grp} value={grp}>
+                  {grp}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {ready && withMarks.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" onClick={downloadSummaryPDF}>
+              <FileText />
+              {section ? `Section ${section} summary` : 'Summary PDF'}
+            </Button>
+            <Button type="button" onClick={downloadAllExamPDFs}>
+              <Download />
+              {section ? `Section ${section} marksheets` : 'All marksheets'}
+            </Button>
+          </div>
+        )}
+      </header>
 
       {exam && genStatus && !isMarksheetGenComplete(genStatus) && (
-        <MarksheetGenProgress status={genStatus} />
+        <div className="mb-6">
+          <MarksheetGenProgress status={genStatus} />
+        </div>
+      )}
+      {ready && genStatus && hasStaleBundles(genStatus) && isMarksheetGenComplete(genStatus) && (
+        <BundleStalePreview
+          items={genStatus.bundles.staleItems}
+          classNum={className}
+          sectionFilter={section || undefined}
+          variant="block"
+          className="mb-6"
+        />
       )}
 
-      <SectionCard
-        noPadding
-        title="Student Marks"
-        icon={<FileSpreadsheet className="text-primary h-5 w-5" />}
-        description={`Showing ${filteredData.length} records`}
-        headerAction={
-          className &&
-          exam &&
-          filteredData.length > 0 && (
-            <div className="flex w-full flex-col gap-2">
-              {genStatus && hasStaleBundles(genStatus) && isMarksheetGenComplete(genStatus) && (
-                <BundleStalePreview
-                  items={genStatus.bundles.staleItems}
-                  classNum={className}
-                  sectionFilter={section || undefined}
-                  variant="block"
-                  className="w-full text-left"
-                />
-              )}
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                <Button
-                  size="sm"
-                  onClick={downloadAllExamPDFs}
-                  className="bg-primary hover:bg-primary/90 h-9 w-full shrink-0 gap-2 px-4 text-white transition-[color,background-color,border-color,box-shadow,opacity,transform] sm:w-auto"
-                >
-                  <Download className="h-4 w-4" />
-                  {section ? `Download Section ${section} PDFs` : 'Download All Exam PDFs'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={downloadSummaryPDF}
-                  className="h-9 w-full shrink-0 gap-2 px-4 sm:w-auto"
-                >
-                  <FileText className="h-4 w-4" />
-                  {section ? `Download Section ${section} Summary` : 'Download Summary PDF'}
-                </Button>
-              </div>
-            </div>
-          )
-        }
-      >
-        {/* Mobile cards */}
-        <div className="lg:hidden">
-          {marksLoading ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-16">
-              <Loading />
-              <p className="text-muted-foreground animate-pulse text-sm font-medium">
-                Loading results…
-              </p>
-            </div>
-          ) : filteredData.length === 0 ? (
-            <div className="text-muted-foreground flex flex-col items-center gap-2 px-4 py-16 text-center opacity-50">
-              <Search className="mb-2 h-10 w-10" />
-              <p className="text-base font-medium">
-                {className && exam
-                  ? examsLoading
-                    ? 'Refreshing exams…'
-                    : 'No marks found matching these filters.'
-                  : 'Please select Class and Exam to view results.'}
-              </p>
-            </div>
-          ) : (
-            <ul className="divide-border divide-y">
-              {filteredData.map((data) => {
-                const marksMap: { [key: string]: number | null } = {};
-                data.marks?.forEach((subject) => {
-                  marksMap[subject.subject] = subject.marks;
-                });
-                return (
-                  <li key={data.student_id} className="space-y-3 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-foreground truncate font-semibold uppercase">
-                          {data.name}
-                        </p>
-                        <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                          Sec {data.section || '—'} · Roll {data.roll}
-                        </p>
-                      </div>
-                    </div>
-                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-3">
-                      {subjects.map((subject) => (
-                        <div
-                          key={`${data.student_id}-m-${subject}`}
-                          className="bg-muted/40 min-w-0 rounded-md px-2 py-1.5"
-                        >
-                          <dt className="text-muted-foreground truncate">{subject}</dt>
-                          <dd className="font-semibold tabular-nums">{marksMap[subject] ?? '—'}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 flex-1 gap-1.5 border-green-500/20 bg-green-500/10 px-3 text-green-600 shadow-none sm:flex-none"
-                        onClick={() => showStudentDetails(data)}
-                      >
-                        <Info className="h-3.5 w-3.5" />
-                        Details
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="bg-primary/10 text-primary hover:bg-primary border-primary/20 h-8 flex-1 gap-1.5 px-3 shadow-none hover:text-white sm:flex-none"
-                        onClick={(e) => downloadMarksheet(data.student_id, e)}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        Exam PDF
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        {/* Desktop table — no multi-col sticky (breaks on narrow viewports) */}
-        <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] lg:block">
-          <table className="w-max min-w-full border-separate border-spacing-0 text-left text-sm">
-            <thead className="sticky top-0 z-20">
-              <tr className="bg-muted border-border">
-                <th className="bg-muted sticky left-0 z-30 w-16 min-w-16 border-b border-r px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
-                  Sec
-                </th>
-                <th className="bg-muted sticky left-16 z-30 w-16 min-w-16 border-b border-r px-3 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
-                  Roll
-                </th>
-                <th className="bg-muted sticky left-32 z-30 min-w-48 border-b border-r px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-900 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] dark:text-gray-100">
-                  Student Name
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll the subject columns sideways. */}
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className={theadRow}>
+                <th className={cn(stickyRoll, 'px-3 py-2.5')}>Roll</th>
+                <th className={cn(stickyName, 'px-3 py-2')}>
+                  <ColumnHeaderMenu
+                    label="Student"
+                    filterInput={{
+                      value: searchQuery,
+                      onChange: setSearchQuery,
+                      placeholder: 'Name or roll…',
+                    }}
+                  />
                 </th>
                 {subjects.map((subject) => (
                   <th
                     key={subject}
-                    className="bg-muted min-w-28 whitespace-nowrap border-b px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-900 dark:text-gray-100"
+                    className="min-w-24 whitespace-nowrap px-3 py-2.5 text-center normal-case tracking-normal"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className="bg-muted min-w-44 border-b px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-gray-100">
-                  Actions
+                <th className="px-3 py-2.5 text-right">
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-border divide-y">
               {marksLoading ? (
-                <tr>
-                  <td colSpan={subjects.length + 4} className="py-20">
-                    <div className="flex flex-col items-center justify-center gap-4">
-                      <Loading />
-                      <p className="text-muted-foreground animate-pulse font-medium">
-                        Loading results…
-                      </p>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={colSpan} className="px-4 py-2">
+                      <Skeleton className="h-8 w-full" />
+                    </td>
+                  </tr>
+                ))
               ) : filteredData.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={subjects.length + 4}
-                    className="text-muted-foreground py-20 text-center"
+                    colSpan={colSpan}
+                    className="text-muted-foreground px-4 py-12 text-center text-sm"
                   >
-                    <div className="flex flex-col items-center gap-2 opacity-50">
-                      <Search className="mb-2 h-10 w-10" />
-                      <p className="text-lg font-medium">
-                        {className && exam
-                          ? examsLoading
-                            ? 'Refreshing exams…'
-                            : 'No marks found matching these filters.'
-                          : 'Please select Class and Exam to view results.'}
-                      </p>
-                    </div>
+                    {emptyMessage}
                   </td>
                 </tr>
               ) : (
                 filteredData.map((data) => {
-                  const marksMap: { [key: string]: number | null } = {};
+                  const marksMap: Record<string, number | null> = {};
                   data.marks?.forEach((subject) => {
                     marksMap[subject.subject] = subject.marks;
                   });
-
                   return (
                     <tr
                       key={data.student_id}
-                      className="hover:bg-muted/30 border-border group border-b transition-colors"
+                      className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
                     >
-                      <td className="bg-card sticky left-0 z-10 w-16 min-w-16 border-r px-3 py-3 text-center font-medium uppercase">
-                        {data.section || '—'}
+                      <td className={cn(stickyRoll, 'px-3 py-2 text-sm tabular-nums')}>
+                        {showSection ? `${data.section || '—'}-${data.roll}` : data.roll}
                       </td>
-                      <td className="bg-card sticky left-16 z-10 w-16 min-w-16 border-r px-3 py-3 text-center font-medium tabular-nums">
-                        {data.roll}
-                      </td>
-                      <td className="group-hover:text-primary bg-card sticky left-32 z-10 min-w-48 border-r px-4 py-3 font-bold uppercase text-gray-800 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.12)] transition-colors dark:text-gray-200">
-                        {data.name}
+                      <td className={cn(stickyName, 'px-3 py-2')}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudent(data)}
+                          className="focus-visible:ring-ring block max-w-full truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                        >
+                          {data.name}
+                        </button>
                       </td>
                       {subjects.map((subject) => (
-                        <td
-                          key={`${data.student_id}-${subject}`}
-                          className="min-w-28 px-4 py-3 text-center font-medium tabular-nums"
-                        >
-                          {marksMap[subject] ?? '—'}
+                        <td key={subject} className="px-3 py-2 text-center text-sm tabular-nums">
+                          {marksMap[subject] ?? (
+                            <span className="text-muted-foreground" aria-label="Not entered">
+                              —
+                            </span>
+                          )}
                         </td>
                       ))}
-                      <td className="min-w-44 px-4 py-3">
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5 border-green-500/20 bg-green-500/10 px-3 text-green-600 shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:bg-green-500 hover:text-white"
-                            onClick={() => showStudentDetails(data)}
-                          >
-                            <Info className="h-3.5 w-3.5" />
-                            Details
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="bg-primary/10 text-primary hover:bg-primary border-primary/20 h-8 gap-1.5 px-3 shadow-none transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:text-white"
-                            onClick={(e) => downloadMarksheet(data.student_id, e)}
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Exam PDF
-                          </Button>
+                      <td className="px-3 py-1.5">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <ActionButton
+                            iconOnly
+                            label="Details"
+                            variant="emerald"
+                            icon={<Info size={16} className="text-green-600" />}
+                            onClick={() => setSelectedStudent(data)}
+                          />
+                          <ActionButton
+                            iconOnly
+                            label="Exam PDF"
+                            icon={<Download size={16} className="text-primary" />}
+                            onClick={() => downloadMarksheet(data.student_id)}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -690,193 +605,99 @@ const ViewMarks = () => {
         </div>
       </SectionCard>
 
-      <AnimatePresence>
-        {showDetailsPopup && selectedStudent && (
-          <div className="bg-background/80 z-100 fixed inset-0 flex items-center justify-center p-4 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-card border-border flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl"
-            >
-              <div className="bg-muted/20 flex items-center justify-between border-b p-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
-                    <GraduationCap className="text-primary h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold tracking-tight">Detailed Marks</h3>
-                    <p className="text-muted-foreground text-sm font-medium uppercase tracking-wide">
-                      {selectedStudent.name} | Roll: {selectedStudent.roll}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={closeDetailsPopup}
-                  className="hover:bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-8 overflow-y-auto p-6">
-                <div>
-                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
-                    <Info className="h-4 w-4" /> Student Snapshot
-                  </h4>
-                  <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
-                    {[
-                      { label: 'Class', value: selectedStudent.class, icon: GraduationCap },
-                      { label: 'Roll', value: selectedStudent.roll, icon: Users },
-                      { label: 'Section', value: selectedStudent.section || 'N/A', icon: Layers },
-                      { label: 'Group', value: selectedStudent.group || 'N/A', icon: Info },
-                    ].map((item, i) => (
-                      <div
-                        key={i}
-                        className="bg-muted/30 border-border/50 flex items-center gap-3 rounded-xl border p-3"
-                      >
-                        <item.icon className="text-muted-foreground h-4 w-4" />
-                        <div>
-                          <p className="text-muted-foreground/70 text-[10px] font-bold uppercase">
-                            {item.label}
-                          </p>
-                          <p className="text-sm font-bold tracking-tight">{item.value}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-primary mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-widest">
-                    <FileSpreadsheet className="h-4 w-4" /> Performance Metrics
-                  </h4>
-                  <div className="border-border overflow-hidden rounded-xl border shadow-sm">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-sm">
-                        <thead>
-                          {(() => {
-                            const showBreakdown = selectedStudent.marks?.some(
-                              (mark) => mark.subject_info?.marking_scheme === 'BREAKDOWN',
-                            );
-                            return (
-                              <tr className="bg-muted/50 border-border border-b">
-                                <th className="px-4 py-3 font-bold italic text-gray-900 dark:text-gray-100">
-                                  Subject
-                                </th>
-                                {showBreakdown && (
-                                  <>
-                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
-                                      CQ
-                                    </th>
-                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
-                                      MCQ
-                                    </th>
-                                    <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
-                                      PRC
-                                    </th>
-                                  </>
-                                )}
-                                <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
-                                  Total
-                                </th>
-                                {/* <th className="px-4 py-3 text-center font-bold text-gray-900 dark:text-gray-100">Status</th> */}
-                              </tr>
-                            );
-                          })()}
-                        </thead>
-                        <tbody className="divide-border divide-y">
-                          {Array.isArray(selectedStudent.marks) &&
-                          selectedStudent.marks.length > 0 ? (
-                            (() => {
-                              const showBreakdownTable = selectedStudent.marks?.some(
-                                (mark) => mark.subject_info?.marking_scheme === 'BREAKDOWN',
-                              );
-                              return selectedStudent.marks
-                                .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))
-                                .map((mark, index) => {
-                                  // const percentage = mark.subject_info?.full_mark && mark.marks !== null
-                                  //   ? (mark.marks / mark.subject_info.full_mark) * 100
-                                  //   : 0;
-
-                                  return (
-                                    <tr key={index} className="hover:bg-muted/30 transition-colors">
-                                      <td className="px-4 py-3 text-xs font-bold uppercase tracking-tight">
-                                        {mark.subject}
-                                      </td>
-                                      {showBreakdownTable && (
-                                        <>
-                                          <td className="px-4 py-3 text-center font-medium tabular-nums">
-                                            {mark.subject_info?.marking_scheme === 'BREAKDOWN'
-                                              ? (mark.cq_marks ?? '-')
-                                              : '-'}
-                                          </td>
-                                          <td className="px-4 py-3 text-center font-medium tabular-nums">
-                                            {mark.subject_info?.marking_scheme === 'BREAKDOWN'
-                                              ? (mark.mcq_marks ?? '-')
-                                              : '-'}
-                                          </td>
-                                          <td className="px-4 py-3 text-center font-medium tabular-nums">
-                                            {mark.subject_info?.marking_scheme === 'BREAKDOWN'
-                                              ? (mark.practical_marks ?? '-')
-                                              : '-'}
-                                          </td>
-                                        </>
-                                      )}
-                                      <td className="text-primary px-4 py-3 text-center font-bold tabular-nums">
-                                        {mark.marks ?? '-'}
-                                      </td>
-                                      {/* <td className="px-4 py-3 text-center">
-                                      <span
-                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                          percentage >= 80 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
-                                          percentage >= 60 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
-                                          percentage >= 40 ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" :
-                                          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                        }`}
-                                      >
-                                        {percentage >= 33 ? "Passed" : "Failed"}
-                                      </span>
-                                    </td> */}
-                                    </tr>
-                                  );
-                                });
-                            })()
-                          ) : (
-                            <tr>
-                              <td
-                                colSpan={6}
-                                className="text-muted-foreground px-4 py-8 text-center italic opacity-50"
-                              >
-                                No records available
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-muted/10 flex justify-end gap-3 border-t p-6">
-                <Button variant="outline" onClick={closeDetailsPopup}>
-                  Close
-                </Button>
-                <Button
-                  onClick={(e) => {
-                    downloadMarksheet(selectedStudent.student_id, e);
-                    closeDetailsPopup();
-                  }}
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" /> Download Official Transcript
-                </Button>
-              </div>
-            </motion.div>
+      {selectedStudent && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setSelectedStudent(null)}
+          size="2xl"
+          aria-labelledby="marks-details-title"
+        >
+          <div className="border-border flex items-center justify-between gap-3 border-b px-5 py-4">
+            <div className="min-w-0">
+              <h2 id="marks-details-title" className="truncate text-base font-semibold">
+                {selectedStudent.name}
+              </h2>
+              <p className="text-muted-foreground text-sm tabular-nums">
+                Class {selectedStudent.class}
+                {selectedStudent.section ? ` · Section ${selectedStudent.section}` : ''} · Roll{' '}
+                {selectedStudent.roll}
+                {selectedStudent.group ? ` · ${selectedStudent.group}` : ''} · {exam} {year}
+              </p>
+            </div>
+            <CloseButton onClick={() => setSelectedStudent(null)} />
           </div>
-        )}
-      </AnimatePresence>
+
+          <div className="max-h-[65vh] overflow-y-auto px-5 py-4">
+            <div className="border-border overflow-x-auto rounded-lg border">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className={theadRow}>
+                    <th className="px-3 py-2.5">Subject</th>
+                    {detailBreakdown && (
+                      <>
+                        <th className="px-3 py-2.5 text-center">CQ</th>
+                        <th className="px-3 py-2.5 text-center">MCQ</th>
+                        <th className="px-3 py-2.5 text-center">Prac</th>
+                      </>
+                    )}
+                    <th className="px-3 py-2.5 text-center">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-border divide-y">
+                  {detailMarks.length > 0 ? (
+                    detailMarks.map((mark) => (
+                      <tr key={mark.subject_id}>
+                        <td className="px-3 py-2 font-medium">{mark.subject}</td>
+                        {detailBreakdown && (
+                          <>
+                            <td className="px-3 py-2 text-center tabular-nums">
+                              {part(mark, mark.cq_marks)}
+                            </td>
+                            <td className="px-3 py-2 text-center tabular-nums">
+                              {part(mark, mark.mcq_marks)}
+                            </td>
+                            <td className="px-3 py-2 text-center tabular-nums">
+                              {part(mark, mark.practical_marks)}
+                            </td>
+                          </>
+                        )}
+                        <td className="px-3 py-2 text-center font-semibold tabular-nums">
+                          {mark.marks ?? <span className="text-muted-foreground">—</span>}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={detailBreakdown ? 5 : 2}
+                        className="text-muted-foreground px-3 py-8 text-center"
+                      >
+                        No marks recorded
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-muted-foreground mt-2 text-xs">— = not entered</p>
+          </div>
+
+          <div className="border-border flex flex-wrap items-center justify-end gap-2 border-t px-5 py-3">
+            <Button type="button" variant="outline" onClick={() => setSelectedStudent(null)}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                downloadMarksheet(selectedStudent.student_id);
+                setSelectedStudent(null);
+              }}
+            >
+              <Download /> Download exam PDF
+            </Button>
+          </div>
+        </Popup>
+      )}
     </div>
   );
 };

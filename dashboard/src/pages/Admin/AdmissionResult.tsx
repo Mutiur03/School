@@ -1,24 +1,36 @@
-import React, { useState, useEffect, type JSX } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import axios, { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Upload,
-  FileText,
   CheckCircle2,
-  XCircle,
   Eye,
+  FileText,
+  Loader2,
+  MoreHorizontal,
   Pencil,
   Trash2,
-  Loader2,
+  Upload,
+  X,
+  XCircle,
 } from 'lucide-react';
 import { getFileUrl } from '@/lib/backend';
-import { useConfirmDialog } from '@/hooks/useConfirmDialog';
-import { PageHeader, SectionCard, TabNav } from '@/components';
-import type { TabItem } from '@/components';
+import { cn, formatDateWithTime } from '@/lib/utils';
+import { ConfirmationPopup, Popup, SectionCard, filterSelectClassName } from '@/components';
+import ActionButton from '@/components/ActionButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-interface AdmissionResult {
+interface AdmissionResultRow {
   id: number;
   class_name: string;
   admission_year: number;
@@ -28,6 +40,8 @@ interface AdmissionResult {
   created_at: string;
 }
 
+type ListKey = 'merit_list' | 'waiting_list_1' | 'waiting_list_2';
+
 interface FormData {
   class_name: string;
   admission_year: number;
@@ -36,112 +50,161 @@ interface FormData {
   waiting_list_2: File | string | null;
 }
 
-interface ListType {
-  key: keyof Pick<AdmissionResult, 'merit_list' | 'waiting_list_1' | 'waiting_list_2'>;
-  label: string;
-  color: string;
+interface UploadInitItem {
+  type: ListKey;
+  filename: string;
+  success: boolean;
+  error?: string;
+  mode: 'simple' | 'multipart';
+  uploadUrl?: string;
+  key: string;
+  uploadId?: string;
+  chunkSize?: number;
+  endpoints?: { signPart: string; complete: string };
 }
 
+const CLASSES = ['6', '7', '8', '9'];
+const LIST_TYPES: { key: ListKey; label: string }[] = [
+  { key: 'merit_list', label: '1st Result List' },
+  { key: 'waiting_list_1', label: 'Waiting List 1' },
+  { key: 'waiting_list_2', label: 'Waiting List 2' },
+];
+
+// Pinned Class column while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit max-xl:shadow-[1px_0_0_var(--border)]';
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring pointer-coarse:p-2.5 rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="block space-y-1.5">
+    <span className="block text-sm font-medium">{label}</span>
+    {children}
+  </label>
+);
+
+const emptyForm = (year: number, className = '6'): FormData => ({
+  class_name: className,
+  admission_year: year,
+  merit_list: null,
+  waiting_list_1: null,
+  waiting_list_2: null,
+});
+
 function AdmissionResult() {
-  const { confirm, dialog } = useConfirmDialog();
-  const [results, setResults] = useState<AdmissionResult[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [showForm, setShowForm] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('6');
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
-  const [formData, setFormData] = useState<FormData>({
-    class_name: '6',
-    admission_year: new Date().getFullYear(),
-    merit_list: null,
-    waiting_list_1: null,
-    waiting_list_2: null,
+  const queryClient = useQueryClient();
+  const thisYear = new Date().getFullYear();
+
+  const settingsQuery = useQuery({
+    queryKey: ['admission-settings'],
+    queryFn: async () =>
+      (await axios.get('/api/admission')).data as { admission_year?: number | string } | null,
   });
+  const settingsYear = Number(settingsQuery.data?.admission_year) || null;
 
-  const getCurrentYear = (currentYear: number): number[] => {
-    return [currentYear, currentYear - 1, currentYear - 2];
+  const resultsQuery = useQuery({
+    queryKey: ['admission-results'],
+    queryFn: async () => (await axios.get<AdmissionResultRow[]>('/api/admission-result')).data,
+  });
+  const results = useMemo(() => resultsQuery.data ?? [], [resultsQuery.data]);
+
+  const [pickedYear, setPickedYear] = useState<number | null>(null);
+  const baseYear = settingsYear ?? thisYear;
+  const selectedYear = pickedYear ?? baseYear;
+  const yearOptions = useMemo(
+    () =>
+      [
+        ...new Set([
+          baseYear,
+          baseYear - 1,
+          baseYear - 2,
+          selectedYear,
+          ...results.map((r) => r.admission_year),
+        ]),
+      ].sort((a, b) => b - a),
+    [baseYear, selectedYear, results],
+  );
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<FormData>(() => emptyForm(thisYear));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AdmissionResultRow | null>(null);
+  const fileRefs = {
+    merit_list: useRef<HTMLInputElement>(null),
+    waiting_list_1: useRef<HTMLInputElement>(null),
+    waiting_list_2: useRef<HTMLInputElement>(null),
+  };
+  const isEditing = editId !== null;
+
+  const yearResults = results.filter((r) => r.admission_year === selectedYear);
+  // One row per uploaded record; classes with nothing yet still get a row.
+  const rows = CLASSES.flatMap((cls) => {
+    const forClass = yearResults.filter((r) => r.class_name === cls);
+    return forClass.length
+      ? forClass.map((r) => ({ cls, result: r as AdmissionResultRow | null }))
+      : [{ cls, result: null }];
+  });
+  const classesWithResults = new Set(yearResults.map((r) => r.class_name)).size;
+  const pdfCount = yearResults.reduce((n, r) => n + LIST_TYPES.filter((l) => r[l.key]).length, 0);
+
+  const openCreate = (className = '6') => {
+    setEditId(null);
+    setFormData(emptyForm(selectedYear, className));
+    setFormOpen(true);
   };
 
-  const meritListRef = React.useRef<HTMLInputElement>(null);
-  const waitingList1Ref = React.useRef<HTMLInputElement>(null);
-  const waitingList2Ref = React.useRef<HTMLInputElement>(null);
-  const classes = ['6', '7', '8', '9'];
-  const listTypes: ListType[] = [
-    { key: 'merit_list', label: '1st Result List', color: 'green' },
-    { key: 'waiting_list_1', label: 'Waiting List 1', color: 'yellow' },
-    { key: 'waiting_list_2', label: 'Waiting List 2', color: 'orange' },
-  ];
-  const fetchAdmissionSettings = async (): Promise<void> => {
-    try {
-      const res = await axios.get<{ admission_year: number }>('/api/admission');
-      setFormData((prev) => ({
-        ...prev,
-        admission_year: res.data.admission_year,
-      }));
-      setAvailableYears(getCurrentYear(res.data.admission_year));
-      setSelectedYear(res.data.admission_year);
-      setCurrentYear(res.data.admission_year);
-    } catch (error) {
-      console.error('Failed to fetch admission settings:', error);
-    }
+  const openEdit = (result: AdmissionResultRow) => {
+    setEditId(result.id);
+    setFormData({
+      class_name: result.class_name,
+      admission_year: result.admission_year,
+      merit_list: result.merit_list,
+      waiting_list_1: result.waiting_list_1,
+      waiting_list_2: result.waiting_list_2,
+    });
+    setFormOpen(true);
   };
 
-  useEffect(() => {
-    fetchAdmissionSettings();
-    fetchResults();
-  }, []);
-
-  const fetchResults = async (): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get<AdmissionResult[]>('/api/admission-result');
-      setResults(response.data);
-    } catch (error) {
-      console.error('Error fetching results:', error);
-      toast.error('Failed to fetch admission results');
-    } finally {
-      setIsLoading(false);
-    }
+  const closeForm = () => {
+    if (isSubmitting) return;
+    setFormOpen(false);
+    setEditId(null);
   };
 
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      admission_year: currentYear,
-    }));
-  }, [showForm, currentYear]);
-
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    fieldName: keyof FormData,
-  ): void => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: ListKey) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        toast.error('Please upload only PDF files');
-        e.target.value = '';
-        setFormData((prev) => ({ ...prev, [fieldName]: null }));
-        return;
-      }
-      setFormData((prev) => ({ ...prev, [fieldName]: file }));
-    } else {
-      setFormData((prev) => ({ ...prev, [fieldName]: null }));
+    if (file && file.type !== 'application/pdf') {
+      toast.error('Please upload only PDF files');
+      e.target.value = '';
+      setFormData((prev) => ({ ...prev, [field]: null }));
+      return;
     }
+    setFormData((prev) => ({ ...prev, [field]: file ?? null }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const hasNewUpload =
-      formData.merit_list instanceof File ||
-      formData.waiting_list_1 instanceof File ||
-      formData.waiting_list_2 instanceof File;
+    if (!/^\d{4}$/.test(String(formData.admission_year))) {
+      toast.error('Enter a 4-digit admission year');
+      return;
+    }
 
-    if (!isEditing && !hasNewUpload) {
+    const filesToUpload = LIST_TYPES.flatMap(({ key }) => {
+      const value = formData[key];
+      return value instanceof File ? [{ file: value, type: key }] : [];
+    });
+
+    if (!isEditing && filesToUpload.length === 0) {
       toast.error('Please upload at least one PDF file');
       return;
     }
@@ -154,22 +217,6 @@ function AdmissionResult() {
         class_name: formData.class_name,
         admission_year: formData.admission_year,
       };
-
-      const filesToUpload: { file: File; type: string }[] = [];
-      if (formData.merit_list instanceof File)
-        filesToUpload.push({ file: formData.merit_list, type: 'merit_list' });
-
-      if (formData.waiting_list_1 instanceof File)
-        filesToUpload.push({
-          file: formData.waiting_list_1,
-          type: 'waiting_list_1',
-        });
-
-      if (formData.waiting_list_2 instanceof File)
-        filesToUpload.push({
-          file: formData.waiting_list_2,
-          type: 'waiting_list_2',
-        });
 
       if (filesToUpload.length > 0) {
         toast.loading(`Initializing upload for ${filesToUpload.length} files...`, {
@@ -187,12 +234,10 @@ function AdmissionResult() {
           admissionYear: formData.admission_year,
         });
 
-        if (!uploadResponse.success) {
-          throw new Error('Failed to initialize uploads');
-        }
+        if (!uploadResponse.success) throw new Error('Failed to initialize uploads');
 
         await Promise.all(
-          uploadResponse.data.map(async (item: any) => {
+          (uploadResponse.data as UploadInitItem[]).map(async (item) => {
             const fileObj = filesToUpload.find((f) => f.type === item.type);
             if (!fileObj) return;
 
@@ -204,7 +249,7 @@ function AdmissionResult() {
 
             if (item.mode === 'simple') {
               toast.loading(`Uploading ${item.type}...`, { id: toastId });
-              await axios.put(item.uploadUrl, fileObj.file, {
+              await axios.put(item.uploadUrl!, fileObj.file, {
                 headers: { 'Content-Type': fileObj.file.type },
                 withCredentials: false,
               });
@@ -217,10 +262,12 @@ function AdmissionResult() {
 
               for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
                 const start = (partNumber - 1) * PART_SIZE;
-                const end = Math.min(start + PART_SIZE, fileObj.file.size);
-                const chunk = fileObj.file.slice(start, end);
+                const chunk = fileObj.file.slice(
+                  start,
+                  Math.min(start + PART_SIZE, fileObj.file.size),
+                );
 
-                const { data: signData } = await axios.post(endpoints.signPart, {
+                const { data: signData } = await axios.post(endpoints!.signPart, {
                   key,
                   uploadId,
                   partNumber,
@@ -243,7 +290,7 @@ function AdmissionResult() {
                 );
               }
 
-              const { data: completeData } = await axios.post(endpoints.complete, {
+              const { data: completeData } = await axios.post(endpoints!.complete, {
                 key,
                 uploadId,
                 parts,
@@ -264,14 +311,12 @@ function AdmissionResult() {
         toast.success('Admission result updated successfully', { id: toastId });
       } else {
         await axios.post('/api/admission-result', payload);
-        toast.success('Admission result uploaded successfully', {
-          id: toastId,
-        });
+        toast.success('Admission result uploaded successfully', { id: toastId });
       }
 
-      resetForm();
-      fetchResults();
-      setShowForm(false);
+      setFormOpen(false);
+      setEditId(null);
+      queryClient.invalidateQueries({ queryKey: ['admission-results'] });
     } catch (error) {
       console.error('Error submitting form:', error);
       if (isAxiosError(error)) {
@@ -290,131 +335,216 @@ function AdmissionResult() {
     }
   };
 
-  const handleEdit = (result: AdmissionResult): void => {
-    setFormData({
-      class_name: result.class_name,
-      admission_year: result.admission_year,
-      merit_list: result.merit_list,
-      waiting_list_1: result.waiting_list_1,
-      waiting_list_2: result.waiting_list_2,
-    });
-    setIsEditing(true);
-    setEditId(result.id);
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleDelete = async (id: number): Promise<void> => {
-    const ok = await confirm({
-      title: 'Delete result?',
-      msg: 'Are you sure you want to delete this result?',
-      confirmLabel: 'Delete',
-    });
-    if (!ok) return;
-
+  const handleDelete = async (id: number) => {
     try {
       await axios.delete(`/api/admission-result/${id}`);
       toast.success('Result deleted successfully');
-      fetchResults();
+      queryClient.invalidateQueries({ queryKey: ['admission-results'] });
     } catch (error) {
       console.error('Error deleting result:', error);
       toast.error('Failed to delete result');
     }
   };
 
-  const resetForm = (): void => {
-    setFormData({
-      class_name: '6',
-      admission_year: new Date().getFullYear(),
-      merit_list: null,
-      waiting_list_1: null,
-      waiting_list_2: null,
-    });
-    setIsEditing(false);
-    setEditId(null);
-  };
+  const openPdf = (key: string) => window.open(getFileUrl(key), '_blank', 'noopener,noreferrer');
 
-  const getResultsByClass = (className: string): AdmissionResult[] => {
-    return results.filter(
-      (result) => result.class_name === className && result.admission_year === selectedYear,
-    );
-  };
+  const summary = resultsQuery.isSuccess
+    ? `${classesWithResults} of ${CLASSES.length} classes published · ${pdfCount} PDF${pdfCount === 1 ? '' : 's'}`
+    : ' ';
 
-  const getFileStatus = (fileUrl: string | null): JSX.Element => {
-    return fileUrl ? (
-      <div className="flex items-center gap-1 text-emerald-600">
-        <CheckCircle2 className="h-4 w-4" />
-        <span className="text-xs">Uploaded</span>
-      </div>
-    ) : (
-      <div className="text-muted-foreground flex items-center gap-1">
-        <XCircle className="h-4 w-4" />
-        <span className="text-xs">Not uploaded</span>
-      </div>
-    );
-  };
-
-  const classTabs: TabItem[] = classes.map((cls) => ({
-    id: cls,
-    label: `Class ${cls}`,
-  }));
-
-  const renderFileField = (
-    label: string,
-    field: 'merit_list' | 'waiting_list_1' | 'waiting_list_2',
-    inputRef: React.RefObject<HTMLInputElement | null>,
-  ) => {
-    const value = formData[field];
-    return (
-      <div className="border-border bg-muted/40 rounded-lg border p-4">
-        <label className="mb-2 block text-sm font-medium">{label}</label>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf"
-          onChange={(e) => handleFileChange(e, field)}
-          className="border-border bg-background file:bg-muted file:text-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm file:font-medium"
-        />
-        {value && (
-          <p className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            {typeof value === 'string'
-              ? `Current file: ${value.split('/').pop()}`
-              : `Selected: ${value.name}`}
-          </p>
-        )}
-      </div>
-    );
-  };
+  const loading = resultsQuery.isLoading;
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      {dialog}
-      <PageHeader
-        title="Admission Results"
-        description="Upload 1st Result List and waiting lists for classes 6-9."
-      >
-        {!showForm && (
-          <Button type="button" onClick={() => setShowForm(true)}>
-            <Upload className="h-4 w-4" />
-            Upload Result
-          </Button>
-        )}
-      </PageHeader>
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">Admission results</h1>
+            <select
+              aria-label="Admission year"
+              value={selectedYear}
+              onChange={(e) => setPickedYear(Number(e.target.value))}
+              className={cn(filterSelectClassName, 'h-8 w-auto font-medium tabular-nums')}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        <Button type="button" onClick={() => openCreate()}>
+          <Upload /> Upload result
+        </Button>
+      </header>
 
-      {showForm && (
-        <SectionCard
-          title={isEditing ? 'Edit Admission Result' : 'Upload Admission Result'}
-          icon={<FileText size={20} />}
-          className="mb-6"
-        >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Class *</label>
+      <SectionCard noPadding>
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] border-collapse text-left">
+            <thead>
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                <th
+                  className={cn(
+                    stickyCell,
+                    'text-foreground/70 w-28 px-3 py-2 text-xs font-semibold uppercase tracking-wider sm:px-4',
+                  )}
+                >
+                  Class
+                </th>
+                {LIST_TYPES.map((l) => (
+                  <th
+                    key={l.key}
+                    className="text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider"
+                  >
+                    {l.label}
+                  </th>
+                ))}
+                <th className="text-foreground/70 w-44 px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                  Uploaded
+                </th>
+                <th className="w-px px-3 py-2">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {loading ? (
+                Array.from({ length: 4 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={6} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : resultsQuery.isError ? (
+                <tr>
+                  <td colSpan={6} className="text-muted-foreground px-4 py-12 text-center text-sm">
+                    Couldn't load admission results. Try again in a moment.
+                  </td>
+                </tr>
+              ) : (
+                rows.map(({ cls, result }) => (
+                  // Opaque row colours so the pinned Class cell hides what scrolls under it.
+                  <tr
+                    key={result?.id ?? `empty-${cls}`}
+                    className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                  >
+                    <td className={cn(stickyCell, 'px-3 py-2 text-sm font-medium sm:px-4')}>
+                      Class {cls}
+                    </td>
+                    {LIST_TYPES.map((l) => {
+                      const key = result?.[l.key];
+                      return (
+                        <td key={l.key} className="px-4 py-2 text-sm">
+                          {key ? (
+                            <a
+                              href={getFileUrl(key)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded py-1 hover:underline"
+                            >
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              View PDF
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                              <XCircle className="h-4 w-4" />
+                              Not uploaded
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                      {result ? formatDateWithTime(result.created_at) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">
+                      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <ActionButton
+                            iconOnly
+                            label="More actions"
+                            icon={<MoreHorizontal size={16} />}
+                          />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuLabel className="normal-case tracking-normal">
+                            Class {cls} · {selectedYear}
+                          </DropdownMenuLabel>
+                          {result ? (
+                            <>
+                              {LIST_TYPES.filter((l) => result[l.key]).map((l) => (
+                                <DropdownMenuItem
+                                  key={l.key}
+                                  onSelect={() => openPdf(result[l.key]!)}
+                                >
+                                  <Eye /> {l.label}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuItem onSelect={() => openEdit(result)}>
+                                <Pencil /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => setDeleteTarget(result)}
+                              >
+                                <Trash2 /> Delete
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <DropdownMenuItem onSelect={() => openCreate(cls)}>
+                              <Upload /> Upload result
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        title="Delete result?"
+        confirmLabel="Delete"
+        msg={`Delete the Class ${deleteTarget?.class_name ?? ''} ${deleteTarget?.admission_year ?? ''} result and its PDFs? This cannot be undone.`}
+      />
+
+      <Popup
+        open={formOpen}
+        onOpenChange={(o) => !o && closeForm()}
+        size="lg"
+        aria-labelledby="admission-result-form-title"
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="border-border flex items-center justify-between border-b px-5 py-4">
+            <h2 id="admission-result-form-title" className="text-base font-semibold">
+              {isEditing ? 'Edit admission result' : 'Upload admission result'}
+            </h2>
+            <CloseButton onClick={closeForm} />
+          </div>
+
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Class">
                 <select
-                  className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
+                  className={filterSelectClassName}
                   value={formData.class_name}
+                  required
                   onChange={(e) => {
                     setFormData((prev) => ({
                       ...prev,
@@ -423,181 +553,115 @@ function AdmissionResult() {
                       waiting_list_1: null,
                       waiting_list_2: null,
                     }));
-                    if (meritListRef.current) meritListRef.current.value = '';
-                    if (waitingList1Ref.current) waitingList1Ref.current.value = '';
-                    if (waitingList2Ref.current) waitingList2Ref.current.value = '';
+                    Object.values(fileRefs).forEach((r) => {
+                      if (r.current) r.current.value = '';
+                    });
                   }}
-                  required
                 >
-                  {classes.map((cls) => (
+                  {CLASSES.map((cls) => (
                     <option key={cls} value={cls}>
                       Class {cls}
                     </option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Admission Year *</label>
+              </Field>
+              <Field label="Admission year">
                 <Input
-                  type="text"
                   inputMode="numeric"
                   pattern="\d*"
                   maxLength={4}
                   minLength={4}
-                  value={formData.admission_year}
+                  required
+                  className="tabular-nums"
+                  value={Number.isNaN(formData.admission_year) ? '' : formData.admission_year}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
                       admission_year: parseInt(e.target.value),
                     }))
                   }
-                  required
                 />
-              </div>
+              </Field>
             </div>
 
-            <div className="border-border space-y-4 border-t pt-4">
-              <div>
-                <h3 className="text-base font-semibold">Upload PDF Files</h3>
-                <p className="text-muted-foreground text-sm">
-                  Upload one or more result lists (PDF format, max 10MB each)
-                </p>
-              </div>
-              {renderFileField('1st Result List', 'merit_list', meritListRef)}
-              {renderFileField('Waiting List 1', 'waiting_list_1', waitingList1Ref)}
-              {renderFileField('Waiting List 2', 'waiting_list_2', waitingList2Ref)}
-            </div>
+            <p className="text-muted-foreground text-sm">
+              Upload one or more result lists (PDF, max 10MB each).
+            </p>
 
-            <div className="flex gap-3">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {isEditing ? 'Updating...' : 'Uploading...'}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4" />
-                    {isEditing ? 'Update Result' : 'Upload Result'}
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetForm();
-                  setShowForm(false);
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </SectionCard>
-      )}
-
-      <SectionCard
-        title="Uploaded Results"
-        headerAction={
-          <div>
-            <label className="mb-1 block text-sm font-medium">Filter by Admission Year</label>
-            <select
-              className="border-input bg-background rounded-md border px-3 py-2 text-sm"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            >
-              {availableYears.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
-        }
-      >
-        <TabNav
-          tabs={classTabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          className="mb-6"
-        />
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="text-primary h-8 w-8 animate-spin" />
-          </div>
-        ) : getResultsByClass(activeTab).length === 0 ? (
-          <div className="text-muted-foreground py-10 text-center">
-            <FileText className="mx-auto mb-3 h-12 w-12 opacity-50" />
-            <p>No results uploaded for Class {activeTab}</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {getResultsByClass(activeTab).map((result) => (
-              <div key={result.id} className="border-border rounded-xl border p-5">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="mb-1 text-lg font-semibold">
-                      Class {result.class_name} - {result.admission_year}
-                    </h3>
-                    <p className="text-muted-foreground text-sm">
-                      Uploaded on: {new Date(result.created_at).toLocaleDateString()}
+            {LIST_TYPES.map(({ key, label }) => {
+              const value = formData[key];
+              return (
+                <div
+                  key={key}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const input = fileRefs[key].current;
+                    if (!input || !e.dataTransfer.files.length) return;
+                    input.files = e.dataTransfer.files;
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                  }}
+                  className={cn(
+                    'border-border flex items-center gap-3 rounded-lg border p-3',
+                    !value && 'border-dashed',
+                  )}
+                >
+                  <input
+                    ref={fileRefs[key]}
+                    type="file"
+                    accept=".pdf"
+                    aria-label={`${label} PDF`}
+                    onChange={(e) => handleFileChange(e, key)}
+                    className="sr-only"
+                    tabIndex={-1}
+                  />
+                  <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-md">
+                    <FileText size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      {label}
+                      {value && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
+                    </p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {value instanceof File
+                        ? `New: ${value.name}`
+                        : value
+                          ? value.split('/').pop()
+                          : 'Not uploaded · drop a PDF here'}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      onClick={() => handleEdit(result)}
-                      aria-label="Edit result"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      className="border-destructive text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(result.id)}
-                      aria-label="Delete result"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="pointer-coarse:h-10 shrink-0"
+                    onClick={() => fileRefs[key].current?.click()}
+                  >
+                    <Upload /> {value ? 'Replace' : 'Choose PDF'}
+                  </Button>
                 </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  {listTypes.map((listType) => (
-                    <div
-                      key={listType.key}
-                      className="border-border bg-muted/40 rounded-lg border p-4"
-                    >
-                      <div className="mb-2 flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-medium">{listType.label}</h4>
-                        {getFileStatus(result[listType.key])}
-                      </div>
-                      {result[listType.key] && (
-                        <a
-                          href={getFileUrl(result[listType.key])}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary mt-2 inline-flex items-center gap-2 text-sm hover:underline"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View PDF
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        )}
-      </SectionCard>
+
+          <div className="border-border flex items-center justify-end gap-2 border-t px-5 py-3">
+            <Button type="button" variant="outline" onClick={closeForm} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : <Upload />}
+              {isEditing
+                ? isSubmitting
+                  ? 'Updating...'
+                  : 'Update result'
+                : isSubmitting
+                  ? 'Uploading...'
+                  : 'Upload result'}
+            </Button>
+          </div>
+        </form>
+      </Popup>
     </div>
   );
 }

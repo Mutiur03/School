@@ -926,7 +926,7 @@ const ClassRegForm = ({ variant }: ClassRegFormProps) => {
                   />
                   {selectedNotice || settingsForm.notice_key ? (
                     <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400">
+                      <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
                         <FileText size={20} />
                       </div>
                       <div className="min-w-0 flex-1">

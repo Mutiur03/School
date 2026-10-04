@@ -1,17 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/useAuth';
-import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import ErrorMessage from '@/components/ErrorMessage';
-import {
-  PageHeader,
-  SectionCard,
-  StatsCard,
-  FilterSelection,
-  FilterField,
-  filterSelectClassName,
-} from '@/components';
+import { Loader2, Save } from 'lucide-react';
+import { SectionCard, filterSelectClassName } from '@/components';
+import { ColumnHeaderMenu } from '@/components/ColumnHeaderMenu';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import useNavigationStore from '@/store/navigation.Store';
+import { readStoredClass, storeClass } from '@/lib/attendanceClass';
+import { cn } from '@/lib/utils';
 import { useSubjects } from '@/queries/subject.queries';
 import { useExams } from '@/queries/exam.queries';
 import {
@@ -22,35 +20,89 @@ import {
   type MarksData,
   type SubjectMark,
 } from '@/queries/marks.queries';
-import StudentMarkRow from './components/StudentMarkRow';
 
-interface FormValues {
-  year: number;
-  examName: string;
-  level: string;
-  group: string;
-  section: string;
-  specific: number;
-}
+type MarkField = 'cq_marks' | 'mcq_marks' | 'practical_marks' | 'marks';
+
+// Pinned Roll + Student columns; opaque backgrounds hide the mark columns scrolling under them.
+const stickyRoll = 'sticky left-0 z-[1] w-16 min-w-16 bg-inherit';
+const stickyName =
+  'sticky left-16 z-[1] min-w-[10rem] bg-inherit shadow-[1px_0_0_var(--border)] sm:min-w-[14rem]';
+const groups = ['Science', 'Humanities', 'Commerce'];
+const currentYear = new Date().getFullYear();
+
+const isSet = (v: number | null | undefined) => v !== null && v !== undefined;
+
+const Stat = ({ label, value, dot }: { label: string; value: number; dot?: string }) => (
+  <div className="min-w-0">
+    <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+      {dot && <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />}
+      {label}
+    </p>
+    <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+  </div>
+);
+
+/** Digits-only cell input. Enter / ↓ / ↑ move down and up the same column. */
+const MarkInput = ({
+  value,
+  max,
+  disabled,
+  label,
+  col,
+  onChange,
+}: {
+  value: number | null | undefined;
+  max: number;
+  disabled?: boolean;
+  label: string;
+  col: MarkField;
+  onChange: (value: string) => void;
+}) => (
+  <input
+    type="text"
+    inputMode="numeric"
+    pattern="[0-9]*"
+    autoComplete="off"
+    aria-label={label}
+    data-col={col}
+    value={isSet(value) ? String(value) : ''}
+    disabled={disabled}
+    placeholder={disabled ? '—' : `/${max}`}
+    onFocus={(e) => e.target.select()}
+    onChange={(e) => {
+      const raw = e.target.value;
+      if (raw === '') return onChange('');
+      const digits = raw.replace(/\D/g, '');
+      if (digits !== '') onChange(digits);
+    }}
+    onKeyDown={(e) => {
+      const step = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      // Next enabled input in the same column (skips group-mismatch / disabled cells).
+      const column = Array.from(
+        e.currentTarget
+          .closest('table')
+          ?.querySelectorAll<HTMLInputElement>(`input[data-col="${col}"]:not(:disabled)`) ?? [],
+      );
+      column[column.indexOf(e.currentTarget) + step]?.focus();
+    }}
+    className="border-border bg-card focus-visible:ring-ring pointer-coarse:h-10 disabled:text-muted-foreground h-8 w-16 rounded-md border px-2 text-center text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:bg-transparent"
+  />
+);
 
 const AddMarks = () => {
   const { user } = useAuth();
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<FormValues>({
-    defaultValues: {
-      year: new Date().getFullYear(),
-      examName: '',
-      level: '',
-      group: '',
-      section: '',
-      specific: 0,
-    },
-  });
+  const { confirm, dialog } = useConfirmDialog();
+  const { setDirty, resetDirty } = useNavigationStore();
+
+  const [year, setYear] = useState(currentYear);
+  const [examName, setExamName] = useState('');
+  const [level, setLevel] = useState('');
+  const [group, setGroup] = useState('');
+  const [section, setSection] = useState('');
+  const [specific, setSpecific] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const EMPTY_ARRAY = useRef<never[]>([]).current;
 
@@ -60,11 +112,6 @@ const AddMarks = () => {
 
   const [marksData, setMarksData] = useState<MarksData>({});
   const [dirtyStudentIds, setDirtyStudentIds] = useState<Set<number>>(new Set());
-  const [sections, setSections] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const formValues = watch();
-  const { year, examName, level, group, section, specific } = formValues;
 
   const { data: students = EMPTY_ARRAY, isLoading: isLoadingStudents } = useMarksStudents(
     year,
@@ -75,6 +122,14 @@ const AddMarks = () => {
     isLoading: isLoadingMarks,
     refetch: refetchMarks,
   } = useClassMarks(level, year, examName);
+
+  const isTeacher = user?.role === 'teacher';
+  const teacherLevels =
+    (
+      user as {
+        levels?: { class_name: number; section: string; year: number }[];
+      } | null
+    )?.levels ?? [];
 
   const subjectsForClass = useMemo(() => {
     return subjects
@@ -104,81 +159,110 @@ const AddMarks = () => {
     return map;
   }, [exams, year]);
 
-  useEffect(() => {
-    setValue('level', '');
-    setValue('group', '');
-    setValue('section', '');
-    setValue('specific', 0);
-  }, [examName, setValue]);
+  const classOptions = useMemo(
+    () =>
+      (classListMap[examName] || [])
+        .slice()
+        .sort((a, b) => a - b)
+        .filter((cls) => {
+          if (user?.role === 'admin') return true;
+          if (isTeacher) {
+            return teacherLevels.some(
+              (l) => l.class_name === Number(cls) && l.year === Number(year),
+            );
+          }
+          return false;
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [classListMap, examName, user, year],
+  );
 
+  const sections = useMemo(
+    () =>
+      Array.from(new Set(students.map((s) => s.section)))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+        .filter((sec) => {
+          if (user?.role === 'admin') return true;
+          if (isTeacher) {
+            return teacherLevels.some(
+              (l) => l.class_name === Number(level) && l.section === sec && l.year === Number(year),
+            );
+          }
+          return false;
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [students, user, level, year],
+  );
+
+  // A teacher with exactly one class this year gets it picked for them.
   useEffect(() => {
-    if (user?.role === 'teacher' && user.levels && user.levels.length > 0) {
-      const assignmentsInYear = user.levels.filter(
-        (l: { year: number }) => l.year === Number(year),
-      );
-      if (assignmentsInYear.length === 1) {
-        const assignment = assignmentsInYear[0];
-        if (examName) {
-          setValue('level', assignment.class_name.toString());
-          setValue('section', assignment.section);
-        }
-      }
+    if (!isTeacher || !examName) return;
+    const assignmentsInYear = teacherLevels.filter((l) => l.year === Number(year));
+    if (assignmentsInYear.length === 1) {
+      setLevel(assignmentsInYear[0].class_name.toString());
+      setSection(assignmentsInYear[0].section);
     }
-  }, [user, year, examName, setValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, year, examName]);
 
   useEffect(() => {
     if (specific && !subjectsForClass.some((sub) => sub.id == Number(specific))) {
-      setValue('specific', 0);
+      setSpecific(0);
     }
-  }, [subjectsForClass, specific, setValue]);
+  }, [subjectsForClass, specific]);
 
   useEffect(() => {
     if (selectedSubject && selectedSubject.group && selectedSubject.group !== '') {
-      setValue('group', selectedSubject.group);
+      setGroup(selectedSubject.group);
     }
-  }, [selectedSubject, setValue]);
+  }, [selectedSubject]);
 
-  useEffect(() => {
-    if (existingMarks.length > 0) {
-      const initialData: MarksData = {};
-      existingMarks.forEach((student) => {
-        initialData[student.student_id] = {
-          subjectMarks: subjectsForClass.map((subject) => {
-            const existingMark = (student.marks || []).find(
-              (mark) => mark.subject_id === subject.id,
-            );
-            return {
-              subjectId: subject.id,
-              cq_marks: existingMark?.cq_marks ?? null,
-              mcq_marks: existingMark?.mcq_marks ?? null,
-              practical_marks: existingMark?.practical_marks ?? null,
-              marks: existingMark?.marks ?? null,
-            };
-          }),
-        };
-      });
-      setMarksData(initialData);
-      setDirtyStudentIds(new Set());
-    } else {
-      setMarksData((prev) => (Object.keys(prev).length === 0 ? prev : {}));
-      setDirtyStudentIds(new Set());
-    }
+  // Saved marks as the starting point; null = not entered (never assumed 0).
+  const initialMarks = useMemo(() => {
+    const initialData: MarksData = {};
+    existingMarks.forEach((student) => {
+      initialData[student.student_id] = {
+        subjectMarks: subjectsForClass.map((subject) => {
+          const existingMark = (student.marks || []).find((mark) => mark.subject_id === subject.id);
+          return {
+            subjectId: subject.id,
+            cq_marks: existingMark?.cq_marks ?? null,
+            mcq_marks: existingMark?.mcq_marks ?? null,
+            practical_marks: existingMark?.practical_marks ?? null,
+            marks: existingMark?.marks ?? null,
+          };
+        }),
+      };
+    });
+    return initialData;
   }, [existingMarks, subjectsForClass]);
 
   useEffect(() => {
-    if (students.length > 0) {
-      setSections(
-        Array.from(new Set(students.map((s) => s.section))).sort((a, b) =>
-          a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
-        ),
-      );
-    } else {
-      setSections([]);
-    }
-  }, [students]);
+    setMarksData(initialMarks);
+    setDirtyStudentIds(new Set());
+  }, [initialMarks]);
+
+  const unsavedCount = dirtyStudentIds.size;
+
+  // Browser reload/close guard + in-app navigation guard.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (unsavedCount > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [unsavedCount]);
+
+  useEffect(() => {
+    setDirty(unsavedCount > 0);
+    return () => resetDirty();
+  }, [unsavedCount, setDirty, resetDirty]);
 
   const handleMarksChange = useCallback(
-    (studentId: number, subjectId: number, markType: string, value: string) => {
+    (studentId: number, subjectId: number, markType: MarkField, value: string) => {
       const subject = subjectsForClass.find((s) => s.id === subjectId);
       let maxMark = 100;
       if (subject) {
@@ -194,7 +278,7 @@ const AddMarks = () => {
         validatedMarks = null;
       } else {
         const parsed = parseInt(value, 10);
-        if (isNaN(parsed)) return; // reject non-numeric input entirely
+        if (isNaN(parsed)) return;
         validatedMarks = Math.min(Math.max(0, parsed), maxMark);
       }
 
@@ -215,9 +299,7 @@ const AddMarks = () => {
             const mcq = updatedMark.mcq_marks;
             const prac = updatedMark.practical_marks;
             updatedMark.marks =
-              (cq === null || cq === undefined) &&
-              (mcq === null || mcq === undefined) &&
-              (prac === null || prac === undefined)
+              !isSet(cq) && !isSet(mcq) && !isSet(prac)
                 ? null
                 : (Number(cq) || 0) + (Number(mcq) || 0) + (Number(prac) || 0);
           }
@@ -231,10 +313,7 @@ const AddMarks = () => {
             marks: markType === 'marks' ? validatedMarks : null,
           };
           if (subject && subject.marking_scheme === 'BREAKDOWN' && markType !== 'marks') {
-            newMark.marks =
-              (Number(newMark.cq_marks) || 0) +
-              (Number(newMark.mcq_marks) || 0) +
-              (Number(newMark.practical_marks) || 0);
+            newMark.marks = isSet(validatedMarks) ? validatedMarks : null;
           }
           updatedSubjectMarks = [...currentStudent.subjectMarks, newMark];
         }
@@ -245,53 +324,72 @@ const AddMarks = () => {
     [subjectsForClass],
   );
 
+  // Class/group/section scope (what the counts describe); search only narrows the rows shown.
+  const scopedStudents = useMemo(
+    () =>
+      students
+        .filter((s: Student) => (group ? s.group === group : true))
+        .filter((s: Student) => !section || s.section === section)
+        .sort((a: Student, b: Student) => {
+          const secCmp = a.section.localeCompare(b.section, undefined, {
+            numeric: true,
+            sensitivity: 'base',
+          });
+          if (secCmp !== 0) return secCmp;
+          const rollA = Number(a.roll) || 0;
+          const rollB = Number(b.roll) || 0;
+          if (rollA !== rollB) return rollA - rollB;
+          return a.name.localeCompare(b.name);
+        }),
+    [students, group, section],
+  );
+
   const filteredStudents = useMemo(() => {
-    return students
-      .filter((s: Student) => (group ? s.group === group : true))
-      .filter((s: Student) => !section || s.section === section)
-      .filter((s: Student) => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return s.name.toLowerCase().includes(query) || s.roll.toString().includes(query);
-      })
-      .sort((a: Student, b: Student) => {
-        const secCmp = a.section.localeCompare(b.section, undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        });
-        if (secCmp !== 0) return secCmp;
-        const rollA = Number(a.roll) || 0;
-        const rollB = Number(b.roll) || 0;
-        if (rollA !== rollB) return rollA - rollB;
-        return a.name.localeCompare(b.name);
-      });
-  }, [students, group, section, searchQuery]);
-
-  const onSubmit = async () => {
-    const visibleSubjects = subjectsForClass.filter((s) => !specific || s.id === specific);
-
-    const studentsToSubmit = filteredStudents.filter((student) =>
-      dirtyStudentIds.has(student.student_id),
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return scopedStudents;
+    return scopedStudents.filter(
+      (s) => s.name.toLowerCase().includes(query) || s.roll.toString().includes(query),
     );
+  }, [scopedStudents, searchQuery]);
 
-    const submissionData = studentsToSubmit.map((student) => {
-      const studentData = marksData[student.student_id];
-      const subjectMarks = visibleSubjects.map((subject) => {
-        const existingMark = studentData?.subjectMarks?.find((m) => m.subjectId === subject.id);
+  const groupMismatch = (student: Student) =>
+    Boolean(
+      selectedSubject?.group &&
+      selectedSubject.group !== '' &&
+      selectedSubject.group !== student.group,
+    );
+  const markFor = (studentId: number) =>
+    selectedSubject
+      ? marksData[studentId]?.subjectMarks?.find((m) => m.subjectId === selectedSubject.id)
+      : undefined;
+
+  // Real counts only: a student with no mark is "not entered", never 0.
+  const counts = useMemo(() => {
+    const eligible = scopedStudents.filter((s) => !groupMismatch(s));
+    const entered = eligible.filter((s) => isSet(markFor(s.student_id)?.marks)).length;
+    return { eligible: eligible.length, entered, notEntered: eligible.length - entered };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedStudents, selectedSubject, marksData]);
+
+  const onSubmit = () => {
+    if (!selectedSubject) return;
+    const submissionData = students
+      .filter((student) => dirtyStudentIds.has(student.student_id))
+      .map((student) => {
+        const existingMark = markFor(student.student_id);
         return {
-          subjectId: subject.id,
-          cq_marks: existingMark?.cq_marks ?? null,
-          mcq_marks: existingMark?.mcq_marks ?? null,
-          practical_marks: existingMark?.practical_marks ?? null,
-          marks: existingMark?.marks ?? null,
+          studentId: student.student_id,
+          subjectMarks: [
+            {
+              subjectId: selectedSubject.id,
+              cq_marks: existingMark?.cq_marks ?? null,
+              mcq_marks: existingMark?.mcq_marks ?? null,
+              practical_marks: existingMark?.practical_marks ?? null,
+              marks: existingMark?.marks ?? null,
+            },
+          ],
         };
       });
-
-      return {
-        studentId: student.student_id,
-        subjectMarks: subjectMarks,
-      };
-    });
 
     if (submissionData.length === 0) {
       toast.error('No mark changes to save');
@@ -299,11 +397,7 @@ const AddMarks = () => {
     }
 
     addMarksMutation.mutate(
-      {
-        students: submissionData,
-        examName,
-        year,
-      },
+      { students: submissionData, examName, year },
       {
         onSuccess: () => {
           setDirtyStudentIds(new Set());
@@ -313,378 +407,380 @@ const AddMarks = () => {
     );
   };
 
+  const discard = () => {
+    setMarksData(initialMarks);
+    setDirtyStudentIds(new Set());
+  };
+
+  /** Asks before throwing away unsaved marks; resolves true when it's fine to continue. */
+  const okToDiscard = async (what: string) => {
+    if (unsavedCount === 0) return true;
+    const proceed = await confirm({
+      title: 'Discard unsaved changes?',
+      msg: `You have unsaved marks. Changing the ${what} will discard them.`,
+      confirmLabel: 'Discard & continue',
+    });
+    if (proceed) discard();
+    return proceed;
+  };
+
+  const handleYearChange = async (value: number) => {
+    if (!(await okToDiscard('year'))) return;
+    setYear(value);
+    setExamName('');
+    setLevel('');
+    setGroup('');
+    setSection('');
+    setSpecific(0);
+  };
+
+  const handleExamChange = async (value: string) => {
+    if (!(await okToDiscard('exam'))) return;
+    setExamName(value);
+    // Pre-pick the class remembered from Attendance when this exam has it.
+    const stored = String(readStoredClass());
+    setLevel(classListMap[value]?.map(String).includes(stored) ? stored : '');
+    setGroup('');
+    setSection('');
+    setSpecific(0);
+  };
+
+  const handleClassChange = async (value: string) => {
+    if (!(await okToDiscard('class'))) return;
+    setLevel(value);
+    setGroup('');
+    setSection('');
+    setSpecific(0);
+    if (value) storeClass(Number(value));
+  };
+
+  const handleGroupChange = async (value: string) => {
+    if (await okToDiscard('group')) setGroup(value);
+  };
+
+  const handleSectionChange = async (value: string) => {
+    if (await okToDiscard('section')) setSection(value);
+  };
+
+  const handleSubjectChange = async (value: number) => {
+    if (await okToDiscard('subject')) setSpecific(value);
+  };
+
   const isLoading = isLoadingSubjects || isLoadingExams || isLoadingStudents || isLoadingMarks;
+  const isBreakdown = selectedSubject?.marking_scheme === 'BREAKDOWN';
+  const subjectConfigured = Boolean(
+    selectedSubject &&
+    selectedSubject.full_mark > 0 &&
+    (selectedSubject.marking_scheme === 'TOTAL' ||
+      (selectedSubject.cq_mark || 0) > 0 ||
+      (selectedSubject.mcq_mark || 0) > 0 ||
+      (selectedSubject.practical_mark || 0) > 0),
+  );
+  const canSave = !addMarksMutation.isPending && subjectConfigured && unsavedCount > 0;
+
+  const markColumns: { field: MarkField; label: string; max: number }[] = !selectedSubject
+    ? []
+    : isBreakdown
+      ? [
+          { field: 'cq_marks', label: 'CQ', max: selectedSubject.cq_mark || 0 },
+          { field: 'mcq_marks', label: 'MCQ', max: selectedSubject.mcq_mark || 0 },
+          { field: 'practical_marks', label: 'Prac', max: selectedSubject.practical_mark || 0 },
+        ]
+      : [{ field: 'marks', label: 'Marks', max: selectedSubject.full_mark || 0 }];
+  // Breakdown subjects add a read-only Total column.
+  const colSpan = markColumns.length + (isBreakdown ? 1 : 0) + 3;
+  const showSection = !section;
+  const subjectId = selectedSubject?.id ?? 0;
+
+  const pickerClass = cn(filterSelectClassName, 'h-8 w-auto font-medium');
+
+  const summary = !examName
+    ? 'Pick an exam, class and subject to enter marks.'
+    : !level
+      ? `${examName} ${year} · pick a class`
+      : [
+          `Class ${level}${section ? ` ${section}` : ''}${group ? ` · ${group}` : ''}`,
+          `${scopedStudents.length.toLocaleString()} students`,
+          selectedSubject
+            ? `${selectedSubject.name} · full mark ${selectedSubject.full_mark || 0}`
+            : 'pick a subject',
+        ].join(' · ');
+
+  const saveButton = (
+    <Button
+      type="button"
+      onClick={onSubmit}
+      disabled={!canSave}
+      title={
+        !selectedSubject
+          ? 'Pick a subject to enter marks'
+          : !subjectConfigured
+            ? 'This subject has no mark limits set'
+            : undefined
+      }
+    >
+      {addMarksMutation.isPending ? <Loader2 className="animate-spin" /> : <Save />}
+      {addMarksMutation.isPending ? 'Saving…' : 'Save marks'}
+    </Button>
+  );
+
+  const emptyMessage = !examName
+    ? 'Pick an exam to start.'
+    : !level
+      ? 'Pick a class to see its students.'
+      : students.length === 0
+        ? 'No students found for this class.'
+        : !selectedSubject
+          ? 'Pick a subject to enter marks.'
+          : filteredStudents.length === 0
+            ? `No students match${searchQuery ? ` "${searchQuery}"` : ' these filters'}.`
+            : null;
 
   return (
-    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Student Marks Management"
-        description="Enter and manage student marks for different examinations."
-      />
+    <div className="mx-auto flex min-h-full max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
+      {dialog}
 
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:mb-6 sm:grid-cols-3 sm:gap-4 lg:gap-6">
-        <StatsCard
-          label="Selected Class"
-          value={level ? `Class ${level}` : 'None'}
-          loading={isLoadingStudents}
-        />
-        <StatsCard
-          label="Total Students"
-          value={filteredStudents.length}
-          loading={isLoadingStudents}
-        />
-        <StatsCard
-          label="Total Subjects"
-          value={subjectsForClass.length}
-          loading={isLoadingSubjects}
-        />
-      </div>
-
-      <form
-        onSubmit={handleSubmit(onSubmit, (err) => {
-          console.error('Form errors:', err);
-          toast.error('Please fill all required fields');
-        })}
-        className="space-y-6"
-      >
-        <FilterSelection className="mb-6">
-          <FilterField label="Academic Year">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">Marks entry</h1>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <select
-              {...register('year', { required: true, valueAsNumber: true })}
-              className={filterSelectClassName}
+              aria-label="Year"
+              className={cn(pickerClass, 'tabular-nums')}
+              value={year}
+              onChange={(e) => handleYearChange(Number(e.target.value))}
               disabled={isLoadingExams}
             >
-              {Array.from({ length: 10 }, (_, i) => (
-                <option key={i} value={2020 + i}>
-                  {2020 + i}
+              {Array.from({ length: 10 }, (_, i) => 2020 + i).map((y) => (
+                <option key={y} value={y}>
+                  {y}
                 </option>
               ))}
             </select>
-            <ErrorMessage message={errors.year?.message} />
-          </FilterField>
-
-          <FilterField label="Examination">
             <select
-              {...register('examName', { required: true })}
-              className={filterSelectClassName}
-              disabled={!year || isLoadingExams}
+              aria-label="Exam"
+              className={pickerClass}
+              value={examName}
+              onChange={(e) => handleExamChange(e.target.value)}
+              disabled={isLoadingExams}
             >
-              <option value="">Select Exam</option>
-              {examList.map((exam, index) => (
-                <option key={index} value={exam}>
+              <option value="">Select exam</option>
+              {examList.map((exam) => (
+                <option key={exam} value={exam}>
                   {exam}
                 </option>
               ))}
             </select>
-            <ErrorMessage message={errors.examName?.message} />
-          </FilterField>
-
-          <FilterField label="Class">
             <select
-              {...register('level', { required: true })}
-              className={filterSelectClassName}
-              disabled={!examName || isLoadingExams}
+              aria-label="Class"
+              className={pickerClass}
               value={level}
+              onChange={(e) => handleClassChange(e.target.value)}
+              disabled={!examName}
             >
-              <option value="">Select Class</option>
-              {examName &&
-                (classListMap[examName] || [])
-                  .slice()
-                  .sort((a, b) => a - b)
-                  .filter((cls) => {
-                    if (user?.role === 'admin') return true;
-                    if (user?.role === 'teacher') {
-                      return user.levels?.some(
-                        (l: { class_name: number; year: number }) =>
-                          l.class_name === Number(cls) && l.year === Number(year),
-                      );
-                    }
-                    return false;
-                  })
-                  .map((cls, index) => (
-                    <option key={index} value={cls}>
-                      Class {cls}
-                    </option>
-                  ))}
+              <option value="">Select class</option>
+              {classOptions.map((cls) => (
+                <option key={cls} value={cls}>
+                  Class {cls}
+                </option>
+              ))}
             </select>
-            <ErrorMessage message={errors.level?.message} />
-          </FilterField>
-
-          {Number(level) >= 9 && (
-            <FilterField label="Group">
+            {Number(level) >= 9 && (
               <select
-                {...register('group')}
-                className={filterSelectClassName}
-                disabled={!level || isLoadingExams}
+                aria-label="Group"
+                className={pickerClass}
+                value={group}
+                onChange={(e) => handleGroupChange(e.target.value)}
               >
-                {['', 'Science', 'Humanities', 'Commerce'].map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept ? dept : 'All Groups'}
+                <option value="">All groups</option>
+                {groups.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
                   </option>
                 ))}
               </select>
-            </FilterField>
-          )}
-
-          <FilterField label="Section">
-            <select
-              {...register('section')}
-              className={filterSelectClassName}
-              disabled={!level || isLoadingExams}
-            >
-              <option value="">Select Section</option>
-              {sections
-                .filter((sec) => {
-                  if (user?.role === 'admin') return true;
-                  if (user?.role === 'teacher') {
-                    return user.levels?.some(
-                      (l: { class_name: number; year: number; section: string }) =>
-                        l.class_name === Number(level) &&
-                        l.section === sec &&
-                        l.year === Number(year),
-                    );
-                  }
-                  return false;
-                })
-                .map((sec) => (
-                  <option key={sec} value={sec}>
-                    Section {sec}
-                  </option>
-                ))}
-            </select>
-          </FilterField>
-
-          <FilterField label="Subject">
-            <select
-              {...register('specific', { valueAsNumber: true })}
-              className={filterSelectClassName}
-              disabled={!level || isLoadingExams}
-            >
-              <option value="0">Select Subject</option>
-              {examName &&
-                subjectsForClass.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-            </select>
-          </FilterField>
-        </FilterSelection>
-
-        {isLoading ? (
-          <SectionCard className="flex h-40 flex-col items-center justify-center sm:h-64">
-            <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 sm:h-12 sm:w-12"></div>
-            <span className="text-muted-foreground mt-2 px-4 text-center text-xs sm:mt-3 sm:text-sm">
-              {isLoadingSubjects || isLoadingExams
-                ? 'Loading initial data...'
-                : isLoadingStudents
-                  ? 'Loading students...'
-                  : 'Loading marks data...'}
-            </span>
-          </SectionCard>
-        ) : students.length > 0 ? (
-          <SectionCard className="overflow-hidden p-0">
-            <div className="bg-muted/20 border-border flex flex-col items-stretch justify-between gap-2 border-b p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
-              <div className="relative w-full sm:w-72">
-                <input
-                  type="text"
-                  placeholder="Search name or roll..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-border bg-card focus:ring-primary/20 w-full rounded-md border py-2 pl-9 pr-3 text-sm transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:outline-none focus:ring-2"
-                />
-                <svg
-                  className="text-muted-foreground absolute left-3 top-2.5 h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-              <div className="text-muted-foreground text-right text-xs font-medium sm:text-left">
-                Showing {filteredStudents.length} of {students.length} students
-              </div>
-            </div>
-
-            {filteredStudents.length === 0 ? (
-              <div className="p-6 text-center sm:p-12">
-                <p className="text-muted-foreground text-xs sm:text-sm">
-                  No students match your search{searchQuery ? ` "${searchQuery}"` : ' or filters'}.
-                </p>
-              </div>
-            ) : specific && specific !== 0 && selectedSubject ? (
-              <>
-                <div className="bg-primary/5 border-border flex items-center justify-between gap-2 border-b p-3 sm:gap-4 sm:p-4">
-                  <div className="min-w-0">
-                    <h3 className="text-primary truncate text-sm font-bold sm:text-lg">
-                      {subjectsForClass.find((sub) => sub.id === specific)?.name}
-                    </h3>
-                    <p className="text-muted-foreground mt-0.5 text-[10px] sm:text-xs">
-                      Subject Mark Entry
-                    </p>
-                  </div>
-                  <div className="shrink-0">
-                    <div className="text-right">
-                      <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-widest">
-                        Total
-                      </span>
-                      <span className="text-sm font-bold">
-                        {subjectsForClass.find((sub) => sub.id === specific)?.full_mark || 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mobile card layout */}
-                <div className="sm:hidden">
-                  <div className="bg-muted/50 border-border flex items-center justify-between border-b px-3 py-1.5">
-                    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-                      Roll / Sec
-                    </span>
-                    <span className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
-                      {selectedSubject?.marking_scheme === 'BREAKDOWN'
-                        ? 'CQ / MCQ / Prac'
-                        : `Marks (${selectedSubject?.full_mark || 0})`}
-                    </span>
-                  </div>
-                  {filteredStudents.map((student) => {
-                    const studentMarksEntry = marksData[student.student_id];
-                    const subjectMark = studentMarksEntry?.subjectMarks?.find(
-                      (m) => m.subjectId === selectedSubject.id,
-                    );
-                    return (
-                      <StudentMarkRow
-                        key={student.student_id}
-                        variant="card"
-                        student={student}
-                        selectedSubject={selectedSubject}
-                        studentSubject={subjectMark}
-                        onMarkChange={handleMarksChange}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Desktop table layout */}
-                <div className="hidden overflow-x-auto sm:block">
-                  <table className="divide-border w-full divide-y">
-                    <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
-                      <tr>
-                        <th className="text-muted-foreground px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
-                          Student
-                        </th>
-                        {selectedSubject && selectedSubject.marking_scheme === 'BREAKDOWN' ? (
-                          <>
-                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                              CQ ({selectedSubject.cq_mark || 0})
-                            </th>
-                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                              MCQ ({selectedSubject.mcq_mark || 0})
-                            </th>
-                            <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                              Prac ({selectedSubject.practical_mark || 0})
-                            </th>
-                          </>
-                        ) : (
-                          <th className="text-muted-foreground w-24 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
-                            Marks ({selectedSubject?.full_mark || 0})
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-border bg-card divide-y">
-                      {filteredStudents.map((student) => {
-                        const studentMarksEntry = marksData[student.student_id];
-                        const subjectMark = studentMarksEntry?.subjectMarks?.find(
-                          (m) => m.subjectId === selectedSubject.id,
-                        );
-                        return (
-                          <StudentMarkRow
-                            key={student.student_id}
-                            variant="table"
-                            student={student}
-                            selectedSubject={selectedSubject}
-                            studentSubject={subjectMark}
-                            onMarkChange={handleMarksChange}
-                          />
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="p-6 text-center sm:p-12">
-                <p className="text-muted-foreground text-xs sm:text-sm">
-                  Please select a subject from the filters above to continue.
-                </p>
-              </div>
             )}
-          </SectionCard>
-        ) : (
-          <SectionCard className="p-6 text-center sm:p-12">
-            <p className="text-muted-foreground text-xs sm:text-sm">
-              {!level
-                ? 'Please select a class to view students'
-                : 'No students found for the selected class.'}
-            </p>
-          </SectionCard>
-        )}
+            <select
+              aria-label="Section"
+              className={pickerClass}
+              value={section}
+              onChange={(e) => handleSectionChange(e.target.value)}
+              disabled={!level}
+            >
+              <option value="">All sections</option>
+              {sections.map((sec) => (
+                <option key={sec} value={sec}>
+                  Section {sec}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Subject"
+              className={pickerClass}
+              value={specific}
+              onChange={(e) => handleSubjectChange(Number(e.target.value))}
+              disabled={!level}
+            >
+              <option value={0}>Select subject</option>
+              {subjectsForClass.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {unsavedCount === 0 && saveButton}
+      </header>
 
-        {filteredStudents.length > 0 &&
-          specific &&
-          specific !== 0 &&
-          selectedSubject &&
-          selectedSubject.full_mark > 0 &&
-          (selectedSubject.marking_scheme === 'TOTAL' ||
-            (selectedSubject.cq_mark || 0) > 0 ||
-            (selectedSubject.mcq_mark || 0) > 0 ||
-            (selectedSubject.practical_mark || 0) > 0) && (
-            <div className="bg-background/95 border-border sticky bottom-0 -mx-4 flex justify-end border-t px-4 py-3 pt-0 backdrop-blur-sm sm:static sm:mx-0 sm:border-t-0 sm:bg-transparent sm:px-0 sm:py-0 sm:pt-4 sm:backdrop-blur-none">
-              <Button
-                type="submit"
-                size="lg"
-                disabled={addMarksMutation.isPending}
-                className="shadow-primary/20 w-full px-10 font-bold shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] hover:scale-[1.02] active:scale-[0.98] sm:w-auto"
-              >
-                {addMarksMutation.isPending ? (
-                  <>
-                    <svg
-                      className="-ml-1 mr-3 h-5 w-5 animate-spin text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Processing...
-                  </>
-                ) : (
-                  `Save Marks`
+      {selectedSubject && scopedStudents.length > 0 && (
+        <div className="border-border bg-card mb-6 flex flex-wrap items-center gap-x-8 gap-y-4 rounded-xl border px-5 py-4 shadow-sm">
+          <Stat label="Students" value={counts.eligible} />
+          <Stat label="Entered" value={counts.entered} dot="bg-emerald-500" />
+          <Stat label="Not entered" value={counts.notEntered} dot="bg-amber-500" />
+        </div>
+      )}
+
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll the mark columns sideways. */}
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-border [&>th]:bg-muted text-foreground/70 border-b text-xs font-semibold uppercase tracking-wider [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                <th className={cn(stickyRoll, 'px-3 py-2.5')}>Roll</th>
+                <th className={cn(stickyName, 'px-3 py-2')}>
+                  <ColumnHeaderMenu
+                    label="Student"
+                    filterInput={{
+                      value: searchQuery,
+                      onChange: setSearchQuery,
+                      placeholder: 'Name or roll…',
+                    }}
+                  />
+                </th>
+                {markColumns.map((c) => (
+                  <th key={c.field} className="w-20 min-w-20 px-2 py-2.5 text-center tabular-nums">
+                    {c.label} <span className="font-normal normal-case">/{c.max}</span>
+                  </th>
+                ))}
+                {isBreakdown && (
+                  <th className="w-20 min-w-20 px-2 py-2.5 text-center tabular-nums">
+                    Total{' '}
+                    <span className="font-normal normal-case">/{selectedSubject?.full_mark}</span>
+                  </th>
                 )}
-              </Button>
-            </div>
-          )}
-      </form>
+                <th aria-hidden className="w-full p-0" />
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {isLoading && Boolean(level) ? (
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={colSpan} className="px-4 py-2">
+                      <Skeleton className="h-8 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : emptyMessage ? (
+                <tr>
+                  <td
+                    colSpan={colSpan}
+                    className="text-muted-foreground px-4 py-12 text-center text-sm"
+                  >
+                    {emptyMessage}
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map((student) => {
+                  const mark = markFor(student.student_id);
+                  const mismatch = groupMismatch(student);
+                  const dirty = dirtyStudentIds.has(student.student_id);
+                  return (
+                    <tr
+                      key={student.student_id}
+                      className={cn(
+                        'transition-colors',
+                        dirty
+                          ? 'bg-[color-mix(in_oklab,var(--primary)_6%,var(--card))]'
+                          : 'bg-card hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]',
+                        mismatch && 'text-muted-foreground',
+                      )}
+                    >
+                      <td className={cn(stickyRoll, 'px-3 py-2 text-sm tabular-nums')}>
+                        {showSection ? `${student.section}-${student.roll}` : student.roll}
+                      </td>
+                      <td className={cn(stickyName, 'px-3 py-2')}>
+                        <span className="block truncate text-sm font-medium">{student.name}</span>
+                      </td>
+                      {mismatch ? (
+                        <td
+                          colSpan={markColumns.length + (isBreakdown ? 1 : 0)}
+                          className="px-2 py-2 text-center text-xs"
+                        >
+                          Not for {student.group || 'this'} group
+                        </td>
+                      ) : (
+                        <>
+                          {markColumns.map((c) => (
+                            <td key={c.field} className="px-2 py-1.5 text-center">
+                              <MarkInput
+                                value={mark?.[c.field]}
+                                max={c.max}
+                                disabled={!c.max}
+                                label={`${student.name} ${c.label}`}
+                                col={c.field}
+                                onChange={(v) =>
+                                  handleMarksChange(student.student_id, subjectId, c.field, v)
+                                }
+                              />
+                            </td>
+                          ))}
+                          {isBreakdown && (
+                            <td className="px-2 py-2 text-center text-sm font-semibold tabular-nums">
+                              {isSet(mark?.marks) ? (
+                                mark?.marks
+                              ) : (
+                                <span className="text-muted-foreground font-normal">—</span>
+                              )}
+                            </td>
+                          )}
+                        </>
+                      )}
+                      <td aria-hidden className="p-0" />
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {selectedSubject && filteredStudents.length > 0 && (
+          <p className="border-border text-muted-foreground border-t px-4 py-2.5 text-xs">
+            Enter or ↓ moves to the next student, ↑ to the previous. Marks above the limit are
+            capped. Empty = not entered.
+          </p>
+        )}
+      </SectionCard>
+
+      {unsavedCount > 0 && <div aria-hidden className="min-h-6 flex-1" />}
+      {unsavedCount > 0 && (
+        <div
+          role="region"
+          aria-label="Unsaved marks"
+          className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 shadow-lg"
+        >
+          <p className="text-sm font-medium tabular-nums">
+            {unsavedCount} unsaved {unsavedCount === 1 ? 'student' : 'students'}
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={discard}>
+              Discard
+            </Button>
+            {saveButton}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
