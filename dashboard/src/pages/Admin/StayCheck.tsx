@@ -404,7 +404,7 @@ function StayCheck() {
                           disabled={locked}
                           onChange={(e) => handleToggleRunAway(s.id, e.target.checked)}
                           aria-label={`${s.name} ran away`}
-                          className="h-5 w-5 cursor-pointer align-middle accent-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="h-5 w-5 cursor-pointer align-middle [--cb:var(--color-amber-500)] disabled:cursor-not-allowed disabled:opacity-40"
                         />
                       </td>
                     </tr>

@@ -1,5 +1,5 @@
 import type { Prisma } from '@/generated/prisma/client.js';
-import { prisma } from '@/config/prisma.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { planYearEndCascade } from './exam-year-end.js';
 
@@ -60,7 +60,7 @@ export class ExamTypeService {
       throw new ApiError(400, `Exam type "${name}" already exists`);
     }
 
-    return prisma.$transaction(async (tx) => {
+    return rlsTransaction(async (tx) => {
       const created = await tx.exam_types.create({
         data: {
           name,
@@ -93,7 +93,7 @@ export class ExamTypeService {
 
     const nextFlag = data.is_year_end ?? false;
 
-    return prisma.$transaction(async (tx) => {
+    return rlsTransaction(async (tx) => {
       const updated = await tx.exam_types.update({
         where: { id },
         data: {
@@ -182,7 +182,7 @@ export class ExamTypeService {
     }
 
     const uniqueIds = [...new Set(examTypeIds)];
-    await prisma.$transaction(async (tx) => {
+    await rlsTransaction(async (tx) => {
       await tx.school_exam_types.deleteMany({ where: { school_id: schoolId } });
       if (uniqueIds.length === 0) return;
       await tx.school_exam_types.createMany({

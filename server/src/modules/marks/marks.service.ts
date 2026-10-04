@@ -1,6 +1,6 @@
-import { prisma } from '@/config/prisma.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { Prisma } from '@/generated/prisma/client.js';
-import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
+import { getRlsContext } from '@/config/rlsContextStore.js';
 import { getFileBuffer, headObjectEtag } from '@/config/r2.js';
 import logger from '@/utils/logger.js';
 import PDFDocument from 'pdfkit';
@@ -770,26 +770,16 @@ export class MarksService {
     ];
 
     if (changedRows.length > 0) {
-      // Single bulk upsert. Raw SQL bypasses the per-operation RLS extension,
-      // so replicate its set_config calls inside the transaction; school_id
-      // is filled by the BEFORE INSERT trigger from that context.
-      const rlsContext = getRlsContext();
+      // Single bulk upsert inside rlsTransaction: raw SQL bypasses the RLS
+      // extension, so the GUCs must be set on this connection; school_id is
+      // filled by the BEFORE INSERT trigger from that context.
       const values = changedRows.map(
         (r) =>
           Prisma.sql`(${r.enrollment_id}, ${r.subject_id}, ${exam.id}, ${r.cq_marks}, ${r.mcq_marks}, ${r.practical_marks}, ${r.marks})`,
       );
 
       const classesWithStatsChange: number[] = [];
-      await prisma.$transaction(async (tx) => {
-        if (rlsContext) {
-          await tx.$executeRaw`
-            SELECT set_config('app.is_super_admin', ${rlsContext.isSuperAdmin ? '1' : '0'}, true)
-          `;
-          await tx.$executeRaw`
-            SELECT set_config('app.school_id', ${rlsContext.schoolId ? String(rlsContext.schoolId) : ''}, true)
-          `;
-        }
-
+      await rlsTransaction(async (tx) => {
         await tx.$executeRaw`
           INSERT INTO marks (enrollment_id, subject_id, exam_id, cq_marks, mcq_marks, practical_marks, marks)
           VALUES ${Prisma.join(values)}
@@ -807,14 +797,9 @@ export class MarksService {
           const cls = enrollmentClassById.get(r.enrollment_id);
           if (cls !== undefined) affectedClasses.add(cls);
         }
-        patchRlsContext({ inRlsTransaction: true });
-        try {
-          for (const cls of affectedClasses) {
-            const statsChanged = await this.recomputeExamClassStats(tx, exam.id, cls, yearInt);
-            if (statsChanged) classesWithStatsChange.push(cls);
-          }
-        } finally {
-          patchRlsContext({ inRlsTransaction: false });
+        for (const cls of affectedClasses) {
+          const statsChanged = await this.recomputeExamClassStats(tx, exam.id, cls, yearInt);
+          if (statsChanged) classesWithStatsChange.push(cls);
         }
       });
 

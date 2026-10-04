@@ -1,6 +1,5 @@
 import bcrypt from 'bcrypt';
 import * as XLSX from 'xlsx';
-import { getRlsContext, patchRlsContext } from '../../config/rlsContextStore.js';
 import { prisma, rlsTransaction } from '../../config/prisma.js';
 import { redis } from '../../config/redis.js';
 import generatePassword from '../../utils/pwgenerator.js';
@@ -184,34 +183,19 @@ export class SchoolService {
       }),
     );
 
-    // Outer $transaction without inRlsTransaction makes the RLS extension nest a
-    // new txn per update; the outer txn idles and dies (~5s) → "Transaction not found".
-    const rls = getRlsContext();
-    await prisma.$transaction(
+    await rlsTransaction(
       async (tx) => {
-        if (rls) {
-          await tx.$executeRaw`
-            SELECT
-              set_config('app.is_super_admin', ${rls.isSuperAdmin ? '1' : '0'}, true),
-              set_config('app.school_id', ${rls.schoolId ? String(rls.schoolId) : ''}, true)
-          `;
-        }
-        patchRlsContext({ inRlsTransaction: true });
-        try {
-          await Promise.all(
-            processed.map((student) =>
-              tx.students.update({
-                where: { id: student.id },
-                data: {
-                  password: student.hashedPassword,
-                  tokenVersion: { increment: 1 },
-                },
-              }),
-            ),
-          );
-        } finally {
-          patchRlsContext({ inRlsTransaction: false });
-        }
+        await Promise.all(
+          processed.map((student) =>
+            tx.students.update({
+              where: { id: student.id },
+              data: {
+                password: student.hashedPassword,
+                tokenVersion: { increment: 1 },
+              },
+            }),
+          ),
+        );
       },
       { timeout: 120_000 },
     );

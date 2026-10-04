@@ -1,4 +1,5 @@
-import { prisma } from '@/config/prisma.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
+import type { Prisma } from '@/generated/prisma/client.js';
 import { SubjectService } from '@/modules/result/subject/subject.service.js';
 import { MarksService } from '@/modules/marks/marks.service.js';
 import { ExamService } from '@/modules/exam/exam.service.js';
@@ -98,9 +99,9 @@ export class PromotionService {
     }
 
     const schoolId = requireSchoolId();
-    await prisma.$transaction(
-      PROMOTION_PASS_CLASSES.map((cls) =>
-        prisma.promotion_pass_rules.upsert({
+    await rlsTransaction(async (tx) => {
+      for (const cls of PROMOTION_PASS_CLASSES) {
+        await tx.promotion_pass_rules.upsert({
           where: {
             school_id_year_class: { school_id: schoolId, year, class: cls },
           },
@@ -111,9 +112,9 @@ export class PromotionService {
             max_failed: normalized.get(cls) ?? 0,
           },
           update: { max_failed: normalized.get(cls) ?? 0 },
-        }),
-      ),
-    );
+        });
+      }
+    });
 
     return this.getPassRules(year);
   }
@@ -436,46 +437,54 @@ export class PromotionService {
     );
 
     let promoted = 0;
+    const newEnrollments: Prisma.student_enrollmentsCreateManyInput[] = [];
 
-    await prisma.$transaction(async (tx) => {
-      for (const student of studentsWithMerit) {
-        if (student.class !== 127) {
-          await tx.student_enrollments.update({
-            where: { id: student.id },
-            data: { final_merit: student.final_merit },
-          });
+    await rlsTransaction(
+      async (tx) => {
+        for (const student of studentsWithMerit) {
+          if (student.class !== 127) {
+            await tx.student_enrollments.update({
+              where: { id: student.id },
+              data: { final_merit: student.final_merit },
+            });
+          }
         }
-      }
 
-      await tx.student_enrollments.deleteMany({ where: { year: newYear } });
+        await tx.student_enrollments.deleteMany({ where: { year: newYear } });
 
-      for (const student of studentsWithMerit) {
-        const { id: enrollment_id, student_id, group, new_class, new_section, new_roll } = student;
-
-        if (!new_class || !new_section || !new_roll) {
-          logger.error(`Missing required fields for student ${student_id}`, {
+        for (const student of studentsWithMerit) {
+          const {
+            id: enrollment_id,
+            student_id,
+            group,
             new_class,
             new_section,
             new_roll,
+          } = student;
+
+          if (!new_class || !new_section || !new_roll) {
+            logger.error(`Missing required fields for student ${student_id}`, {
+              new_class,
+              new_section,
+              new_roll,
+            });
+            continue;
+          }
+
+          await tx.student_enrollments.update({
+            where: { id: enrollment_id },
+            data: {
+              next_year_section: new_section,
+              next_year_roll: new_roll,
+            },
           });
-          continue;
-        }
 
-        await tx.student_enrollments.update({
-          where: { id: enrollment_id },
-          data: {
-            next_year_section: new_section,
-            next_year_roll: new_roll,
-          },
-        });
+          const oldFourthSubjectId = student.fourth_subject_id;
+          const newFourthSubjectId = oldFourthSubjectId
+            ? subjectMapping[oldFourthSubjectId] || null
+            : null;
 
-        const oldFourthSubjectId = student.fourth_subject_id;
-        const newFourthSubjectId = oldFourthSubjectId
-          ? subjectMapping[oldFourthSubjectId] || null
-          : null;
-
-        await tx.student_enrollments.create({
-          data: {
+          newEnrollments.push({
             student_id,
             class: new_class,
             roll: new_roll,
@@ -484,11 +493,14 @@ export class PromotionService {
             status: 'Pending',
             group,
             fourth_subject_id: newFourthSubjectId,
-          },
-        });
-        promoted += 1;
-      }
-    });
+          });
+          promoted += 1;
+        }
+
+        await tx.student_enrollments.createMany({ data: newEnrollments });
+      },
+      { timeout: 120_000 },
+    );
 
     return { promoted, newYear };
   }
@@ -724,72 +736,75 @@ export class PromotionService {
     let graduated = 0;
     let retained = 0;
 
-    await prisma.$transaction(async (tx) => {
-      for (const row of rows) {
-        if (row.action === 'graduate') {
-          await tx.student_enrollments.update({
-            where: { id: row.enrollment_id },
-            data: {
-              final_merit: row.final_merit,
-              status: 'Graduated',
-              next_year_roll: 0,
-              next_year_section: null,
-            },
-          });
-        } else {
-          await tx.student_enrollments.update({
-            where: { id: row.enrollment_id },
-            data: {
-              final_merit: row.final_merit,
-              next_year_section: row.new_section!,
-              next_year_roll: row.new_roll!,
-            },
-          });
-        }
-
-        if (row.action === 'graduate') {
-          await tx.students.update({
-            where: { id: row.student_id },
-            data: {
-              batch: row.ssc_batch!,
-              available: false,
-            },
-          });
-          graduated += 1;
-        } else {
-          const existing = await tx.student_enrollments.findFirst({
-            where: { student_id: row.student_id, year: newYear },
-          });
-
-          if (existing) {
+    await rlsTransaction(
+      async (tx) => {
+        for (const row of rows) {
+          if (row.action === 'graduate') {
             await tx.student_enrollments.update({
-              where: { id: existing.id },
+              where: { id: row.enrollment_id },
               data: {
-                class: 10,
-                roll: row.new_roll!,
-                section: row.new_section!,
-                group: row.group,
-                status: 'Pending',
+                final_merit: row.final_merit,
+                status: 'Graduated',
+                next_year_roll: 0,
+                next_year_section: null,
               },
             });
           } else {
-            await tx.student_enrollments.create({
+            await tx.student_enrollments.update({
+              where: { id: row.enrollment_id },
               data: {
-                student_id: row.student_id,
-                class: 10,
-                roll: row.new_roll!,
-                section: row.new_section!,
-                year: newYear,
-                status: 'Pending',
-                group: row.group,
-                fourth_subject_id: row.fourth_subject_id,
+                final_merit: row.final_merit,
+                next_year_section: row.new_section!,
+                next_year_roll: row.new_roll!,
               },
             });
           }
-          retained += 1;
+
+          if (row.action === 'graduate') {
+            await tx.students.update({
+              where: { id: row.student_id },
+              data: {
+                batch: row.ssc_batch!,
+                available: false,
+              },
+            });
+            graduated += 1;
+          } else {
+            const existing = await tx.student_enrollments.findFirst({
+              where: { student_id: row.student_id, year: newYear },
+            });
+
+            if (existing) {
+              await tx.student_enrollments.update({
+                where: { id: existing.id },
+                data: {
+                  class: 10,
+                  roll: row.new_roll!,
+                  section: row.new_section!,
+                  group: row.group,
+                  status: 'Pending',
+                },
+              });
+            } else {
+              await tx.student_enrollments.create({
+                data: {
+                  student_id: row.student_id,
+                  class: 10,
+                  roll: row.new_roll!,
+                  section: row.new_section!,
+                  year: newYear,
+                  status: 'Pending',
+                  group: row.group,
+                  fourth_subject_id: row.fourth_subject_id,
+                },
+              });
+            }
+            retained += 1;
+          }
         }
-      }
-    });
+      },
+      { timeout: 120_000 },
+    );
 
     return { graduated, retained, newYear, sscBatch: plan.sscBatch };
   }

@@ -1,4 +1,4 @@
-import { prisma } from '@/config/prisma.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { ApiError } from '@/utils/ApiError.js';
 
 export class SubjectService {
@@ -87,7 +87,7 @@ export class SubjectService {
     }
 
     // Wrap in transaction for industry standard atomicity
-    await prisma.$transaction(async (tx) => {
+    await rlsTransaction(async (tx) => {
       // Handle Auto-Grouping Logic
       for (const subject of subjects) {
         if (subject.subject_group && !subject.parent_id) {
@@ -196,7 +196,7 @@ export class SubjectService {
       throw new ApiError(404, 'Subject not found');
     }
 
-    await prisma.$transaction(async (tx) => {
+    await rlsTransaction(async (tx) => {
       await tx.subjects.delete({
         where: { id },
       });
@@ -251,7 +251,7 @@ export class SubjectService {
     }
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await rlsTransaction(async (tx) => {
         const updated = await tx.subjects.update({
           where: { id },
           data: {
@@ -320,41 +320,44 @@ export class SubjectService {
 
     const oldToNewIdMap: Record<number, number> = {};
 
-    await prisma.$transaction(async (tx) => {
-      // 1. Clone Main Subjects first
-      const mainSubjects = subjects.filter((s) => s.subject_type === 'main');
-      for (const main of mainSubjects) {
-        const { id: oldId, created_at: _, ...data } = main as any;
-        const clonedMain = await tx.subjects.create({
-          data: { ...data, year: toYear },
-        });
-        oldToNewIdMap[oldId] = clonedMain.id;
-      }
+    await rlsTransaction(
+      async (tx) => {
+        // 1. Clone Main Subjects first
+        const mainSubjects = subjects.filter((s) => s.subject_type === 'main');
+        for (const main of mainSubjects) {
+          const { id: oldId, created_at: _, ...data } = main as any;
+          const clonedMain = await tx.subjects.create({
+            data: { ...data, year: toYear },
+          });
+          oldToNewIdMap[oldId] = clonedMain.id;
+        }
 
-      // 2. Clone Single Subjects
-      const singleSubjects = subjects.filter((s) => s.subject_type === 'single');
-      for (const single of singleSubjects) {
-        const { id: oldId, created_at: _, ...data } = single as any;
-        const clonedSingle = await tx.subjects.create({
-          data: { ...data, year: toYear },
-        });
-        oldToNewIdMap[oldId] = clonedSingle.id;
-      }
+        // 2. Clone Single Subjects
+        const singleSubjects = subjects.filter((s) => s.subject_type === 'single');
+        for (const single of singleSubjects) {
+          const { id: oldId, created_at: _, ...data } = single as any;
+          const clonedSingle = await tx.subjects.create({
+            data: { ...data, year: toYear },
+          });
+          oldToNewIdMap[oldId] = clonedSingle.id;
+        }
 
-      // 3. Clone Paper Subjects with new parent_ids
-      const paperSubjects = subjects.filter((s) => s.subject_type === 'paper');
-      for (const paper of paperSubjects) {
-        const { id: oldId, created_at: _, ...data } = paper as any;
-        const clonedPaper = await tx.subjects.create({
-          data: {
-            ...data,
-            year: toYear,
-            parent_id: data.parent_id ? oldToNewIdMap[data.parent_id] : null,
-          },
-        });
-        oldToNewIdMap[oldId] = clonedPaper.id;
-      }
-    });
+        // 3. Clone Paper Subjects with new parent_ids
+        const paperSubjects = subjects.filter((s) => s.subject_type === 'paper');
+        for (const paper of paperSubjects) {
+          const { id: oldId, created_at: _, ...data } = paper as any;
+          const clonedPaper = await tx.subjects.create({
+            data: {
+              ...data,
+              year: toYear,
+              parent_id: data.parent_id ? oldToNewIdMap[data.parent_id] : null,
+            },
+          });
+          oldToNewIdMap[oldId] = clonedPaper.id;
+        }
+      },
+      { timeout: 60_000 },
+    );
 
     return { success: true, mapping: oldToNewIdMap };
   }

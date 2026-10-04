@@ -1,498 +1,536 @@
-import { useState, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import React, { useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import {
-  Loader2,
-  Inbox,
-  List as ListIcon,
-  Search,
-  FileText,
-  Calendar,
   ExternalLink,
-  X,
+  FileText,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
   Plus,
+  Trash2,
+  Upload,
+  X,
 } from 'lucide-react';
+import { SectionCard, Popup, ConfirmationPopup, TablePagination } from '@/components';
+import ActionButton from '@/components/ActionButton';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Loading,
-  PageHeader,
-  StatsCard,
-  SectionCard,
-  ActionButton,
-  DeleteConfirmation,
-} from '@/components';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   useNotices,
   useAddNotice,
   useUpdateNotice,
   useDeleteNotice,
+  type Notice,
 } from '@/queries/notice.queries';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { noticeSchema, type NoticeFormData } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
+import { cn, formatDay } from '@/lib/utils';
 
-const NoticeUploadPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showForm, setShowForm] = useState<boolean>(false);
-  const fileref = useRef<HTMLInputElement>(null);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editId, setEditId] = useState<string | number | null>(null);
+type SortKey = 'title' | 'date';
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+/** Date part only, so the shown day doesn't shift with the viewer's timezone. */
+const ymd = (iso: string) => iso.split('T')[0];
+
+const Field = ({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) => (
+  <div className="space-y-1.5">
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">{label}</span>
+      {children}
+    </label>
+    {hint && !error && <p className="text-muted-foreground text-xs">{hint}</p>}
+    {error && <p className="text-destructive text-xs">{error}</p>}
+  </div>
+);
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+// Pinned Title column while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit max-xl:shadow-[1px_0_0_var(--border)]';
+
+const openPdf = (notice: Notice) =>
+  window.open(getFileUrl(notice.file), '_blank', 'noopener,noreferrer');
+
+const NoticePage = () => {
+  const { data: notices = [], isLoading, isError } = useNotices();
+  const addMutation = useAddNotice();
+  const updateMutation = useUpdateNotice();
+  const deleteMutation = useDeleteNotice();
+  const isSubmitting = addMutation.isPending || updateMutation.isPending;
+
+  // ---- List state ----
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [deleteTarget, setDeleteTarget] = useState<Notice | null>(null);
+
+  // ---- Form state ----
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Notice | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useForm<NoticeFormData>({
     resolver: zodResolver(noticeSchema),
-    defaultValues: {
-      title: '',
-      file: undefined,
-      created_at: '',
-    },
+    defaultValues: { title: '', file: undefined, created_at: '' },
   });
-
   const formFile = watch('file');
 
-  const { data: notices = [], isLoading } = useNotices();
-  const addMutation = useAddNotice();
-  const updateMutation = useUpdateNotice();
-  const deleteMutation = useDeleteNotice();
+  const query = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    const list = query ? notices.filter((n) => n.title.toLowerCase().includes(query)) : notices;
+    if (!sort) return list;
+    const dir = sort.order === 'asc' ? 1 : -1;
+    return [...list].sort((a, b) =>
+      sort.key === 'title'
+        ? a.title.localeCompare(b.title) * dir
+        : a.created_at.localeCompare(b.created_at) * dir,
+    );
+  }, [notices, query, sort]);
 
-  const isSubmitting = addMutation.isPending || updateMutation.isPending;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const currentPage = Math.min(page, totalPages);
+  const rows = filtered.slice((currentPage - 1) * limit, currentPage * limit);
+  const filtersActive = Boolean(query);
 
-  const filteredNotices = useMemo(() => {
-    if (!searchQuery) return notices;
-    return notices.filter((n) => n.title.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [notices, searchQuery]);
+  const latest = notices.reduce<string | null>(
+    (max, n) => (!max || n.created_at > max ? n.created_at : max),
+    null,
+  );
+  const summary = isLoading
+    ? ' '
+    : [plural(notices.length, 'notice'), latest ? `latest ${formatDay(ymd(latest))}` : null]
+        .filter(Boolean)
+        .join(' · ');
 
-  const onFormSubmit = async (data: NoticeFormData) => {
-    if (!isEditing && !data.file) {
-      toast.error('Please select a document');
+  const openCreate = () => {
+    reset({ title: '', file: undefined, created_at: '' });
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (notice: Notice) => {
+    reset({
+      title: notice.title,
+      file: notice.file,
+      created_at: notice.created_at ? ymd(notice.created_at) : '',
+    });
+    setEditing(notice);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    if (isSubmitting) return;
+    setFormOpen(false);
+    setEditing(null);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const pickFile = (file: File | null | undefined) => {
+    if (file && file.type !== 'application/pdf') {
+      toast.error('Notice must be a PDF');
       return;
     }
+    // Removing a newly picked file falls back to the notice's current file when editing.
+    setValue('file', file ?? editing?.file ?? undefined, { shouldValidate: true });
+    // Clear the input so picking the same file again still fires onChange.
+    if (fileRef.current) fileRef.current.value = '';
+  };
 
-    try {
-      if (isEditing) {
-        await updateMutation.mutateAsync({
-          id: editId!,
-          data: {
-            title: data.title,
-            file: data.file instanceof File ? data.file : undefined,
-            created_at: data.created_at,
-          },
-        });
-      } else {
-        await addMutation.mutateAsync({
-          title: data.title,
-          file: data.file as File,
-          created_at: data.created_at,
-        });
-      }
-      handleCancel();
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      const message = error instanceof Error ? error.message : 'An error occurred';
-      toast.error(message);
+  const onSubmit = (data: NoticeFormData) => {
+    const file = data.file instanceof File ? data.file : undefined;
+    if (!editing && !file) {
+      setError('file', { message: 'Choose a PDF to publish' });
+      return;
+    }
+    // The mutations show their own success/error toasts.
+    const done = { onSuccess: () => setFormOpen(false) };
+    if (editing) {
+      updateMutation.mutate(
+        { id: editing.id, data: { title: data.title, file, created_at: data.created_at } },
+        done,
+      );
+    } else {
+      addMutation.mutate({ title: data.title, file: file!, created_at: data.created_at }, done);
     }
   };
 
-  const handleCancel = () => {
-    reset();
-    if (fileref.current) fileref.current.value = '';
-    setIsEditing(false);
-    setEditId(null);
-    setShowForm(false);
-  };
+  const sortProps = (key: SortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
 
-  const handleDelete = async (id: string | number) => {
-    try {
-      await deleteMutation.mutateAsync(id);
-    } catch (error) {
-      console.error('Error deleting notice:', error);
-      toast.error('Failed to delete notice');
-    }
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 },
+  const columns: {
+    label: string;
+    sortKey?: SortKey;
+    className?: string;
+    header: React.ReactNode;
+  }[] = [
+    {
+      label: 'Title',
+      sortKey: 'title',
+      className: cn(stickyCell, 'px-3 sm:px-4'),
+      header: (
+        <ColumnHeaderMenu
+          label="Title"
+          {...sortProps('title')}
+          filterInput={{
+            value: search,
+            onChange: (v) => {
+              setSearch(v);
+              setPage(1);
+            },
+            placeholder: 'Search titles…',
+          }}
+        />
+      ),
     },
-  };
+    {
+      label: 'Published',
+      sortKey: 'date',
+      className: 'w-40',
+      header: <ColumnHeaderMenu label="Published" {...sortProps('date')} />,
+    },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      header: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={() => setSearch('')}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
 
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 },
-  };
+  const rowActions = (notice: Notice) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton action="edit" iconOnly onClick={() => openEdit(notice)} />
+      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton iconOnly label="More actions" icon={<MoreHorizontal size={16} />} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {notice.title}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => openPdf(notice)}>
+            <ExternalLink /> Open PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openEdit(notice)}>
+            <Pencil /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(notice)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {isError ? (
+        <p>Couldn't load notices. Try again in a moment.</p>
+      ) : filtersActive ? (
+        <>
+          <p>No notices match "{search.trim()}".</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setSearch('')}>
+            <X /> Clear filters
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>No notices published yet.</p>
+          <Button type="button" variant="outline" size="sm" onClick={openCreate}>
+            <Plus /> New notice
+          </Button>
+        </>
+      )}
+    </div>
+  );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Notice Management"
-        description="Publish and manage school notices, announcements, and documents."
-      >
-        <Button
-          onClick={() => {
-            if (showForm) handleCancel();
-            else {
-              reset({ title: '', file: undefined, created_at: '' });
-              setIsEditing(false);
-              setEditId(null);
-              setShowForm(true);
-              window.scrollTo({ top: 0, behavior: 'auto' });
-            }
-          }}
-          className="flex items-center gap-2 px-6 shadow-sm"
-        >
-          {showForm ? (
-            <>
-              <X className="h-4 w-4" /> Cancel
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4" /> Publish Notice
-            </>
-          )}
+    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Notices</h1>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        <Button type="button" onClick={openCreate}>
+          <Plus /> New notice
         </Button>
-      </PageHeader>
+      </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <StatsCard
-          label="Total Notices"
-          value={notices.length}
-          loading={isLoading}
-          icon={<FileText className="text-primary h-5 w-5" />}
-          color="blue"
-        />
-      </div>
-
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            <SectionCard className="mb-8 overflow-hidden">
-              <h2 className="text-foreground mb-6 text-xl font-bold">
-                {isEditing ? 'Update Notice Info' : 'Add New Notice Publication'}
-              </h2>
-
-              <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-                <fieldset className="border-border bg-card rounded-lg border p-4 sm:p-5">
-                  <legend className="border-primary border-l-2 px-2 text-sm font-semibold sm:text-base">
-                    Notice Details
-                  </legend>
-
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium">
-                        Notice Title <span className="text-destructive">*</span>
-                      </label>
-                      <Input
-                        id="title"
-                        placeholder="e.g. Annual Sports Day 2026 Schedule"
-                        {...register('title')}
-                        className={`bg-background focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2 ${errors.title ? 'border-destructive' : ''}`}
-                      />
-                      {errors.title && (
-                        <p className="text-destructive mt-1 text-xs">{errors.title.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-muted-foreground block text-sm font-medium">
-                        Publish Date (Optional)
-                      </label>
-                      <Input
-                        id="created_at"
-                        type="date"
-                        {...register('created_at')}
-                        className="bg-background focus:ring-primary/20 transition-[color,background-color,border-color,box-shadow,opacity,transform] focus:ring-2"
-                      />
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-foreground block px-0.5 text-sm font-medium">
-                        {isEditing ? 'Notice File (PDF)' : 'Document (PDF Only) *'}
-                      </label>
-
-                      <div
-                        className={`flex min-h-[58px] items-center justify-between gap-3 rounded-2xl border bg-slate-50/10 p-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${errors.file ? 'border-destructive' : 'border-slate-200 dark:border-slate-800'}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <input
-                            id="file"
-                            type="file"
-                            accept=".pdf"
-                            ref={fileref}
-                            className="hidden"
-                            onChange={(e) =>
-                              setValue('file', e.target.files?.[0] || null, {
-                                shouldValidate: true,
-                              })
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() => fileref.current?.click()}
-                            className="ml-1 shrink-0 whitespace-nowrap rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-[#2D5BFF] transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-[#4A7DFF] dark:hover:bg-slate-700"
-                          >
-                            Choose File
-                          </button>
-                          <span className="max-w-[140px] truncate text-sm font-medium text-slate-500 sm:max-w-md dark:text-slate-400">
-                            {formFile instanceof File ? formFile.name : 'No file chosen'}
-                          </span>
-                        </div>
-
-                        {isEditing && typeof formFile === 'string' ? (
-                          <a
-                            href={getFileUrl(formFile)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:bg-primary/5 group mr-2 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors"
-                          >
-                            <FileText className="group-hover:text-primary h-5 w-5 text-slate-400 transition-colors" />
-                            <span className="group-hover:text-primary hidden text-sm font-bold text-slate-600 transition-colors sm:inline dark:text-slate-400">
-                              Current Notice
-                            </span>
-                          </a>
-                        ) : (
-                          <div className="pr-4">
-                            <FileText className="h-5 w-5 text-slate-400" />
-                          </div>
-                        )}
-                      </div>
-                      {errors.file && (
-                        <p className="text-destructive ml-1 mt-1 text-xs font-medium">
-                          {errors.file.message as string}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </fieldset>
-
-                <div className="bg-card/95 border-border sticky bottom-0 flex justify-between gap-4 border-t pt-4 backdrop-blur">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancel}
-                    type="button"
-                    disabled={isSubmitting}
-                    className="min-w-24"
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting} className="min-w-28">
-                    {isSubmitting ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {isEditing ? 'Updating...' : 'Publishing...'}
-                      </span>
-                    ) : isEditing ? (
-                      'Update Notice'
-                    ) : (
-                      'Confirm Publication'
+      <SectionCard noPadding className="mb-6">
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[32rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                {columns.map((col) => (
+                  <th
+                    key={col.label}
+                    aria-sort={
+                      sort && col.sortKey === sort.key
+                        ? sort.order === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.className,
                     )}
-                  </Button>
-                </div>
-              </form>
-            </SectionCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <SectionCard
-        title="Notices"
-        icon={<ListIcon className="h-5 w-5" />}
-        noPadding
-        headerAction={
-          <div className="relative w-full max-w-sm">
-            <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder="Search notices..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-muted/30 focus:bg-background focus:border-border h-9 border-transparent pl-9 transition-[color,background-color,border-color,box-shadow,opacity,transform]"
-            />
-          </div>
-        }
-      >
-        {isLoading ? (
-          <div className="p-12">
-            <Loading />
-          </div>
-        ) : filteredNotices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center space-y-4 py-24 text-center">
-            <div className="bg-muted/40 text-muted-foreground/60 border-border flex h-20 w-20 items-center justify-center rounded-full border border-dashed">
-              <Inbox size={32} />
-            </div>
-            <div className="max-w-xs space-y-1">
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                No notices found
-              </h4>
-              <p className="text-muted-foreground text-sm">
-                {searchQuery
-                  ? `No matches found for "${searchQuery}"`
-                  : "You haven't published any notices yet."}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col">
-            {/* Desktop Table View */}
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-border bg-muted/20 border-b">
-                    <th className="text-muted-foreground w-[60%] p-4 pl-6 text-left text-xs font-bold uppercase tracking-wider">
-                      Notice Title
-                    </th>
-                    <th className="text-muted-foreground p-4 text-left text-xs font-bold uppercase tracking-wider">
-                      Published Date
-                    </th>
-                    <th className="text-muted-foreground p-4 pr-6 text-right text-xs font-bold uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <motion.tbody variants={containerVariants} initial="hidden" animate="visible">
-                  {filteredNotices.map((notice) => (
-                    <motion.tr
-                      key={notice.id}
-                      variants={itemVariants}
-                      className="border-border/50 hover:bg-muted/30 group border-b transition-colors"
-                    >
-                      <td className="p-4 pl-6">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-110">
-                            <FileText size={18} />
-                          </div>
-                          <span
-                            className="group-hover:text-primary max-w-md truncate font-bold text-gray-900 transition-colors dark:text-white"
-                            title={notice.title}
-                          >
-                            {notice.title}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4" />
-                          {notice.created_at.split('T')[0]}
-                        </div>
-                      </td>
-                      <td className="p-4 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <ActionButton
-                            action="view"
-                            onClick={() => window.open(getFileUrl(notice.file), '_blank')}
-                          />
-                          <ActionButton
-                            action="edit"
-                            onClick={() => {
-                              setIsEditing(true);
-                              setEditId(notice.id);
-                              reset({
-                                title: notice.title,
-                                file: notice.file,
-                                created_at: notice.created_at
-                                  ? notice.created_at.split('T')[0]
-                                  : '',
-                              });
-                              setShowForm(true);
-                              window.scrollTo({ top: 0, behavior: 'auto' });
-                            }}
-                          />
-                          <DeleteConfirmation
-                            onDelete={() => handleDelete(notice.id)}
-                            msg={`Are you sure you want to delete "${notice.title}"? This will permanently remove the PDF from storage.`}
-                          />
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </motion.tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="lg:hidden">
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="space-y-4 p-4"
-              >
-                {filteredNotices.map((notice) => (
-                  <motion.div
-                    key={notice.id}
-                    variants={itemVariants}
-                    className="border-border bg-card group relative space-y-4 overflow-hidden rounded-xl border p-4 shadow-sm"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                        <FileText size={20} />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <h4 className="line-clamp-2 text-sm font-bold leading-snug">
-                          {notice.title}
-                        </h4>
-                        <div className="text-muted-foreground flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider">
-                          <Calendar className="h-3 w-3" />
-                          {notice.created_at.split('T')[0]}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="border-border/50 flex items-center justify-between border-t pt-3">
-                      <div className="flex gap-1.5">
-                        <ActionButton
-                          action="view"
-                          onClick={() => window.open(getFileUrl(notice.file), '_blank')}
-                        />
-                        <ActionButton
-                          action="edit"
-                          onClick={() => {
-                            setIsEditing(true);
-                            setEditId(notice.id);
-                            reset({
-                              title: notice.title,
-                              file: notice.file,
-                              created_at: notice.created_at ? notice.created_at.split('T')[0] : '',
-                            });
-                            setShowForm(true);
-                            window.scrollTo({ top: 0, behavior: 'auto' });
-                          }}
-                        />
-                        <DeleteConfirmation
-                          onDelete={() => handleDelete(notice.id)}
-                          msg={`Are you sure you want to delete "${notice.title}"? This will permanently remove the PDF from storage.`}
-                        />
-                      </div>
-                      <a
-                        href={getFileUrl(notice.file)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary flex items-center gap-1 text-[10px] font-bold uppercase tracking-tight hover:underline"
-                      >
-                        DIRECT Link <ExternalLink size={10} />
-                      </a>
-                    </div>
-                  </motion.div>
+                    {col.header}
+                  </th>
                 ))}
-              </motion.div>
+              </tr>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {isLoading ? (
+                Array.from({ length: 8 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={columns.length} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : rows.length > 0 ? (
+                rows.map((notice) => (
+                  // Opaque row colours so the pinned Title cell hides what scrolls under it.
+                  <tr
+                    key={notice.id}
+                    className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                  >
+                    <td className={cn(stickyCell, 'px-3 py-2 sm:px-4')}>
+                      <div className="flex max-w-[16rem] items-center gap-3 sm:max-w-none">
+                        <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-md">
+                          <FileText size={18} />
+                        </div>
+                        <a
+                          href={getFileUrl(notice.file)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={notice.title}
+                          className="focus-visible:ring-ring line-clamp-2 rounded text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                        >
+                          {notice.title}
+                        </a>
+                      </div>
+                    </td>
+                    <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                      {notice.created_at ? formatDay(ymd(notice.created_at)) : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">{rowActions(notice)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length}>{emptyState}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <TablePagination
+          page={currentPage}
+          totalPages={totalPages}
+          limit={limit}
+          totalFiltered={filtered.length}
+          limitOptions={[25, 50, 100]}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+        />
+      </SectionCard>
+
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete notice"
+        msg={`Delete "${deleteTarget?.title ?? 'this notice'}"? The PDF is removed from storage. This cannot be undone.`}
+      />
+
+      <Popup
+        open={formOpen}
+        onOpenChange={(o) => !o && closeForm()}
+        size="lg"
+        aria-labelledby="notice-form-title"
+      >
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="border-border flex items-center justify-between border-b px-5 py-4">
+            <h2 id="notice-form-title" className="text-base font-semibold">
+              {editing ? 'Edit notice' : 'New notice'}
+            </h2>
+            <CloseButton onClick={closeForm} />
+          </div>
+
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <Field label="Title" error={errors.title?.message}>
+              <Input
+                {...register('title')}
+                placeholder="e.g. Annual Sports Day 2026 schedule"
+                aria-invalid={Boolean(errors.title)}
+              />
+            </Field>
+            <Field
+              label="Publish date"
+              hint={
+                editing ? 'Leave empty to keep the current date.' : 'Optional. Defaults to today.'
+              }
+            >
+              <Input type="date" {...register('created_at')} className="w-auto" />
+            </Field>
+
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium">PDF</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                onChange={(e) => pickFile(e.target.files?.[0])}
+              />
+              {formFile ? (
+                <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
+                  <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {formFile instanceof File ? formFile.name : 'Current file'}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {formFile instanceof File
+                        ? `${(formFile.size / 1024 / 1024).toFixed(2)} MB · uploads when you save`
+                        : 'PDF · shown on the website'}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {formFile instanceof File ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => pickFile(null)}
+                      >
+                        <X /> Remove
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="ghost" size="sm" asChild>
+                        <a
+                          href={getFileUrl(formFile as string)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink /> View
+                        </a>
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      <Upload /> Replace
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    pickFile(e.dataTransfer.files[0]);
+                  }}
+                  className={cn(
+                    'hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2',
+                    errors.file ? 'border-destructive' : 'border-border',
+                  )}
+                >
+                  <Upload size={20} className="text-muted-foreground" />
+                  <span className="text-sm font-medium">Upload notice PDF</span>
+                  <span className="text-muted-foreground text-xs">Click or drop a file here</span>
+                </button>
+              )}
+              {errors.file && (
+                <p className="text-destructive text-xs">{errors.file.message as string}</p>
+              )}
             </div>
           </div>
-        )}
-      </SectionCard>
+
+          <div className="border-border flex items-center justify-end gap-2 border-t px-5 py-3">
+            <Button type="button" variant="ghost" onClick={closeForm} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="animate-spin" />}
+              {editing ? 'Save changes' : 'Publish notice'}
+            </Button>
+          </div>
+        </form>
+      </Popup>
     </div>
   );
 };
 
-export default NoticeUploadPage;
+export default NoticePage;

@@ -493,7 +493,7 @@ export class StudentService {
 
     let createdCount = 0;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await rlsTransaction(async (tx) => {
       const createResult = await tx.students.createMany({
         data: hashedStudents.map((s) => ({
           login_id: s.login_id,
@@ -806,7 +806,7 @@ export class StudentService {
       updates.group = null;
     }
 
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await rlsTransaction(async (tx) => {
       const enrollment = await tx.student_enrollments.update({
         where: { id: parsedEnrollmentId },
         data: updates,

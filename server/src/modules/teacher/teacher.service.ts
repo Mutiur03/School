@@ -1,7 +1,7 @@
 import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
-import { getRlsContext, patchRlsContext } from '@/config/rlsContextStore.js';
-import { prisma } from '@/config/prisma.js';
+import { getRlsContext } from '@/config/rlsContextStore.js';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { assertTenantR2KeyIfPresent, deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
 import * as XLSX from 'xlsx';
 import { teacherFormSchema } from '@school/shared-schemas';
@@ -359,33 +359,20 @@ export class TeacherService {
       password: string;
     }> = [];
 
-    const rls = getRlsContext();
-    await prisma.$transaction(
-      async (tx: Prisma.TransactionClient) => {
-        if (rls) {
-          await tx.$executeRaw`
-            SELECT
-              set_config('app.is_super_admin', ${rls.isSuperAdmin ? '1' : '0'}, true),
-              set_config('app.school_id', ${rls.schoolId ? String(rls.schoolId) : ''}, true)
-          `;
-        }
-        patchRlsContext({ inRlsTransaction: true });
-        try {
-          for (const teacher of processedTeachers) {
-            await tx.teachers.update({
-              where: { id: teacher.id },
-              data: { password: teacher.hashedPassword },
-            });
+    await rlsTransaction(
+      async (tx) => {
+        for (const teacher of processedTeachers) {
+          await tx.teachers.update({
+            where: { id: teacher.id },
+            data: { password: teacher.hashedPassword },
+          });
 
-            rotatedTeachers.push({
-              name: teacher.name,
-              email: teacher.email || 'N/A',
-              designation: teacher.designation || 'N/A',
-              password: teacher.password,
-            });
-          }
-        } finally {
-          patchRlsContext({ inRlsTransaction: false });
+          rotatedTeachers.push({
+            name: teacher.name,
+            email: teacher.email || 'N/A',
+            designation: teacher.designation || 'N/A',
+            password: teacher.password,
+          });
         }
       },
       { timeout: 120_000 },

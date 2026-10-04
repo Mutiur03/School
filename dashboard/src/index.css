@@ -263,6 +263,64 @@ html {
 }
 
 /*
+ * One look for every native checkbox, matching ui/checkbox (Radix).
+ * Layered so h-5/w-5 utilities still size it. Tint per use: [--cb:var(--color-amber-500)].
+ */
+@layer base {
+  input[type='checkbox'] {
+    appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border: 1.5px solid color-mix(in oklab, var(--foreground) 35%, transparent);
+    border-radius: 4px;
+    background: var(--background);
+    cursor: pointer;
+    transition:
+      background-color 120ms,
+      border-color 120ms,
+      box-shadow 120ms;
+  }
+  input[type='checkbox']::before {
+    content: '';
+    position: absolute;
+    inset: 12%;
+    background: var(--primary-foreground);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    transform: scale(0);
+    transition: transform 120ms ease-out;
+  }
+  input[type='checkbox']:indeterminate::before {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
+  }
+  input[type='checkbox']:checked,
+  input[type='checkbox']:indeterminate {
+    background: var(--cb, var(--primary));
+    border-color: var(--cb, var(--primary));
+  }
+  input[type='checkbox']:checked::before,
+  input[type='checkbox']:indeterminate::before {
+    transform: scale(1);
+  }
+  input[type='checkbox']:hover:not(:disabled):not(:checked):not(:indeterminate) {
+    border-color: color-mix(in oklab, var(--foreground) 60%, transparent);
+  }
+  input[type='checkbox']:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+  input[type='checkbox']:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+/*
  * iOS Safari zooms the page when a field under 16px gets focus. Touch screens get
  * 16px fields. Unlayered on purpose so it beats Tailwind's text-sm/text-xs utilities.
  */

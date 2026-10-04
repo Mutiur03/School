@@ -1,38 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import axios from 'axios';
-import { getFileUrl } from '@/lib/backend';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { motion, AnimatePresence } from 'framer-motion';
-import type { Variants } from 'framer-motion';
+import { toast } from 'react-hot-toast';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Check,
+  Ban,
+  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  X,
+  Eye,
+  Loader2,
+  MoreHorizontal,
   Trash2,
-  Calendar,
-  Tag,
-  Check,
-  Clock,
-  AlertCircle,
-  ChevronDown,
-  ChevronUp,
+  X,
 } from 'lucide-react';
-import { PageHeader } from '@/components';
+import { getFileUrl } from '@/lib/backend';
+import {
+  TILE_BUTTON,
+  TILE_CHECK,
+  TILE_CHECK_BOX,
+  TILE_GRID,
+  TILE_IMG,
+  TILE_IMG_SELECTED,
+  TILE_MENU,
+  TILE_OVERLAY,
+} from '@/lib/galleryTile';
+import { cn, formatDateWithTime } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'react-hot-toast';
-import { Separator } from '@/components/ui/separator';
-import { useConfirmDialog } from '@/hooks/useConfirmDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ActionButton, ConfirmationPopup, Popup, SectionCard } from '@/components';
 
 interface GalleryImage {
   id: number;
   image_path: string;
-  caption?: string;
-  student_name?: string;
-  student_batch?: string;
-  event_id?: number;
-  category_id?: number;
+  caption: string | null;
+  category: string | null;
+  event_id: number | null;
+  category_id: number | null;
+  created_at: string;
+  student_name: string | null;
+  student_batch: string | null;
 }
 
 interface GroupedGalleries {
@@ -40,570 +56,478 @@ interface GroupedGalleries {
   categories: Record<string, GalleryImage[]>;
 }
 
+interface Group {
+  key: string;
+  title: string;
+  kind: 'Event' | 'Category';
+  images: GalleryImage[];
+}
+
 type Mode = 'pending' | 'rejected';
+type Confirm = { msg: string; label: string; onConfirm: () => void };
 
 const MODE = {
   pending: {
     list: '/api/gallery/pending',
-    title: 'Pending Gallery Approvals',
-    description: 'Review and approve or reject student gallery submissions.',
-    accent: 'text-yellow-500',
-    badgeClass: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
-    groupBadge: 'Pending Review',
-    statusLabel: 'Pending Approval',
-    chipClass: 'bg-yellow-500/90',
-    emptyTitle: 'No pending approvals',
-    emptyDesc: 'All gallery submissions have been reviewed. Check back later for new submissions.',
-    bulkLabel: 'Reject All',
-    bulkConfirmTitle: 'Reject all images?',
-    bulkConfirmLabel: 'Reject All',
-    bulkEndpoint: '/api/gallery/rejectMultiple',
-    bulkSuccess: (n: number) => `Rejected ${n} images successfully!`,
-    bulkError: 'Failed to reject images',
-    toastOnFetchError: false as boolean,
+    title: 'Pending photos',
+    summary: 'waiting for review',
+    empty: 'No photos waiting for review.',
   },
   rejected: {
     list: '/api/gallery/rejected',
-    title: 'Rejected Gallery Images',
-    description: 'Review rejected submissions, approve, or delete permanently.',
-    accent: 'text-red-500',
-    badgeClass: 'bg-red-500/20 text-red-400 dark:text-red-200',
-    groupBadge: 'Rejected',
-    statusLabel: 'Rejected',
-    chipClass: 'bg-red-500/90',
-    emptyTitle: 'No rejected images found',
-    emptyDesc: 'All images have been approved or there are no submissions yet.',
-    bulkLabel: 'Delete All',
-    bulkConfirmTitle: 'Delete all images?',
-    bulkConfirmLabel: 'Delete All',
-    bulkEndpoint: '/api/gallery/deleteMultiple',
-    bulkSuccess: (n: number) => `Deleted ${n} images successfully!`,
-    bulkError: 'Failed to delete images',
-    toastOnFetchError: true as boolean,
+    title: 'Rejected photos',
+    summary: 'rejected',
+    empty: 'No rejected photos.',
   },
 } as const;
 
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+const uploader = (img: GalleryImage) =>
+  img.student_name
+    ? `${img.student_name}${img.student_batch ? ` (Batch ${img.student_batch})` : ''}`
+    : 'Admin';
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring pointer-coarse:p-2.5 rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+const navButton =
+  'bg-card/90 hover:bg-card focus-visible:ring-ring pointer-coarse:h-11 pointer-coarse:w-11 absolute top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full shadow-md transition-colors focus-visible:outline-none focus-visible:ring-2';
+
 export default function GalleryModeration({ mode }: { mode: Mode }) {
   const cfg = MODE[mode];
-  const { confirm, dialog } = useConfirmDialog();
-  const [groupedGalleries, setGroupedGalleries] = useState<GroupedGalleries>({
-    events: {},
-    categories: {},
+  const queryClient = useQueryClient();
+
+  const [selected, setSelected] = useState<number[]>([]);
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
+  const [viewer, setViewer] = useState<{ key: string; index: number } | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
+
+  const galleryQuery = useQuery<GroupedGalleries>({
+    queryKey: ['gallery', mode],
+    queryFn: async () => (await axios.get(cfg.list)).data,
   });
-  const [selectedGroup, setSelectedGroup] = useState<GalleryImage[]>([]);
-  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
-  const [direction, setDirection] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [foldedCategories, setFoldedCategories] = useState<Record<string, boolean>>({});
 
-  const modalVariants: Variants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 500 : -500,
-      opacity: 0,
-      position: 'absolute' as const,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      position: 'relative' as const,
-      transition: {
-        x: { type: 'spring', stiffness: 400, damping: 30 },
-        opacity: { duration: 0.3 },
-      },
+  const groups = useMemo<Group[]>(() => {
+    const data = galleryQuery.data;
+    if (!data) return [];
+    return [
+      ...Object.entries(data.events || {}).map(([title, images]) => ({
+        key: `event:${title}`,
+        title,
+        kind: 'Event' as const,
+        images,
+      })),
+      ...Object.entries(data.categories || {}).map(([title, images]) => ({
+        key: `category:${title}`,
+        title,
+        kind: 'Category' as const,
+        images,
+      })),
+    ];
+  }, [galleryQuery.data]);
+
+  const totalImages = groups.reduce((n, g) => n + g.images.length, 0);
+  const allFolded = groups.length > 0 && groups.every((g) => folded[g.key]);
+
+  const viewerGroup = viewer ? groups.find((g) => g.key === viewer.key) : undefined;
+  const viewerIndex =
+    viewer && viewerGroup ? Math.min(viewer.index, viewerGroup.images.length - 1) : -1;
+  const current = viewerGroup && viewerIndex >= 0 ? viewerGroup.images[viewerIndex] : null;
+
+  const onDone = (msg: string, ids: number[]) => {
+    toast.success(msg);
+    setSelected((prev) => prev.filter((id) => !ids.includes(id)));
+    queryClient.invalidateQueries({ queryKey: ['gallery'] });
+  };
+
+  // No bulk approve endpoint: one request per photo.
+  const approveMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(ids.map((id) => axios.patch(`/api/gallery/approve/${id}`)));
+      return ids.length;
     },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -500 : 500,
-      opacity: 0,
-      position: 'absolute' as const,
-      transition: {
-        x: { type: 'spring', stiffness: 400, damping: 30 },
-        opacity: { duration: 0.2 },
-      },
-    }),
-  };
-
-  const cardVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.4, ease: 'easeOut' },
+    onSuccess: (n, ids) => onDone(`Approved ${plural(n, 'photo')}`, ids),
+    onError: () => {
+      toast.error('Failed to approve photos');
+      queryClient.invalidateQueries({ queryKey: ['gallery'] });
     },
-  };
+  });
 
-  const foldVariants: Variants = {
-    open: {
-      opacity: 1,
-      height: 'auto',
-      transition: {
-        height: { duration: 0.3, ease: 'easeInOut' },
-        opacity: { duration: 0.2, delay: 0.1 },
-      },
+  const rejectMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      if (ids.length === 1) await axios.patch(`/api/gallery/reject/${ids[0]}`);
+      else await axios.post('/api/gallery/rejectMultiple', { ids });
+      return ids.length;
     },
-    closed: {
-      opacity: 0,
-      height: 0,
-      transition: {
-        height: { duration: 0.3, ease: 'easeInOut' },
-        opacity: { duration: 0.1 },
-      },
+    onSuccess: (n, ids) => onDone(`Rejected ${plural(n, 'photo')}`, ids),
+    onError: () => toast.error('Failed to reject photos'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      if (ids.length === 1) await axios.delete(`/api/gallery/deleteGallery/${ids[0]}`);
+      else await axios.post('/api/gallery/deleteMultiple', { ids });
+      return ids.length;
     },
-  };
+    onSuccess: (n, ids) => onDone(`Deleted ${plural(n, 'photo')}`, ids),
+    onError: () => toast.error('Failed to delete photos'),
+  });
 
-  const fetchGalleries = async () => {
-    try {
-      const response = await axios.get(cfg.list);
-      setGroupedGalleries(response.data || { events: {}, categories: {} });
-    } catch (error) {
-      console.error('Error fetching galleries:', error);
-      if (cfg.toastOnFetchError) toast.error('Failed to load pending galleries');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const busy = approveMutation.isPending || rejectMutation.isPending || deleteMutation.isPending;
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchGalleries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when mode changes
-  }, [mode]);
-
-  const handleApprove = async (id: number) => {
-    try {
-      await axios.patch(`/api/gallery/approve/${id}`);
-      toast.success('Image approved successfully!');
-      handleActionComplete(id);
-    } catch (error) {
-      console.error('Error approving image:', error);
-      toast.error('Failed to approve image');
-    }
-  };
-
-  const handleReject = async (id: number) => {
-    try {
-      await axios.patch(`/api/gallery/reject/${id}`);
-      toast.success('Image rejected successfully!');
-      handleActionComplete(id);
-    } catch (error) {
-      console.error('Error rejecting image:', error);
-      toast.error('Failed to reject image');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    const ok = await confirm({
-      title: 'Delete image?',
-      msg: 'Are you sure you want to delete this image?',
-      confirmLabel: 'Delete',
+  const approve = (ids: number[]) => approveMutation.mutate(ids);
+  // Rejecting one photo is reversible and quick; bulk reject and every delete ask first.
+  const reject = (ids: number[]) =>
+    ids.length === 1
+      ? rejectMutation.mutate(ids)
+      : setConfirm({
+          msg: `Reject ${plural(ids.length, 'photo')}? They move to Rejected.`,
+          label: 'Reject',
+          onConfirm: () => rejectMutation.mutate(ids),
+        });
+  const remove = (ids: number[]) =>
+    setConfirm({
+      msg: `Permanently delete ${plural(ids.length, 'photo')}? This can't be undone.`,
+      label: 'Delete',
+      onConfirm: () => deleteMutation.mutate(ids),
     });
-    if (!ok) return;
-    try {
-      await axios.delete(`/api/gallery/deleteGallery/${id}`);
-      toast.success('Image deleted successfully!');
-      handleActionComplete(id);
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      toast.error('Failed to delete image');
-    }
-  };
 
-  const handleBulk = async (images: GalleryImage[]) => {
-    const ok = await confirm({
-      title: cfg.bulkConfirmTitle,
-      msg: `Are you sure you want to ${mode === 'pending' ? 'reject' : 'delete'} all ${images.length} images?`,
-      confirmLabel: cfg.bulkConfirmLabel,
-    });
-    if (!ok) return;
-
-    try {
-      const ids = images.map((img) => img.id);
-      await axios.post(cfg.bulkEndpoint, { ids });
-      toast.success(cfg.bulkSuccess(images.length));
-      fetchGalleries();
-    } catch (error) {
-      console.error('Error bulk-processing images:', error);
-      toast.error(cfg.bulkError);
-    }
-  };
-
-  const handleActionComplete = (processedId: number) => {
-    fetchGalleries().then(() => {
-      const currentGroupIndex = selectedGroup.findIndex((img) => img.id === processedId);
-      let nextIndex: number | null = null;
-
-      if (currentGroupIndex !== -1) {
-        if (currentGroupIndex < selectedGroup.length - 1) {
-          nextIndex = currentGroupIndex;
-        } else if (currentGroupIndex > 0) {
-          nextIndex = currentGroupIndex - 1;
-        }
-      }
-
-      if (nextIndex !== null) {
-        setCurrentIndex(nextIndex);
-        setSelectedGroup((prev) => prev.filter((img) => img.id !== processedId));
-      } else {
-        setSelectedGroup([]);
-        setCurrentIndex(null);
-      }
-    });
-  };
-
-  const toggleFoldCategory = (title: string) => {
-    setFoldedCategories((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
-  };
-
-  const navigateImage = (dir: number) => {
-    setDirection(dir);
-    if (dir > 0) {
-      setCurrentIndex((prev) => (prev !== null && prev < selectedGroup.length - 1 ? prev + 1 : 0));
-    } else {
-      setCurrentIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : selectedGroup.length - 1));
-    }
-  };
-
-  const renderImageGroup = (title: string, images: GalleryImage[] = []) => {
-    const isFolded = foldedCategories[title] || false;
-    const groupKey = images[0]?.event_id || images[0]?.category_id || title;
-
-    return (
-      <div key={groupKey} className="mb-8">
-        <motion.div
-          className="bg-muted/40 flex cursor-pointer items-center justify-between rounded-lg p-4 dark:bg-gray-800"
-          onClick={() => toggleFoldCategory(title)}
-        >
-          <div className="flex items-center gap-4">
-            <motion.div animate={{ rotate: isFolded ? 0 : 180 }} transition={{ duration: 0.2 }}>
-              <ChevronDown className="text-muted-foreground dark:text-gray-300" />
-            </motion.div>
-            <motion.h2 className="flex items-center gap-2 text-xl font-semibold text-gray-800 dark:text-gray-100">
-              <Clock className={cfg.accent} />
-              {title} <span className="text-muted-foreground text-sm">({images.length})</span>
-            </motion.h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleBulk(images);
-              }}
-            >
-              <Trash2 className="mr-1" />
-              {cfg.bulkLabel}
-            </Button>
-            <Badge variant="secondary" className={cfg.badgeClass}>
-              {cfg.groupBadge}
-            </Badge>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={false}
-          animate={isFolded ? 'closed' : 'open'}
-          variants={foldVariants}
-          className="overflow-hidden"
-        >
-          <div className="xs:grid-cols-3 mt-4 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 md:gap-6 lg:grid-cols-5">
-            {images.map((img, index) => (
-              <motion.div
-                key={img.id}
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: index * 0.03 }}
-                onClick={() => {
-                  setSelectedGroup(images);
-                  setCurrentIndex(index);
-                }}
-                className="group relative cursor-pointer overflow-hidden rounded-xl shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-300 hover:shadow-xl"
-              >
-                <div className="relative aspect-square">
-                  <img
-                    src={getFileUrl(img.image_path)}
-                    alt={img.caption || 'Pending gallery image'}
-                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <div className="bg-linear-to-t absolute inset-0 flex flex-col justify-end from-black/70 via-black/30 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <h3 className="line-clamp-1 text-lg font-semibold text-white">
-                      {img.student_name || 'Anonymous'}
-                    </h3>
-                    {img.student_batch && (
-                      <span className="text-sm text-white/90">Batch {img.student_batch}</span>
-                    )}
-                    <span
-                      className={`mt-1 self-start rounded-full ${cfg.chipClass} px-2 py-1 text-xs text-white/80`}
-                    >
-                      {cfg.statusLabel}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+  const toggle = (ids: number[], on: boolean) =>
+    setSelected((prev) =>
+      on ? [...new Set([...prev, ...ids])] : prev.filter((id) => !ids.includes(id)),
     );
+
+  const step = (dir: number) => {
+    if (!viewer || !viewerGroup) return;
+    const n = viewerGroup.images.length;
+    setViewer({ key: viewer.key, index: (viewerIndex + dir + n) % n });
   };
 
-  const renderSkeletonLoader = () => (
-    <div className="space-y-12">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="space-y-6">
-          <Skeleton className="h-8 w-48 rounded-full" />
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {[...Array(4)].map((_, j) => (
-              <Skeleton key={j} className="aspect-square rounded-xl" />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
+  const tileMenu = (img: GalleryImage, group: Group, index: number) => (
+    // modal={false}: items open dialogs; a modal menu would leave pointer-events locked
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <ActionButton
+          iconOnly
+          label="More actions"
+          icon={<MoreHorizontal size={16} />}
+          className="bg-card/90 hover:bg-card pointer-coarse:h-10 pointer-coarse:w-10 shadow-sm"
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel className="truncate normal-case tracking-normal">
+          {uploader(img)}
+        </DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => setViewer({ key: group.key, index })}>
+          <Eye /> View
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => approve([img.id])}>
+          <CheckCircle2 /> Approve
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {mode === 'pending' ? (
+          <DropdownMenuItem variant="destructive" onSelect={() => reject([img.id])}>
+            <Ban /> Reject
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem variant="destructive" onSelect={() => remove([img.id])}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 
-  const hasEvents = Object.keys(groupedGalleries.events).length > 0;
-  const hasCategories = Object.keys(groupedGalleries.categories).length > 0;
-  const hasAny = hasEvents || hasCategories;
-
-  const modalStatusBadgeClass =
-    mode === 'pending'
-      ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
-      : 'bg-red-500/20 text-red-600 dark:text-red-400';
+  const actionButtons = (ids: number[]) => (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={() => approve(ids)}
+      >
+        {approveMutation.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+        Approve
+      </Button>
+      {mode === 'pending' ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive"
+          disabled={busy}
+          onClick={() => reject(ids)}
+        >
+          {rejectMutation.isPending ? <Loader2 className="animate-spin" /> : <Ban />}
+          Reject
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:text-destructive"
+          disabled={busy}
+          onClick={() => remove(ids)}
+        >
+          {deleteMutation.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />}
+          Delete
+        </Button>
+      )}
+    </>
+  );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
-      {dialog}
-      <PageHeader title={cfg.title} description={cfg.description}>
-        {hasAny && (
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            onClick={() => {
-              const totalCategories = [
-                ...Object.keys(groupedGalleries.events),
-                ...Object.keys(groupedGalleries.categories),
-              ].length;
-
-              const currentlyFolded = Object.values(foldedCategories).filter(Boolean).length;
-
-              if (currentlyFolded < totalCategories) {
-                const allFolded: Record<string, boolean> = {};
-                [
-                  ...Object.keys(groupedGalleries.events),
-                  ...Object.keys(groupedGalleries.categories),
-                ].forEach((title) => {
-                  allFolded[title] = true;
-                });
-                setFoldedCategories(allFolded);
-              } else {
-                setFoldedCategories({});
-              }
-            }}
-          >
-            {Object.values(foldedCategories).length > 0 &&
-            Object.values(foldedCategories).every((v) => v) ? (
-              <>
-                <ChevronDown className="transition-transform" />
-                Show All
-              </>
+    <div className="mx-auto flex min-h-full max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{cfg.title}</h1>
+          <div className="text-muted-foreground mt-1 text-sm tabular-nums">
+            {galleryQuery.isLoading ? (
+              <Skeleton className="h-4 w-48" />
             ) : (
-              <>
-                <ChevronUp className="transition-transform" />
-                Hide All
-              </>
+              `${plural(totalImages, 'photo')} ${cfg.summary} · ${plural(groups.length, 'album')}`
             )}
+          </div>
+        </div>
+        {groups.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setFolded(
+                allFolded ? {} : Object.fromEntries(groups.map((g) => [g.key, true] as const)),
+              )
+            }
+          >
+            <ChevronDown className={cn('transition-transform', !allFolded && 'rotate-180')} />
+            {allFolded ? 'Expand all' : 'Collapse all'}
           </Button>
         )}
-      </PageHeader>
+      </header>
 
-      <div className="space-y-16">
-        {isLoading ? (
-          renderSkeletonLoader()
-        ) : hasAny ? (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h1 className="mb-8 flex items-center gap-3 text-2xl font-bold text-gray-800 md:text-3xl dark:text-gray-100">
-                <Calendar className={cfg.accent} />
-                Event Submissions
-              </h1>
-              {Object.entries(groupedGalleries.events).map(([title, images]) =>
-                renderImageGroup(title, images as GalleryImage[]),
-              )}
-            </motion.div>
-            <Separator className="my-8 bg-gray-200 dark:bg-gray-700" />
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              <h1 className="mb-8 flex items-center gap-3 text-2xl font-bold text-gray-800 md:text-3xl dark:text-gray-100">
-                <Tag className={cfg.accent} />
-                Category Submissions
-              </h1>
-              {Object.entries(groupedGalleries.categories).map(([title, images]) =>
-                renderImageGroup(title, images as GalleryImage[]),
-              )}
-            </motion.div>
-          </>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-12 text-center"
-          >
-            <div className="relative mb-6">
-              <AlertCircle className={`h-12 w-12 ${cfg.accent}`} />
-            </div>
-            <h3 className="mb-2 text-lg font-medium md:text-xl">{cfg.emptyTitle}</h3>
-            <p className="text-muted-foreground max-w-md text-sm md:text-base">{cfg.emptyDesc}</p>
-          </motion.div>
-        )}
-      </div>
+      {galleryQuery.isLoading ? (
+        <div className="space-y-6">
+          {Array.from({ length: 2 }, (_, i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : groups.length === 0 ? (
+        <SectionCard>
+          <p className="text-muted-foreground py-8 text-center text-sm">
+            {galleryQuery.isError ? "Couldn't load photos. Try again in a moment." : cfg.empty}
+          </p>
+        </SectionCard>
+      ) : (
+        <div className="space-y-6">
+          {groups.map((group) => {
+            const ids = group.images.map((img) => img.id);
+            const allSelected = ids.every((id) => selected.includes(id));
+            const isFolded = folded[group.key];
+            return (
+              <SectionCard key={group.key} noPadding>
+                <div
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-3',
+                    !isFolded && 'border-border border-b',
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select all photos in ${group.title}`}
+                    checked={allSelected}
+                    onChange={(e) => toggle(ids, e.target.checked)}
+                    className="pointer-coarse:h-5 pointer-coarse:w-5 h-4 w-4"
+                  />
+                  <button
+                    type="button"
+                    aria-expanded={!isFolded}
+                    onClick={() =>
+                      setFolded((prev) => ({ ...prev, [group.key]: !prev[group.key] }))
+                    }
+                    className="focus-visible:ring-ring pointer-coarse:py-2 flex min-w-0 flex-1 items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        'text-muted-foreground h-4 w-4 shrink-0 transition-transform',
+                        isFolded && '-rotate-90',
+                      )}
+                    />
+                    <span className="truncate text-sm font-semibold">{group.title}</span>
+                    <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                      {group.kind} · {plural(group.images.length, 'photo')}
+                    </span>
+                  </button>
+                </div>
+                {!isFolded && (
+                  <ul className={TILE_GRID}>
+                    {group.images.map((img, index) => {
+                      const isSelected = selected.includes(img.id);
+                      return (
+                        <li key={img.id} className="group/tile relative">
+                          <button
+                            type="button"
+                            onClick={() => setViewer({ key: group.key, index })}
+                            className={cn(TILE_BUTTON, isSelected && 'bg-primary/15')}
+                          >
+                            <img
+                              src={getFileUrl(img.image_path)}
+                              alt={img.caption || `Photo by ${uploader(img)}`}
+                              loading="lazy"
+                              width={240}
+                              height={240}
+                              className={cn(TILE_IMG, isSelected && TILE_IMG_SELECTED)}
+                            />
+                            {/* Uploader always shown: reviewers need it */}
+                            <span className={cn(TILE_OVERLAY, 'opacity-100')}>
+                              <span className="block truncate text-sm font-medium">
+                                {uploader(img)}
+                              </span>
+                              <span className="block truncate text-xs tabular-nums text-white/80">
+                                {formatDateWithTime(img.created_at)}
+                              </span>
+                            </span>
+                          </button>
+                          <label
+                            className={cn(
+                              TILE_CHECK,
+                              (isSelected || selected.length > 0) && 'opacity-100',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              aria-label={`Select photo by ${uploader(img)}`}
+                              checked={isSelected}
+                              onChange={(e) => toggle([img.id], e.target.checked)}
+                              className="peer sr-only"
+                            />
+                            <span aria-hidden className={TILE_CHECK_BOX}>
+                              <Check strokeWidth={3} />
+                            </span>
+                          </label>
+                          <div className={TILE_MENU}>{tileMenu(img, group, index)}</div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </SectionCard>
+            );
+          })}
+        </div>
+      )}
 
-      <AnimatePresence>
-        {selectedGroup.length > 0 && currentIndex !== null && (
-          <Dialog
-            open={true}
-            onOpenChange={(open) => {
-              if (!open) {
-                setSelectedGroup([]);
-                setCurrentIndex(null);
-                setDirection(0);
-              }
+      {/* Spacer pushes the bar to the screen bottom when the page is short */}
+      {selected.length > 0 && <div aria-hidden className="min-h-6 flex-1" />}
+      {selected.length > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 shadow-lg"
+        >
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelected([])}
+              aria-label="Clear selection"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted pointer-coarse:p-2.5 rounded-md p-1"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <p className="text-sm font-medium tabular-nums">
+              {plural(selected.length, 'photo')} selected
+            </p>
+          </div>
+          <div className="flex gap-2">{actionButtons(selected)}</div>
+        </div>
+      )}
+
+      {current && viewerGroup && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setViewer(null)}
+          size="full"
+          aria-labelledby="moderation-viewer-title"
+        >
+          <div
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft') step(-1);
+              if (e.key === 'ArrowRight') step(1);
             }}
           >
-            <DialogContent className="max-w-4xl overflow-hidden rounded-xl border-0 bg-transparent p-0 shadow-none md:max-w-5xl">
-              <div className="relative flex h-screen max-h-[90vh] w-full items-center justify-center">
-                {selectedGroup.length > 1 && (
-                  <>
-                    {mode === 'rejected' && (
-                      <button
-                        className="absolute left-4 top-4 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
-                        onClick={() => {
-                          handleDelete(selectedGroup[currentIndex].id);
-                        }}
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    )}
-                    <button
-                      className="absolute left-2 top-1/2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 md:left-4 md:p-3"
-                      onClick={() => navigateImage(-1)}
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <button
-                      className="absolute right-2 top-1/2 z-10 -translate-y-1/2 transform rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 md:right-4 md:p-3"
-                      onClick={() => navigateImage(1)}
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </>
-                )}
-                <button
-                  className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 md:right-4 md:top-4"
-                  onClick={() => {
-                    setSelectedGroup([]);
-                    setCurrentIndex(null);
-                    setDirection(0);
-                  }}
-                >
-                  <X size={20} />
-                </button>
-                <div className="bg-card relative flex h-full w-full items-center justify-center">
-                  <AnimatePresence custom={direction}>
-                    <motion.div
-                      key={selectedGroup[currentIndex].id}
-                      custom={direction}
-                      variants={modalVariants}
-                      initial="enter"
-                      animate="center"
-                      exit="exit"
-                      className="flex h-full w-full flex-col items-center justify-center p-4 md:p-8"
-                    >
-                      <div className="relative flex h-full w-full max-w-full flex-col md:max-w-4xl">
-                        <div className="flex flex-1 items-center justify-center overflow-hidden">
-                          <img
-                            src={getFileUrl(selectedGroup[currentIndex].image_path)}
-                            alt={selectedGroup[currentIndex].caption || 'Pending gallery image'}
-                            className="max-h-full max-w-full rounded-lg object-contain"
-                          />
-                        </div>
-                        <div className="bg-card rounded-b-lg p-4">
-                          {mode === 'pending' && (
-                            <h3 className="text-lg font-semibold text-gray-800 md:text-xl dark:text-white">
-                              {selectedGroup[currentIndex].caption || 'No caption provided'}
-                            </h3>
-                          )}
-                          <div className="text-muted-foreground mt-2 flex flex-wrap justify-between gap-4 text-sm dark:text-gray-300">
-                            {selectedGroup[currentIndex].student_name && (
-                              <div>
-                                <span className="font-medium">Submitted by: </span>
-                                {selectedGroup[currentIndex].student_name}
-                                {selectedGroup[currentIndex].student_batch && (
-                                  <span> (Batch {selectedGroup[currentIndex].student_batch})</span>
-                                )}
-                              </div>
-                            )}
-                            <div>
-                              <span className="font-medium">Status: </span>
-                              <Badge variant="secondary" className={modalStatusBadgeClass}>
-                                {cfg.statusLabel}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="mt-4 flex flex-col justify-end gap-4 md:flex-row">
-                            {mode === 'pending' && (
-                              <Button
-                                variant="destructive"
-                                onClick={() => handleReject(selectedGroup[currentIndex].id)}
-                              >
-                                <X className="mr-2" /> Reject
-                              </Button>
-                            )}
-                            <Button onClick={() => handleApprove(selectedGroup[currentIndex].id)}>
-                              <Check className="mr-2" /> Approve
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-                {selectedGroup.length > 1 && (
-                  <div className="absolute bottom-2 left-0 right-0 z-10 flex justify-center gap-2 md:bottom-4">
-                    {selectedGroup.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setDirection(idx > currentIndex ? 1 : -1);
-                          setCurrentIndex(idx);
-                        }}
-                        className={`h-2 w-2 rounded-full transition-[color,background-color,border-color,box-shadow,opacity,transform] md:h-3 md:w-3 ${
-                          idx === currentIndex
-                            ? 'bg-primary w-4 md:w-6'
-                            : 'bg-white/50 hover:bg-white/80'
-                        }`}
-                        aria-label={`Go to image ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-                )}
+            <div className="border-border flex items-center justify-between gap-3 border-b px-5 py-3">
+              <h2 id="moderation-viewer-title" className="truncate text-base font-semibold">
+                {viewerGroup.title}
+                <span className="text-muted-foreground ml-2 text-sm font-normal tabular-nums">
+                  {viewerIndex + 1} of {viewerGroup.images.length}
+                </span>
+              </h2>
+              <CloseButton onClick={() => setViewer(null)} />
+            </div>
+            <div className="bg-muted relative flex h-[60vh] items-center justify-center">
+              <img
+                src={getFileUrl(current.image_path)}
+                alt={current.caption || `Photo by ${uploader(current)}`}
+                className="max-h-full max-w-full object-contain"
+              />
+              {viewerGroup.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Previous photo"
+                    onClick={() => step(-1)}
+                    className={cn(navButton, 'left-3')}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next photo"
+                    onClick={() => step(1)}
+                    className={cn(navButton, 'right-3')}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="border-border flex flex-wrap items-center gap-x-4 gap-y-3 border-t px-5 py-3">
+              <div className="min-w-0 flex-1">
+                <p className={cn('text-sm', !current.caption && 'text-muted-foreground')}>
+                  {current.caption || 'No caption'}
+                </p>
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  {[uploader(current), current.category, formatDateWithTime(current.created_at)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </AnimatePresence>
+              <div className="flex flex-wrap gap-2">{actionButtons([current.id])}</div>
+            </div>
+          </div>
+        </Popup>
+      )}
+
+      <ConfirmationPopup
+        open={confirm !== null}
+        onOpenChange={(o) => !o && setConfirm(null)}
+        onConfirm={() => {
+          confirm?.onConfirm();
+          setConfirm(null);
+        }}
+        confirmLabel={confirm?.label}
+        msg={confirm?.msg}
+      />
     </div>
   );
 }
