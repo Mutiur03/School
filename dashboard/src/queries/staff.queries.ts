@@ -1,22 +1,13 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import type { StaffListResponse } from '@/types/staff';
+import type { Staff } from '@/types/staff';
 
-export const useStaff = (params: { page?: number; limit?: number; search?: string }) => {
-  const { page, limit, search } = params;
-
-  return useQuery({
-    queryKey: ['staff', { page, limit, search }],
-    queryFn: async (): Promise<StaffListResponse> => {
-      const response = await axios.get('/api/staffs', {
-        params: {
-          page,
-          limit,
-          search: search?.trim() || undefined,
-        },
-      });
+// No page/limit/search params → the API returns every staff row; the page filters client-side.
+export const useStaff = () =>
+  useQuery({
+    queryKey: ['staff'],
+    queryFn: async (): Promise<Staff[]> => {
+      const response = await axios.get('/api/staffs');
       return response.data.data;
     },
-    placeholderData: keepPreviousData,
   });
-};

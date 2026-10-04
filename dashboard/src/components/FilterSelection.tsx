@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 /** Shared native &lt;select&gt; styling for filter dropdowns */
 export const filterSelectClassName =
-  'border-input bg-background focus-visible:ring-primary h-9 w-full min-w-0 rounded-md border px-2 py-1.5 text-sm shadow-sm focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50';
+  'border-input bg-background focus-visible:ring-primary h-9 w-full min-w-0 rounded-md border px-2 py-1.5 text-sm focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Optional compact styling for search inputs inside filter fields */
 export const filterInputClassName = 'h-9 rounded-md px-2.5 py-1.5 text-sm';

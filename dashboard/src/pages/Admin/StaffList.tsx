@@ -1,34 +1,41 @@
 import axios from 'axios';
-import React, { useState, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Search, Loader2 } from 'lucide-react';
+import {
+  Eye,
+  Loader2,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import ErrorMessage from '@/components/ErrorMessage';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  PageHeader,
-  SectionCard,
-  StatsCard,
-  Popup,
-  FilterSelection,
-  FilterField,
-} from '@/components';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import ErrorMessage from '@/components/ErrorMessage';
+import ActionButton from '@/components/ActionButton';
+import { SectionCard, Popup, ConfirmationPopup, TablePagination } from '@/components';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { staffFormSchema, type StaffFormData, type StaffFormInput } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
 import { uploadToR2 } from '@/lib/uploadToR2';
+import { cn } from '@/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import DeleteConfirmation from '@/components/DeleteConfimation';
-import ActionButton from '@/components/ActionButton';
 import { useStaff } from '@/queries/staff.queries';
 import type { Staff } from '@/types/staff';
-
-interface PopupState {
-  visible: boolean;
-  type: string;
-  staff: Staff | null;
-}
 
 const uploadImageToR2 = async (file: File, staffId: number): Promise<void> => {
   const key = await uploadToR2('/api/staffs/presigned-url', file, undefined, {
@@ -37,25 +44,121 @@ const uploadImageToR2 = async (file: File, staffId: number): Promise<void> => {
   await axios.put(`/api/staffs/${staffId}/image`, { key });
 };
 
+const defaultValues: StaffFormInput = {
+  name: '',
+  email: '',
+  phone: '',
+  designation: '',
+  address: '',
+};
+
+// Optional schema fields type their message loosely; keep only strings.
+const errText = (m: unknown) => (typeof m === 'string' ? m : undefined);
+
+type SortKey = 'name' | 'designation';
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+const Stat = ({ label, value }: { label: string; value: number }) => (
+  <div className="min-w-0">
+    <p className="text-muted-foreground text-xs font-medium">{label}</p>
+    <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+  </div>
+);
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring pointer-coarse:p-2.5 rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+const DialogHeader = ({
+  id,
+  title,
+  onClose,
+}: {
+  id: string;
+  title: string;
+  onClose: () => void;
+}) => (
+  <div className="border-border flex items-center justify-between border-b px-5 py-4">
+    <h2 id={id} className="text-base font-semibold">
+      {title}
+    </h2>
+    <CloseButton onClick={onClose} />
+  </div>
+);
+
+const Field = ({
+  label,
+  required,
+  error,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  className?: string;
+  children: React.ReactNode;
+}) => (
+  <div className={cn('space-y-1.5', className)}>
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </span>
+      {children}
+    </label>
+    {error && <ErrorMessage message={error} />}
+  </div>
+);
+
+// Staff photos are 7:9 passport crops; keep that ratio so heads aren't cut off.
+const StaffAvatar = ({ staff }: { staff: Staff }) =>
+  staff.image ? (
+    <img
+      src={getFileUrl(staff.image)}
+      alt=""
+      loading="lazy"
+      className="border-border h-9 w-7 shrink-0 rounded border object-cover object-top"
+    />
+  ) : (
+    <div className="bg-muted text-muted-foreground flex h-9 w-7 shrink-0 items-center justify-center rounded text-xs font-semibold">
+      {staff.name.charAt(0).toUpperCase()}
+    </div>
+  );
+
+// Pinned Staff column while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky left-0 z-[1] bg-inherit max-xl:shadow-[1px_0_0_var(--border)]';
+
+const dropzoneClass =
+  'border-border hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2';
+
 const StaffList = () => {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [popup, setPopup] = useState<PopupState>({
-    visible: false,
-    type: '',
-    staff: null,
-  });
+  const { data: staff = [], isLoading, isError, refetch } = useStaff();
 
-  const defaultValues: StaffFormInput = {
-    name: '',
-    email: '',
-    phone: '',
-    designation: '',
-    address: '',
-  };
+  // ---- List ----
+  const [search, setSearch] = useState('');
+  const [phoneSearch, setPhoneSearch] = useState('');
+  const [designationFilters, setDesignationFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [detail, setDetail] = useState<Staff | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Staff | null>(null);
+
+  // ---- Form dialog ----
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Staff | null>(null);
+  const [image, setImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -69,27 +172,98 @@ const StaffList = () => {
     mode: 'onBlur',
   });
 
-  const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [image, setImage] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const invalidateStaff = () => queryClient.invalidateQueries({ queryKey: ['staff'] });
 
-  const {
-    data: staffResponse,
-    isLoading,
-    error: staffError,
-  } = useStaff({ page, limit, search: deferredSearchQuery });
+  const designations = useMemo(
+    () =>
+      Array.from(new Set(staff.map((s) => s.designation?.trim()).filter(Boolean) as string[])).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [staff],
+  );
+  const withPhoto = staff.filter((s) => s.image).length;
 
-  const staff = useMemo(() => staffResponse?.data ?? [], [staffResponse]);
-  const meta = staffResponse?.meta;
+  const filtersActive =
+    Boolean(search.trim()) || Boolean(phoneSearch.trim()) || designationFilters.length > 0;
 
-  const errorMessage = staffError
-    ? (staffError as { response?: { status?: number } }).response?.status === 404
-      ? 'No staff found.'
-      : 'An error occurred while fetching staff.'
-    : '';
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const phone = phoneSearch.trim();
+    const rows = staff.filter(
+      (s) =>
+        (!q ||
+          [s.name, s.email, s.designation, s.address].some((v) => v?.toLowerCase().includes(q))) &&
+        (!phone || s.phone.includes(phone)) &&
+        (designationFilters.length === 0 ||
+          designationFilters.includes(s.designation?.trim() || '__none__')),
+    );
+    if (!sort) return rows;
+    const dir = sort.order === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => dir * (a[sort.key] ?? '').localeCompare(b[sort.key] ?? ''));
+  }, [staff, search, phoneSearch, designationFilters, sort]);
+
+  const totalPages = Math.ceil(filtered.length / limit);
+  const pageRows = filtered.slice((page - 1) * limit, page * limit);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, phoneSearch, designationFilters, sort, limit]);
+
+  const clearFilters = () => {
+    setSearch('');
+    setPhoneSearch('');
+    setDesignationFilters([]);
+  };
+
+  // Preview for the photo card: the picked file, else the saved image.
+  const imagePreview = useMemo(
+    () => (image ? URL.createObjectURL(image) : editing?.image ? getFileUrl(editing.image) : null),
+    [image, editing?.image],
+  );
+  useEffect(
+    () => () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    },
+    [imagePreview],
+  );
+
+  const handleCancel = () => {
+    reset(defaultValues);
+    setImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setEditing(null);
+    setFormOpen(false);
+  };
+
+  const openCreate = () => {
+    reset(defaultValues);
+    setImage(null);
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (member: Staff) => {
+    reset({
+      name: member.name || '',
+      email: member.email ?? '',
+      phone: member.phone || '',
+      address: member.address ?? '',
+      designation: member.designation ?? '',
+    });
+    setImage(null);
+    setEditing(member);
+    setDetail(null);
+    setFormOpen(true);
+  };
+
+  const pickImage = (file: File | null | undefined) => {
+    if (file && !file.type.startsWith('image/')) {
+      toast.error('Photo must be an image');
+      return;
+    }
+    setImage(file ?? null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const addMutation = useMutation({
     mutationFn: async ({
@@ -110,9 +284,7 @@ const StaffList = () => {
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Staff added successfully.');
-      reset(defaultValues);
-      setImage(null);
-      setShowForm(false);
+      handleCancel();
       invalidateStaff();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -140,11 +312,7 @@ const StaffList = () => {
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Staff updated successfully.');
-      reset(defaultValues);
-      setImage(null);
-      setIsEditing(false);
-      setShowForm(false);
-      setPopup({ visible: false, type: '', staff: null });
+      handleCancel();
       invalidateStaff();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -158,8 +326,9 @@ const StaffList = () => {
     mutationFn: async (staffMember: Staff) => {
       await axios.delete(`/api/staffs/${staffMember.id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_, staffMember) => {
       toast.success('Staff deleted successfully.');
+      setDetail((d) => (d?.id === staffMember.id ? null : d));
       invalidateStaff();
     },
     onError: () => {
@@ -173,6 +342,7 @@ const StaffList = () => {
     },
     onSuccess: () => {
       toast.success('Image removed.');
+      setEditing((e) => (e ? { ...e, image: null } : e));
       invalidateStaff();
     },
     onError: () => {
@@ -180,513 +350,509 @@ const StaffList = () => {
     },
   });
 
-  const handleEdit = useCallback(
-    (staffMember: Staff) => {
-      reset({
-        name: staffMember.name || '',
-        email: staffMember.email ?? '',
-        phone: staffMember.phone || '',
-        address: staffMember.address ?? '',
-        designation: staffMember.designation ?? '',
-      });
-      setIsEditing(true);
-      setShowForm(true);
-      setPopup({ visible: false, type: '', staff: staffMember });
-    },
-    [reset],
-  );
+  const submitting = addMutation.isPending || updateMutation.isPending;
 
-  const handleDelete = useCallback(
-    (staffMember: Staff) => {
-      deleteMutation.mutate(staffMember);
-    },
-    [deleteMutation],
-  );
-
-  const closePopup = useCallback(() => {
-    setPopup({ visible: false, type: '', staff: null });
-  }, []);
-
-  React.useEffect(() => {
-    setPage(1);
-  }, [deferredSearchQuery]);
-
-  const isSubmitting = addMutation.isPending || updateMutation.isPending;
-
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
-
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(file);
+  const onValidSubmit = (formValues: StaffFormData) => {
+    if (editing) {
+      updateMutation.mutate({ staffMember: editing, formValues, imageFile: image });
+    } else {
+      addMutation.mutate({ formValues, imageFile: image });
     }
-  }, []);
+  };
 
-  const onValidSubmit = useCallback(
-    async (formValues: StaffFormData) => {
-      if (isEditing && popup.staff) {
-        updateMutation.mutate({
-          staffMember: popup.staff,
-          formValues,
-          imageFile: image,
-        });
-      } else {
-        addMutation.mutate({ formValues, imageFile: image });
-      }
+  const sortProps = (key: SortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
+
+  const columns: {
+    label: string;
+    sortKey?: SortKey;
+    className?: string;
+    header: React.ReactNode;
+  }[] = [
+    {
+      label: 'Staff',
+      sortKey: 'name',
+      className: cn(stickyCell, 'px-3 sm:px-4'),
+      header: (
+        <ColumnHeaderMenu
+          label="Staff"
+          {...sortProps('name')}
+          filterInput={{
+            value: search,
+            onChange: setSearch,
+            placeholder: 'Name, email or address…',
+          }}
+        />
+      ),
     },
-    [isEditing, popup.staff, updateMutation, addMutation, image],
+    {
+      label: 'Designation',
+      sortKey: 'designation',
+      className: 'w-48',
+      header: (
+        <ColumnHeaderMenu
+          label="Designation"
+          {...sortProps('designation')}
+          options={[
+            ...designations.map((d) => ({ value: d, label: d })),
+            { value: '__none__', label: 'Not set' },
+          ]}
+          selected={designationFilters}
+          onSelectedChange={setDesignationFilters}
+        />
+      ),
+    },
+    {
+      label: 'Phone',
+      className: 'w-40',
+      header: (
+        <ColumnHeaderMenu
+          label="Phone"
+          filterInput={{ value: phoneSearch, onChange: setPhoneSearch, placeholder: '01…' }}
+        />
+      ),
+    },
+    { label: 'Email', className: 'w-56', header: 'Email' },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      header: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={clearFilters}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
+
+  const rowActions = (member: Staff) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton
+        action="edit"
+        iconOnly
+        className="pointer-coarse:h-11 pointer-coarse:w-11"
+        onClick={() => openEdit(member)}
+      />
+      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton
+            iconOnly
+            label="More actions"
+            icon={<MoreHorizontal size={16} />}
+            className="pointer-coarse:h-11 pointer-coarse:w-11"
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {member.name}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => setDetail(member)}>
+            <Eye /> View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openEdit(member)}>
+            <Pencil /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(member)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
+
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {isError ? (
+        <>
+          <p>An error occurred while fetching staff.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </>
+      ) : filtersActive ? (
+        <>
+          <p>No staff match these filters.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            <X /> Clear filters
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>No staff yet.</p>
+          <Button type="button" variant="outline" size="sm" onClick={openCreate}>
+            <Plus /> Add staff
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  const summary = isLoading
+    ? ' '
+    : [
+        `${filtersActive ? `${filtered.length.toLocaleString()} of ` : ''}${plural(staff.length, 'staff member')}`,
+        plural(designations.length, 'designation'),
+      ].join(' · ');
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader title="Staff List" description="Manage staff records and profile information.">
-        {!showForm && (
-          <Button type="button" onClick={() => setShowForm((prev) => !prev)}>
-            + Add Staff
-          </Button>
-        )}
-      </PageHeader>
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Staff List</h1>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        <Button type="button" onClick={openCreate}>
+          <Plus /> Add staff
+        </Button>
+      </header>
 
-      {showForm && (
-        <div className="bg-card border-border mb-6 overflow-hidden rounded-xl border shadow-sm">
-          <div className="w-full p-6">
-            <h2 className="text-foreground mb-6 text-xl font-bold">
-              {isEditing ? 'Edit Staff' : 'Add Staff'}
-            </h2>
-            <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-6">
-              <div className="border-border bg-muted/40 rounded-lg border p-4">
-                <div className="flex flex-col items-center justify-center">
-                  <p className="mb-2 text-sm font-medium">Profile Image</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <label
-                    onClick={() => fileInputRef.current?.click()}
-                    className="bg-card border-border hover:border-primary/50 aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors sm:w-32"
-                  >
-                    {image ? (
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt="Preview"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : isEditing && popup.staff?.image ? (
-                      <img
-                        src={getFileUrl(popup.staff.image)}
-                        alt="Staff"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-muted-foreground px-1 text-center text-xs sm:text-sm">
-                        Click to upload
-                      </span>
-                    )}
-                  </label>
-                  {image && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImage(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                      className="text-destructive mt-2 text-sm hover:underline"
-                    >
-                      Remove Image
-                    </button>
-                  )}
-                  {!image && isEditing && popup.staff?.image && (
-                    <button
-                      type="button"
-                      onClick={() => removeImageMutation.mutate(Number(popup.staff!.id))}
-                      className="text-destructive mt-2 text-sm hover:underline"
-                    >
-                      Remove Current Image
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <fieldset className="border-border bg-card rounded-lg border p-4 sm:p-5">
-                <legend className="border-primary border-l-2 px-2 text-sm font-semibold sm:text-base">
-                  Staff Information
-                </legend>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">
-                      Name <span className="text-destructive">*</span>
-                    </label>
-                    <Input type="text" placeholder="Enter staff name" {...register('name')} />
-                    {errors.name && <ErrorMessage message={errors.name.message} />}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">Email</label>
-                    <Input type="email" placeholder="Enter email" {...register('email')} />
-                    {typeof errors.email?.message === 'string' && (
-                      <ErrorMessage message={errors.email.message} />
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">
-                      Phone <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Enter phone number"
-                      maxLength={11}
-                      {...register('phone')}
-                    />
-                    {errors.phone && <ErrorMessage message={errors.phone.message} />}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">Designation</label>
-                    <Input
-                      type="text"
-                      placeholder="Enter designation"
-                      {...register('designation')}
-                    />
-                    {typeof errors.designation?.message === 'string' && (
-                      <ErrorMessage message={errors.designation.message} />
-                    )}
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="block text-sm font-medium">Address</label>
-                    <Input type="text" placeholder="Enter address" {...register('address')} />
-                    {typeof errors.address?.message === 'string' && (
-                      <ErrorMessage message={errors.address.message} />
-                    )}
-                  </div>
-                </div>
-              </fieldset>
-
-              <div className="bg-card/95 supports-backdrop-filter:bg-card/70 border-border sticky bottom-0 flex justify-between border-t pt-4 backdrop-blur">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  className="min-w-24"
-                  onClick={() => {
-                    setShowForm(false);
-                    setIsEditing(false);
-                    reset(defaultValues);
-                    setImage(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="min-w-28">
-                  {isSubmitting
-                    ? isEditing
-                      ? 'Updating...'
-                      : 'Adding...'
-                    : isEditing
-                      ? 'Update'
-                      : 'Add Staff'}
-                </Button>
-              </div>
-            </form>
-          </div>
+      {!isLoading && staff.length > 0 && (
+        <div className="border-border bg-card mb-6 grid grid-cols-3 gap-x-6 rounded-xl border px-5 py-4 shadow-sm sm:w-fit sm:min-w-[24rem]">
+          <Stat label="Total" value={staff.length} />
+          <Stat label="Designations" value={designations.length} />
+          <Stat label="With photo" value={withPhoto} />
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <StatsCard label="Total Staff" value={meta?.total ?? 0} loading={isLoading} />
-      </div>
-
-      <FilterSelection className="mb-6">
-        <FilterField label="Search" wide>
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name, phone, email or designation..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-          </div>
-        </FilterField>
-      </FilterSelection>
-
       <SectionCard noPadding className="mb-6">
-        {/* Desktop table */}
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-muted border-border border-b">
-                {['Staff', 'Email', 'Designation', 'Actions'].map((header) => (
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[46rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                {columns.map((col) => (
                   <th
-                    key={header}
-                    className={`text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider ${header === 'Actions' ? 'text-right' : 'text-left'}`}
+                    key={col.label}
+                    aria-sort={
+                      sort && col.sortKey === sort.key
+                        ? sort.order === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.className,
+                    )}
                   >
-                    {header}
+                    {col.header}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
               {isLoading ? (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                      <p className="text-muted-foreground text-sm">Loading staff…</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : staff.length > 0 ? (
-                staff.map((member) => (
-                  <tr key={member.id} className="hover:bg-muted/50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        {member.image ? (
-                          <img
-                            src={getFileUrl(member.image)}
-                            className="border-border h-10 w-10 rounded-full border object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          <div className="bg-muted text-foreground flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold">
-                            {member.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <span className="text-foreground font-medium">{member.name}</span>
+                Array.from({ length: 6 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={columns.length} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
+                    </td>
+                  </tr>
+                ))
+              ) : pageRows.length > 0 ? (
+                pageRows.map((member) => (
+                  // Opaque row colours so the pinned Staff cell hides what scrolls under it.
+                  <tr
+                    key={member.id}
+                    className="bg-card transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]"
+                  >
+                    <td className={cn(stickyCell, 'px-3 py-2 sm:px-4')}>
+                      <div className="flex max-w-[12rem] items-center gap-3 sm:max-w-xs">
+                        <StaffAvatar staff={member} />
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => setDetail(member)}
+                            className="focus-visible:ring-ring block max-w-full truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                          >
+                            {member.name}
+                          </button>
+                          {member.address && (
+                            <p className="text-muted-foreground truncate text-xs">
+                              {member.address}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="text-muted-foreground px-4 py-4 text-sm">
-                      {member.email || '—'}
+                    <td className="px-4 py-2 text-sm">
+                      {member.designation || <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="text-muted-foreground px-4 py-4 text-sm">
-                      {member.designation || '—'}
+                    <td className="whitespace-nowrap px-4 py-2 text-sm tabular-nums">
+                      {member.phone || <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <ActionButton
-                          action="view"
-                          onClick={() => setPopup({ visible: true, type: 'view', staff: member })}
-                        />
-                        <ActionButton action="edit" onClick={() => handleEdit(member)} />
-                        <DeleteConfirmation
-                          onDelete={() => handleDelete(member)}
-                          msg={`Are you sure you want to delete ${member.name}?`}
-                        />
-                      </div>
+                    <td className="max-w-[14rem] truncate px-4 py-2 text-sm">
+                      {member.email || <span className="text-muted-foreground">—</span>}
                     </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right">{rowActions(member)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="text-muted-foreground px-4 py-12 text-center text-sm">
-                    {errorMessage || 'No staff found matching your criteria.'}
-                  </td>
+                  <td colSpan={columns.length}>{emptyState}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="lg:hidden">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12">
-              <Loader2 className="text-primary h-8 w-8 animate-spin" />
-              <p className="text-muted-foreground text-sm">Loading staff…</p>
-            </div>
-          ) : staff.length > 0 ? (
-            <ul className="divide-border divide-y">
-              {staff.map((member) => (
-                <li key={member.id} className="space-y-3 p-4">
-                  <div className="flex items-start gap-3">
-                    {member.image ? (
-                      <img
-                        src={getFileUrl(member.image)}
-                        className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
-                        alt=""
-                      />
-                    ) : (
-                      <div className="bg-muted text-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold">
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-foreground truncate font-medium">{member.name}</p>
-                      <p className="text-muted-foreground truncate text-sm">
-                        {member.email || '—'}
-                      </p>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {member.designation || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <ActionButton
-                      action="view"
-                      onClick={() => setPopup({ visible: true, type: 'view', staff: member })}
-                    />
-                    <ActionButton action="edit" onClick={() => handleEdit(member)} />
-                    <DeleteConfirmation
-                      onDelete={() => handleDelete(member)}
-                      msg={`Are you sure you want to delete ${member.name}?`}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-              {errorMessage || 'No staff found matching your criteria.'}
-            </p>
-          )}
-        </div>
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          loading={isLoading}
+          totalFiltered={filtered.length}
+          limitOptions={[25, 50, 100]}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+        />
       </SectionCard>
 
-      <SectionCard className="mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-muted-foreground text-sm">
-            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Rows</span>
-              <select
-                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                {[10, 20, 50, 100].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const totalPages = meta?.totalPages ?? 0;
-              const currentPage = page;
-              const maxVisible = 7;
-              if (totalPages <= maxVisible) {
-                return Array.from({ length: totalPages }, (_, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    variant={i + 1 === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(i + 1)}
-                    disabled={isLoading}
-                  >
-                    {i + 1}
-                  </Button>
-                ));
-              }
-              const pages: (number | string)[] = [];
-              const half = Math.floor(maxVisible / 2);
-              let start = Math.max(1, currentPage - half);
-              const end = Math.min(totalPages, start + maxVisible - 1);
-              if (end - start < maxVisible - 1) {
-                start = Math.max(1, end - maxVisible + 1);
-              }
-              if (start > 1) {
-                pages.push(1);
-                if (start > 2) pages.push('...');
-              }
-              for (let i = start; i <= end; i++) {
-                pages.push(i);
-              }
-              if (end < totalPages) {
-                if (end < totalPages - 1) pages.push('...');
-                pages.push(totalPages);
-              }
-              return pages.map((p, idx) =>
-                p === '...' ? (
-                  <span key={idx} className="text-muted-foreground px-2">
-                    ...
-                  </span>
-                ) : (
-                  <Button
-                    key={idx}
-                    type="button"
-                    variant={p === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(p as number)}
-                    disabled={isLoading}
-                  >
-                    {p}
-                  </Button>
-                ),
-              );
-            })()}
-          </div>
-        </div>
-      </SectionCard>
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete staff"
+        msg={`Delete ${deleteTarget?.name ?? 'this staff member'}? This cannot be undone.`}
+      />
 
-      {popup.visible && popup.staff && (
-        <Popup open onOpenChange={(open) => !open && closePopup()} size="md">
-          {popup.type === 'view' && (
-            <>
-              <div className="border-border flex items-center justify-between border-b px-5 py-4">
-                <h2 className="text-base font-semibold">Staff Details</h2>
-                <button
-                  onClick={closePopup}
-                  className="text-muted-foreground hover:text-foreground text-xl leading-none transition-colors"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="border-border bg-muted/20 flex flex-col items-center gap-2 border-b py-5">
-                {popup.staff.image ? (
-                  <img
-                    src={getFileUrl(popup.staff.image)}
-                    alt="Profile"
-                    className="border-border aspect-7/9 w-20 rounded-sm border object-cover shadow"
-                  />
-                ) : (
-                  <div className="border-border bg-muted text-muted-foreground aspect-7/9 flex w-20 items-center justify-center rounded-sm border text-4xl font-bold">
-                    {popup.staff.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="text-center">
-                  <p className="text-base font-semibold">{popup.staff.name}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {popup.staff.designation || 'Staff'}
-                  </p>
+      {detail && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setDetail(null)}
+          size="md"
+          aria-labelledby="staff-details-title"
+        >
+          <DialogHeader
+            id="staff-details-title"
+            title="Staff details"
+            onClose={() => setDetail(null)}
+          />
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <div className="flex items-center gap-4">
+              {detail.image ? (
+                <img
+                  src={getFileUrl(detail.image)}
+                  alt=""
+                  className="border-border aspect-7/9 w-20 shrink-0 rounded-md border object-cover object-top"
+                />
+              ) : (
+                <div className="bg-muted text-muted-foreground aspect-7/9 flex w-20 shrink-0 items-center justify-center rounded-md text-3xl font-semibold">
+                  {detail.name.charAt(0).toUpperCase()}
                 </div>
-              </div>
-
-              <div className="space-y-1.5 px-5 py-4">
-                <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
-                  Contact & Details
+              )}
+              <div className="min-w-0">
+                <p className="text-lg font-semibold leading-tight">{detail.name}</p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {detail.designation || 'Staff'}
                 </p>
-                {[
-                  { label: 'Email', value: popup.staff.email },
-                  { label: 'Phone', value: popup.staff.phone },
-                  { label: 'Address', value: popup.staff.address },
-                ]
-                  .filter(({ value }) => value)
-                  .map(({ label, value }) => (
-                    <div key={label} className="flex text-sm">
-                      <span className="text-muted-foreground w-28 shrink-0">{label}</span>
-                      <span className="font-medium">{value}</span>
-                    </div>
-                  ))}
               </div>
-
-              <div className="border-border flex justify-end border-t px-5 py-3">
-                <Button onClick={closePopup} variant="outline" type="button">
-                  Close
-                </Button>
-              </div>
-            </>
-          )}
+            </div>
+            <dl className="divide-border border-border divide-y rounded-lg border text-sm">
+              {[
+                { label: 'Phone', value: detail.phone },
+                { label: 'Email', value: detail.email },
+                { label: 'Address', value: detail.address },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex gap-3 px-3 py-2">
+                  <dt className="text-muted-foreground w-20 shrink-0">{label}</dt>
+                  <dd className="min-w-0 break-words font-medium">
+                    {label === 'Address' && value ? (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="text-muted-foreground h-3.5 w-3.5 shrink-0" /> {value}
+                      </span>
+                    ) : (
+                      value || <span className="text-muted-foreground font-normal">—</span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div className="border-border flex flex-wrap items-center gap-2 border-t px-5 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeleteTarget(detail)}
+            >
+              <Trash2 /> Delete
+            </Button>
+            <Button type="button" className="ml-auto" onClick={() => openEdit(detail)}>
+              <Pencil /> Edit staff
+            </Button>
+          </div>
         </Popup>
       )}
+
+      <Popup
+        open={formOpen}
+        onOpenChange={(o) => !o && !submitting && handleCancel()}
+        size="lg"
+        aria-labelledby="staff-form-title"
+      >
+        <form onSubmit={rhfHandleSubmit(onValidSubmit)}>
+          <DialogHeader
+            id="staff-form-title"
+            title={editing ? 'Edit staff' : 'Add staff'}
+            onClose={handleCancel}
+          />
+
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Name" required error={errors.name?.message}>
+                <Input type="text" placeholder="Enter staff name" {...register('name')} />
+              </Field>
+              <Field label="Designation" error={errText(errors.designation?.message)}>
+                <Input
+                  type="text"
+                  list="staff-designation-options"
+                  placeholder="Enter designation"
+                  {...register('designation')}
+                />
+                <datalist id="staff-designation-options">
+                  {designations.map((d) => (
+                    <option key={d} value={d} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label="Phone" required error={errors.phone?.message}>
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="01XXXXXXXXX"
+                  maxLength={11}
+                  {...register('phone')}
+                />
+              </Field>
+              <Field label="Email" error={errText(errors.email?.message)}>
+                <Input type="email" placeholder="Enter email" {...register('email')} />
+              </Field>
+              <Field
+                label="Address"
+                error={errText(errors.address?.message)}
+                className="sm:col-span-2"
+              >
+                <Input type="text" placeholder="Enter address" {...register('address')} />
+              </Field>
+            </div>
+
+            {/* Photo */}
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium">
+                Photo <span className="text-muted-foreground font-normal">(optional)</span>
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                onChange={(e) => pickImage(e.target.files?.[0])}
+              />
+              {imagePreview ? (
+                <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
+                  <img
+                    src={imagePreview}
+                    alt=""
+                    className="border-border aspect-7/9 w-12 shrink-0 rounded-md border object-cover object-top"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {image ? image.name : 'Current photo'}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {image
+                        ? `${(image.size / 1024 / 1024).toFixed(2)} MB · uploads when you save`
+                        : 'Shown on the staff profile'}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {image ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => pickImage(null)}
+                      >
+                        <X /> Remove
+                      </Button>
+                    ) : (
+                      editing && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          disabled={removeImageMutation.isPending}
+                          onClick={() => removeImageMutation.mutate(editing.id)}
+                        >
+                          {removeImageMutation.isPending ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Trash2 />
+                          )}
+                          Remove current
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload /> Replace
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    pickImage(e.dataTransfer.files[0]);
+                  }}
+                  className={dropzoneClass}
+                >
+                  <Upload size={20} className="text-muted-foreground" />
+                  <span className="text-sm font-medium">Upload photo</span>
+                  <span className="text-muted-foreground text-xs">Click or drop an image here</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="border-border flex items-center justify-between gap-3 border-t px-5 py-3">
+            <p className="text-muted-foreground text-xs">
+              <span className="text-destructive">*</span> required
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={handleCancel} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting && <Loader2 className="animate-spin" />}
+                {editing ? 'Save changes' : 'Add staff'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Popup>
     </div>
   );
 };

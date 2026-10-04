@@ -1,15 +1,18 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import axios, { isAxiosError } from 'axios';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import type { ApiResponse } from '@school/shared-schemas';
 import { useTeacher } from '@/queries/teacher.queries';
 import type { Teacher } from '@/types/teachers';
-import { UserRound } from 'lucide-react';
-import { PageHeader, SectionCard } from '@/components';
+import { Eye, Loader2, MessageSquareText, UserRound } from 'lucide-react';
+import { SectionCard, filterSelectClassName } from '@/components';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { getFileUrl } from '@/lib/backend';
 import { toParagraphs } from '@/lib/headMessage';
+import { cn } from '@/lib/utils';
 
 interface HeadData {
   teacher?: Teacher;
@@ -17,13 +20,45 @@ interface HeadData {
   head_role?: string;
 }
 
+type Draft = { teacherId: string; role: string; message: string };
+
 const HEAD_ROLE_OPTIONS = [
   { value: 'Headmaster', label: 'Headmaster' },
   { value: 'Headmaster (Incharge)', label: 'Headmaster (Incharge)' },
 ] as const;
 
-const selectClassName =
-  'border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50';
+const HEAD_QUERY_KEY = ['headMessage'];
+
+const errorMessage = (e: unknown, fallback: string) =>
+  isAxiosError(e)
+    ? e.response?.data?.error || e.message || fallback
+    : e instanceof Error
+      ? e.message
+      : fallback;
+
+const toDraft = (data: HeadData | undefined): Draft => ({
+  teacherId: data?.teacher ? String(data.teacher.id) : '',
+  role: data?.head_role || 'Headmaster',
+  message: typeof data?.head_message === 'string' ? data.head_message : '',
+});
+
+const Field = ({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+}) => (
+  <div className="space-y-1.5">
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">{label}</span>
+      {children}
+    </label>
+    {hint && <div className="text-muted-foreground text-xs">{hint}</div>}
+  </div>
+);
 
 function HeadMessagePreview({
   name,
@@ -57,7 +92,7 @@ function HeadMessagePreview({
                 className="h-full w-full object-cover object-top"
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-[10px] text-gray-400">
+              <div className="flex h-full items-center justify-center text-xs text-gray-400">
                 No photo
               </div>
             )}
@@ -67,12 +102,12 @@ function HeadMessagePreview({
               {name || 'Headmaster name'}
             </p>
             <p className="text-xs font-medium text-[#4f7c12]">প্রধান শিক্ষক</p>
-            <p className="text-[10px] uppercase tracking-wide text-[#5c6b5a]">{role}</p>
+            <p className="text-[11px] uppercase tracking-wide text-[#5c6b5a]">{role}</p>
           </div>
         </div>
 
         <div className="min-w-0 flex-1 px-4 py-5">
-          <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-[#4f7c12]">
+          <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#4f7c12]">
             প্রধান শিক্ষকের বাণী
           </p>
           <div className="border-l-[3px] border-[#609513] pl-3">
@@ -93,69 +128,28 @@ function HeadMessagePreview({
 }
 
 function Head() {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState('');
-  const [headRole, setHeadRole] = useState('Headmaster');
-  const [message, setMessage] = useState('');
-  const [savedSnapshot, setSavedSnapshot] = useState({
-    teacherId: '',
-    role: 'Headmaster',
-    message: '',
+  const queryClient = useQueryClient();
+  const { data: teacherData, isLoading: teachersLoading } = useTeacher({});
+  const teachers: Teacher[] = useMemo(() => teacherData ?? [], [teacherData]);
+
+  const headQuery = useQuery({
+    queryKey: HEAD_QUERY_KEY,
+    queryFn: async () => {
+      const res = await axios.get<ApiResponse<HeadData>>('/api/teachers/head-message');
+      return res.data?.data ?? {};
+    },
   });
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const { data: teacherData } = useTeacher({});
 
-  const deferredMessage = useDeferredValue(message);
-
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-      let fetchError = '';
-
-      try {
-        if (isMounted && teacherData) setTeachers(teacherData || []);
-      } catch (e) {
-        if (isAxiosError(e)) {
-          fetchError = e.response?.data?.error || e.message || 'Error loading teachers';
-        }
-      }
-
-      try {
-        const resHead = await axios.get<ApiResponse<HeadData>>('/api/teachers/head-message');
-        const headData = resHead.data?.data || {};
-        if (isMounted) {
-          const teacherId = headData.teacher ? String(headData.teacher.id) : '';
-          const role = headData.head_role || 'Headmaster';
-          const msg = typeof headData.head_message === 'string' ? headData.head_message : '';
-          setSelectedTeacherId(teacherId);
-          setHeadRole(role);
-          setMessage(msg);
-          setSavedSnapshot({ teacherId, role, message: msg });
-        }
-      } catch (e) {
-        if (isAxiosError(e) && !fetchError) {
-          fetchError = e.response?.data?.error || e.message || 'Error loading head message';
-        }
-      }
-
-      if (isMounted && fetchError) setError(fetchError);
-      if (isMounted) setLoading(false);
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [teacherData]);
+  const saved = useMemo(() => toDraft(headQuery.data), [headQuery.data]);
+  // null = no local edits; the form shows the saved values.
+  const [edits, setEdits] = useState<Draft | null>(null);
+  const draft = edits ?? saved;
+  const update = (patch: Partial<Draft>) => setEdits({ ...draft, ...patch });
 
   const dirty =
-    selectedTeacherId !== savedSnapshot.teacherId ||
-    headRole !== savedSnapshot.role ||
-    message !== savedSnapshot.message;
+    draft.teacherId !== saved.teacherId ||
+    draft.role !== saved.role ||
+    draft.message !== saved.message;
 
   useEffect(() => {
     if (!dirty) return;
@@ -167,186 +161,195 @@ function Head() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [dirty]);
 
-  const selectedTeacher = useMemo(
-    () => teachers.find((t) => String(t.id) === selectedTeacherId),
-    [teachers, selectedTeacherId],
-  );
-
+  const selectedTeacher = teachers.find((t) => String(t.id) === draft.teacherId);
+  const savedTeacher = headQuery.data?.teacher;
+  const deferredMessage = useDeferredValue(draft.message);
   const previewImage = selectedTeacher?.image ? getFileUrl(selectedTeacher.image) : '';
-  const charCount = message.length;
-  const paraCount = toParagraphs(message).length;
+  const charCount = draft.message.length;
+  const wordCount = draft.message.trim() ? draft.message.trim().split(/\s+/).length : 0;
+  const paraCount = toParagraphs(draft.message).length;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async (values: Draft) => {
       const payload: { teacherId?: string; message?: string; headRole?: string } = {};
-      if (selectedTeacherId) payload.teacherId = selectedTeacherId;
-      if (message.trim()) payload.message = message.trim();
-      if (headRole) payload.headRole = headRole;
+      if (values.teacherId) payload.teacherId = values.teacherId;
+      if (values.message.trim()) payload.message = values.message.trim();
+      if (values.role) payload.headRole = values.role;
       if (Object.keys(payload).length === 0) throw new Error('Nothing to save');
       await axios.post('/api/teachers/head-message', payload);
-      setSavedSnapshot({
-        teacherId: selectedTeacherId,
-        role: headRole,
-        message,
-      });
-      setSuccess('Saved. Public page shows this after refresh.');
-    } catch (e) {
-      if (isAxiosError(e)) setError(e.response?.data?.error || e.message || 'Request failed');
-      else if (e instanceof Error) setError(e.message);
-    } finally {
-      setSaving(false);
-    }
+    },
+    onSuccess: () => {
+      toast.success('Saved. Public page shows this after refresh.');
+      queryClient.setQueryData<HeadData>(HEAD_QUERY_KEY, (old) => ({
+        ...old,
+        teacher: selectedTeacher ?? old?.teacher,
+        head_role: draft.role,
+        head_message: draft.message,
+      }));
+      setEdits(null);
+      queryClient.invalidateQueries({ queryKey: HEAD_QUERY_KEY });
+    },
+    onError: (e) => toast.error(errorMessage(e, 'Request failed')),
+  });
+
+  const loading = headQuery.isLoading || teachersLoading;
+  const busy = loading || saveMutation.isPending;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveMutation.mutate(draft);
   };
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Head Message"
-        description="Choose the headmaster and edit the বাণী shown on the public site."
-      />
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold">Message from Head</h1>
+        <div className="text-muted-foreground mt-1 text-sm">
+          {headQuery.isLoading ? (
+            <Skeleton className="h-4 w-56" />
+          ) : savedTeacher ? (
+            <>
+              <span className="text-foreground font-medium">{savedTeacher.name}</span> ·{' '}
+              {saved.role} · shown on the public site
+            </>
+          ) : (
+            'No head selected yet. Choose a teacher and write the বাণী for the public site.'
+          )}
+        </div>
+      </header>
 
-      <div className="mb-4 space-y-2" aria-live="polite">
-        {loading ? <p className="text-muted-foreground text-sm">Loading…</p> : null}
-        {error ? (
-          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
-        {success ? (
-          <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-            {success}
-          </p>
-        ) : null}
-        {dirty && !success ? (
-          <p className="text-muted-foreground text-xs">Unsaved changes</p>
-        ) : null}
-      </div>
+      {headQuery.isError && (
+        <p className="border-destructive/30 bg-destructive/5 text-destructive mb-4 rounded-lg border px-3 py-2 text-sm">
+          {errorMessage(headQuery.error, 'Error loading head message')}
+        </p>
+      )}
 
-      <div className="grid items-start gap-6 xl:grid-cols-2">
-        <SectionCard title="Editor" icon={<UserRound size={20} aria-hidden />}>
-          <form onSubmit={handleSubmit} className="grid gap-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="head-teacher">Teacher</Label>
-              <select
-                id="head-teacher"
-                name="teacherId"
-                autoComplete="off"
-                value={selectedTeacherId}
-                onChange={(e) => {
-                  setSelectedTeacherId(e.target.value);
-                  setSuccess('');
-                }}
-                disabled={loading || saving || teachers.length === 0}
-                className={selectClassName}
-              >
-                <option value="">Select teacher…</option>
-                {teachers.map((teacher) => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {`${teacher.name} (${teacher.designation})`}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Role on public page</legend>
-              <div className="flex flex-wrap gap-3">
-                {HEAD_ROLE_OPTIONS.map((option) => (
-                  <label
-                    key={option.value}
-                    className="border-input hover:bg-accent/40 inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-[#609513] has-[:checked]:bg-[#e8f0dc]/70"
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+          <div className="space-y-6">
+            <SectionCard title="Headmaster" icon={<UserRound size={20} aria-hidden />}>
+              <div className="space-y-5">
+                <Field
+                  label="Teacher"
+                  hint="Name, designation and photo come from the teacher's profile."
+                >
+                  <select
+                    name="teacherId"
+                    autoComplete="off"
+                    value={draft.teacherId}
+                    onChange={(e) => update({ teacherId: e.target.value })}
+                    disabled={busy || teachers.length === 0}
+                    className={cn(filterSelectClassName, 'pointer-coarse:h-11')}
                   >
-                    <input
-                      type="radio"
-                      name="headRole"
-                      value={option.value}
-                      checked={headRole === option.value}
-                      onChange={(e) => {
-                        setHeadRole(e.target.value);
-                        setSuccess('');
-                      }}
-                      disabled={loading || saving}
-                      className="accent-[#609513]"
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+                    <option value="">Select teacher…</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {`${teacher.name} (${teacher.designation})`}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <Label htmlFor="head-message">Message</Label>
-                <p className="text-muted-foreground text-xs tabular-nums">
-                  {charCount.toLocaleString()} chars · {paraCount} paragraph
-                  {paraCount === 1 ? '' : 's'}
-                </p>
+                <fieldset className="space-y-1.5">
+                  <legend className="mb-1.5 text-sm font-medium">Role on public page</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {HEAD_ROLE_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className="border-border hover:bg-muted pointer-coarse:py-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors has-[:checked]:border-[#609513] has-[:checked]:bg-[#e8f0dc]/70"
+                      >
+                        <input
+                          type="radio"
+                          name="headRole"
+                          value={option.value}
+                          checked={draft.role === option.value}
+                          onChange={(e) => update({ role: e.target.value })}
+                          disabled={busy}
+                          className="pointer-coarse:h-5 pointer-coarse:w-5 h-4 w-4 accent-[#609513]"
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
               </div>
-              <Textarea
-                id="head-message"
-                name="headMessage"
-                autoComplete="off"
-                rows={12}
-                placeholder="Write the headmaster’s message… Use a blank line for a new paragraph."
-                value={message}
-                onChange={(e) => {
-                  setMessage(e.target.value);
-                  setSuccess('');
-                }}
-                disabled={loading || saving}
-                className="min-h-[220px] resize-y font-normal leading-relaxed"
+            </SectionCard>
+
+            <SectionCard title="Message" icon={<MessageSquareText size={20} aria-hidden />}>
+              {loading ? (
+                <Skeleton className="h-56 w-full" />
+              ) : (
+                <Field
+                  label="বাণী"
+                  hint="Blank line = new paragraph. One continuous block → the site groups about two sentences per paragraph (Bangla । or English . ! ?)."
+                >
+                  <Textarea
+                    name="headMessage"
+                    autoComplete="off"
+                    rows={12}
+                    placeholder="Write the headmaster’s message… Use a blank line for a new paragraph."
+                    value={draft.message}
+                    onChange={(e) => update({ message: e.target.value })}
+                    disabled={busy}
+                    className="min-h-[220px] resize-y leading-relaxed"
+                  />
+                  <span className="text-muted-foreground block text-right text-xs tabular-nums">
+                    {charCount.toLocaleString()} chars · {wordCount.toLocaleString()} word
+                    {wordCount === 1 ? '' : 's'} · {paraCount} paragraph
+                    {paraCount === 1 ? '' : 's'}
+                  </span>
+                </Field>
+              )}
+            </SectionCard>
+          </div>
+
+          <div className="xl:sticky xl:top-4">
+            <SectionCard
+              title="Preview"
+              description="How the public page will show it."
+              icon={<Eye size={20} aria-hidden />}
+            >
+              <HeadMessagePreview
+                name={selectedTeacher?.name || ''}
+                role={draft.role}
+                imageUrl={previewImage}
+                message={deferredMessage}
               />
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                Blank line = new paragraph. One continuous block → site groups about two sentences
-                per paragraph (Bangla । or English . ! ?).
-              </p>
-            </div>
+            </SectionCard>
+          </div>
+        </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+        {dirty && (
+          <div
+            role="region"
+            aria-label="Unsaved changes"
+            className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-2 shadow-lg"
+          >
+            <p className="text-sm font-medium">Unsaved changes</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={saveMutation.isPending}
+                onClick={() => setEdits(null)}
+                className="pointer-coarse:h-10"
+              >
+                Discard
+              </Button>
               <Button
                 type="submit"
-                disabled={loading || saving || (!selectedTeacherId && !message.trim()) || !dirty}
+                size="sm"
+                disabled={busy || (!draft.teacherId && !draft.message.trim())}
+                className="pointer-coarse:h-10"
               >
-                {saving ? 'Saving…' : 'Save message'}
+                {saveMutation.isPending && <Loader2 className="animate-spin" />}
+                Save message
               </Button>
-              {dirty ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={saving}
-                  onClick={() => {
-                    setSelectedTeacherId(savedSnapshot.teacherId);
-                    setHeadRole(savedSnapshot.role);
-                    setMessage(savedSnapshot.message);
-                    setSuccess('');
-                    setError('');
-                  }}
-                >
-                  Discard changes
-                </Button>
-              ) : null}
             </div>
-          </form>
-        </SectionCard>
-
-        <div className="xl:sticky xl:top-4">
-          <SectionCard title="Public page preview">
-            <p className="text-muted-foreground mb-3 text-xs">
-              Live preview — same layout language as the public page.
-            </p>
-            <HeadMessagePreview
-              name={selectedTeacher?.name || ''}
-              role={headRole}
-              imageUrl={previewImage}
-              message={deferredMessage}
-            />
-          </SectionCard>
-        </div>
-      </div>
+          </div>
+        )}
+      </form>
     </div>
   );
 }

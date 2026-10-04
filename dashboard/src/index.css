@@ -174,7 +174,9 @@ html {
         appearance: base-select;
       }
 
+      /* base-select is inline-flex with align-items: normal, which pins text/arrow to the top of tall boxes */
       select:not([multiple]):not([size]) {
+        align-items: center;
         cursor: pointer;
       }
 
@@ -206,8 +208,15 @@ html {
         cursor: not-allowed;
       }
 
+      /* Chevron (same shape as lucide ChevronDown) instead of the default solid ▼ */
       select::picker-icon {
-        color: var(--muted-foreground);
+        content: '';
+        display: block;
+        width: 1rem;
+        height: 1rem;
+        background: var(--muted-foreground);
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+          center / contain no-repeat;
         transition: rotate 150ms ease;
       }
 

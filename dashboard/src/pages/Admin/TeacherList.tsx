@@ -1,39 +1,77 @@
 import axios from 'axios';
-import React, { useState, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Search, Loader2 } from 'lucide-react';
+import {
+  Eye,
+  KeyRound,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RotateCw,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import ErrorMessage from '@/components/ErrorMessage';
 import {
-  PageHeader,
   SectionCard,
-  StatsCard,
   Popup,
   ConfirmationPopup,
-  FilterSelection,
-  FilterField,
+  TablePagination,
+  filterSelectClassName,
 } from '@/components';
+import ActionButton from '@/components/ActionButton';
+import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { teacherFormSchema, type TeacherFormSchemaData } from '@school/shared-schemas';
 import { getFileUrl } from '@/lib/backend';
+import { cn } from '@/lib/utils';
 import { downloadBlob } from '@school/common-ui/blob';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import DeleteConfirmation from '@/components/DeleteConfimation';
-import ActionButton from '@/components/ActionButton';
 import { useTeacher } from '@/queries/teacher.queries';
 import type { Teacher } from '@/types/teachers';
 
-interface PopupState {
-  visible: boolean;
-  type: string;
-  teacher: Teacher | null;
-}
+type SortKey = 'name' | 'email' | 'designation';
 
-const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => {
-  const key = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-  const { data } = await axios.post('/api/teachers/image/upload-url', {
+const DESIGNATIONS = [
+  'Headmaster',
+  'Assistant Headmaster',
+  'Headmaster (Incharge)',
+  'Senior Teacher',
+  'Assistant Teacher',
+];
+
+const defaultValues: TeacherFormSchemaData = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  designation: '',
+};
+
+// ponytail: the list API caps a page at 200; one page holds every teacher of a school,
+// so filter/sort/paginate client-side. Page through the API if a school ever passes 200.
+const FETCH_LIMIT = 200;
+
+const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+const uploadToR2 = async (kind: 'image' | 'signature', file: File, teacherId: number) => {
+  const prefix = kind === 'signature' ? 'signature-' : '';
+  const key = `${prefix}${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+  const { data } = await axios.post(`/api/teachers/${kind}/upload-url`, {
     id: teacherId,
     key,
     contentType: file.type,
@@ -44,43 +82,231 @@ const uploadImageToR2 = async (file: File, teacherId: number): Promise<void> => 
     body: file,
     headers: { 'Content-Type': file.type },
   });
-  await axios.put(`/api/teachers/${teacherId}/image`, { key: r2Key });
+  await axios.put(`/api/teachers/${teacherId}/${kind}`, { key: r2Key });
 };
 
-const uploadSignatureToR2 = async (file: File, teacherId: number): Promise<void> => {
-  const key = `signature-${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-  const { data } = await axios.post('/api/teachers/signature/upload-url', {
-    id: teacherId,
-    key,
-    contentType: file.type,
-  });
-  const { uploadUrl, key: r2Key } = data.data;
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type },
-  });
-  await axios.put(`/api/teachers/${teacherId}/signature`, { key: r2Key });
+const Stat = ({ label, value, dot }: { label: string; value: number; dot?: string }) => (
+  <div className="min-w-0">
+    <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+      {dot && <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />}
+      {label}
+    </p>
+    <p className="mt-0.5 text-xl font-semibold tabular-nums">{value.toLocaleString()}</p>
+  </div>
+);
+
+const CloseButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label="Close"
+    className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring pointer-coarse:p-2.5 rounded-md p-1 transition-colors focus-visible:outline-none focus-visible:ring-2"
+  >
+    <X className="h-4 w-4" />
+  </button>
+);
+
+const DialogHeader = ({
+  id,
+  title,
+  onClose,
+}: {
+  id: string;
+  title: string;
+  onClose: () => void;
+}) => (
+  <div className="border-border flex items-center justify-between border-b px-5 py-4">
+    <h2 id={id} className="text-base font-semibold">
+      {title}
+    </h2>
+    <CloseButton onClick={onClose} />
+  </div>
+);
+
+const Field = ({
+  label,
+  required,
+  error,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  className?: string;
+  children: React.ReactNode;
+}) => (
+  <div className={cn('space-y-1.5', className)}>
+    <label className="block space-y-1.5">
+      <span className="block text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </span>
+      {children}
+    </label>
+    {error && <ErrorMessage message={error} />}
+  </div>
+);
+
+// Teacher photos are 7:9 passport crops; keep that ratio so heads aren't cut off.
+const TeacherAvatar = ({ teacher }: { teacher: Teacher }) =>
+  teacher.image ? (
+    <img
+      src={getFileUrl(teacher.image)}
+      alt=""
+      loading="lazy"
+      className="border-border h-9 w-7 shrink-0 rounded border object-cover object-top"
+    />
+  ) : (
+    <div className="bg-muted text-muted-foreground flex h-9 w-7 shrink-0 items-center justify-center rounded text-xs font-semibold">
+      {teacher.name.charAt(0).toUpperCase()}
+    </div>
+  );
+
+const dropzoneClass =
+  'border-border hover:bg-muted/50 focus-visible:ring-ring flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2';
+
+/** Dropzone when empty, file card when a new pick or a saved file exists. */
+const ImagePicker = ({
+  label,
+  file,
+  currentUrl,
+  thumbClassName,
+  onPick,
+  onRemoveCurrent,
+  removing,
+}: {
+  label: string;
+  file: File | null;
+  currentUrl?: string;
+  thumbClassName: string;
+  onPick: (file: File | null) => void;
+  onRemoveCurrent: () => void;
+  removing: boolean;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const preview = useMemo(
+    () => (file ? URL.createObjectURL(file) : currentUrl ? getFileUrl(currentUrl) : null),
+    [file, currentUrl],
+  );
+  useEffect(
+    () => () => {
+      if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
+  const pick = (f: File | null | undefined) => {
+    if (f && !f.type.startsWith('image/')) {
+      toast.error(`${label} must be an image`);
+      return;
+    }
+    onPick(f ?? null);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <span className="block text-sm font-medium">
+        {label} <span className="text-muted-foreground font-normal">(optional)</span>
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => pick(e.target.files?.[0])}
+      />
+      {preview ? (
+        <div className="border-border flex flex-wrap items-center gap-3 rounded-lg border p-3 sm:flex-nowrap">
+          <img
+            src={preview}
+            alt=""
+            className={cn('border-border h-12 shrink-0 rounded-md border', thumbClassName)}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">
+              {file ? file.name : `Current ${label.toLowerCase()}`}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {file
+                ? `${(file.size / 1024 / 1024).toFixed(2)} MB · uploads when you save`
+                : 'Saved'}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-1">
+            {file ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => pick(null)}>
+                <X /> Remove
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                disabled={removing}
+                onClick={onRemoveCurrent}
+              >
+                {removing ? <Loader2 className="animate-spin" /> : <Trash2 />} Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload /> Replace
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            pick(e.dataTransfer.files[0]);
+          }}
+          className={dropzoneClass}
+        >
+          <Upload size={20} className="text-muted-foreground" />
+          <span className="text-sm font-medium">Upload {label.toLowerCase()}</span>
+          <span className="text-muted-foreground text-xs">Click or drop an image here</span>
+        </button>
+      )}
+    </div>
+  );
 };
+
+// Checkbox + Teacher columns stay pinned while the table scrolls sideways on narrow screens.
+const stickyCell = 'sticky z-[1] bg-inherit';
+const stickyEdge = 'max-xl:shadow-[1px_0_0_var(--border)]';
 
 const TeacherList = () => {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // ---- List ----
+  const [search, setSearch] = useState('');
+  const [emailSearch, setEmailSearch] = useState('');
+  const [designationFilters, setDesignationFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [popup, setPopup] = useState<PopupState>({
-    visible: false,
-    type: '',
-    teacher: null,
-  });
-  const defaultValues = {
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    designation: '',
-  };
+  const [limit, setLimit] = useState(25);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
+  const [detail, setDetail] = useState<Teacher | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null);
+
+  // ---- Form dialog ----
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Teacher | null>(null);
+  const [image, setImage] = useState<File | null>(null);
+  const [signature, setSignature] = useState<File | null>(null);
+
   const {
     register,
     handleSubmit: rhfHandleSubmit,
@@ -92,14 +318,6 @@ const TeacherList = () => {
     criteriaMode: 'firstError',
     mode: 'onBlur',
   });
-  const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [image, setImage] = useState<File | null>(null);
-  const [signature, setSignature] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const signatureInputRef = useRef<HTMLInputElement>(null);
-  const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<number>>(() => new Set());
-  const [bulkRotateOpen, setBulkRotateOpen] = useState(false);
 
   const invalidateTeachers = () => queryClient.invalidateQueries({ queryKey: ['teachers'] });
 
@@ -107,16 +325,73 @@ const TeacherList = () => {
     data: teachersResponse,
     isLoading,
     error: teachersError,
-  } = useTeacher({ page, limit, search: deferredSearchQuery });
+    refetch,
+  } = useTeacher({ page: 1, limit: FETCH_LIMIT });
 
-  const teachers = useMemo(() => teachersResponse?.data ?? [], [teachersResponse]);
-  const meta = teachersResponse?.meta;
+  const teachers = useMemo(
+    () => ((teachersResponse?.data ?? []) as Teacher[]).filter((t) => t.available),
+    [teachersResponse],
+  );
+  const total: number = teachersResponse?.meta?.total ?? teachers.length;
 
   const errorMessage = teachersError
     ? (teachersError as { response?: { status?: number } }).response?.status === 404
       ? 'No teachers found.'
       : 'An error occurred while fetching teachers.'
     : '';
+
+  const filtersActive =
+    Boolean(search.trim()) || Boolean(emailSearch.trim()) || designationFilters.length > 0;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const mail = emailSearch.trim().toLowerCase();
+    const rows = teachers.filter(
+      (t) =>
+        (!q || `${t.name} ${t.phone ?? ''} ${t.address ?? ''}`.toLowerCase().includes(q)) &&
+        (!mail || (t.email ?? '').toLowerCase().includes(mail)) &&
+        (designationFilters.length === 0 || designationFilters.includes(t.designation ?? '')),
+    );
+    if (!sort) return rows;
+    const dir = sort.order === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => dir * (a[sort.key] ?? '').localeCompare(b[sort.key] ?? ''));
+  }, [teachers, search, emailSearch, designationFilters, sort]);
+
+  const totalPages = Math.ceil(filtered.length / limit);
+  const pageRows = filtered.slice((page - 1) * limit, page * limit);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, emailSearch, designationFilters, sort, limit]);
+
+  // Drop selections for teachers that no longer exist.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const existing = new Set(teachers.map((t) => t.id));
+      return new Set([...prev].filter((id) => existing.has(id)));
+    });
+  }, [teachers]);
+
+  const withPhoto = teachers.filter((t) => t.image).length;
+  const withSignature = teachers.filter((t) => t.signature).length;
+  const designationOptions = Array.from(
+    new Set([...DESIGNATIONS, ...teachers.map((t) => t.designation).filter(Boolean)]),
+  ).map((d) => ({ value: d, label: d }));
+
+  const clearFilters = () => {
+    setSearch('');
+    setEmailSearch('');
+    setDesignationFilters([]);
+  };
+
+  // ---- Mutations ----
+  const closeForm = () => {
+    reset(defaultValues);
+    setImage(null);
+    setSignature(null);
+    setEditing(null);
+    setFormOpen(false);
+  };
 
   const addMutation = useMutation({
     mutationFn: async ({
@@ -128,24 +403,15 @@ const TeacherList = () => {
       imageFile: File | null;
       signatureFile: File | null;
     }) => {
-      const response = await axios.post('/api/teachers', {
-        teachers: [formValues],
-      });
+      const response = await axios.post('/api/teachers', { teachers: [formValues] });
       const newTeacher = response.data.data.teachers[0];
-      if (imageFile) {
-        await uploadImageToR2(imageFile, newTeacher.id);
-      }
-      if (signatureFile) {
-        await uploadSignatureToR2(signatureFile, newTeacher.id);
-      }
+      if (imageFile) await uploadToR2('image', imageFile, newTeacher.id);
+      if (signatureFile) await uploadToR2('signature', signatureFile, newTeacher.id);
       return response.data;
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Teacher added successfully.');
-      reset(defaultValues);
-      setImage(null);
-      setSignature(null);
-      setShowForm(false);
+      closeForm();
       invalidateTeachers();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -166,22 +432,13 @@ const TeacherList = () => {
       signatureFile: File | null;
     }) => {
       const response = await axios.put(`/api/teachers/${teacher.id}`, formValues);
-      if (imageFile) {
-        await uploadImageToR2(imageFile, teacher.id);
-      }
-      if (signatureFile) {
-        await uploadSignatureToR2(signatureFile, teacher.id);
-      }
+      if (imageFile) await uploadToR2('image', imageFile, teacher.id);
+      if (signatureFile) await uploadToR2('signature', signatureFile, teacher.id);
       return response.data;
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Teacher updated successfully.');
-      reset(defaultValues);
-      setImage(null);
-      setSignature(null);
-      setIsEditing(false);
-      setShowForm(false);
-      setPopup({ visible: false, type: '', teacher: null });
+      closeForm();
       invalidateTeachers();
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
@@ -190,42 +447,33 @@ const TeacherList = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (teacher: Teacher) => {
-      await axios.delete(`/api/teachers/${teacher.id}`);
-    },
-    onSuccess: () => {
+    mutationFn: (teacher: Teacher) => axios.delete(`/api/teachers/${teacher.id}`),
+    onSuccess: (_, teacher) => {
       toast.success('Teacher deleted successfully.');
+      setDetail((d) => (d?.id === teacher.id ? null : d));
       invalidateTeachers();
     },
-    onError: () => {
-      toast.error('Failed to delete teacher.');
-    },
+    onError: () => toast.error('Failed to delete teacher.'),
   });
 
   const removeImageMutation = useMutation({
-    mutationFn: async (teacherId: number) => {
-      await axios.delete(`/api/teachers/${teacherId}/image`);
-    },
+    mutationFn: (teacherId: number) => axios.delete(`/api/teachers/${teacherId}/image`),
     onSuccess: () => {
       toast.success('Image removed.');
+      setEditing((t) => (t ? { ...t, image: undefined } : t));
       invalidateTeachers();
     },
-    onError: () => {
-      toast.error('Failed to remove image.');
-    },
+    onError: () => toast.error('Failed to remove image.'),
   });
 
   const removeSignatureMutation = useMutation({
-    mutationFn: async (teacherId: number) => {
-      await axios.delete(`/api/teachers/${teacherId}/signature`);
-    },
+    mutationFn: (teacherId: number) => axios.delete(`/api/teachers/${teacherId}/signature`),
     onSuccess: () => {
       toast.success('Signature removed.');
+      setEditing((t) => (t ? { ...t, signature: undefined } : t));
       invalidateTeachers();
     },
-    onError: () => {
-      toast.error('Failed to remove signature.');
-    },
+    onError: () => toast.error('Failed to remove signature.'),
   });
 
   const bulkRotateMutation = useMutation({
@@ -240,9 +488,8 @@ const TeacherList = () => {
     onSuccess: (data) => {
       downloadBlob(new Blob([data]), 'rotated_passwords.xlsx');
       toast.success('Passwords rotated successfully. Excel downloaded.');
-      setSelectedTeacherIds(new Set());
+      setSelectedIds(new Set());
       invalidateTeachers();
-      setBulkRotateOpen(false);
     },
     onError: (error) => {
       const err = error as { response?: { data?: { error?: string } } };
@@ -250,7 +497,18 @@ const TeacherList = () => {
     },
   });
 
-  const handleEdit = useCallback(
+  const isSubmitting = addMutation.isPending || updateMutation.isPending;
+
+  // ---- Handlers ----
+  const openCreate = () => {
+    reset(defaultValues);
+    setImage(null);
+    setSignature(null);
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = useCallback(
     (teacher: Teacher) => {
       reset({
         name: teacher.name || '',
@@ -259,741 +517,546 @@ const TeacherList = () => {
         address: teacher.address || '',
         designation: teacher.designation || '',
       });
-      setIsEditing(true);
-      setShowForm(true);
-      setPopup({ visible: false, type: '', teacher });
+      setImage(null);
+      setSignature(null);
+      setEditing(teacher);
+      setDetail(null);
+      setFormOpen(true);
     },
-    [reset, setIsEditing, setShowForm, setPopup],
+    [reset],
   );
 
-  const handleDelete = useCallback(
-    (teacher: Teacher) => {
-      deleteMutation.mutate(teacher);
-    },
-    [deleteMutation],
-  );
-
-  const closePopup = useCallback(() => {
-    setPopup({ visible: false, type: '', teacher: null });
-  }, [setPopup]);
-
-  // Reset page when search changes
-  React.useEffect(() => {
-    setPage(1);
-  }, [deferredSearchQuery]);
-
-  const isSubmitting = addMutation.isPending || updateMutation.isPending;
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setSearchQuery(e.target.value);
-    },
-    [setSearchQuery],
-  );
-
-  const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setImage(file);
-      }
-    },
-    [setImage],
-  );
-
-  const onValidSubmit = useCallback(
-    async (formValues: TeacherFormSchemaData) => {
-      if (isEditing && popup.teacher) {
-        updateMutation.mutate({
-          teacher: popup.teacher,
-          formValues,
-          imageFile: image,
-          signatureFile: signature,
-        });
-      } else {
-        addMutation.mutate({ formValues, imageFile: image, signatureFile: signature });
-      }
-    },
-    [isEditing, popup.teacher, updateMutation, addMutation, image, signature],
-  );
-
-  const filteredTeachers = useMemo(
-    () => teachers.filter((teacher: Teacher) => teacher.available),
-    [teachers],
-  );
-
-  const onToggleSelect = useCallback((teacherId: number) => {
-    setSelectedTeacherIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(teacherId)) next.delete(teacherId);
-      else next.add(teacherId);
-      return next;
-    });
-  }, []);
-
-  const visibleTeacherIds = useMemo(
-    () => filteredTeachers.map((t: Teacher) => t.id),
-    [filteredTeachers],
-  );
-  const visibleTeacherIdSet = useMemo(
-    () => new Set<number>(visibleTeacherIds),
-    [visibleTeacherIds],
-  );
-
-  const selectedVisibleCount = useMemo(() => {
-    let count = 0;
-    selectedTeacherIds.forEach((id) => {
-      if (visibleTeacherIdSet.has(id)) count += 1;
-    });
-    return count;
-  }, [selectedTeacherIds, visibleTeacherIdSet]);
-
-  const allVisibleSelected =
-    visibleTeacherIds.length > 0 && selectedVisibleCount === visibleTeacherIds.length;
-
-  const handleSelectAllVisible = () => {
-    if (allVisibleSelected) {
-      setSelectedTeacherIds((prev) => {
-        const next = new Set(prev);
-        visibleTeacherIdSet.forEach((id) => next.delete(id));
-        return next;
+  const onValidSubmit = (formValues: TeacherFormSchemaData) => {
+    if (editing) {
+      updateMutation.mutate({
+        teacher: editing,
+        formValues,
+        imageFile: image,
+        signatureFile: signature,
       });
-      return;
+    } else {
+      addMutation.mutate({ formValues, imageFile: image, signatureFile: signature });
     }
-
-    setSelectedTeacherIds((prev) => {
-      const next = new Set(prev);
-      visibleTeacherIdSet.forEach((id) => next.add(id));
-      return next;
-    });
   };
 
-  React.useEffect(() => {
-    setSelectedTeacherIds((prev) => {
-      const existing = new Set(teachers.map((teacher: Teacher) => teacher.id));
-      const next = new Set<number>();
-      prev.forEach((id) => {
-        if (existing.has(id)) next.add(id);
-      });
+  const toggleSelect = (id: number) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  }, [teachers]);
+
+  const pageIds = pageRows.map((t) => t.id);
+  const selectedOnPage = pageIds.filter((id) => selectedIds.has(id)).length;
+  const allPageSelected = pageIds.length > 0 && selectedOnPage === pageIds.length;
+
+  const toggleSelectPage = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      pageIds.forEach((id) => (allPageSelected ? next.delete(id) : next.add(id)));
+      return next;
+    });
+
+  const sortProps = (key: SortKey) => ({
+    sortOrder: sort?.key === key ? sort.order : null,
+    onSort: (order: SortOrder | null) => setSort(order ? { key, order } : null),
+  });
+
+  const columns: {
+    label: string;
+    sortKey?: SortKey;
+    className?: string;
+    header: React.ReactNode;
+  }[] = [
+    {
+      label: 'Teacher',
+      sortKey: 'name',
+      className: cn(stickyCell, stickyEdge, 'left-10 px-3 sm:px-4'),
+      header: (
+        <ColumnHeaderMenu
+          label="Teacher"
+          {...sortProps('name')}
+          filterInput={{ value: search, onChange: setSearch, placeholder: 'Name, phone, address…' }}
+        />
+      ),
+    },
+    {
+      label: 'Email',
+      sortKey: 'email',
+      header: (
+        <ColumnHeaderMenu
+          label="Email"
+          {...sortProps('email')}
+          filterInput={{ value: emailSearch, onChange: setEmailSearch, placeholder: 'Email…' }}
+        />
+      ),
+    },
+    {
+      label: 'Designation',
+      sortKey: 'designation',
+      className: 'w-56',
+      header: (
+        <ColumnHeaderMenu
+          label="Designation"
+          {...sortProps('designation')}
+          options={designationOptions}
+          selected={designationFilters}
+          onSelectedChange={setDesignationFilters}
+        />
+      ),
+    },
+    { label: 'Signature', className: 'w-28', header: 'Signature' },
+    {
+      label: 'Actions',
+      className: 'w-px px-3 text-right',
+      header: filtersActive ? (
+        <ActionButton
+          iconOnly
+          label="Clear filters"
+          icon={<X size={16} />}
+          onClick={clearFilters}
+        />
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
+    },
+  ];
+  const colSpan = columns.length + 1;
+
+  const rowActions = (teacher: Teacher) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <ActionButton
+        action="edit"
+        iconOnly
+        className="pointer-coarse:h-11 pointer-coarse:w-11"
+        onClick={() => openEdit(teacher)}
+      />
+      {/* modal={false}: items open dialogs; a modal menu would leave pointer-events locked */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <ActionButton
+            iconOnly
+            label="More actions"
+            icon={<MoreHorizontal size={16} />}
+            className="pointer-coarse:h-11 pointer-coarse:w-11"
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="truncate normal-case tracking-normal">
+            {teacher.name}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => setDetail(teacher)}>
+            <Eye /> View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => openEdit(teacher)}>
+            <Pencil /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(teacher)}>
+            <Trash2 /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  const emptyState = (
+    <div className="text-muted-foreground flex flex-col items-center gap-3 px-4 py-12 text-center text-sm">
+      {errorMessage ? (
+        <>
+          <p>{errorMessage}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+            <RotateCw /> Retry
+          </Button>
+        </>
+      ) : filtersActive ? (
+        <>
+          <p>No teachers match these filters.</p>
+          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+            <X /> Clear filters
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>No teachers yet.</p>
+          <Button type="button" variant="outline" size="sm" onClick={openCreate}>
+            <Plus /> Add teacher
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  const summary = isLoading
+    ? ' '
+    : [
+        `${filtersActive ? `${filtered.length.toLocaleString()} of ` : ''}${plural(total, 'teacher')}`,
+        total > teachers.length ? `showing first ${teachers.length.toLocaleString()}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
 
   return (
-    <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Teacher List"
-        description="Manage teacher records and profile information."
-      >
-        {!showForm && (
-          <Button type="button" onClick={() => setShowForm((prev) => !prev)}>
-            + Add Teacher
-          </Button>
-        )}
-      </PageHeader>
+    <div className="mx-auto flex min-h-full max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Teacher List</h1>
+          <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
+        </div>
+        <Button type="button" onClick={openCreate}>
+          <Plus /> Add teacher
+        </Button>
+      </header>
 
-      {showForm && (
-        <div className="bg-card border-border mb-6 overflow-hidden rounded-xl border shadow-sm">
-          <div className="w-full p-6">
-            <h2 className="text-foreground mb-6 text-xl font-bold">
-              {isEditing ? 'Edit Teacher' : 'Add Teacher'}
-            </h2>
-            <form onSubmit={rhfHandleSubmit(onValidSubmit)} className="space-y-6">
-              {/* Image */}
-              <div className="border-border bg-muted/40 rounded-lg border p-4">
-                <div className="flex flex-col items-center justify-center">
-                  <p className="mb-2 text-sm font-medium">Profile Image</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <label
-                    onClick={() => fileInputRef.current?.click()}
-                    className="bg-card border-border hover:border-primary/50 aspect-7/9 flex w-24 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors sm:w-32"
-                  >
-                    {image ? (
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt="Preview"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : isEditing && popup.teacher?.image ? (
-                      <img
-                        src={getFileUrl(popup.teacher.image)}
-                        alt="Teacher"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-muted-foreground px-1 text-center text-xs sm:text-sm">
-                        Click to upload
-                      </span>
-                    )}
-                  </label>
-                  {image && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImage(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                      className="text-destructive mt-2 text-sm hover:underline"
-                    >
-                      Remove Image
-                    </button>
-                  )}
-                  {!image && isEditing && popup.teacher?.image && (
-                    <button
-                      type="button"
-                      onClick={() => removeImageMutation.mutate(Number(popup.teacher!.id))}
-                      className="text-destructive mt-2 text-sm hover:underline"
-                    >
-                      Remove Current Image
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-center justify-center">
-                  <p className="mb-2 text-sm font-medium">Digital Signature</p>
-                  <input
-                    ref={signatureInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setSignature(file);
-                    }}
-                    className="hidden"
-                  />
-                  <label
-                    onClick={() => signatureInputRef.current?.click()}
-                    className="bg-card border-border hover:border-primary/50 flex h-24 w-40 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed transition-colors"
-                  >
-                    {signature ? (
-                      <img
-                        src={URL.createObjectURL(signature)}
-                        alt="Signature Preview"
-                        className="h-full w-full object-contain p-2"
-                      />
-                    ) : isEditing && popup.teacher?.signature ? (
-                      <img
-                        src={getFileUrl(popup.teacher.signature)}
-                        alt="Current Signature"
-                        className="h-full w-full object-contain p-2"
-                      />
-                    ) : (
-                      <span className="text-muted-foreground px-1 text-center text-xs">
-                        Click to upload signature
-                      </span>
-                    )}
-                  </label>
-                  {signature && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSignature(null);
-                        if (signatureInputRef.current) signatureInputRef.current.value = '';
-                      }}
-                      className="text-destructive mt-2 text-sm hover:underline"
-                    >
-                      Remove Signature
-                    </button>
-                  )}
-                  {!signature && isEditing && popup.teacher?.signature && (
-                    <button
-                      type="button"
-                      onClick={() => removeSignatureMutation.mutate(Number(popup.teacher!.id))}
-                      className="text-destructive mt-2 text-sm hover:underline"
-                    >
-                      Remove Current Signature
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Info */}
-              <fieldset className="border-border bg-card rounded-lg border p-4 sm:p-5">
-                <legend className="border-primary border-l-2 px-2 text-sm font-semibold sm:text-base">
-                  Teacher Information
-                </legend>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">
-                      Name <span className="text-destructive">*</span>
-                    </label>
-                    <Input type="text" placeholder="Enter teacher's name" {...register('name')} />
-                    {errors.name && <ErrorMessage message={errors.name.message} />}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">
-                      Email <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      type="email"
-                      placeholder="Enter teacher's email"
-                      {...register('email')}
-                    />
-                    {errors.email && <ErrorMessage message={errors.email.message} />}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">
-                      Phone <span className="text-destructive">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Enter teacher's phone number"
-                      maxLength={11}
-                      {...register('phone')}
-                    />
-                    {errors.phone && <ErrorMessage message={errors.phone.message} />}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium">
-                      Designation <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      {...register('designation')}
-                      defaultValue={isEditing ? popup.teacher?.designation : ''}
-                    >
-                      <option value="">Select Designation</option>
-                      <option value="Headmaster">Headmaster</option>
-                      <option value="Assistant Headmaster">Assistant Headmaster</option>
-                      <option value="Headmaster (Incharge)">Headmaster (Incharge)</option>
-                      <option value="Senior Teacher">Senior Teacher</option>
-                      <option value="Assistant Teacher">Assistant Teacher</option>
-                    </select>
-                    {errors.designation && <ErrorMessage message={errors.designation.message} />}
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="block text-sm font-medium">Address</label>
-                    <Input
-                      type="text"
-                      placeholder="Enter teacher's address"
-                      {...register('address')}
-                    />
-                    {errors.address && <ErrorMessage message={errors.address.message} />}
-                  </div>
-                </div>
-              </fieldset>
-
-              <div className="bg-card/95 supports-backdrop-filter:bg-card/70 border-border sticky bottom-0 flex justify-between border-t pt-4 backdrop-blur">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  className="min-w-24"
-                  onClick={() => {
-                    setShowForm(false);
-                    setIsEditing(false);
-                    reset(defaultValues);
-                    setImage(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="min-w-28">
-                  {isSubmitting
-                    ? isEditing
-                      ? 'Updating...'
-                      : 'Adding...'
-                    : isEditing
-                      ? 'Update'
-                      : 'Add Teacher'}
-                </Button>
-              </div>
-            </form>
-          </div>
+      {!isLoading && teachers.length > 0 && (
+        <div className="border-border bg-card mb-6 grid grid-cols-3 gap-x-6 rounded-xl border px-5 py-4 shadow-sm sm:w-fit sm:min-w-[24rem]">
+          <Stat label="Total" value={total} />
+          <Stat label="With photo" value={withPhoto} dot="bg-emerald-500" />
+          <Stat label="With signature" value={withSignature} dot="bg-sky-500" />
         </div>
       )}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <StatsCard label="Total Teachers" value={meta?.total ?? 0} loading={isLoading} />
-      </div>
-
-      <FilterSelection className="mb-6">
-        <FilterField label="Search" wide>
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search by name, subject or email..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-          </div>
-        </FilterField>
-      </FilterSelection>
-
       <SectionCard noPadding className="mb-6">
-        {selectedTeacherIds.size > 0 && (
-          <div className="bg-muted border-border flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-foreground text-sm font-medium">
-              {selectedTeacherIds.size} teacher(s) selected
-            </p>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setBulkRotateOpen(true)}
-                disabled={bulkRotateMutation.isPending}
-                className="text-black! w-full border-gray-200 bg-white hover:bg-gray-50 sm:w-auto"
-              >
-                Rotate Passwords
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setSelectedTeacherIds(new Set())}
-                className="text-muted-foreground w-full sm:w-auto"
-              >
-                Clear
-              </Button>
-            </div>
-          </div>
-        )}
-        {/* Desktop table */}
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-muted border-border border-b">
-                <th className="w-12 px-4 py-3 text-center">
+        {/* One table for every screen: narrow screens scroll it sideways. */}
+        <div className="overflow-x-auto xl:overflow-visible">
+          <table className="w-full min-w-[48rem] border-collapse text-left">
+            <thead className="xl:sticky xl:top-0 xl:z-10">
+              <tr className="border-border [&>th]:bg-muted border-b [&>th:first-child]:rounded-tl-[calc(var(--radius)+3px)] [&>th:last-child]:rounded-tr-[calc(var(--radius)+3px)]">
+                <th className={cn(stickyCell, 'left-0 w-10 px-3 py-2.5')}>
                   <input
                     type="checkbox"
-                    checked={allVisibleSelected}
-                    ref={(input) => {
-                      if (input) {
-                        input.indeterminate =
-                          selectedVisibleCount > 0 &&
-                          selectedVisibleCount < visibleTeacherIds.length;
-                      }
+                    checked={allPageSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = selectedOnPage > 0 && !allPageSelected;
                     }}
-                    onChange={handleSelectAllVisible}
-                    aria-label="Select all visible teachers"
-                    className="h-4 w-4"
+                    onChange={toggleSelectPage}
+                    aria-label="Select all teachers on this page"
+                    className="h-4 w-4 align-middle"
                   />
                 </th>
-                {['Teacher', 'Email', 'Designation', 'Actions'].map((header) => (
+                {columns.map((col) => (
                   <th
-                    key={header}
-                    className={`text-foreground/70 px-4 py-3 text-xs font-semibold uppercase tracking-wider ${header === 'Actions' ? 'text-right' : 'text-left'}`}
+                    key={col.label}
+                    aria-sort={
+                      sort && col.sortKey === sort.key
+                        ? sort.order === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : undefined
+                    }
+                    className={cn(
+                      'text-foreground/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider',
+                      col.className,
+                    )}
                   >
-                    {header}
+                    {col.header}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                      <p className="text-muted-foreground text-sm dark:text-gray-400">
-                        Loading teachers…
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredTeachers.length > 0 ? (
-                filteredTeachers.map((teacher: Teacher) => (
-                  <tr
-                    key={teacher.id}
-                    className={`transition-colors ${selectedTeacherIds.has(teacher.id) ? 'bg-sidebar-accent' : 'hover:bg-muted/50'}`}
-                  >
-                    <td className="whitespace-nowrap px-2 py-2 text-center text-sm sm:px-4 sm:py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedTeacherIds.has(teacher.id)}
-                        onChange={() => onToggleSelect(teacher.id)}
-                        aria-label={`Select ${teacher.name}`}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        {teacher.image ? (
-                          <img
-                            src={getFileUrl(teacher.image)}
-                            className="border-border h-10 w-10 rounded-full border object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          <div className="bg-muted text-foreground flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold">
-                            {teacher.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <span className="text-foreground font-medium">{teacher.name}</span>
-                      </div>
-                    </td>
-                    <td className="text-muted-foreground px-4 py-4 text-sm">{teacher.email}</td>
-                    <td className="text-muted-foreground px-4 py-4 text-sm">
-                      {teacher.designation}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <ActionButton
-                          action="view"
-                          onClick={() => setPopup({ visible: true, type: 'view', teacher })}
-                        />
-                        <ActionButton action="edit" onClick={() => handleEdit(teacher)} />
-                        <DeleteConfirmation
-                          onDelete={() => handleDelete(teacher)}
-                          msg={`Are you sure you want to delete ${teacher.name}?`}
-                        />
-                      </div>
+                Array.from({ length: 6 }, (_, i) => (
+                  <tr key={i}>
+                    <td colSpan={colSpan} className="px-4 py-2">
+                      <Skeleton className="h-9 w-full" />
                     </td>
                   </tr>
                 ))
+              ) : pageRows.length > 0 ? (
+                pageRows.map((teacher) => {
+                  const isSelected = selectedIds.has(teacher.id);
+                  return (
+                    // Opaque row colours so the pinned cells hide what scrolls under them.
+                    <tr
+                      key={teacher.id}
+                      className={cn(
+                        'transition-colors',
+                        isSelected
+                          ? 'bg-[color-mix(in_oklab,var(--primary)_6%,var(--card))]'
+                          : 'bg-card hover:bg-[color-mix(in_oklab,var(--muted)_60%,var(--card))]',
+                      )}
+                    >
+                      <td className={cn(stickyCell, 'left-0 w-10 px-3 py-2')}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(teacher.id)}
+                          aria-label={`Select ${teacher.name}`}
+                          className="h-4 w-4 align-middle"
+                        />
+                      </td>
+                      <td className={cn(stickyCell, stickyEdge, 'left-10 px-3 py-2 sm:px-4')}>
+                        <div className="flex max-w-[12rem] items-center gap-3 sm:max-w-none">
+                          <TeacherAvatar teacher={teacher} />
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => setDetail(teacher)}
+                              className="focus-visible:ring-ring block max-w-full truncate rounded text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2"
+                            >
+                              {teacher.name}
+                            </button>
+                            {teacher.phone && (
+                              <p className="text-muted-foreground truncate text-xs tabular-nums">
+                                {teacher.phone}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {teacher.email || <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {teacher.designation || <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {teacher.signature ? (
+                          <span className="text-emerald-700 dark:text-emerald-400">Added</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        {rowActions(teacher)}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-muted-foreground px-4 py-12 text-center text-sm">
-                    {errorMessage || 'No teachers found matching your criteria.'}
-                  </td>
+                  <td colSpan={colSpan}>{emptyState}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="lg:hidden">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12">
-              <Loader2 className="text-primary h-8 w-8 animate-spin" />
-              <p className="text-muted-foreground text-sm">Loading teachers…</p>
-            </div>
-          ) : filteredTeachers.length > 0 ? (
-            <ul className="divide-border divide-y">
-              {filteredTeachers.map((teacher: Teacher) => (
-                <li
-                  key={teacher.id}
-                  className={`space-y-3 p-4 ${selectedTeacherIds.has(teacher.id) ? 'bg-sidebar-accent' : ''}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedTeacherIds.has(teacher.id)}
-                      onChange={() => onToggleSelect(teacher.id)}
-                      aria-label={`Select ${teacher.name}`}
-                      className="mt-1 h-4 w-4 shrink-0"
-                    />
-                    {teacher.image ? (
-                      <img
-                        src={getFileUrl(teacher.image)}
-                        className="border-border h-12 w-12 shrink-0 rounded-full border object-cover"
-                        alt=""
-                      />
-                    ) : (
-                      <div className="bg-muted text-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold">
-                        {teacher.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-foreground truncate font-medium">{teacher.name}</p>
-                      <p className="text-muted-foreground truncate text-sm">{teacher.email}</p>
-                      <p className="text-muted-foreground mt-0.5 text-xs">
-                        {teacher.designation || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pl-7">
-                    <ActionButton
-                      action="view"
-                      onClick={() => setPopup({ visible: true, type: 'view', teacher })}
-                    />
-                    <ActionButton action="edit" onClick={() => handleEdit(teacher)} />
-                    <DeleteConfirmation
-                      onDelete={() => handleDelete(teacher)}
-                      msg={`Are you sure you want to delete ${teacher.name}?`}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground px-4 py-12 text-center text-sm">
-              {errorMessage || 'No teachers found matching your criteria.'}
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          limit={limit}
+          loading={isLoading}
+          totalFiltered={filtered.length}
+          limitOptions={[25, 50, 100]}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+        />
+      </SectionCard>
+
+      {selectedIds.size > 0 && <div aria-hidden className="min-h-6 flex-1" />}
+      {selectedIds.size > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="bg-card border-border sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 shadow-lg"
+        >
+          <div className="flex items-center gap-2">
+            <CloseButton onClick={() => setSelectedIds(new Set())} />
+            <p className="text-sm font-medium tabular-nums">
+              {plural(selectedIds.size, 'teacher')} selected
             </p>
-          )}
-        </div>
-      </SectionCard>
-
-      <SectionCard className="mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-muted-foreground text-sm">
-            Page {meta?.page ?? page} of {meta?.totalPages ?? 0}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Rows</span>
-              <select
-                className="bg-card border-border text-foreground focus:ring-primary/30 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                {[10, 20, 50, 100].map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const totalPages = meta?.totalPages ?? 0;
-              const currentPage = page;
-              const maxVisible = 7;
-              if (totalPages <= maxVisible) {
-                return Array.from({ length: totalPages }, (_, i) => (
-                  <Button
-                    key={i}
-                    type="button"
-                    variant={i + 1 === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(i + 1)}
-                    disabled={isLoading}
-                  >
-                    {i + 1}
-                  </Button>
-                ));
-              }
-              const pages: (number | string)[] = [];
-              const half = Math.floor(maxVisible / 2);
-              let start = Math.max(1, currentPage - half);
-              const end = Math.min(totalPages, start + maxVisible - 1);
-              if (end - start < maxVisible - 1) {
-                start = Math.max(1, end - maxVisible + 1);
-              }
-              if (start > 1) {
-                pages.push(1);
-                if (start > 2) pages.push('...');
-              }
-              for (let i = start; i <= end; i++) {
-                pages.push(i);
-              }
-              if (end < totalPages) {
-                if (end < totalPages - 1) pages.push('...');
-                pages.push(totalPages);
-              }
-              return pages.map((p, idx) =>
-                p === '...' ? (
-                  <span key={idx} className="text-muted-foreground px-2">
-                    ...
-                  </span>
-                ) : (
-                  <Button
-                    key={idx}
-                    type="button"
-                    variant={p === currentPage ? 'default' : 'outline'}
-                    onClick={() => setPage(p as number)}
-                    disabled={isLoading}
-                  >
-                    {p}
-                  </Button>
-                ),
-              );
-            })()}
-          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setBulkRotateOpen(true)}
+            disabled={bulkRotateMutation.isPending}
+          >
+            {bulkRotateMutation.isPending ? <Loader2 className="animate-spin" /> : <KeyRound />}
+            Rotate passwords
+          </Button>
         </div>
-      </SectionCard>
+      )}
 
-      {popup.visible && popup.teacher && (
-        <Popup open onOpenChange={(o) => !o && closePopup()} size="md">
-          {popup.type === 'view' && (
-            <>
-              {/* Header */}
-              <div className="border-border flex items-center justify-between border-b px-5 py-4">
-                <h2 className="text-base font-semibold">Teacher Details</h2>
-                <button
-                  onClick={closePopup}
-                  className="text-muted-foreground hover:text-foreground text-xl leading-none transition-colors"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete teacher"
+        msg={`Delete ${deleteTarget?.name ?? 'this teacher'}? This cannot be undone.`}
+      />
 
-              {/* Profile */}
-              <div className="border-border bg-muted/20 flex flex-col items-center gap-2 border-b py-5">
-                {popup.teacher.image ? (
-                  <img
-                    src={getFileUrl(popup.teacher.image)}
-                    alt="Profile"
-                    className="border-border aspect-[7/9] w-20 rounded-sm border object-cover shadow"
-                  />
-                ) : (
-                  <div className="border-border bg-muted text-muted-foreground flex aspect-[7/9] w-20 items-center justify-center rounded-sm border text-4xl font-bold">
-                    {popup.teacher.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="text-center">
-                  <p className="text-base font-semibold">{popup.teacher.name}</p>
-                  <p className="text-muted-foreground text-xs">{popup.teacher.designation}</p>
+      <ConfirmationPopup
+        open={bulkRotateOpen}
+        onOpenChange={setBulkRotateOpen}
+        onConfirm={() => {
+          setBulkRotateOpen(false);
+          bulkRotateMutation.mutate(Array.from(selectedIds));
+        }}
+        title="Rotate passwords"
+        confirmLabel="Rotate passwords"
+        variant="default"
+        msg={`This will generate new passwords for ${plural(selectedIds.size, 'teacher')} and download an Excel file with the new credentials. An email is also sent to the headmaster. Old passwords stop working.`}
+      />
+
+      {detail && (
+        <Popup
+          open
+          onOpenChange={(o) => !o && setDetail(null)}
+          size="md"
+          aria-labelledby="teacher-details-title"
+        >
+          <DialogHeader
+            id="teacher-details-title"
+            title="Teacher details"
+            onClose={() => setDetail(null)}
+          />
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <div className="flex items-center gap-4">
+              {detail.image ? (
+                <img
+                  src={getFileUrl(detail.image)}
+                  alt=""
+                  className="border-border aspect-7/9 w-20 shrink-0 rounded-md border object-cover object-top"
+                />
+              ) : (
+                <div className="border-border bg-muted text-muted-foreground aspect-7/9 flex w-20 shrink-0 items-center justify-center rounded-md border text-3xl font-semibold">
+                  {detail.name.charAt(0).toUpperCase()}
                 </div>
-                {popup.teacher.subject && (
-                  <span className="bg-primary/10 text-primary rounded-sm px-2 py-0.5 text-xs font-medium">
-                    {popup.teacher.subject}
+              )}
+              <div className="min-w-0">
+                <p className="text-lg font-semibold leading-tight">{detail.name}</p>
+                <p className="text-muted-foreground mt-1 text-sm">{detail.designation || '—'}</p>
+                {detail.subject && (
+                  <span className="bg-primary/10 text-primary mt-2 inline-block rounded-sm px-2 py-0.5 text-xs font-medium">
+                    {detail.subject}
                   </span>
                 )}
               </div>
-
-              {/* Info */}
-              <div className="space-y-1.5 px-5 py-4">
-                <p className="text-muted-foreground mb-2 text-xs font-semibold uppercase tracking-wider">
-                  Contact & Details
-                </p>
-                {[
-                  { label: 'Email', value: popup.teacher.email },
-                  { label: 'Phone', value: popup.teacher.phone },
-                  { label: 'Address', value: popup.teacher.address },
-                ]
-                  .filter(({ value }) => value)
-                  .map(({ label, value }) => (
-                    <div key={label} className="flex text-sm">
-                      <span className="text-muted-foreground w-28 shrink-0">{label}</span>
-                      <span className="font-medium">{value}</span>
-                    </div>
-                  ))}
-
-                {popup.teacher.signature && (
-                  <div className="flex pt-2 text-sm">
-                    <span className="text-muted-foreground w-28 shrink-0">Signature</span>
-                    <div className="h-12 overflow-hidden rounded-sm border bg-white p-1">
+            </div>
+            <dl className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2 text-sm">
+              {[
+                { label: 'Email', value: detail.email },
+                { label: 'Phone', value: detail.phone },
+                { label: 'Address', value: detail.address },
+              ]
+                .filter(({ value }) => value)
+                .map(({ label, value }) => (
+                  <React.Fragment key={label}>
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="break-words font-medium">{value}</dd>
+                  </React.Fragment>
+                ))}
+              {detail.signature && (
+                <>
+                  <dt className="text-muted-foreground">Signature</dt>
+                  <dd>
+                    <div className="h-12 w-fit overflow-hidden rounded-sm border bg-white p-1">
                       <img
-                        src={getFileUrl(popup.teacher.signature)}
+                        src={getFileUrl(detail.signature)}
                         alt="Signature"
                         className="h-full object-contain"
                       />
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="border-border flex justify-end border-t px-5 py-3">
-                <Button onClick={closePopup} variant="outline" type="button">
-                  Close
-                </Button>
-              </div>
-            </>
-          )}
+                  </dd>
+                </>
+              )}
+            </dl>
+          </div>
+          <div className="border-border flex flex-wrap items-center gap-2 border-t px-5 py-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeleteTarget(detail)}
+            >
+              <Trash2 /> Delete
+            </Button>
+            <Button type="button" className="ml-auto" onClick={() => openEdit(detail)}>
+              <Pencil /> Edit teacher
+            </Button>
+          </div>
         </Popup>
       )}
 
-      {bulkRotateOpen && (
-        <ConfirmationPopup
-          open={bulkRotateOpen}
-          onOpenChange={setBulkRotateOpen}
-          onConfirm={() => bulkRotateMutation.mutate(Array.from(selectedTeacherIds))}
-          title="Rotate Passwords"
-          msg={`Are you sure you want to rotate passwords for ${selectedTeacherIds.size} selected ${selectedTeacherIds.size === 1 ? 'teacher' : 'teachers'}? A new password will be generated for each and an Excel file will be downloaded, while also sending an email to the headmaster.`}
-          confirmLabel={bulkRotateMutation.isPending ? 'Generating...' : 'Yes, Rotate Passwords'}
-        />
-      )}
+      <Popup
+        open={formOpen}
+        onOpenChange={(o) => !o && !isSubmitting && closeForm()}
+        size="lg"
+        aria-labelledby="teacher-form-title"
+      >
+        <form onSubmit={rhfHandleSubmit(onValidSubmit)}>
+          <DialogHeader
+            id="teacher-form-title"
+            title={editing ? 'Edit teacher' : 'Add teacher'}
+            onClose={closeForm}
+          />
+
+          <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Name" required error={errors.name?.message}>
+                <Input type="text" placeholder="Enter teacher's name" {...register('name')} />
+              </Field>
+              <Field label="Email" required error={errors.email?.message}>
+                <Input type="email" placeholder="Enter teacher's email" {...register('email')} />
+              </Field>
+              <Field label="Phone" required error={errors.phone?.message}>
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="01XXXXXXXXX"
+                  maxLength={11}
+                  {...register('phone')}
+                />
+              </Field>
+              <Field label="Designation" required error={errors.designation?.message}>
+                <select className={filterSelectClassName} {...register('designation')}>
+                  <option value="">Select designation</option>
+                  {DESIGNATIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Address" error={errors.address?.message} className="sm:col-span-2">
+                <Input type="text" placeholder="Enter teacher's address" {...register('address')} />
+              </Field>
+            </div>
+
+            <ImagePicker
+              label="Photo"
+              file={image}
+              currentUrl={editing?.image}
+              thumbClassName="w-10 object-cover object-top"
+              onPick={setImage}
+              onRemoveCurrent={() => editing && removeImageMutation.mutate(editing.id)}
+              removing={removeImageMutation.isPending}
+            />
+            <ImagePicker
+              label="Signature"
+              file={signature}
+              currentUrl={editing?.signature}
+              thumbClassName="w-24 bg-white object-contain p-1"
+              onPick={setSignature}
+              onRemoveCurrent={() => editing && removeSignatureMutation.mutate(editing.id)}
+              removing={removeSignatureMutation.isPending}
+            />
+          </div>
+
+          <div className="border-border flex items-center justify-between gap-3 border-t px-5 py-3">
+            <p className="text-muted-foreground text-xs">
+              <span className="text-destructive">*</span> required
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={closeForm} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="animate-spin" />}
+                {editing ? 'Save changes' : 'Add teacher'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Popup>
     </div>
   );
 };
