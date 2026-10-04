@@ -1588,9 +1588,7 @@ const NewSubject: React.FC = () => {
               </div>
               <div>
                 <dt className="text-muted-foreground text-xs font-medium">Order</dt>
-                <dd className="mt-0.5 tabular-nums">
-                  {detail.priority ?? dash}
-                </dd>
+                <dd className="mt-0.5 tabular-nums">{detail.priority ?? dash}</dd>
               </div>
             </dl>
 
