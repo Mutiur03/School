@@ -83,6 +83,10 @@ model School {
   attendance_sheets        attendance_sheets[]
   exam_type_assignments    school_exam_types[]
   promotion_pass_rules     promotion_pass_rules[]
+  acc_heads                acc_heads[]
+  acc_cost_centers         acc_cost_centers[]
+  acc_vouchers             acc_vouchers[]
+  acc_voucher_lines        acc_voucher_lines[]
 
   @@index([name])
   @@index([subdomain])
@@ -122,6 +126,96 @@ model school_subscriptions {
   @@index([status])
   @@index([trial_ends_at])
   @@index([current_period_ends_at])
+}
+
+enum AccHeadType {
+  asset
+  liability
+  equity
+  income
+  expense
+}
+
+enum VoucherType {
+  receipt
+  payment
+  contra
+  journal
+}
+
+/// Chart of accounts. Income/expense categories, sub-categories and bank/cash accounts are all heads.
+model acc_heads {
+  id           Int                 @id @default(autoincrement())
+  school_id    Int                 @default(dbgenerated("app.current_school_id()"))
+  school       School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  code         String?             @db.VarChar(20)
+  name         String              @db.VarChar(150)
+  type         AccHeadType
+  parent_id    Int?
+  parent       acc_heads?          @relation("acc_head_tree", fields: [parent_id], references: [id], onDelete: Restrict)
+  children     acc_heads[]         @relation("acc_head_tree")
+  is_cash_bank Boolean             @default(false)
+  bank_name    String?             @db.VarChar(150)
+  account_no   String?             @db.VarChar(50)
+  is_active    Boolean             @default(true)
+  created_at   DateTime            @default(now())
+  updated_at   DateTime            @updatedAt
+  lines        acc_voucher_lines[]
+
+  @@unique([school_id, name])
+  @@index([school_id])
+  @@index([parent_id])
+}
+
+model acc_cost_centers {
+  id         Int                 @id @default(autoincrement())
+  school_id  Int                 @default(dbgenerated("app.current_school_id()"))
+  school     School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  name       String              @db.VarChar(150)
+  code       String?             @db.VarChar(20)
+  is_active  Boolean             @default(true)
+  created_at DateTime            @default(now())
+  updated_at DateTime            @updatedAt
+  lines      acc_voucher_lines[]
+
+  @@unique([school_id, name])
+  @@index([school_id])
+}
+
+model acc_vouchers {
+  id         Int                 @id @default(autoincrement())
+  school_id  Int                 @default(dbgenerated("app.current_school_id()"))
+  school     School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  type       VoucherType
+  date       DateTime            @db.Date
+  narration  String?             @db.Text
+  reference  String?             @db.VarChar(100)
+  created_by Int?
+  created_at DateTime            @default(now())
+  updated_at DateTime            @updatedAt
+  lines      acc_voucher_lines[]
+
+  @@index([school_id, date])
+  @@index([school_id, type])
+}
+
+model acc_voucher_lines {
+  id             Int               @id @default(autoincrement())
+  school_id      Int               @default(dbgenerated("app.current_school_id()"))
+  school         School            @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  voucher_id     Int
+  voucher        acc_vouchers      @relation(fields: [voucher_id], references: [id], onDelete: Cascade)
+  head_id        Int
+  head           acc_heads         @relation(fields: [head_id], references: [id], onDelete: Restrict)
+  cost_center_id Int?
+  cost_center    acc_cost_centers? @relation(fields: [cost_center_id], references: [id], onDelete: Restrict)
+  debit          Decimal           @default(0) @db.Decimal(12, 2)
+  credit         Decimal           @default(0) @db.Decimal(12, 2)
+  note           String?           @db.VarChar(255)
+
+  @@index([school_id, head_id])
+  @@index([voucher_id])
+  @@index([cost_center_id])
 }
 
 enum SetupTokenRole {

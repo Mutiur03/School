@@ -22,3 +22,4 @@ export * from './examSchemas.js';
 export * from './registrationLookupSchema.js';
 export * from './billingSchemas.js';
 export * from './testimonialSchemas.js';
+export * from './accountsSchemas.js';

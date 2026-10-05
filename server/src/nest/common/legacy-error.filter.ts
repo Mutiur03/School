@@ -6,6 +6,7 @@ import { errorHandler } from '@/middlewares/errorHandler.js';
 
 const PRISMA_HTTP: Record<string, () => HttpException> = {
   P2002: () => new ConflictException('A record with this information already exists'),
+  P2003: () => new ConflictException('Record is in use and cannot be removed'),
   P2025: () => new NotFoundException('Record not found'),
 };
 

@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server-accounts-db",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        "server",
+        "exec",
+        "node",
+        "--env-file=C:/Users/Mutiur/AppData/Local/Temp/claude/D--Projects-School/9f6f6ec7-7f13-4901-a5c6-9e32ab96216e/scratchpad/accounts.env",
+        "--import",
+        "./dist/instrument.js",
+        "dist/server.js"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "dashboard-admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-C", "dashboard", "dev:admin"],
+      "port": 5174,
+      "url": "http://acc1.localhost:5174"
+    }
+  ]
+}

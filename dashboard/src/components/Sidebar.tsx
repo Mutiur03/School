@@ -19,6 +19,7 @@ import {
   TreePalm,
   PartyPopper,
   Building2,
+  Landmark,
   ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
@@ -167,6 +168,39 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           label: 'Class Nine Registration',
           link: '/admin/registration/class-9',
           id: 'class-9-registration',
+        },
+      ],
+    },
+    {
+      label: 'Accounts',
+      icon: Landmark,
+      dropdown: true,
+      id: 'accounts',
+      roles: ['admin'],
+      items: [
+        { label: 'Account Heads', link: '/admin/accounts/heads', id: 'acc-heads' },
+        { label: 'Cost Centers', link: '/admin/accounts/cost-centers', id: 'acc-cost-centers' },
+        { label: 'Vouchers', link: '/admin/accounts/vouchers', id: 'acc-vouchers' },
+        { label: 'Ledger', link: '/admin/accounts/reports/ledger', id: 'acc-ledger' },
+        {
+          label: 'Trial Balance',
+          link: '/admin/accounts/reports/trial-balance',
+          id: 'acc-trial-balance',
+        },
+        {
+          label: 'Income vs Expense',
+          link: '/admin/accounts/reports/income-expense',
+          id: 'acc-income-expense',
+        },
+        {
+          label: 'Balance Sheet',
+          link: '/admin/accounts/reports/balance-sheet',
+          id: 'acc-balance-sheet',
+        },
+        {
+          label: 'Cost Center Report',
+          link: '/admin/accounts/reports/cost-center',
+          id: 'acc-cost-center-report',
         },
       ],
     },

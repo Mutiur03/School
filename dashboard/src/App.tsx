@@ -55,6 +55,14 @@ const SmsManagement = lazy(() => import('./pages/Admin/SmsManagement'));
 const Billing = lazy(() => import('./pages/Admin/Billing'));
 const Notice = lazy(() => import('./pages/Admin/Notice'));
 const Holidays = lazy(() => import('./pages/Admin/Holidays'));
+const AccountHeads = lazy(() => import('./pages/Admin/Accounts/AccountHeads'));
+const CostCenters = lazy(() => import('./pages/Admin/Accounts/CostCenters'));
+const Vouchers = lazy(() => import('./pages/Admin/Accounts/Vouchers'));
+const LedgerReport = lazy(() => import('./pages/Admin/Accounts/Reports/Ledger'));
+const TrialBalance = lazy(() => import('./pages/Admin/Accounts/Reports/TrialBalance'));
+const IncomeExpense = lazy(() => import('./pages/Admin/Accounts/Reports/IncomeExpense'));
+const BalanceSheet = lazy(() => import('./pages/Admin/Accounts/Reports/BalanceSheet'));
+const CostCenterReport = lazy(() => import('./pages/Admin/Accounts/Reports/CostCenterReport'));
 const Admission = lazy(() => import('./pages/Admin/Admission'));
 const AdmissionSettings = lazy(() => import('./pages/Admin/AdmissionSettings'));
 const AdmissionResult = lazy(() => import('./pages/Admin/AdmissionResult'));
@@ -100,6 +108,14 @@ registerRoutePrefetchers({
   '/admin/settings/billing': Billing,
   '/admin/notice': Notice,
   '/admin/holiday': Holidays,
+  '/admin/accounts/heads': AccountHeads,
+  '/admin/accounts/cost-centers': CostCenters,
+  '/admin/accounts/vouchers': Vouchers,
+  '/admin/accounts/reports/ledger': LedgerReport,
+  '/admin/accounts/reports/trial-balance': TrialBalance,
+  '/admin/accounts/reports/income-expense': IncomeExpense,
+  '/admin/accounts/reports/balance-sheet': BalanceSheet,
+  '/admin/accounts/reports/cost-center': CostCenterReport,
   '/admin/events': Events,
   '/admin/gallery/upload': Gallery,
   '/admin/gallery/pending': GalleryModeration,
@@ -453,6 +469,26 @@ function App() {
                               <Route path="/settings/billing" element={<Billing />} />
                               <Route path="/notice" element={<Notice />} />
                               <Route path="/holiday" element={<Holidays />} />
+                              <Route path="/accounts/heads" element={<AccountHeads />} />
+                              <Route path="/accounts/cost-centers" element={<CostCenters />} />
+                              <Route path="/accounts/vouchers" element={<Vouchers />} />
+                              <Route path="/accounts/reports/ledger" element={<LedgerReport />} />
+                              <Route
+                                path="/accounts/reports/trial-balance"
+                                element={<TrialBalance />}
+                              />
+                              <Route
+                                path="/accounts/reports/income-expense"
+                                element={<IncomeExpense />}
+                              />
+                              <Route
+                                path="/accounts/reports/balance-sheet"
+                                element={<BalanceSheet />}
+                              />
+                              <Route
+                                path="/accounts/reports/cost-center"
+                                element={<CostCenterReport />}
+                              />
                               <Route path="/admission/form" element={<Admission />} />
                               <Route path="/admission/settings" element={<AdmissionSettings />} />
                               <Route path="/admission/result" element={<AdmissionResult />} />

@@ -18,6 +18,10 @@ export const parseLocalDate = (s: string) => {
   return new Date(s);
 };
 
+/** Money with 2 decimals, Bangladeshi grouping (e.g. 1,23,456.00). */
+export const formatMoney = (n: number) =>
+  Number(n || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export const formatDay = (d: Date | string) =>
   (typeof d === 'string' ? parseLocalDate(d) : d).toLocaleDateString('en-GB', {
     day: 'numeric',

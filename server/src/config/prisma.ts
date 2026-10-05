@@ -86,6 +86,10 @@ if (!globalForPrisma.prisma) {
 }
 
 const TENANT_MODELS = new Set([
+  'acc_cost_centers',
+  'acc_heads',
+  'acc_voucher_lines',
+  'acc_vouchers',
   'admin',
   'admission',
   'admission_form',
