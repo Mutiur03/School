@@ -142,6 +142,7 @@ export class SchoolService {
         descriptions: true,
         academicProfile: true,
         seo: true,
+        promotionVersion: true,
       },
     });
 

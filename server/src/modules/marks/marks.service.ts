@@ -3,6 +3,7 @@ import { Prisma } from '@/generated/prisma/client.js';
 import { getRlsContext } from '@/config/rlsContextStore.js';
 import { getFileBuffer, headObjectEtag } from '@/config/r2.js';
 import logger from '@/utils/logger.js';
+import { ApiError } from '@/utils/ApiError.js';
 import PDFDocument from 'pdfkit';
 import { pdf } from 'pdf-to-img';
 import QRCode from 'qrcode';
@@ -10,6 +11,14 @@ import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
 import { VALID_GROUPS } from '@school/shared-schemas';
+import {
+  loadSessionResults,
+  type SessionResultRow,
+} from '@/nest/modules/promotion/session-results.js';
+import {
+  buildSessionTable,
+  drawSessionMarksheetBody as drawSessionBodyV1,
+} from '@/nest/modules/promotion/v1/session-marksheet.pdf.js';
 
 const PDF_STYLES = {
   startX: 50,
@@ -48,6 +57,27 @@ const SIGNATURE_BLOCK_HEIGHT = 88;
 const SIGNATURE_IMAGE_WIDTH = 60;
 
 const GROUPED_CLASSES = new Set([9, 10]);
+
+// Session marksheet body per school.promotionVersion (falls back to v1).
+const SESSION_MARKSHEET_BODIES = { v1: drawSessionBodyV1 };
+
+type SessionMarksheetPage = {
+  result: SessionResultRow;
+  previousExamName: string | null;
+  yearEndExamName: string;
+  resultDate: string | null;
+  returnDate: string | null;
+};
+
+type MarksheetSignatures = {
+  teacher?: Buffer | null;
+  teacherName?: string | null;
+  teacherPhone?: string | null;
+  head?: Buffer | null;
+  headName?: string | null;
+  headRole?: string | null;
+  schoolPhone?: string | null;
+};
 
 type ClassStatsSnapshot = {
   highestBySubject: Record<number, number>;
@@ -155,7 +185,7 @@ export class MarksService {
       select: { class: true, section: true },
     });
     if (!enrollment) {
-      throw new Error('Student not enrolled for this year');
+      throw new ApiError(404, 'Student not enrolled for this year');
     }
     const hasMarks = examName
       ? await prisma.marks.findFirst({
@@ -174,10 +204,10 @@ export class MarksService {
           select: { id: true },
         });
     if (!hasMarks) {
-      throw new Error('No marks found for this student');
+      throw new ApiError(404, 'No marks found for this student');
     }
     if (!this.checkAccess(user, studentId, enrollment.class, enrollment.section, yearInt)) {
-      throw new Error('You are not authorized to download this marksheet');
+      throw new ApiError(403, 'You are not authorized to download this marksheet');
     }
     if (examName && user?.role === 'student') {
       await this.assertStudentPublishedExam(examName, yearInt);
@@ -1043,61 +1073,144 @@ export class MarksService {
       throw new Error("You are not authorized to view this student's marks");
     }
 
-    const marks = await prisma.marks.findMany({
-      where: {
-        enrollment: { student_id: sId, year: yearInt },
-      },
-      include: {
-        enrollment: {
-          include: { student: { select: { name: true } } },
-        },
-        subject: { select: { name: true, priority: true } },
-        exam: { select: { exam_name: true, is_year_end: true } },
-      },
+    const { pages } = await this.loadSessionMarksheetPages(yearInt, {
+      classLevel: enrollment.class,
+      enrollmentIds: [enrollment.id],
     });
+    const page = pages[0];
+    if (!page) return null;
+    const r = page.result;
+    return {
+      student: {
+        name: r.studentName,
+        class: r.classLevel,
+        section: r.section,
+        roll: r.roll,
+        group: r.group,
+        year: yearInt,
+      },
+      previous_exam_name: page.previousExamName,
+      year_end_exam_name: page.yearEndExamName,
+      ...buildSessionTable(r),
+      grand_total: r.grandTotal,
+      gpa: r.gpa,
+      is_failed: r.isFailed,
+      fail_count: r.failCount,
+      position: r.position,
+    };
+  }
 
-    if (marks.length === 0) return [];
-
-    const grouped: any[] = [];
-    const subjects: Record<string, any> = {};
-    const totalMarksPerExam: Record<string, number> = {};
-    const yearEndExamName = marks.find((mark) => mark.exam.is_year_end)?.exam.exam_name ?? null;
-
-    marks.forEach((mark: any) => {
-      const subjectName = mark.subject.parent?.name || mark.subject.name;
-
-      if (!subjects[subjectName]) {
-        subjects[subjectName] = {
-          student_name: mark.enrollment.student.name,
-          roll: mark.enrollment.roll,
-          class: mark.enrollment.class,
-          section: mark.enrollment.section,
-          year: mark.enrollment.year,
-          subject: subjectName,
-          exam_marks: {},
-          exam_breakdowns: {},
-          priority: mark.subject.priority,
-          final_merit: enrollment.final_merit,
-          year_end_exam_name: yearEndExamName,
+  /**
+   * Session marksheet pages (previous + year-end exam combined) for a year.
+   * Students without any entered marks, or in classes without a year-end exam, are skipped.
+   */
+  private static async loadSessionMarksheetPages(
+    year: number,
+    opts: { classLevel?: number; enrollmentIds?: number[] } = {},
+  ): Promise<{ version: string; pages: SessionMarksheetPage[] }> {
+    const schoolId = getRlsContext()?.schoolId;
+    if (!schoolId) throw new Error('School context missing for session marksheet');
+    const { version, results } = await loadSessionResults(prisma, schoolId, year, opts);
+    const withMarks = results.filter((r) =>
+      r.subjects.some((s) => s.yearEnd.marks != null || s.previous?.marks != null),
+    );
+    const examIds = [
+      ...new Set(withMarks.flatMap((r) => [r.yearEndExamId, r.previousExamId ?? r.yearEndExamId])),
+    ];
+    const exams = await prisma.exams.findMany({
+      where: { id: { in: examIds } },
+      select: { id: true, exam_name: true, result_date: true, return_date: true },
+    });
+    const byId = new Map(exams.map((e) => [e.id, e]));
+    const pages = withMarks
+      .map((result) => {
+        const yearEnd = byId.get(result.yearEndExamId);
+        return {
+          result,
+          previousExamName:
+            result.previousExamId != null
+              ? (byId.get(result.previousExamId)?.exam_name ?? null)
+              : null,
+          yearEndExamName: yearEnd?.exam_name ?? 'Annual Examination',
+          resultDate: yearEnd?.result_date ?? null,
+          returnDate: yearEnd?.return_date ?? null,
         };
-        grouped.push(subjects[subjectName]);
+      })
+      .sort(
+        (a, b) =>
+          a.result.classLevel - b.result.classLevel ||
+          a.result.section.localeCompare(b.result.section) ||
+          a.result.roll - b.result.roll,
+      );
+    return { version, pages };
+  }
+
+  /** One A4 page per session result, drawn with the school's promotion-version body. */
+  private static async renderSessionMarksheetsPDF(
+    year: number,
+    version: string,
+    pages: SessionMarksheetPage[],
+    signaturesFor: (page: SessionMarksheetPage) => Promise<MarksheetSignatures>,
+    schoolMeta: Awaited<ReturnType<typeof MarksService.getSchoolMarksheetMeta>>,
+    logoBuffer: Buffer | null,
+  ): Promise<Buffer> {
+    const drawBody =
+      SESSION_MARKSHEET_BODIES[version as keyof typeof SESSION_MARKSHEET_BODIES] ??
+      SESSION_MARKSHEET_BODIES.v1;
+    const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 });
+    this.registerMarksheetFonts(doc);
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const done = new Promise<Buffer>((resolve) =>
+      doc.on('end', () => resolve(Buffer.concat(chunks))),
+    );
+
+    for (const [i, page] of pages.entries()) {
+      if (i > 0) doc.addPage();
+      const r = page.result;
+      const student = {
+        name: r.studentName,
+        class: r.classLevel,
+        section: r.section,
+        roll: r.roll,
+        year,
+      };
+      const notes: string[] = [];
+      const published = formatMarksheetDate(page.resultDate);
+      if (published) notes.push(`Date of result published: ${published}.`);
+      const returnBy = formatMarksheetDate(page.returnDate);
+      if (returnBy) {
+        notes.push(
+          `This academic transcript (mark sheet) must be returned by ${returnBy}.`,
+          'Please contact the class teacher for any corrections.',
+        );
       }
 
-      const examName = mark.exam.exam_name;
-      const mVal = mark.marks ?? 0;
-      subjects[subjectName].exam_marks[examName] =
-        (subjects[subjectName].exam_marks[examName] || 0) + mVal;
-
-      totalMarksPerExam[examName] = (totalMarksPerExam[examName] || 0) + mVal;
-    });
-
-    // Add totals to every entry for the frontend to consume
-    grouped.forEach((entry) => {
-      entry.total_marks_per_exam = totalMarksPerExam;
-      entry.year_end_exam_name = yearEndExamName;
-    });
-
-    return grouped.sort((a, b) => a.priority - b.priority);
+      this.drawProperBackground(doc);
+      await this.drawWatermark(doc, logoBuffer);
+      this.drawGradingSystemTable(doc, 425, 75);
+      await this.drawProperHeader(
+        doc,
+        { exam: page.yearEndExamName, year },
+        schoolMeta,
+        this.buildMarksQrText({ ...student, name: `${student.name} (Position ${r.position})` }, [
+          {
+            exam: 'Session Result',
+            rows: r.subjects.map((s) => ({ subject: s.name, marks: s.combined })),
+          },
+        ]),
+      );
+      const endY = drawBody(doc, {
+        student,
+        result: r,
+        previousExamName: page.previousExamName,
+        yearEndExamName: page.yearEndExamName,
+        notes,
+      });
+      this.drawSignatures(doc, await signaturesFor(page), endY);
+    }
+    doc.end();
+    return done;
   }
 
   /** Subjects that appear as marksheet rows (papers + singles; not main parents). */
@@ -1348,7 +1461,9 @@ export class MarksService {
             parent: { select: { name: true } },
           },
         },
-        exam: { select: { exam_name: true, result_date: true, return_date: true } },
+        exam: {
+          select: { exam_name: true, result_date: true, return_date: true, is_year_end: true },
+        },
       },
     });
     if (result.length === 0 || !result.some((m) => m.marks !== null)) {
@@ -1497,6 +1612,44 @@ export class MarksService {
     const usedTeacherId = teacherRec?.id ?? null;
     const usedHeadId = headRec?.id ?? null;
     const usedHeadRole = headRec?.role ?? null;
+    const signatures: MarksheetSignatures = {
+      teacher: teacherSignature,
+      teacherName,
+      teacherPhone,
+      head: headSignature,
+      headName,
+      headRole,
+      schoolPhone,
+    };
+    const used = {
+      studentName,
+      usedHeadId,
+      usedHeadRole,
+      usedTeacherId,
+      usedHeadName: headName,
+      usedHeadSignature: headRec?.signature ?? null,
+      usedTeacherName: teacherName,
+      usedTeacherSignature: teacherRec?.signature ?? null,
+      usedTeacherPhone: teacherPhone,
+    };
+
+    // Year-end exam: no separate sheet — it is the session marksheet (previous + year-end).
+    if (result[0].exam?.is_year_end) {
+      const { version, pages } = await this.loadSessionMarksheetPages(yearInt, {
+        classLevel: studentClass,
+        enrollmentIds: [enrollment.id],
+      });
+      if (!pages.length) throw new Error('No marks found for this student');
+      const buffer = await this.renderSessionMarksheetsPDF(
+        yearInt,
+        version,
+        pages,
+        async () => signatures,
+        schoolMeta,
+        logoBuffer,
+      );
+      return { buffer: await this.finalizeMarksheetBuffer(buffer), ...used };
+    }
 
     const resolvedStats = await this.resolveStudentClassStats(
       prisma,
@@ -1534,484 +1687,71 @@ export class MarksService {
     const buffer = await this.renderStudentReportPDF(
       studentDetails,
       finalTableData,
-      {
-        teacher: teacherSignature,
-        teacherName,
-        teacherPhone,
-        head: headSignature,
-        headName,
-        headRole,
-        schoolPhone,
-      },
+      signatures,
       schoolMeta,
       logoBuffer,
     );
-    return {
-      buffer: await this.finalizeMarksheetBuffer(buffer),
-      studentName,
-      usedHeadId,
-      usedHeadRole,
-      usedTeacherId,
-      usedHeadName: headName,
-      usedHeadSignature: headRec?.signature ?? null,
-      usedTeacherName: teacherName,
-      usedTeacherSignature: teacherRec?.signature ?? null,
-      usedTeacherPhone: teacherPhone,
-    };
+    return { buffer: await this.finalizeMarksheetBuffer(buffer), ...used };
   }
 
-  static async generateAllMarksheetsPDF(
-    year: string,
-    studentId?: string,
-    className?: string,
-    examName?: string,
-  ) {
+  /** Session marksheet(s): one page per student, previous + year-end exams combined. */
+  static async generateAllMarksheetsPDF(year: string, studentId?: string) {
     const yearInt = parseInt(year);
-    const marks = await prisma.marks.findMany({
-      where: {
-        enrollment: {
-          year: yearInt,
-          ...(studentId ? { student_id: parseInt(studentId) } : {}),
-          ...(className ? { class: parseInt(className) } : {}),
-        },
-        ...(examName ? { exam: { exam_name: examName } } : {}),
-      },
-      include: {
-        enrollment: {
-          include: { student: { select: { id: true, name: true } } },
-        },
-        subject: {
-          select: {
-            id: true,
-            name: true,
-            priority: true,
-            assessment_type: true,
-            full_mark: true,
-            pass_mark: true,
-            cq_mark: true,
-            mcq_mark: true,
-            practical_mark: true,
-            cq_pass_mark: true,
-            mcq_pass_mark: true,
-            practical_pass_mark: true,
-            marking_scheme: true,
-            subject_type: true,
-            parent_id: true,
-            parent: { select: { name: true } },
-          },
-        },
-        exam: {
-          select: {
-            id: true,
-            exam_name: true,
-            result_date: true,
-            return_date: true,
-          },
-        },
-      },
-      orderBy: {
-        subject: {
-          priority: 'asc',
-        },
-      },
-    });
-
-    if (marks.length === 0) throw new Error('No marks found');
-
-    const classesAffected = Array.from(new Set(marks.map((m) => m.enrollment.class)));
-    const examIds = Array.from(new Set(marks.map((m) => m.exam_id)));
-
-    // Highest-per-subject and class-highest-total are read from the
-    // exam_class_stats cache (per exam+class). Class 9/10 use group-scoped
-    // stats (Science / Commerce / Humanities); other classes stay class-wide.
-    const highestMarksMap: Record<string, Record<number, number>> = {};
-    const highestMarksMapByGroup: Record<string, Record<string, Record<number, number>>> = {};
-    const classHighestTotalByExam: Record<string, number> = {};
-    const classHighestGrandTotalByExam: Record<string, number> = {};
-    const classHighestTotalByExamAndGroup: Record<string, Record<string, number>> = {};
-    const classHighestGrandTotalByExamAndGroup: Record<string, Record<string, number>> = {};
-
-    const mergeStats = (
-      examLabel: string,
-      highestBySubject: Record<string, number>,
-      classHighestTotal: number,
-      classHighestGrandTotal: number,
-    ) => {
-      if (!highestMarksMap[examLabel]) highestMarksMap[examLabel] = {};
-      for (const [sid, val] of Object.entries(highestBySubject)) {
-        const subjId = Number(sid);
-        const v = Number(val || 0);
-        if (!highestMarksMap[examLabel][subjId] || v > highestMarksMap[examLabel][subjId]) {
-          highestMarksMap[examLabel][subjId] = v;
-        }
-      }
-      if (
-        !classHighestTotalByExam[examLabel] ||
-        classHighestTotal > classHighestTotalByExam[examLabel]
-      ) {
-        classHighestTotalByExam[examLabel] = classHighestTotal;
-      }
-      if (
-        !classHighestGrandTotalByExam[examLabel] ||
-        classHighestGrandTotal > classHighestGrandTotalByExam[examLabel]
-      ) {
-        classHighestGrandTotalByExam[examLabel] = classHighestGrandTotal;
-      }
-    };
-
-    const mergeGroupStats = (examLabel: string, groupName: string, stats: ClassStatsSnapshot) => {
-      if (!highestMarksMapByGroup[examLabel]) {
-        highestMarksMapByGroup[examLabel] = {};
-      }
-      if (!highestMarksMapByGroup[examLabel][groupName]) {
-        highestMarksMapByGroup[examLabel][groupName] = {};
-      }
-      for (const [sid, val] of Object.entries(stats.highestBySubject)) {
-        const subjId = Number(sid);
-        const v = Number(val || 0);
-        const bucket = highestMarksMapByGroup[examLabel][groupName];
-        if (!bucket[subjId] || v > bucket[subjId]) {
-          bucket[subjId] = v;
-        }
-      }
-      if (!classHighestTotalByExamAndGroup[examLabel]) {
-        classHighestTotalByExamAndGroup[examLabel] = {};
-      }
-      classHighestTotalByExamAndGroup[examLabel][groupName] = stats.classHighestTotal;
-      if (!classHighestGrandTotalByExamAndGroup[examLabel]) {
-        classHighestGrandTotalByExamAndGroup[examLabel] = {};
-      }
-      classHighestGrandTotalByExamAndGroup[examLabel][groupName] = stats.classHighestGrandTotal;
-    };
-
-    const statsRows = await prisma.exam_class_stats.findMany({
-      where: {
-        exam_id: { in: examIds },
-        class: { in: classesAffected },
-        year: yearInt,
-      },
-      include: { exam: { select: { exam_name: true } } },
-    });
-    for (const row of statsRows) {
-      if (this.isGroupedClass(row.class)) {
-        const byGroup = row.stats_by_group as StatsByGroup | null;
-        if (byGroup && Object.keys(byGroup).length > 0) {
-          for (const [groupName, gStats] of Object.entries(byGroup)) {
-            mergeGroupStats(row.exam.exam_name, groupName, gStats);
-          }
-        } else {
-          const grouped = await this.computeGroupedClassStatsAll(
-            prisma,
-            row.exam_id,
-            row.class,
-            yearInt,
-          );
-          for (const [groupName, gStats] of Object.entries(grouped.byGroup)) {
-            mergeGroupStats(row.exam.exam_name, groupName, gStats);
-          }
-        }
-      } else {
-        mergeStats(
-          row.exam.exam_name,
-          (row.highest_by_subject as Record<string, number>) ?? {},
-          row.class_highest_total ?? 0,
-          row.class_highest_grand_total ?? 0,
-        );
-      }
+    let scope: { classLevel?: number; enrollmentIds?: number[] } = {};
+    if (studentId) {
+      const en = await prisma.student_enrollments.findFirst({
+        where: { student_id: parseInt(studentId), year: yearInt },
+        select: { id: true, class: true },
+      });
+      if (!en) throw new Error('No marks found');
+      scope = { classLevel: en.class, enrollmentIds: [en.id] };
     }
+    const { version, pages } = await this.loadSessionMarksheetPages(yearInt, scope);
+    if (pages.length === 0) throw new Error('No marks found');
 
-    // Lazy fallback: fill any (exam, class) combo present in the data but
-    // missing from the cache (marks predate this feature).
-    const combos = new Map<string, { examId: number; klass: number; examName: string }>();
-    for (const m of marks) {
-      const key = `${m.exam_id}_${m.enrollment.class}`;
-      if (!combos.has(key)) {
-        combos.set(key, {
-          examId: m.exam_id,
-          klass: m.enrollment.class,
-          examName: m.exam.exam_name,
-        });
-      }
-    }
-    const present = new Set(statsRows.map((r) => `${r.exam_id}_${r.class}`));
-    for (const c of combos.values()) {
-      if (present.has(`${c.examId}_${c.klass}`)) continue;
-      if (this.isGroupedClass(c.klass)) {
-        const grouped = await this.computeGroupedClassStatsAll(prisma, c.examId, c.klass, yearInt);
-        for (const [groupName, gStats] of Object.entries(grouped.byGroup)) {
-          mergeGroupStats(c.examName, groupName, gStats);
-        }
-      } else {
-        const s = await this.computeStats(prisma, c.examId, c.klass, yearInt);
-        mergeStats(
-          c.examName,
-          s.highestBySubject as Record<string, number>,
-          s.classHighestTotal,
-          s.classHighestGrandTotal,
-        );
-      }
-    }
-
-    const studentGrouped: Record<number, Record<string, any[]>> = {};
-    const studentInfoMap: Record<number, any> = {};
-    const resultDateByExam: Record<string, string | null> = {};
-    const returnDateByExam: Record<string, string | null> = {};
-
-    marks.forEach((m) => {
-      const sid = m.enrollment.student_id;
-      const en = m.exam.exam_name;
-      if (!studentGrouped[sid]) studentGrouped[sid] = {};
-      if (!studentGrouped[sid][en]) studentGrouped[sid][en] = [];
-      studentGrouped[sid][en].push(m);
-
-      if (!(en in resultDateByExam)) {
-        resultDateByExam[en] = m.exam?.result_date ?? null;
-        returnDateByExam[en] = m.exam?.return_date ?? null;
-      }
-
-      if (!studentInfoMap[sid]) {
-        studentInfoMap[sid] = {
-          name: m.enrollment.student.name,
-          class: m.enrollment.class,
-          section: m.enrollment.section,
-          roll: m.enrollment.roll,
-          year: m.enrollment.year,
-          group: m.enrollment.group,
-          fourth_subject_id: m.enrollment.fourth_subject_id,
-        };
-      }
-    });
-
-    const subjectsByClass = new Map<
-      number,
-      Awaited<ReturnType<typeof MarksService.loadMarksheetSubjects>>
-    >();
-    await Promise.all(
-      classesAffected.map(async (cls) => {
-        subjectsByClass.set(cls, await this.loadMarksheetSubjects(cls, yearInt));
-      }),
-    );
-
-    const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 });
-    this.registerMarksheetFonts(doc);
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-
-    const buffer = await new Promise<Buffer>(async (resolve) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-
-      const [headMsg, schoolMeta] = await Promise.all([
-        this.getHeadMsgForMarks(),
-        this.getSchoolMarksheetMeta(),
-      ]);
-      const schoolPhone = schoolMeta.phone;
-      const logoBuffer = schoolMeta.logoKey ? await getFileBuffer(schoolMeta.logoKey) : null;
-      const headSignature = headMsg?.teacher?.signature
-        ? await getFileBuffer(headMsg.teacher.signature)
-        : null;
-      const headName = headMsg?.teacher?.name ?? null;
-      const headRole = headMsg?.head_role ?? 'Headmaster';
-      const teacherSigs: Record<
-        string,
-        { signature: Buffer | null; name: string | null; phone: string | null }
-      > = {};
-
-      const studentIdsOrdered = Object.keys(studentGrouped)
-        .map(Number)
-        .sort((a, b) => {
-          const sa = studentInfoMap[a];
-          const sb = studentInfoMap[b];
-          const sectionCmp = String(sa.section ?? '').localeCompare(String(sb.section ?? ''));
-          if (sectionCmp !== 0) return sectionCmp;
-          if (sa.roll !== sb.roll) return sa.roll - sb.roll;
-          return sa.name.localeCompare(sb.name);
-        });
-
-      for (let i = 0; i < studentIdsOrdered.length; i++) {
-        const sid = studentIdsOrdered[i];
-        if (i > 0) doc.addPage();
-
-        const info = studentInfoMap[sid];
-        const exams = Object.keys(studentGrouped[sid]);
-        const studentGroup = this.normalizeStudentGroup(info.group);
-        const isGroupedStudent = this.isGroupedClass(info.class);
-        const highestMarkForSubject = (examLabel: string, subjectId: number) => {
-          if (isGroupedStudent && studentGroup) {
-            return highestMarksMapByGroup[examLabel]?.[studentGroup]?.[subjectId] || 0;
-          }
-          return highestMarksMap[examLabel]?.[subjectId] || 0;
-        };
-        const classHighestTotalForExam = (examLabel: string) => {
-          if (isGroupedStudent && studentGroup) {
-            return classHighestTotalByExamAndGroup[examLabel]?.[studentGroup] || 0;
-          }
-          return classHighestTotalByExam[examLabel] || 0;
-        };
-        const classHighestGrandTotalForExam = (examLabel: string) => {
-          if (isGroupedStudent && studentGroup) {
-            return classHighestGrandTotalByExamAndGroup[examLabel]?.[studentGroup] || 0;
-          }
-          return classHighestGrandTotalByExam[examLabel] || 0;
-        };
-
-        const sigKey = `${info.class}_${info.section}_${info.year}`;
-        if (!(sigKey in teacherSigs)) {
-          const lv = await prisma.levels.findFirst({
-            where: {
-              class_name: info.class,
-              section: info.section,
-              year: info.year,
-            },
-            include: { teacher: true },
-          });
-          teacherSigs[sigKey] = {
-            signature: lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null,
-            name: lv?.teacher?.name ?? null,
-            phone: lv?.teacher?.phone ?? null,
-          };
-        }
-        const teacherSignature = teacherSigs[sigKey].signature;
-        const teacherName = teacherSigs[sigKey].name;
-        const teacherPhone = teacherSigs[sigKey].phone;
-
-        // Draw page shell
-        const classSubjects = subjectsByClass.get(info.class) || [];
-        const allExamsTableData = exams.map((en) => {
-          const raw = studentGrouped[sid][en] || [];
-          const filled = this.fillMissingSubjectMarks(raw, classSubjects, info.group, {
-            enrollment_id: raw[0]?.enrollment_id,
-            exam_id: raw[0]?.exam_id,
-            enrollment: raw[0]?.enrollment,
-            exam: raw[0]?.exam,
-          });
-          return {
-            exam: en,
-            rows: this.aggregatePaperMarks(
-              filled.map((m: any) => ({
-                ...m,
-                highest_mark: highestMarkForSubject(en, m.subject_id),
-              })),
-            ),
-          };
-        });
-        const consolidatedQrText = this.buildMarksQrText(info, allExamsTableData);
-
-        const drawPageHeader = async (examDisplayName: string) => {
-          this.drawProperBackground(doc);
-          await this.drawWatermark(doc, logoBuffer);
-          this.drawGradingSystemTable(doc, 425, 75);
-          await this.drawProperHeader(
-            doc,
-            { ...info, exam: examDisplayName },
-            schoolMeta,
-            consolidatedQrText,
-          );
-          this.drawProperStudentInfo(doc, info);
-        };
-
-        await drawPageHeader('Consolidated Report');
-        doc.y = 230;
-
-        for (let j = 0; j < exams.length; j++) {
-          const examName = exams[j];
-          const rawMarks = studentGrouped[sid][examName] || [];
-          const studentMarks = this.fillMissingSubjectMarks(rawMarks, classSubjects, info.group, {
-            enrollment_id: rawMarks[0]?.enrollment_id,
-            exam_id: rawMarks[0]?.exam_id,
-            enrollment: rawMarks[0]?.enrollment,
-            exam: rawMarks[0]?.exam,
-          });
-
-          const finalTableData = this.aggregatePaperMarks(
-            studentMarks.map((m) => ({
-              ...m,
-              highest_mark: highestMarkForSubject(examName, m.subject_id),
-            })),
-          );
-
-          // Check for space before rendering this exam's table
-          const estimatedHeight = 50 + finalTableData.length * 20 + 40; // title + table + summary
-          if (doc.y + estimatedHeight > 750) {
-            doc.addPage();
-            await drawPageHeader('Consolidated Report (Contd.)');
-            doc.y = 230;
-          }
-
-          const sX = PDF_STYLES.startX;
-          const cW = PDF_STYLES.contentWidth;
-          doc.x = sX;
-          doc.moveDown(0.5);
-          doc
-            .fillColor('#000000')
-            .font('Times-Bold')
-            .fontSize(12)
-            .text(`EXAM: ${examName.toUpperCase()}`, {
-              align: 'center',
-              width: cW,
-              underline: true,
+    const [headMsg, schoolMeta] = await Promise.all([
+      this.getHeadMsgForMarks(),
+      this.getSchoolMarksheetMeta(),
+    ]);
+    const [logoBuffer, headSignature] = await Promise.all([
+      schoolMeta.logoKey ? getFileBuffer(schoolMeta.logoKey) : null,
+      headMsg?.teacher?.signature ? getFileBuffer(headMsg.teacher.signature) : null,
+    ]);
+    const teacherSigs = new Map<string, Promise<MarksheetSignatures>>();
+    const signaturesFor = (page: SessionMarksheetPage) => {
+      const { classLevel, section } = page.result;
+      const key = `${classLevel}_${section}`;
+      if (!teacherSigs.has(key)) {
+        teacherSigs.set(
+          key,
+          (async () => {
+            const lv = await prisma.levels.findFirst({
+              where: { class_name: classLevel, section, year: yearInt },
+              include: { teacher: true },
             });
-          doc.moveDown(0.3);
-
-          const headers = this.useBreakdownLayout(info.class, finalTableData)
-            ? [
-                'Name of Subjects',
-                'CQ',
-                'MCQ',
-                'PRAC',
-                'Total',
-                'Letter Grade',
-                'Grade Point',
-                'Highest Marks',
-              ]
-            : [
-                'Name of Subjects',
-                'Obtained Marks',
-                'Total',
-                'Letter Grade',
-                'Grade Point',
-                'Highest Marks',
-              ];
-
-          const { y: tableY, colWidths } = this.drawProperTable(
-            doc,
-            doc.y,
-            headers,
-            finalTableData,
-            info.class,
-            classHighestTotalForExam(examName),
-          );
-          const summaryY = await this.drawSummary(
-            doc,
-            tableY,
-            finalTableData,
-            info.class,
-            classHighestTotalForExam(examName),
-            info.fourth_subject_id,
-            info.year,
-            colWidths,
-            resultDateByExam[examName] ?? null,
-            classHighestGrandTotalForExam(examName),
-            returnDateByExam[examName] ?? null,
-          );
-          doc.y = summaryY;
-        }
-
-        this.drawSignatures(
-          doc,
-          {
-            teacher: teacherSignature,
-            teacherName,
-            teacherPhone,
-            head: headSignature,
-            headName,
-            headRole,
-            schoolPhone,
-          },
-          doc.y,
+            return {
+              teacher: lv?.teacher?.signature ? await getFileBuffer(lv.teacher.signature) : null,
+              teacherName: lv?.teacher?.name ?? null,
+              teacherPhone: lv?.teacher?.phone ?? null,
+              head: headSignature,
+              headName: headMsg?.teacher?.name ?? null,
+              headRole: headMsg?.head_role ?? 'Headmaster',
+              schoolPhone: schoolMeta.phone,
+            };
+          })(),
         );
       }
-      doc.end();
-    });
+      return teacherSigs.get(key)!;
+    };
+
+    const buffer = await this.renderSessionMarksheetsPDF(
+      yearInt,
+      version,
+      pages,
+      signaturesFor,
+      schoolMeta,
+      logoBuffer,
+    );
     return this.finalizeMarksheetBuffer(buffer);
   }
 
@@ -2716,6 +2456,7 @@ export class MarksService {
 
   /** Header/watermark fields drawn on every marksheet page. */
   private static async getSchoolMarksheetMeta(): Promise<{
+    ownership: string | null;
     name: string | null;
     location: string | null;
     eiin: string | null;
@@ -2725,6 +2466,7 @@ export class MarksService {
     logoEtag: string | null;
   }> {
     const empty = {
+      ownership: null,
       name: null,
       location: null,
       eiin: null,
@@ -2741,7 +2483,7 @@ export class MarksService {
         name: true,
         upazila: true,
         district: true,
-        address: true,
+        ownership: true,
         eiin: true,
         customDomain: true,
         phone: true,
@@ -2755,8 +2497,10 @@ export class MarksService {
       .join(', ');
     const logoKey = school.logo || null;
     return {
+      ownership: school.ownership ?? null,
       name: school.name?.trim() || null,
-      location: place || school.address?.trim() || null,
+      // AGENTS.md: marksheet headers show upazila, district only — never school.address.
+      location: place || null,
       eiin: school.eiin?.trim() || null,
       website: this.normalizeSchoolWebsite(school.customDomain),
       phone: school.phone?.trim() || null,
@@ -2804,6 +2548,7 @@ export class MarksService {
     doc: any,
     exam?: any,
     school?: {
+      ownership?: string | null;
       name?: string | null;
       location?: string | null;
       eiin?: string | null;
@@ -2822,14 +2567,16 @@ export class MarksService {
     const pageHeaderX = PDF_STYLES.startX;
     const pageHeaderWidth = PDF_STYLES.contentWidth;
 
-    // Top line spans full page — above side widgets
-    doc
-      .font('Times-Bold')
-      .fontSize(10)
-      .text("Government of the People's Republic of Bangladesh", pageHeaderX, 40, {
-        align: 'center',
-        width: pageHeaderWidth,
-      });
+    // Top line spans full page — above side widgets. Government schools only (AGENTS.md).
+    if (school?.ownership === 'Government') {
+      doc
+        .font('Times-Bold')
+        .fontSize(10)
+        .text("Government of the People's Republic of Bangladesh", pageHeaderX, 40, {
+          align: 'center',
+          width: pageHeaderWidth,
+        });
+    }
 
     const schoolName = school?.name?.trim() || 'School Name';
     const maxWidth = pageHeaderWidth - 4;

@@ -11,6 +11,7 @@ import {
 } from '@/config/r2.js';
 import { getRlsContext, runWithRlsContext } from '@/config/rlsContextStore.js';
 import logger from '@/utils/logger.js';
+import { ApiError } from '@/utils/ApiError.js';
 import { MarksService } from './marks.service.js';
 import { mergeMarksheetPdfs } from './marksheet-bundle-merge.js';
 import {
@@ -46,7 +47,7 @@ import { isExamFrozen } from '@/modules/exam/exam-year-end.js';
  * Frozen exams pin `snapshot_design_version` at generation — same rule as
  * head/class-teacher: finalized PDFs keep the design that signed them.
  */
-export const MARKSHEET_DESIGN_VERSION = '14';
+export const MARKSHEET_DESIGN_VERSION = '15';
 
 /**
  * Bundle assemble aborts for a class with nothing to merge — no enrollments, or
@@ -572,8 +573,10 @@ export class MarksheetService {
     p: string | null;
     logo: string | null;
     logov: string | null;
+    own: string | null;
   }> {
     const empty = {
+      own: null,
       n: null,
       loc: null,
       eiin: null,
@@ -589,7 +592,7 @@ export class MarksheetService {
         name: true,
         upazila: true,
         district: true,
-        address: true,
+        ownership: true,
         eiin: true,
         customDomain: true,
         phone: true,
@@ -620,7 +623,8 @@ export class MarksheetService {
     const logo = school.logo || null;
     return {
       n: school.name?.trim() || null,
-      loc: place || school.address?.trim() || null,
+      own: school.ownership ?? null,
+      loc: place || null,
       eiin: school.eiin?.trim() || null,
       w,
       p: school.phone?.trim() || null,
@@ -826,6 +830,7 @@ export class MarksheetService {
           return_date: true,
           school_id: true,
           visible: true,
+          is_year_end: true,
         },
       }),
     ]);
@@ -854,9 +859,30 @@ export class MarksheetService {
       (snapRow.snapshot_head_id != null || snapRow.snapshot_teacher_id != null);
     const useFrozenDetail = useSnapshot && !!signatoryDetail;
 
-    const [markAgg, stats, head, classTeacher, school] = await Promise.all([
+    // Year-end/session sheets depend on the class pass rule and the school's promotion engine.
+    const sessionRules =
+      exam?.is_year_end && enrollment && schoolId
+        ? Promise.all([
+            prisma.promotion_pass_rules.findUnique({
+              where: {
+                school_id_year_class: { school_id: schoolId, year, class: enrollment.class },
+              },
+              select: { max_failed: true },
+            }),
+            prisma.school.findUnique({
+              where: { id: schoolId },
+              select: { promotionVersion: true },
+            }),
+          ])
+        : Promise.resolve(null);
+
+    const [markAgg, stats, head, classTeacher, school, rules] = await Promise.all([
       prisma.marks.aggregate({
-        where: { exam_id: examId, enrollment: { student_id: studentId, year } },
+        // Year-end sheet = session sheet: previous exam + class-wide position, so any class mark counts.
+        where:
+          exam?.is_year_end && enrollment
+            ? { enrollment: { class: enrollment.class, year } }
+            : { exam_id: examId, enrollment: { student_id: studentId, year } },
         _max: { updated_at: true },
         _count: { _all: true },
       }),
@@ -895,9 +921,12 @@ export class MarksheetService {
             : this.classTeacherFingerprint(enrollment.class, year, [enrollment.section])
         : Promise.resolve([]),
       this.schoolFingerprintForExam(enrollment?.school_id ?? exam?.school_id ?? null, exam),
+      sessionRules,
     ]);
 
     const fingerprint = JSON.stringify({
+      pr: rules ? (rules[0]?.max_failed ?? 0) : null,
+      pv: rules ? (rules[1]?.promotionVersion ?? null) : null,
       n: markAgg._count?._all ?? 0,
       m: isoStamp(markAgg._max?.updated_at),
       s: isoStamp(stats?.updated_at),
@@ -1019,10 +1048,10 @@ export class MarksheetService {
         select: { status: true, error: true },
       });
       if (row?.status === 'failed') {
-        throw new Error(row.error ?? 'Marksheet generation failed');
+        throw new ApiError(500, row.error ?? 'Marksheet generation failed');
       }
       if (row?.status === 'skipped') {
-        throw new Error('No marks found for this student');
+        throw new ApiError(404, 'No marks found for this student');
       }
 
       fresh = await tryServeFresh();
@@ -2710,6 +2739,7 @@ export class MarksheetService {
         return_date: true,
         school_id: true,
         visible: true,
+        is_year_end: true,
       },
     });
     const schoolId = exam?.school_id ?? ctxSchoolId;
@@ -2754,7 +2784,9 @@ export class MarksheetService {
 
     const [markAgg, stats, head, classTeachers, school, memberNames] = await Promise.all([
       prisma.marks.aggregate({
-        where: { exam_id: examId, enrollment: enrollmentWhere },
+        where: exam?.is_year_end
+          ? { enrollment: { class: cls, year } }
+          : { exam_id: examId, enrollment: enrollmentWhere },
         _max: { updated_at: true },
         _count: { _all: true },
       }),
@@ -2824,7 +2856,12 @@ export class MarksheetService {
     });
     const [markAgg, head, classTeacher, school] = await Promise.all([
       prisma.marks.aggregate({
-        where: { enrollment: { student_id: studentId, year } },
+        // Position ranks the whole class, so any class mark change refreshes the sheet.
+        where: {
+          enrollment: enrollment
+            ? { class: enrollment.class, year }
+            : { student_id: studentId, year },
+        },
         _max: { updated_at: true },
         _count: { _all: true },
       }),
@@ -2974,20 +3011,44 @@ export class MarksheetService {
     };
     await enqueueUserPriority(job, sessionStudentJobId(schoolId, year, studentId)).catch(() => {});
 
+    return this.waitForSessionPdf(schoolId, year, studentId, tryServeFresh, t0);
+  }
+
+  /**
+   * Poll until the session worker uploads a fresh PDF. Fails fast when the worker
+   * marks the row 'failed' (e.g. no marks) instead of waiting for SERVE_TIMEOUT_MS.
+   */
+  private static async waitForSessionPdf(
+    schoolId: number,
+    year: number,
+    studentId: number,
+    tryServeFresh: () => Promise<{ buffer: Buffer } | null>,
+    t0: number,
+  ): Promise<{ buffer: Buffer }> {
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {
-      fresh = await tryServeFresh();
+      const fresh = await tryServeFresh();
       if (fresh) {
-        logger.info('[marksheet] serveSessionStudent: worker ready', {
+        logger.info('[marksheet] serveSession: worker ready', {
           studentId,
           year,
           ms: Date.now() - t0,
         });
         return fresh;
       }
+      const row = await prisma.marksheet_sessions.findUnique({
+        where: { marksheet_session_scope: { school_id: schoolId, year, student_id: studentId } },
+        select: { status: true, error: true },
+      });
+      if (row?.status === 'failed') {
+        if (row.error?.includes('No marks found')) {
+          throw new ApiError(404, 'No session marks found for this student');
+        }
+        throw new ApiError(500, row.error ?? 'Session marksheet generation failed');
+      }
       await sleep(SERVE_POLL_MS);
     }
-    throw new Error('Session marksheet generation timed out. Please try again shortly.');
+    throw new ApiError(504, 'Session marksheet generation timed out. Please try again shortly.');
   }
 
   /** All session marksheets for a school year (admin). */
@@ -3034,19 +3095,7 @@ export class MarksheetService {
     const job: SessionYearJob = { kind: 'session-year', year, schoolId };
     await enqueueUserPriority(job, sessionYearJobId(schoolId, year)).catch(() => {});
 
-    const deadline = Date.now() + SERVE_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      fresh = await tryServeFresh();
-      if (fresh) {
-        logger.info('[marksheet] serveSessionYear: worker ready', {
-          year,
-          ms: Date.now() - t0,
-        });
-        return fresh;
-      }
-      await sleep(SERVE_POLL_MS);
-    }
-    throw new Error('Session marksheet generation timed out. Please try again shortly.');
+    return this.waitForSessionPdf(schoolId, year, studentId, tryServeFresh, t0);
   }
 
   static async processSessionStudentJob(job: SessionStudentJob): Promise<void> {

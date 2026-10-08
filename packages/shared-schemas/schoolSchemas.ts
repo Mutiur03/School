@@ -27,6 +27,10 @@ export const SCHOOL_OWNERSHIPS = ['Government', 'Non-Government'] as const;
 
 export const SCHOOL_GENDERS = ['Boys', 'Girls', 'Co-education'] as const;
 
+/** Promotion engine versions a super admin can assign per school. */
+export const PROMOTION_VERSIONS = ['v1'] as const;
+export type PromotionVersion = (typeof PROMOTION_VERSIONS)[number];
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 // Zod 4: missing object keys are not the same as `undefined`. Helpers that
 // transform must be `.nullish()` (or `.optional()`) or unmounted RHF fields
@@ -461,6 +465,7 @@ const schoolBaseSchema = z
     descriptions: schoolDescriptionsSchema,
     academicProfile: schoolAcademicProfileSchema,
     seo: z.any().optional(),
+    promotionVersion: z.enum(PROMOTION_VERSIONS).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.upazila && value.district) {

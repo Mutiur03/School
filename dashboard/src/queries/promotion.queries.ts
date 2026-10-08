@@ -13,7 +13,7 @@ export const usePromotionPassRules = (year: number) => {
   return useQuery({
     queryKey: ['promotion-pass-rules', year],
     queryFn: async () => {
-      const response = await axios.get(`/api/promotion/pass-rules/${year}`);
+      const response = await axios.get(`/api/promotion/${year}/pass-rules`);
       return (response.data?.data ?? []) as PromotionPassRule[];
     },
   });
@@ -30,7 +30,7 @@ export const useSavePromotionPassRules = () => {
       rules: PromotionPassRule[];
       silent?: boolean;
     }) => {
-      const response = await axios.put(`/api/promotion/pass-rules/${year}`, { rules });
+      const response = await axios.put(`/api/promotion/${year}/pass-rules`, { rules });
       return response.data?.data as PromotionPassRule[];
     },
     onSuccess: (_data, { year, silent }) => {
@@ -60,7 +60,7 @@ export type PromotionYearStats = {
     graduated: number;
     total: number;
   };
-  merit_assigned: boolean;
+  promoted: boolean;
   next_year_enrollments: number;
 };
 
@@ -68,7 +68,7 @@ export const usePromotionYearStats = (year: number) => {
   return useQuery({
     queryKey: ['promotion-stats', year],
     queryFn: async () => {
-      const response = await axios.get(`/api/promotion/stats/${year}`);
+      const response = await axios.get(`/api/promotion/${year}/stats`);
       return response.data?.data as PromotionYearStats;
     },
   });
@@ -98,6 +98,7 @@ export type PromotionPreview = {
     total: number;
     passed_promoted: number;
     failed_retained: number;
+    skipped: number;
     section_a: number;
     section_b: number;
     existing_next_year_enrollments: number;
@@ -130,6 +131,7 @@ export type GraduationPreview = {
     total: number;
     graduates: number;
     retained: number;
+    skipped: number;
     existing_class10_next_year: number;
   };
 };
@@ -148,7 +150,7 @@ export const useOverrideEnrollmentStatus = () => {
       enrollmentId: number;
       status: EnrollmentStatus;
     }) => {
-      await axios.put('/api/promotion/updateStatus', { id: enrollmentId, status });
+      await axios.patch(`/api/promotion/enrollments/${enrollmentId}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -164,9 +166,16 @@ export const useUpdatePromotionStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/updateStatus/${year}`);
+      const response = await axios.post(`/api/promotion/${year}/status`);
       return response.data?.data as
-        { updated?: number; passed?: number; failed?: number } | undefined;
+        | {
+            updated?: number;
+            passed?: number;
+            failed?: number;
+            missingYearEnd?: number[];
+            missingPrevious?: number[];
+          }
+        | undefined;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -175,6 +184,14 @@ export const useUpdatePromotionStatus = () => {
         toast.success(`Pass/fail updated: ${data.passed} passed, ${data.failed} failed`);
       } else {
         toast.success('Pass/fail status generated');
+      }
+      if (data?.missingYearEnd?.length) {
+        toast.error(`Skipped class ${data.missingYearEnd.join(', ')}: no year-end exam`);
+      }
+      if (data?.missingPrevious?.length) {
+        toast.error(
+          `Skipped class ${data.missingPrevious.join(', ')}: no exam before the year-end exam`,
+        );
       }
     },
     onError: (error: any) => {
@@ -186,7 +203,7 @@ export const useUpdatePromotionStatus = () => {
 export const usePromotionPreview = () => {
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.get(`/api/promotion/preview/${year}`);
+      const response = await axios.get(`/api/promotion/${year}/preview`);
       return response.data?.data as PromotionPreview;
     },
     onError: (error: any) => {
@@ -198,7 +215,7 @@ export const usePromotionPreview = () => {
 export const useGraduationPreview = () => {
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.get(`/api/promotion/graduation/preview/${year}`);
+      const response = await axios.get(`/api/promotion/${year}/graduation/preview`);
       return response.data?.data as GraduationPreview;
     },
     onError: (error: any) => {
@@ -211,7 +228,7 @@ export const useGraduateClass10 = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/graduation/${year}`);
+      const response = await axios.post(`/api/promotion/${year}/graduation`);
       return response.data;
     },
     onSuccess: (data) => {
@@ -223,7 +240,7 @@ export const useGraduateClass10 = () => {
           `Graduation complete: ${payload.graduated} alumni, ${payload.retained ?? 0} retained`,
         );
       } else {
-        toast.success(data?.message || 'Graduation complete');
+        toast.success('Graduation complete');
       }
     },
     onError: (error: any) => {
@@ -236,13 +253,20 @@ export const useGeneratePromotionRoll = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/addPromotion/${year}`);
+      const response = await axios.post(`/api/promotion/${year}/promote`);
       return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['promotion-stats'] });
-      toast.success(data.message || 'Promotion completed');
+      const payload = data?.data as
+        { promoted?: number; skipped?: number; newYear?: number } | undefined;
+      toast.success(
+        payload?.promoted != null
+          ? `Promotion complete: ${payload.promoted} students → ${payload.newYear}`
+          : 'Promotion completed',
+      );
+      if (payload?.skipped) toast.error(`${payload.skipped} skipped (status not Passed/Failed)`);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to promote students');

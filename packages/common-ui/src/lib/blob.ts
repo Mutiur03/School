@@ -26,6 +26,17 @@ export function openBlobInNewTab(blob: Blob, targetWindow?: Window | null): Wind
   return window.open(url, '_blank');
 }
 
+/** Server `message` from a failed `responseType: 'blob'` request (JSON error body), else fallback. */
+export async function blobErrorMessage(error: unknown, fallback: string): Promise<string> {
+  const data = (error as { response?: { data?: unknown } })?.response?.data;
+  if (!(data instanceof Blob)) return fallback;
+  try {
+    return JSON.parse(await data.text()).message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function getFilenameFromContentDisposition(
   header: string | undefined | null,
 ): string | null {

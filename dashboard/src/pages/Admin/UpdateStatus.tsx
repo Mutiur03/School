@@ -101,8 +101,7 @@ function UpdateStatus() {
 
     setUpdatingId(student.enrollment_id);
     try {
-      await axios.put('/api/promotion/updateStatus', {
-        id: student.enrollment_id,
+      await axios.patch(`/api/promotion/enrollments/${student.enrollment_id}/status`, {
         status: newStatus,
       });
       toast.success(`${student.name}: ${newStatus}`);

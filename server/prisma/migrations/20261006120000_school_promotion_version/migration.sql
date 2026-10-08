@@ -1,0 +1,1 @@
+ALTER TABLE "School" ADD COLUMN "promotion_version" VARCHAR(10) NOT NULL DEFAULT 'v1';

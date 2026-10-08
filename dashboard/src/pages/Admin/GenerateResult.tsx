@@ -63,7 +63,7 @@ import {
 } from '@/pages/Admin/PromotionPreviewDialog';
 import { GraduationPreviewDialog } from '@/pages/Admin/GraduationPreviewDialog';
 import { yearEndGaps } from '@/pages/Admin/exam-session-rail';
-import { openBlobInNewTab } from '@school/common-ui/blob';
+import { blobErrorMessage, openBlobInNewTab } from '@school/common-ui/blob';
 import type { Student } from '@/types/students';
 
 const PAGE_SIZE_KEY = 'promotionReviewPageSize';
@@ -292,7 +292,7 @@ const GenerateResult = () => {
 
   const promo = yearStats?.promotion;
   const class10 = yearStats?.class10;
-  const meritAssigned = yearStats?.merit_assigned ?? false;
+  const promoted = yearStats?.promoted ?? false;
   const nextYearTotal = yearStats?.next_year_enrollments ?? 0;
   const class10Graduated = (class10?.graduated ?? 0) > 0;
 
@@ -407,8 +407,8 @@ const GenerateResult = () => {
     try {
       const response = await axios.get(url, { responseType: 'blob' });
       openBlobInNewTab(new Blob([response.data], { type: 'application/pdf' }));
-    } catch {
-      toast.error(error);
+    } catch (err) {
+      toast.error(await blobErrorMessage(err, error));
     }
   };
   const downloadSessionMarksheet = (studentId: number) =>
@@ -528,13 +528,13 @@ const GenerateResult = () => {
           n={2}
           title="Merit & promotion"
           icon={<Users className="h-5 w-5 text-indigo-500" />}
-          done={meritAssigned}
+          done={promoted}
           detail={
             <>
               Classes 6–9 → {year + 1}.{' '}
               {nextYearTotal === 0
                 ? 'No enrollments there yet — safe to promote.'
-                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces them.`}
+                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces the promoted students’ rows.`}
             </>
           }
         >
@@ -588,7 +588,9 @@ const GenerateResult = () => {
           <table className="w-full min-w-[56rem] border-collapse text-left">
             <thead>
               <tr className={theadRowClass}>
-                <th className={cn(thClass, stickyCell, 'left-0 w-14 px-3 text-center')}>Merit</th>
+                <th className={cn(thClass, stickyCell, 'left-0 w-14 px-3 text-center')}>
+                  Position
+                </th>
                 <th className={cn(thClass, stickyCell, stickyEdge, 'left-14 px-4')}>
                   <ColumnHeaderMenu label="Student" {...sortProps('name')} />
                 </th>

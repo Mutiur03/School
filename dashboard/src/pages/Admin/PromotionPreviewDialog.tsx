@@ -107,6 +107,16 @@ export function PromotionPreviewDialog({
               <Stat label="Sec A / B" value={`${summary.section_a} / ${summary.section_b}`} />
             </div>
 
+            {summary.skipped > 0 ? (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {summary.skipped} student{summary.skipped === 1 ? '' : 's'} skipped: status is not
+                  Passed or Failed. Generate results or set their status first.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {summary.existing_next_year_enrollments > 0 ? (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />

@@ -86,6 +86,16 @@ export function GraduationPreviewDialog({
               <Stat label="Retain" value={summary.retained} dot="bg-amber-500" />
             </div>
 
+            {summary.skipped > 0 ? (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {summary.skipped} student{summary.skipped === 1 ? '' : 's'} skipped: status is not
+                  Passed or Failed. Generate results or set their status first.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {summary.existing_class10_next_year > 0 ? (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
