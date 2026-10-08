@@ -225,7 +225,8 @@ const ViewMarks = () => {
     }
 
     try {
-      const response = await axios.get(`/api/marks/${id}/${year}/${exam}/download`, {
+      const response = await axios.get(`/api/marksheets/students/${id}`, {
+        params: { year, exam },
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -256,12 +257,12 @@ const ViewMarks = () => {
 
     try {
       const response = await axios.get(
-        `/api/marks/class-exam/${className}/${year}/${exam}/download`,
+        `/api/marksheets/classes/${className}/bundle`,
         {
           responseType: 'blob',
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
-          params: section ? { section } : undefined,
+          params: { year, exam, section: section || undefined },
         },
       );
       const blob = response.data as Blob;
@@ -293,12 +294,12 @@ const ViewMarks = () => {
     const loadingToast = toast.loading('Generating summary PDF...');
     try {
       const response = await axios.get(
-        `/api/marks/class-exam/${className}/${year}/${exam}/summary.pdf`,
+        `/api/marksheets/classes/${className}/summary`,
         {
           responseType: 'blob',
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
-          params: section ? { section } : undefined,
+          params: { year, exam, section: section || undefined },
         },
       );
       const disposition = response.headers['content-disposition'] as string | undefined;

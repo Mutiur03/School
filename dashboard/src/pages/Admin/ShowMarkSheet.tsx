@@ -65,7 +65,9 @@ function ShowMarkSheet() {
         return;
       }
       try {
-        const response = await axios.get(`/api/marks/${studentId}/${year}/preview`);
+        const response = await axios.get(`/api/marks/students/${studentId}/session`, {
+          params: { year },
+        });
         if (response.status !== 200) throw new Error('Failed to fetch marksheet.');
         setSheet(response.data?.data ?? null);
       } catch {
@@ -81,7 +83,8 @@ function ShowMarkSheet() {
   const handleDownloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const response = await axios.get(`/api/marks/${studentId}/${year}/download`, {
+      const response = await axios.get(`/api/marksheets/students/${studentId}/session`, {
+        params: { year },
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });

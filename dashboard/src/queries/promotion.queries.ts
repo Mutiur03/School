@@ -13,7 +13,7 @@ export const usePromotionPassRules = (year: number) => {
   return useQuery({
     queryKey: ['promotion-pass-rules', year],
     queryFn: async () => {
-      const response = await axios.get(`/api/promotion/${year}/pass-rules`);
+      const response = await axios.get(`/api/promotions/${year}/pass-rules`);
       return (response.data?.data ?? []) as PromotionPassRule[];
     },
   });
@@ -30,7 +30,7 @@ export const useSavePromotionPassRules = () => {
       rules: PromotionPassRule[];
       silent?: boolean;
     }) => {
-      const response = await axios.put(`/api/promotion/${year}/pass-rules`, { rules });
+      const response = await axios.put(`/api/promotions/${year}/pass-rules`, { rules });
       return response.data?.data as PromotionPassRule[];
     },
     onSuccess: (_data, { year, silent }) => {
@@ -68,7 +68,7 @@ export const usePromotionYearStats = (year: number) => {
   return useQuery({
     queryKey: ['promotion-stats', year],
     queryFn: async () => {
-      const response = await axios.get(`/api/promotion/${year}/stats`);
+      const response = await axios.get(`/api/promotions/${year}/stats`);
       return response.data?.data as PromotionYearStats;
     },
   });
@@ -144,13 +144,15 @@ export const useOverrideEnrollmentStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
+      year,
       enrollmentId,
       status,
     }: {
+      year: number;
       enrollmentId: number;
       status: EnrollmentStatus;
     }) => {
-      await axios.patch(`/api/promotion/enrollments/${enrollmentId}/status`, { status });
+      await axios.patch(`/api/promotions/${year}/results/${enrollmentId}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -166,7 +168,7 @@ export const useUpdatePromotionStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/${year}/status`);
+      const response = await axios.post(`/api/promotions/${year}/results`);
       return response.data?.data as
         | {
             updated?: number;
@@ -203,7 +205,7 @@ export const useUpdatePromotionStatus = () => {
 export const usePromotionPreview = () => {
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.get(`/api/promotion/${year}/preview`);
+      const response = await axios.get(`/api/promotions/${year}/plan`);
       return response.data?.data as PromotionPreview;
     },
     onError: (error: any) => {
@@ -215,7 +217,7 @@ export const usePromotionPreview = () => {
 export const useGraduationPreview = () => {
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.get(`/api/promotion/${year}/graduation/preview`);
+      const response = await axios.get(`/api/graduations/${year}/plan`);
       return response.data?.data as GraduationPreview;
     },
     onError: (error: any) => {
@@ -228,7 +230,7 @@ export const useGraduateClass10 = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/${year}/graduation`);
+      const response = await axios.post(`/api/graduations/${year}`);
       return response.data;
     },
     onSuccess: (data) => {
@@ -253,7 +255,7 @@ export const useGeneratePromotionRoll = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/${year}/promote`);
+      const response = await axios.post(`/api/promotions/${year}`);
       return response.data;
     },
     onSuccess: (data) => {

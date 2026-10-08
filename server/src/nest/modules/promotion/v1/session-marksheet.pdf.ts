@@ -60,7 +60,7 @@ export function buildSessionTable(result: StudentSessionResult): SessionTable {
   };
 }
 
-// Same metrics as the per-exam marksheet (marks.service PDF_STYLES).
+// Same metrics as the per-exam marksheet (marksheets/pdf/marksheet-draw.ts PDF_STYLES).
 const X0 = 50;
 const WIDTH = 495;
 const ROW_H = 20;

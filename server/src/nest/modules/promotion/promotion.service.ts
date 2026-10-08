@@ -66,7 +66,7 @@ export class PromotionService {
   }
 
   /** Classes missing an exam are left untouched and reported back; the rest are written. */
-  async generateStatus(schoolId: number, year: number) {
+  async createResults(schoolId: number, year: number) {
     const sr = await loadSessionResults(this.prisma, schoolId, year);
     const { missingYearEnd, missingPrevious } = sr;
     const results = sr.results.filter((r) => !missingPrevious.includes(r.classLevel));
@@ -439,9 +439,10 @@ export class PromotionService {
     };
   }
 
-  async updateEnrollmentStatus(schoolId: number, id: number, status: string) {
+  /** Manual pass/fail override. school + year in the where: wrong tenant/year → P2025 → 404. */
+  async updateResult(schoolId: number, year: number, enrollmentId: number, status: string) {
     await this.prisma.student_enrollments.update({
-      where: { id, school_id: schoolId },
+      where: { id: enrollmentId, school_id: schoolId, year },
       data: { status },
     });
   }

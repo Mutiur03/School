@@ -5,10 +5,14 @@ import { env } from '../../../config/env.js';
 import { prisma } from '../../../config/prisma.js';
 import { redis } from '../../../config/redis.js';
 import { runWithRlsContext } from '../../../config/rlsContextStore.js';
-import { marksheetQueue } from '../../../modules/marks/marksheet.queue.js';
+import { nestApp } from '../../common/nest-app.js';
+import { MARKSHEET_QUEUE } from '../marksheets/jobs/marksheet.queue.js';
+import type { MarksheetQueue } from '../marksheets/jobs/marksheet.queue.js';
 import { attendanceSheetQueue } from '../../../modules/attendence/attendence-sheet.queue.js';
 
-// HTTP contract for /api/promotion. Never calls status/promote/graduation: those rewrite real enrollments.
+// HTTP contract for /api/promotions + /api/graduations. Never calls POST results/promote/graduate:
+// those rewrite real enrollments.
+const marksheetQueue = () => nestApp().get<MarksheetQueue>(MARKSHEET_QUEUE);
 let server: Server;
 let base = '';
 let host = '';
@@ -41,7 +45,7 @@ afterAll(async () => {
   );
   server.closeAllConnections();
   await new Promise((r) => server.close(r));
-  await Promise.all([marksheetQueue.close(), attendanceSheetQueue.close(), prisma.$disconnect()]);
+  await Promise.all([marksheetQueue().close(), attendanceSheetQueue.close(), prisma.$disconnect()]);
   redis.disconnect();
 });
 
@@ -63,24 +67,24 @@ const call = async (
 };
 
 test.each([
-  ['GET', `/api/promotion/${YEAR}/results`],
-  ['GET', `/api/promotion/${YEAR}/stats`],
-  ['POST', `/api/promotion/${YEAR}/status`],
-  ['GET', `/api/promotion/${YEAR}/pass-rules`],
-  ['PUT', `/api/promotion/${YEAR}/pass-rules`],
-  ['GET', `/api/promotion/${YEAR}/preview`],
-  ['POST', `/api/promotion/${YEAR}/promote`],
-  ['GET', `/api/promotion/${YEAR}/graduation/preview`],
-  ['POST', `/api/promotion/${YEAR}/graduation`],
-  ['PATCH', '/api/promotion/enrollments/1/status'],
+  ['GET', `/api/promotions/${YEAR}/results`],
+  ['GET', `/api/promotions/${YEAR}/stats`],
+  ['POST', `/api/promotions/${YEAR}/results`],
+  ['GET', `/api/promotions/${YEAR}/pass-rules`],
+  ['PUT', `/api/promotions/${YEAR}/pass-rules`],
+  ['GET', `/api/promotions/${YEAR}/plan`],
+  ['POST', `/api/promotions/${YEAR}`],
+  ['GET', `/api/graduations/${YEAR}/plan`],
+  ['POST', `/api/graduations/${YEAR}`],
+  ['PATCH', `/api/promotions/${YEAR}/results/1`],
 ])('%s %s without token → 401', async (method, path) => {
   const { status, body } = await call(method, path, { body: method === 'GET' ? undefined : {} });
   expect(status).toBe(401);
   expect(body.success).toBe(false);
 });
 
-test('GET /promotion/abc/stats → 400 invalid year', async () => {
-  const { status, body } = await call('GET', '/api/promotion/abc/stats', { auth: true });
+test('GET /promotions/abc/stats → 400 invalid year', async () => {
+  const { status, body } = await call('GET', '/api/promotions/abc/stats', { auth: true });
   expect(status).toBe(400);
   expect(body.message).toBe('Validation failed (numeric string is expected)');
 });
@@ -91,7 +95,7 @@ test.each([
   [{ rules: [{ class: 6, max_failed: 99 }] }, 'max_failed must not be greater than 15'],
   [{ rules: [], school_id: 2 }, 'property school_id should not exist'],
 ])('PUT pass-rules %j → 400', async (payload, message) => {
-  const { status, body } = await call('PUT', `/api/promotion/${YEAR}/pass-rules`, {
+  const { status, body } = await call('PUT', `/api/promotions/${YEAR}/pass-rules`, {
     auth: true,
     body: payload,
   });
@@ -102,8 +106,8 @@ test.each([
 test.each([
   [{}, 'status must be one of the following values'],
   [{ status: 'Promoted' }, 'status must be one of the following values'],
-])('PATCH enrollment status %j → 400', async (payload, message) => {
-  const { status, body } = await call('PATCH', '/api/promotion/enrollments/1/status', {
+])('PATCH result %j → 400', async (payload, message) => {
+  const { status, body } = await call('PATCH', `/api/promotions/${YEAR}/results/1`, {
     auth: true,
     body: payload,
   });
@@ -112,7 +116,7 @@ test.each([
 });
 
 test('PATCH unknown enrollment → 404', async () => {
-  const { status, body } = await call('PATCH', '/api/promotion/enrollments/2147483647/status', {
+  const { status, body } = await call('PATCH', `/api/promotions/${YEAR}/results/2147483647`, {
     auth: true,
     body: { status: 'Passed' },
   });
@@ -120,30 +124,51 @@ test('PATCH unknown enrollment → 404', async () => {
   expect(body.success).toBe(false);
 });
 
-test('empty year: results, stats and previews are empty', async () => {
-  const results = await call('GET', `/api/promotion/${YEAR}/results`, { auth: true });
+test('PATCH a real enrollment under the wrong year → 404, row untouched', async () => {
+  const enrollment = await runWithRlsContext(
+    { isSuperAdmin: true },
+    async () =>
+      await prisma.student_enrollments.findFirst({
+        where: { school_id: schoolId, year: { not: YEAR } },
+      }),
+  );
+  if (!enrollment) throw new Error('need a seeded enrollment');
+  const { status } = await call('PATCH', `/api/promotions/${YEAR}/results/${enrollment.id}`, {
+    auth: true,
+    body: { status: enrollment.status === 'Failed' ? 'Passed' : 'Failed' },
+  });
+  expect(status).toBe(404);
+  const after = await runWithRlsContext(
+    { isSuperAdmin: true },
+    async () => await prisma.student_enrollments.findUnique({ where: { id: enrollment.id } }),
+  );
+  expect(after?.status).toBe(enrollment.status);
+});
+
+test('empty year: results, stats and plans are empty', async () => {
+  const results = await call('GET', `/api/promotions/${YEAR}/results`, { auth: true });
   expect(results.status).toBe(200);
   expect(results.body.data).toMatchObject({ results: [], missingYearEnd: [], missingPrevious: [] });
 
-  const stats = await call('GET', `/api/promotion/${YEAR}/stats`, { auth: true });
+  const stats = await call('GET', `/api/promotions/${YEAR}/stats`, { auth: true });
   expect(stats.status).toBe(200);
   expect(stats.body.data).toMatchObject({ year: YEAR, newYear: YEAR + 1, promoted: false });
 
-  const preview = await call('GET', `/api/promotion/${YEAR}/preview`, { auth: true });
+  const preview = await call('GET', `/api/promotions/${YEAR}/plan`, { auth: true });
   expect(preview.status).toBe(200);
   expect(preview.body.data.students).toEqual([]);
 
-  const graduation = await call('GET', `/api/promotion/${YEAR}/graduation/preview`, { auth: true });
+  const graduation = await call('GET', `/api/graduations/${YEAR}/plan`, { auth: true });
   expect(graduation.status).toBe(200);
   expect(graduation.body.data.students).toEqual([]);
 });
 
 test('pass rules: read defaults → save → read back', async () => {
-  const before = await call('GET', `/api/promotion/${YEAR}/pass-rules`, { auth: true });
+  const before = await call('GET', `/api/promotions/${YEAR}/pass-rules`, { auth: true });
   expect(before.status).toBe(200);
   expect(before.body.data).toHaveLength(5);
 
-  const saved = await call('PUT', `/api/promotion/${YEAR}/pass-rules`, {
+  const saved = await call('PUT', `/api/promotions/${YEAR}/pass-rules`, {
     auth: true,
     body: { rules: [{ class: 9, max_failed: 2 }] },
   });
@@ -151,6 +176,6 @@ test('pass rules: read defaults → save → read back', async () => {
   expect(saved.body.data).toContainEqual({ class: 9, max_failed: 2 });
   expect(saved.body.data).toContainEqual({ class: 6, max_failed: 0 });
 
-  const after = await call('GET', `/api/promotion/${YEAR}/pass-rules`, { auth: true });
+  const after = await call('GET', `/api/promotions/${YEAR}/pass-rules`, { auth: true });
   expect(after.body.data).toEqual(saved.body.data);
 });

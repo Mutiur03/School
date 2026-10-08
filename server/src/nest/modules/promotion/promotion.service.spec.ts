@@ -188,10 +188,10 @@ describe('loadSessionResults (via getResults)', () => {
   });
 });
 
-describe('PromotionService.generateStatus', () => {
+describe('PromotionService.createResults', () => {
   it('writes status, fail_count and position with school_id', async () => {
     seedClass(6, { 1: [20, 30], 2: [40, 50] });
-    await expect(service.generateStatus(S, YEAR)).resolves.toEqual({
+    await expect(service.createResults(S, YEAR)).resolves.toEqual({
       updated: 2,
       passed: 1,
       failed: 1,
@@ -210,7 +210,7 @@ describe('PromotionService.generateStatus', () => {
 
   it('class without a previous exam is reported, not written', async () => {
     seedClass(6, { 1: [0, 90] }, { exams: [2] });
-    await expect(service.generateStatus(S, YEAR)).resolves.toMatchObject({
+    await expect(service.createResults(S, YEAR)).resolves.toMatchObject({
       updated: 0,
       missingPrevious: [6],
     });
@@ -219,7 +219,7 @@ describe('PromotionService.generateStatus', () => {
 
   it('class without a year-end exam is reported, not written', async () => {
     seedClass(6, { 1: [50, 50] }, { exams: [1] });
-    await expect(service.generateStatus(S, YEAR)).resolves.toMatchObject({
+    await expect(service.createResults(S, YEAR)).resolves.toMatchObject({
       updated: 0,
       missingYearEnd: [6],
     });
@@ -372,11 +372,11 @@ describe('PromotionService.graduate', () => {
   });
 });
 
-describe('PromotionService.updateEnrollmentStatus', () => {
-  it('updates with school_id in where', async () => {
-    await service.updateEnrollmentStatus(S, 5, 'Failed');
+describe('PromotionService.updateResult', () => {
+  it('updates with school_id and year in where', async () => {
+    await service.updateResult(S, YEAR, 5, 'Failed');
     expect(db.student_enrollments.update).toHaveBeenCalledWith({
-      where: { id: 5, school_id: S },
+      where: { id: 5, school_id: S, year: YEAR },
       data: { status: 'Failed' },
     });
   });
@@ -385,7 +385,7 @@ describe('PromotionService.updateEnrollmentStatus', () => {
     db.student_enrollments.update.mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError('nf', { code: 'P2025', clientVersion: 'test' }),
     );
-    await expect(service.updateEnrollmentStatus(S, 99, 'Passed')).rejects.toMatchObject({
+    await expect(service.updateResult(S, YEAR, 99, 'Passed')).rejects.toMatchObject({
       code: 'P2025',
     });
   });

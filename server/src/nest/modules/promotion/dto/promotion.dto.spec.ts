@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import type { ArgumentMetadata } from '@nestjs/common';
 import { PassRulesDto } from './pass-rules.dto.js';
-import { UpdateEnrollmentStatusDto } from './update-enrollment-status.dto.js';
+import { UpdateResultDto } from './update-result.dto.js';
 
 // Same options as the global pipe in bootstrap.ts.
 const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true });
@@ -38,15 +38,15 @@ describe('PassRulesDto', () => {
   });
 });
 
-describe('UpdateEnrollmentStatusDto', () => {
+describe('UpdateResultDto', () => {
   it.each([[{}], [{ status: 'Promoted' }], [{ status: 'Passed', id: 1 }]])(
     'rejects %j → 400',
     async (body) => {
-      await expect(run(body, UpdateEnrollmentStatusDto)).rejects.toMatchObject({ status: 400 });
+      await expect(run(body, UpdateResultDto)).rejects.toMatchObject({ status: 400 });
     },
   );
 
   it.each([['Passed'], ['Failed'], ['Pending'], ['Graduated']])('accepts %s', async (status) => {
-    await expect(run({ status }, UpdateEnrollmentStatusDto)).resolves.toEqual({ status });
+    await expect(run({ status }, UpdateResultDto)).resolves.toEqual({ status });
   });
 });

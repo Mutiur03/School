@@ -1,6 +1,7 @@
 import { prisma } from '@/config/prisma.js';
 import { getUploadUrl } from '@/config/r2.js';
-import { MarksheetService } from '@/modules/marks/marksheet.service.js';
+import { nestApp } from '@/nest/common/nest-app.js';
+import { MarksheetJobsService } from '@/nest/modules/marksheets/jobs/marksheet-jobs.service.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { assertTenantR2Key, deleteFromR2IfPresent, tenantR2Key } from '@/utils/r2Key.util.js';
 import logger from '@/utils/logger.js';
@@ -162,7 +163,9 @@ export class ExamService {
 
     if (updated?.visible) {
       try {
-        await MarksheetService.enqueueForExam(updated.id, updated.school_id, updated.exam_name);
+        await nestApp()
+          .get(MarksheetJobsService)
+          .enqueueForExam(updated.school_id, updated.id, updated.exam_name);
       } catch (queueErr) {
         logger.error('Failed to queue marksheet regeneration after exam update', {
           error: queueErr instanceof Error ? queueErr.message : String(queueErr),
@@ -195,11 +198,10 @@ export class ExamService {
         logger.info(
           `[marksheet] publish: exam ${result.id} "${result.exam_name}" (${result.exam_year}) -> queueing marksheets`,
         );
-        const pregen = await MarksheetService.enqueueForExam(
-          result.id,
-          result.school_id,
-          result.exam_name,
-        );
+        // Bridge to Nest (see nest/common/nest-app.ts); remove when exams move to Nest.
+        const pregen = await nestApp()
+          .get(MarksheetJobsService)
+          .enqueueForExam(result.school_id, result.id, result.exam_name);
         queued = pregen?.queued ?? 0;
         logger.info(`[marksheet] publish: exam ${result.id} queued ${queued} student marksheet(s)`);
       } catch (queueErr) {

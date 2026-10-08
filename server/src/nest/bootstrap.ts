@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { LegacyErrorFilter } from './common/legacy-error.filter.js';
+import { setNestApp } from './common/nest-app.js';
 import { ResponseInterceptor } from './common/response.interceptor.js';
 
 /**
@@ -21,5 +22,6 @@ export const createNest = async (app: Express) => {
   nest.useGlobalFilters(new LegacyErrorFilter());
   nest.useGlobalInterceptors(new ResponseInterceptor());
   await nest.init();
+  setNestApp(nest);
   return nest;
 };

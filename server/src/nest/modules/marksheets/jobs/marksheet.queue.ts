@@ -1,13 +1,5 @@
 import Bull from 'bull';
-import {
-  PRIORITY_BACKFILL,
-  PRIORITY_USER,
-  defaultJobOpts,
-  enqueueUserPriority as enqueueUserPriorityShared,
-  ensureJobQueued as ensureJobQueuedShared,
-} from '@/utils/bullQueue.js';
-
-const host = process.env.REDIS_HOST || '127.0.0.1';
+import { ensureJobQueued } from '@/utils/bullQueue.js';
 
 // Per-student marksheet. `kind` is optional for backward compatibility with
 // jobs enqueued before bundles existed (absent kind => student).
@@ -46,28 +38,23 @@ export type SessionYearJob = {
 
 export type MarksheetJob = StudentJob | BundleJob | SessionStudentJob | SessionYearJob;
 
-export const marksheetQueue = new Bull<MarksheetJob>('marksheetQueue', {
-  redis: { host, port: 6379 },
-  settings: {
-    lockDuration: 5 * 60 * 1000,
-    stalledInterval: 60 * 1000,
-    maxStalledCount: 2,
-  },
-});
+export type MarksheetQueue = Bull.Queue<MarksheetJob>;
 
-export { PRIORITY_USER, PRIORITY_BACKFILL, defaultJobOpts };
+/** Inject with `@Inject(MARKSHEET_QUEUE) private readonly queue: MarksheetQueue`. */
+export const MARKSHEET_QUEUE = Symbol('MARKSHEET_QUEUE');
 
-export async function enqueueUserPriority(data: MarksheetJob, id: string): Promise<void> {
-  return enqueueUserPriorityShared(marksheetQueue, data, id);
-}
-
-export async function ensureJobQueued(
-  data: MarksheetJob,
-  id: string,
-  priority: number = PRIORITY_BACKFILL,
-): Promise<boolean> {
-  return ensureJobQueuedShared(marksheetQueue, data, id, priority);
-}
+export const marksheetQueueProvider = {
+  provide: MARKSHEET_QUEUE,
+  useFactory: (): MarksheetQueue =>
+    new Bull<MarksheetJob>('marksheetQueue', {
+      redis: { host: process.env.REDIS_HOST || '127.0.0.1', port: 6379 },
+      settings: {
+        lockDuration: 5 * 60 * 1000,
+        stalledInterval: 60 * 1000,
+        maxStalledCount: 2,
+      },
+    }),
+};
 
 /**
  * Re-queue after the current handler finishes. Same jobId cannot be added while
@@ -75,9 +62,10 @@ export async function ensureJobQueued(
  * race with Bull's completion bookkeeping does not leave the DB row pending.
  */
 export async function ensureJobQueuedAfterDefer(
+  queue: MarksheetQueue,
   data: MarksheetJob,
   id: string,
-  priority: number = PRIORITY_BACKFILL,
+  priority: number,
   attempts = 5,
   delayMs = 100,
 ): Promise<boolean> {
@@ -86,13 +74,13 @@ export async function ensureJobQueuedAfterDefer(
       await new Promise((r) => setTimeout(r, delayMs * i));
     }
     try {
-      const existing = await marksheetQueue.getJob(id);
+      const existing = await queue.getJob(id);
       if (existing) {
         const state = await existing.getState();
         if (state === 'active') continue;
         if (state === 'waiting' || state === 'delayed') return true;
       }
-      const added = await ensureJobQueued(data, id, priority);
+      const added = await ensureJobQueued(queue, data, id, priority);
       if (added) return true;
     } catch {
       // Retry — Redis/Bull races during job completion are transient.

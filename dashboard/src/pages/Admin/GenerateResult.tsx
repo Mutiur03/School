@@ -390,7 +390,7 @@ const GenerateResult = () => {
     if (!student.enrollment_id || student.status === status) return;
     setOverridingId(student.enrollment_id);
     overrideStatus(
-      { enrollmentId: student.enrollment_id, status },
+      { year, enrollmentId: student.enrollment_id, status },
       {
         onSuccess: () => toast.success(`${student.name}: ${status}`),
         onSettled: () => setOverridingId(null),
@@ -405,16 +405,19 @@ const GenerateResult = () => {
 
   const downloadPdf = async (url: string, error: string) => {
     try {
-      const response = await axios.get(url, { responseType: 'blob' });
+      const response = await axios.get(url, { params: { year }, responseType: 'blob' });
       openBlobInNewTab(new Blob([response.data], { type: 'application/pdf' }));
     } catch (err) {
       toast.error(await blobErrorMessage(err, error));
     }
   };
   const downloadSessionMarksheet = (studentId: number) =>
-    downloadPdf(`/api/marks/${studentId}/${year}/download`, 'Failed to download session marksheet');
+    downloadPdf(
+      `/api/marksheets/students/${studentId}/session`,
+      'Failed to download session marksheet',
+    );
   const downloadAllMarksheetPDF = () =>
-    downloadPdf(`/api/marks/all/${year}`, 'Failed to download all marksheets');
+    downloadPdf('/api/marksheets/session', 'Failed to download all marksheets');
 
   const summary = promo
     ? `${promo.total.toLocaleString()} in classes 6–9 · ${promo.passed} passed · ${promo.failed} failed · ${promo.pending} pending · promotes into ${year + 1}`

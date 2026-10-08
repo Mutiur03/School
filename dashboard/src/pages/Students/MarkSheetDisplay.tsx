@@ -54,7 +54,8 @@ const MarkSheetDisplay: React.FC<MarkSheetDisplayProps> = ({
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const response = await axios.get(`/api/marks/${studentId}/${year}/${examName}/download`, {
+      const response = await axios.get(`/api/marksheets/students/${studentId}`, {
+        params: { year, exam: examName },
         responseType: 'blob',
       });
       const file = new Blob([response.data], { type: 'application/pdf' });
