@@ -75,18 +75,18 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
 
   const portalLinks = school?.links ?? {};
   const loginDropdown = [
-    portalLinks.teacherLogin
-      ? {
-          id: 'menu-item-3548',
-          href: portalLinks.teacherLogin,
-          text: 'Teacher',
-        }
-      : null,
     portalLinks.studentLogin
       ? {
           id: 'menu-item-3549',
           href: portalLinks.studentLogin,
           text: 'Student',
+        }
+      : null,
+    portalLinks.teacherLogin
+      ? {
+          id: 'menu-item-3548',
+          href: portalLinks.teacherLogin,
+          text: 'Teacher',
         }
       : null,
   ].filter((item) => item !== null);
@@ -108,8 +108,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'About',
       dropdown: [
-        { id: 'menu-item-3342', href: '/at-a-glance', text: 'At a glance' },
         { id: 'menu-item-3341', href: '/at-a-glance', text: 'Aims & Goals' },
+        { id: 'menu-item-3342', href: '/at-a-glance', text: 'At a glance' },
         { id: 'menu-item-3385', href: '/gallery', text: 'Photo Gallery' },
         { id: 'menu-item-3348', href: '/at-a-glance', text: 'Seat Capacity' },
         // { id: "menu-item-3343", href: "#", text: "Hostel Info" }
@@ -123,8 +123,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       text: 'Information',
       dropdown: [
         { id: 'menu-item-3350', href: '#', text: 'Administration' },
-        { id: 'menu-item-3657', href: '/teacher-list', text: 'Teacher List' },
         { id: 'menu-item-3357', href: '/staff-list', text: 'Staff Info' },
+        { id: 'menu-item-3657', href: '/teacher-list', text: 'Teacher List' },
       ],
     },
     // {
@@ -155,6 +155,10 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Activities',
       dropdown: [
+        { id: 'menu-item-3359', href: '#', text: 'Cultural activities' },
+        { id: 'menu-item-3362', href: '#', text: 'Debating club' },
+        { id: 'menu-item-3365', href: '#', text: 'Red Crescent' },
+        { id: 'menu-item-3368', href: '#', text: 'Scout' },
         {
           id: 'menu-item-3360',
           href: '#',
@@ -162,10 +166,6 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
           // hasChildren: true,
           subDropdown: [{ id: 'menu-item-3361', href: '#', text: 'Cultural activities' }],
         },
-        { id: 'menu-item-3368', href: '#', text: 'Scout' },
-        { id: 'menu-item-3365', href: '#', text: 'Red Crescent' },
-        { id: 'menu-item-3359', href: '#', text: 'Cultural activities' },
-        { id: 'menu-item-3362', href: '#', text: 'Debating club' },
       ],
     },
     {
@@ -175,16 +175,17 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Academic',
       dropdown: [
-        { id: 'menu-item-3374', href: '#', text: 'Creative Learning' },
-        { id: 'menu-item-3376', href: '/exam-routine', text: 'Exam schedule' },
         {
           id: 'menu-item-3371',
           href: '#',
           text: 'Academic Calender',
         },
-        { id: 'menu-item-3382', href: '#', text: 'Vacation Calendar' },
-        { id: 'menu-item-3378', href: '#', text: 'Library' },
+        { id: 'menu-item-3374', href: '#', text: 'Creative Learning' },
+        { id: 'menu-item-3376', href: '/exam-routine', text: 'Exam schedule' },
         { id: 'menu-item-3377', href: '#', text: 'Laboratory' },
+        { id: 'menu-item-3378', href: '#', text: 'Library' },
+        { id: 'menu-item-testimonial', href: '/testimonial', text: 'Testimonial' },
+        { id: 'menu-item-3382', href: '#', text: 'Vacation Calendar' },
       ],
     },
     {
@@ -195,18 +196,18 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       text: 'Notices',
       dropdown: [
         {
-          id: 'menu-item-3543',
-          href: '/notices',
-          text: 'Official Notices',
-          className:
-            'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item',
-        },
-        {
           id: 'menu-item-3544',
           href: '/events',
           text: 'Events',
           className:
             'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3544 nav-item',
+        },
+        {
+          id: 'menu-item-3543',
+          href: '/notices',
+          text: 'Official Notices',
+          className:
+            'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item',
         },
       ],
     },
@@ -217,12 +218,12 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Admission',
       dropdown: [
+        { id: 'menu-item-3388', href: '/admission', text: 'Admission Form' },
         {
           id: 'menu-item-3387',
           href: '/admission/notice',
           text: 'Admission Notice',
         },
-        { id: 'menu-item-3388', href: '/admission', text: 'Admission Form' },
         {
           id: 'menu-item-3389',
           href: '/admission/results',
@@ -265,22 +266,15 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Registration',
       dropdown: [
-        { id: 'menu-item-3547', href: '/registration/class-9', text: 'Class Nine' },
+        { id: 'menu-item-3549', href: '/registration/class-6', text: 'Class Six' },
         { id: 'menu-item-3548', href: '/registration/class-8', text: 'Class Eight' },
+        { id: 'menu-item-3547', href: '/registration/class-9', text: 'Class Nine' },
         // {
         //   id: 'menu-item-jse',
         //   href: '/registration/junior-scholarship',
         //   text: 'Junior Scholarship',
         // },
-        { id: 'menu-item-3549', href: '/registration/class-6', text: 'Class Six' },
       ],
-    },
-    {
-      id: 'menu-item-testimonial',
-      className:
-        'nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-testimonial nav-item',
-      href: '/testimonial',
-      text: 'Testimonial',
     },
     {
       id: 'menu-item-3541',

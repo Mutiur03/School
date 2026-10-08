@@ -13,6 +13,7 @@ import {
   filterEnglishInput,
   filterNumericInput,
   testimonialExamOptions,
+  testimonialRequiresRollRegistration,
   testimonialSchema,
   type TestimonialData,
   type TestimonialInput,
@@ -82,10 +83,11 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
     [year],
   );
   const kind: TestimonialKind = exam === 'SSC' || exam === 'JSC' ? 'board' : 'class';
+  const requiresRollRegistration = testimonialRequiresRollRegistration(exam, year);
 
   useEffect(() => {
     if (examOptions.includes(exam)) return;
-    // Class 8 and JSC are the same stage either side of 2020; keep the student's intent.
+    // Class 8 and JSC are the same stage either side of the JSC start year; keep the intent.
     const swap = exam === '8' ? 'JSC' : exam === 'JSC' ? '8' : '';
     setValue('exam', examOptions.includes(swap) ? swap : examOptions[examOptions.length - 1]);
   }, [examOptions, exam, setValue]);
@@ -181,11 +183,15 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
 
         <div className="grid gap-5 sm:grid-cols-2">
           {text('student_name_bn', 'শিক্ষার্থীর নাম (বাংলায়)', filterBanglaInput, {})}
-          {text('student_name_en', 'Student name (English)', filterEnglishInput, {})}
+          {text('student_name_en', "Student's name (English)", filterEnglishInput, {})}
           {text('father_name_bn', 'পিতার নাম (বাংলায়)', filterBanglaInput, {})}
           {text('father_name_en', "Father's name (English)", filterEnglishInput, {})}
           {text('mother_name_bn', 'মাতার নাম (বাংলায়)', filterBanglaInput, {})}
           {text('mother_name_en', "Mother's name (English)", filterEnglishInput, {})}
+          {text('mobile', 'Mobile number', (v) => filterNumericInput(v).slice(0, 11), {
+            inputMode: 'tel',
+            autoComplete: 'tel',
+          })}
           {askGender && (
             <div>
               <label htmlFor="gender" className="mb-1 block text-sm font-medium text-gray-700">
@@ -210,7 +216,7 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
           </div>
         </div>
 
-        {kind === 'board' && (
+        {requiresRollRegistration && (
           <div className="grid gap-5 sm:grid-cols-2">
             {text('roll', 'Roll number', (v) => filterNumericInput(v).slice(0, 6), {
               inputMode: 'numeric',
