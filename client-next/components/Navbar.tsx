@@ -1,5 +1,6 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import './Navbar.css';
 import Link from '@/components/Link';
@@ -25,7 +26,38 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(null);
   const routineQuery = useRoutinePDF();
-  const navPanelRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
+
+  const closeAll = () => {
+    // Desktop dropdowns also open via :focus-within, so release focus to actually hide them.
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && navRef.current?.contains(focused)) focused.blur();
+    setIsNavOpen(false);
+    setActiveDropdown(null);
+    setActiveSubDropdown(null);
+  };
+
+  // Close after any route change (covers every link, mobile and desktop).
+  useEffect(() => {
+    closeAll();
+  }, [pathname]);
+
+  // Close on outside click/tap and Escape.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) closeAll();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAll();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
 
   const handleRoutineClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,6 +88,9 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   };
 
   const toggleDropdown = (itemId: string) => {
+    if (activeDropdown === itemId && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur(); // else :focus-within keeps the menu open
+    }
     setActiveDropdown(activeDropdown === itemId ? null : itemId);
     setActiveSubDropdown(null);
   };
@@ -64,13 +99,10 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
     setActiveSubDropdown(activeSubDropdown === subItemId ? null : subItemId);
   };
 
+  // Real links close the menu on desktop too, so a click-opened dropdown doesn't linger.
   const closeNavbarIfMobile = (href?: string | null) => {
     const isRealHref = !!href && href.trim() !== '' && href.trim() !== '#';
-    if (typeof window !== 'undefined' && window.innerWidth <= 1199 && isRealHref) {
-      setIsNavOpen(false);
-      setActiveDropdown(null);
-      setActiveSubDropdown(null);
-    }
+    if (isRealHref) closeAll();
   };
 
   const portalLinks = school?.links ?? {};
@@ -306,6 +338,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
 
   return (
     <nav
+      ref={navRef}
       id="site-navigation"
       // className="main-navigation navbar navbar-expand-md navbar-light row"
       role="navigation"
@@ -329,7 +362,6 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       </div>
       <div
         id="TF-Navbar"
-        ref={navPanelRef}
         className={`navbar-collapse col-md-12 ${isNavOpen ? 'show' : ''}`}
       >
         <ul id="primary-menu" className="nav navbar-nav primary-menu">
@@ -338,6 +370,16 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
               key={item.id}
               id={item.id}
               className={`${item.className} ${activeDropdown === item.id ? 'show' : ''}`}
+              onMouseEnter={(e) => {
+                // Hovering another item replaces a click-opened (or focus-held) dropdown.
+                if (activeDropdown === item.id) return;
+                const focused = document.activeElement;
+                if (focused instanceof HTMLElement && !e.currentTarget.contains(focused)) {
+                  focused.blur();
+                }
+                setActiveDropdown(null);
+                setActiveSubDropdown(null);
+              }}
             >
               {isExternalLink(item.href) && !item.dropdown ? (
                 <a
@@ -385,6 +427,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                     if (item.dropdown) {
                       e.preventDefault();
                       toggleDropdown(item.id);
+                    } else {
+                      closeNavbarIfMobile(item.href);
                     }
                   }}
                 >
@@ -486,6 +530,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                           onClick={(e) => {
                             if (subItem.id === 'menu-item-3371') {
                               handleRoutineClick(e);
+                              closeAll();
+                              return;
                             }
                             closeNavbarIfMobile(subItem.href);
                           }}

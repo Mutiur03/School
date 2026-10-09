@@ -788,3 +788,114 @@ header#masthead {
     max-width: 100%;
   }
 }
+
+/* ---- Premium menu bar: one deep-navy surface, one amber accent ----
+   Replaces the per-item rainbow colors. Overrides above via !important + later order. */
+:root {
+  --nav-bg: #1d3a73;
+  --nav-bg-deep: #16305f;
+  --nav-text: #e6ebf5;
+  --nav-accent: #d9a441;
+  --nav-line: rgba(255, 255, 255, 0.09);
+}
+
+#TF-Navbar {
+  background: linear-gradient(180deg, #2a4a8a 0%, var(--nav-bg) 100%) !important;
+  box-shadow: 0 10px 24px -12px rgba(10, 23, 48, 0.55);
+}
+
+#TF-Navbar > ul > li > a,
+#TF-Navbar > ul > li[class] > a {
+  color: var(--nav-text) !important;
+  background: transparent;
+  text-shadow: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition:
+    background-color 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease;
+}
+
+#TF-Navbar > ul > li > a:hover,
+#TF-Navbar > ul > li[class] > a:hover,
+#TF-Navbar > ul > li:focus-within > a,
+#TF-Navbar > ul > li.show > a {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 -3px 0 var(--nav-accent);
+}
+
+#TF-Navbar .dropdown-menu,
+#TF-Navbar > ul > li[class] .dropdown-menu,
+#TF-Navbar > ul > li[class] .dropdown-menu .dropdown-menu {
+  background-color: var(--nav-bg-deep) !important;
+  border: 1px solid var(--nav-line);
+  border-top: 2px solid var(--nav-accent);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 18px 32px -14px rgba(5, 12, 30, 0.7);
+}
+
+#TF-Navbar .dropdown-menu > li {
+  border-bottom: 1px solid var(--nav-line);
+}
+
+#TF-Navbar .dropdown-menu > li:last-child {
+  border-bottom: none;
+}
+
+#TF-Navbar .dropdown-menu > li:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 3px 0 0 var(--nav-accent);
+}
+
+#TF-Navbar .dropdown-menu > li > a {
+  font-size: 15px;
+  color: var(--nav-text);
+  text-shadow: none;
+}
+
+@media (max-width: 1199px) {
+  #TF-Navbar {
+    border-radius: 0 0 8px 8px;
+  }
+
+  #TF-Navbar > ul > li {
+    border-bottom: 1px solid var(--nav-line);
+  }
+
+  #TF-Navbar .dropdown-menu {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  #TF-Navbar .dropdown-menu > li > a {
+    color: var(--nav-text) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #TF-Navbar > ul > li > a {
+    transition: none;
+  }
+}
+
+@media (min-width: 1200px) {
+  #site-navigation {
+    padding: 0;
+  }
+
+  #TF-Navbar {
+    border-radius: 0;
+  }
+
+  #TF-Navbar > ul {
+    padding: 0 8px;
+  }
+
+  #TF-Navbar > ul > li > a {
+    padding: 14px 8px;
+    font-size: 13px;
+  }
+}
