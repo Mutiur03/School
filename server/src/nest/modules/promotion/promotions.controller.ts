@@ -13,6 +13,7 @@ import {
 import { Auth } from '../../common/auth.guard.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { PassRulesDto } from './dto/pass-rules.dto.js';
+import { ResultEnrollmentsDto } from './dto/result-enrollments.dto.js';
 import { UpdateResultDto } from './dto/update-result.dto.js';
 import { PromotionService } from './promotion.service.js';
 
@@ -53,6 +54,26 @@ export class PromotionsController {
   @Post(':year/results')
   createResults(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
     return this.promotion.createResults(schoolId, year);
+  }
+
+  /** Withhold results until released. */
+  @Post(':year/results/holds')
+  createHolds(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Body() dto: ResultEnrollmentsDto,
+  ) {
+    return this.promotion.holdResults(schoolId, year, dto.enrollment_ids);
+  }
+
+  /** Release held results as a new batch; they rank after everyone already released. */
+  @Post(':year/results/releases')
+  createReleases(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Body() dto: ResultEnrollmentsDto,
+  ) {
+    return this.promotion.releaseResults(schoolId, year, dto.enrollment_ids);
   }
 
   /** Manual override; 404 when the enrollment is not in this school + year. */

@@ -334,6 +334,19 @@ describe('v1 rankStudents', () => {
     ]);
   });
 
+  it('ranks late-release batches after earlier ones, even with higher marks, but passed still before failed', () => {
+    const ranks = rankStudents([
+      res(1, { totalMarks: 100 }),
+      res(2, { totalMarks: 900, releaseBatch: 1 }),
+      res(3, { totalMarks: 50, releaseBatch: 2 }),
+      res(4, { totalMarks: 800, releaseBatch: 1 }),
+      res(5, { isFailed: true, totalMarks: 999 }),
+    ]);
+    expect([...ranks.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id)).toEqual([
+      1, 2, 4, 3, 5,
+    ]);
+  });
+
   it('separates classes and class-10 groups; ignores group for 6-9', () => {
     const ranks = rankStudents([
       res(1, { classLevel: 9, group: 'Science', totalMarks: 10 }),

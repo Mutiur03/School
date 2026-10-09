@@ -76,6 +76,8 @@ export interface StudentSessionResult {
   gpa: number;
   failCount: number;
   isFailed: boolean;
+  /** Late-release batch (0 = on time); later batches rank after earlier ones. Set by the loader, not the engine. */
+  releaseBatch?: number;
 }
 
 export type ExamMode = 'both' | 'yearEndOnly';
@@ -234,7 +236,7 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
   };
 }
 
-/** Merit position per enrollment: by class (+ group for class 10 only; class 9 ranks across groups), passed first, then marks/GPA/section/roll. */
+/** Merit position per enrollment: by class (+ group for class 10 only; class 9 ranks across groups), passed first, then release batch, then marks/GPA/section/roll. */
 export function rankStudents(results: StudentSessionResult[]): Map<number, number> {
   const buckets = new Map<string, StudentSessionResult[]>();
   for (const r of results) {
@@ -247,6 +249,7 @@ export function rankStudents(results: StudentSessionResult[]): Map<number, numbe
       .sort(
         (a, b) =>
           Number(a.isFailed) - Number(b.isFailed) ||
+          (a.releaseBatch ?? 0) - (b.releaseBatch ?? 0) ||
           b.totalMarks - a.totalMarks ||
           b.gpa - a.gpa ||
           a.section.localeCompare(b.section) ||

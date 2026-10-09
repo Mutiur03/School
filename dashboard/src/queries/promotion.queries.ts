@@ -170,6 +170,28 @@ export const useOverrideEnrollmentStatus = () => {
   });
 };
 
+/** Withhold (`hold`) or release (`release`) results for the given enrollments. */
+export const useResultHold = (action: 'hold' | 'release') => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ year, enrollmentIds }: { year: number; enrollmentIds: number[] }) => {
+      const path = action === 'hold' ? 'holds' : 'releases';
+      const response = await axios.post(`/api/promotions/${year}/results/${path}`, {
+        enrollment_ids: enrollmentIds,
+      });
+      return response.data?.data as { held?: number; batch?: number; updated?: number };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['promotion-stats'] });
+      toast.success(action === 'hold' ? 'Results held' : 'Results released');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || `Could not ${action} results`);
+    },
+  });
+};
+
 export const useUpdatePromotionStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({

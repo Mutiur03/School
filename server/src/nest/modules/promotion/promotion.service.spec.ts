@@ -478,6 +478,51 @@ describe('PromotionService.graduate', () => {
   });
 });
 
+describe('PromotionService hold / release', () => {
+  it('hold withholds: resets status and merit, scoped by school and year', async () => {
+    db.student_enrollments.updateMany.mockResolvedValueOnce({ count: 2 });
+    await expect(service.holdResults(S, YEAR, [1, 2])).resolves.toEqual({ held: 2 });
+    expect(db.student_enrollments.updateMany).toHaveBeenCalledWith({
+      where: { school_id: S, year: YEAR, id: { in: [1, 2] } },
+      data: {
+        result_held: true,
+        status: 'Pending',
+        final_merit: 0,
+        fail_count: 0,
+        release_batch: 0,
+        result_released_at: null,
+      },
+    });
+  });
+
+  it('release assigns the next batch to held rows only and writes only them', async () => {
+    db.student_enrollments.findMany.mockResolvedValueOnce([{ id: 2 }]);
+    (db.student_enrollments as unknown as { aggregate: jest.Mock<Fn> }).aggregate = jest
+      .fn<Fn>()
+      .mockResolvedValue({ _max: { release_batch: 1 } });
+    const create = jest
+      .spyOn(service, 'createResults')
+      .mockResolvedValueOnce({ updated: 1 } as never);
+    db.student_enrollments.updateMany.mockClear();
+
+    await expect(service.releaseResults(S, YEAR, [1, 2])).resolves.toMatchObject({ batch: 2 });
+    expect(db.student_enrollments.findMany).toHaveBeenCalledWith({
+      where: { school_id: S, year: YEAR, id: { in: [1, 2] }, result_held: true },
+      select: { id: true },
+    });
+    expect(db.student_enrollments.updateMany).toHaveBeenCalledWith({
+      where: { school_id: S, year: YEAR, id: { in: [2] } },
+      data: { result_held: false, release_batch: 2, result_released_at: expect.any(Date) },
+    });
+    expect(create).toHaveBeenCalledWith(S, YEAR, [2]);
+  });
+
+  it('release 400s when nothing is held', async () => {
+    db.student_enrollments.findMany.mockResolvedValueOnce([]);
+    await expect(service.releaseResults(S, YEAR, [1])).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
 describe('PromotionService.updateResult', () => {
   it('updates with school_id and year in where', async () => {
     await service.updateResult(S, YEAR, 5, 'Failed');

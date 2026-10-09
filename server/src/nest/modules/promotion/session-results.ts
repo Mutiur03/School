@@ -11,6 +11,8 @@ export type SessionResultRow = StudentSessionResult & {
   studentName: string;
   previousExamId: number | null;
   yearEndExamId: number;
+  /** Withheld: not ranked (position 0), not written by generation. */
+  held: boolean;
 };
 
 export type SessionResults = {
@@ -78,6 +80,8 @@ export async function loadSessionResults(
       section: true,
       roll: true,
       fourth_subject_id: true,
+      result_held: true,
+      release_batch: true,
       student: { select: { name: true } },
     },
   });
@@ -147,22 +151,26 @@ export async function loadSessionResults(
     return {
       e,
       ex,
-      result: engine.computeStudentResult({
-        enrollmentId: e.id,
-        classLevel: e.class,
-        group: e.group,
-        section: e.section,
-        roll: e.roll,
-        fourthSubjectId: e.fourth_subject_id,
-        subjects: subjectsByClass.get(e.class) ?? [],
-        marks: marksByEnrollment.get(e.id) ?? [],
-        previousExamId: ex.previousExamId,
-        yearEndExamId: ex.yearEndExamId,
-        maxAllowedFails: maxFailed.get(e.class) ?? 0,
-      }),
+      result: {
+        ...engine.computeStudentResult({
+          enrollmentId: e.id,
+          classLevel: e.class,
+          group: e.group,
+          section: e.section,
+          roll: e.roll,
+          fourthSubjectId: e.fourth_subject_id,
+          subjects: subjectsByClass.get(e.class) ?? [],
+          marks: marksByEnrollment.get(e.id) ?? [],
+          previousExamId: ex.previousExamId,
+          yearEndExamId: ex.yearEndExamId,
+          maxAllowedFails: maxFailed.get(e.class) ?? 0,
+        }),
+        releaseBatch: e.release_batch,
+      },
     };
   });
-  const positions = engine.rankStudents(computed.map((c) => c.result));
+  // Held students are not ranked, so releasing or regenerating never shifts anyone's merit.
+  const positions = engine.rankStudents(computed.filter((c) => !c.e.result_held).map((c) => c.result));
 
   const wanted = opts.enrollmentIds && new Set(opts.enrollmentIds);
   const results = computed
@@ -174,6 +182,7 @@ export async function loadSessionResults(
       studentName: e.student.name,
       previousExamId: ex.previousExamId,
       yearEndExamId: ex.yearEndExamId,
+      held: e.result_held,
     }))
     .sort(
       (a, b) =>

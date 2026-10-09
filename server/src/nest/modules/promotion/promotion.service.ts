@@ -67,11 +67,16 @@ export class PromotionService {
     return results.filter((r) => inScope(r.classLevel));
   }
 
-  /** Classes missing an exam are left untouched and reported back; the rest are written. */
-  async createResults(schoolId: number, year: number) {
+  /**
+   * Classes missing an exam are left untouched and reported back; the rest are written.
+   * Held students are never written; `only` limits the write to those enrollments (used by release).
+   */
+  async createResults(schoolId: number, year: number, only?: number[]) {
     const sr = await loadSessionResults(this.prisma, schoolId, year);
     const { missingYearEnd, missingPrevious } = sr;
-    const results = sr.results.filter((r) => !missingPrevious.includes(r.classLevel));
+    const results = sr.results.filter(
+      (r) => !missingPrevious.includes(r.classLevel) && !r.held && (!only || only.includes(r.enrollmentId)),
+    );
     await rlsTransaction(async (tx) => {
       for (const r of results) {
         await tx.student_enrollments.update({
@@ -144,6 +149,7 @@ export class PromotionService {
           a.result.classLevel - b.result.classLevel ||
           bucketOf(a.result).localeCompare(bucketOf(b.result)) ||
           Number(b.status === 'Passed') - Number(a.status === 'Passed') ||
+          (a.result.releaseBatch ?? 0) - (b.result.releaseBatch ?? 0) ||
           a.result.position - b.result.position,
       );
     let bucket = '';
@@ -534,6 +540,45 @@ export class PromotionService {
       newYear,
       sscBatch,
     };
+  }
+
+  /** Withhold results: status back to Pending so promotion/graduation skip them; they are not ranked until released. */
+  async holdResults(schoolId: number, year: number, enrollmentIds: number[]) {
+    const { count } = await this.prisma.student_enrollments.updateMany({
+      where: { school_id: schoolId, year, id: { in: enrollmentIds } },
+      data: {
+        result_held: true,
+        status: 'Pending',
+        final_merit: 0,
+        fail_count: 0,
+        release_batch: 0,
+        result_released_at: null,
+      },
+    });
+    return { held: count };
+  }
+
+  /**
+   * Release held results as one new batch: they rank after every earlier batch, so on-time merits never
+   * move, and regenerating later keeps that order. Only the released rows are written.
+   */
+  async releaseResults(schoolId: number, year: number, enrollmentIds: number[]) {
+    const held = await this.prisma.student_enrollments.findMany({
+      where: { school_id: schoolId, year, id: { in: enrollmentIds }, result_held: true },
+      select: { id: true },
+    });
+    if (!held.length) throw new BadRequestException('None of these results are held.');
+    const ids = held.map((e) => e.id);
+    const { _max } = await this.prisma.student_enrollments.aggregate({
+      where: { school_id: schoolId, year },
+      _max: { release_batch: true },
+    });
+    const batch = (_max.release_batch ?? 0) + 1;
+    await this.prisma.student_enrollments.updateMany({
+      where: { school_id: schoolId, year, id: { in: ids } },
+      data: { result_held: false, release_batch: batch, result_released_at: new Date() },
+    });
+    return { batch, ...(await this.createResults(schoolId, year, ids)) };
   }
 
   /** Manual pass/fail override. school + year in the where: wrong tenant/year → P2025 → 404. */
