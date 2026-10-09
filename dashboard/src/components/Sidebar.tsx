@@ -17,6 +17,7 @@ import {
   CalendarCheck,
   Footprints,
   TreePalm,
+  FileCheck,
   PartyPopper,
   Building2,
   ChevronDown,
@@ -266,6 +267,14 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       dropdown: false,
       link: '/admin/holiday',
       id: 'holiday',
+      roles: ['admin'],
+    },
+    {
+      label: 'Certificates',
+      icon: FileCheck,
+      dropdown: false,
+      link: '/admin/certificates',
+      id: 'certificates',
       roles: ['admin'],
     },
     {

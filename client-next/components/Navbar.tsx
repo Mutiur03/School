@@ -360,10 +360,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
           </div>
         </button>
       </div>
-      <div
-        id="TF-Navbar"
-        className={`navbar-collapse col-md-12 ${isNavOpen ? 'show' : ''}`}
-      >
+      <div id="TF-Navbar" className={`navbar-collapse col-md-12 ${isNavOpen ? 'show' : ''}`}>
         <ul id="primary-menu" className="nav navbar-nav primary-menu">
           {menuItems.map((item) => (
             <li

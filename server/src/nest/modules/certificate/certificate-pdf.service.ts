@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import puppeteer from 'puppeteer';
 import {
   districts,
@@ -8,11 +9,10 @@ import {
   type TestimonialData,
   upazilas,
 } from '@school/shared-schemas';
-import { prisma } from '@/config/prisma.js';
+import type { PrismaClient } from '@/generated/prisma/client.js';
 import { resolveR2FileBuffer } from '@/config/r2.js';
-import { ApiError } from '@/utils/ApiError.js';
-import { requireSchoolId } from '@/utils/requireSchoolId.js';
 import { schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
+import { PRISMA } from '../../common/prisma.module.js';
 
 const BN_DIGITS = '০১২৩৪৫৬৭৮৯';
 const bnNum = (v: string | number) => String(v).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
@@ -63,8 +63,7 @@ const fontBase64 = (file: string) => {
   return fs.existsSync(p) ? fs.readFileSync(p).toString('base64') : '';
 };
 
-async function loadSchool() {
-  const schoolId = requireSchoolId();
+async function loadSchool(prisma: PrismaClient, schoolId: number) {
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
     select: {
@@ -81,7 +80,7 @@ async function loadSchool() {
       gender: true,
     },
   });
-  if (!school) throw new ApiError(404, 'School not found');
+  if (!school) throw new NotFoundException('School not found');
 
   let logo = '';
   if (school.logo) {
@@ -299,42 +298,49 @@ function buildHtml(d: TestimonialData, s: School) {
   </style></head><body>${section(true)}${section(false)}</body></html>`;
 }
 
-export async function generateTestimonialPdf(data: TestimonialData) {
-  const school = await loadSchool();
-  if (data.kind === 'board' && !school.board) {
-    throw new ApiError(400, 'School education board is not configured. Please contact the school.');
-  }
-  if (school.gender !== 'Boys' && school.gender !== 'Girls' && !data.gender) {
-    throw new ApiError(400, 'Gender is required');
-  }
-  const html = buildHtml(data, school);
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--lang=bn-BD',
-    ],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-  });
-  try {
-    const page = await browser.newPage();
-    await page.setJavaScriptEnabled(false);
-    await page.setContent(html.normalize('NFC'), { waitUntil: 'load' });
-    await page.evaluateHandle('document.fonts.ready').catch(() => undefined);
-    // Shrink long school names to the header width so they never overflow and stay centred.
-    await page.$$eval('.school', (els) =>
-      els.forEach((el) => {
-        const e = el as HTMLElement;
-        if (e.scrollWidth > e.clientWidth) {
-          e.style.fontSize = `${(parseFloat(getComputedStyle(e).fontSize) * e.clientWidth) / e.scrollWidth}px`;
-        }
-      }),
-    );
-    return await page.pdf({ format: 'a4', printBackground: true, preferCSSPageSize: true });
-  } finally {
-    await browser.close();
+@Injectable()
+export class CertificatePdfService {
+  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+
+  async generate(schoolId: number, data: TestimonialData) {
+    const school = await loadSchool(this.prisma, schoolId);
+    if (data.kind === 'board' && !school.board) {
+      throw new BadRequestException(
+        'School education board is not configured. Please contact the school.',
+      );
+    }
+    if (school.gender !== 'Boys' && school.gender !== 'Girls' && !data.gender) {
+      throw new BadRequestException('Gender is required');
+    }
+    const html = buildHtml(data, school);
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--lang=bn-BD',
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setJavaScriptEnabled(false);
+      await page.setContent(html.normalize('NFC'), { waitUntil: 'load' });
+      await page.evaluateHandle('document.fonts.ready').catch(() => undefined);
+      // Shrink long school names to the header width so they never overflow and stay centred.
+      await page.$$eval('.school', (els) =>
+        els.forEach((el) => {
+          const e = el as HTMLElement;
+          if (e.scrollWidth > e.clientWidth) {
+            e.style.fontSize = `${(parseFloat(getComputedStyle(e).fontSize) * e.clientWidth) / e.scrollWidth}px`;
+          }
+        }),
+      );
+      return await page.pdf({ format: 'a4', printBackground: true, preferCSSPageSize: true });
+    } finally {
+      await browser.close();
+    }
   }
 }

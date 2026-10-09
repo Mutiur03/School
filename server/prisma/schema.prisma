@@ -49,6 +49,8 @@ model School {
   notices                  notices[]
   admins                   admin[]
   holidays                 holidays[]
+  certificates             certificates[]
+  certificate_revisions    certificate_revisions[]
   staffs                   staffs[]
   subjects                 subjects[]
   categories               categories[]
@@ -462,6 +464,62 @@ model attendance_sheets {
   @@unique([school_id, year, month, class, section], name: "attendance_sheet_scope")
   @@index([school_id, status])
   @@index([status])
+}
+
+/// Public certificate (প্রত্যয়নপত্র) requests: one real column per form field so they can be searched and reported on.
+model certificates {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  school_id       Int                     @default(dbgenerated("app.current_school_id()"))
+  exam            String                  @db.VarChar(10)
+  passing_year    Int
+  student_name_bn String                  @db.VarChar(150)
+  student_name_en String                  @db.VarChar(100)
+  father_name_bn  String                  @db.VarChar(150)
+  father_name_en  String                  @db.VarChar(100)
+  mother_name_bn  String                  @db.VarChar(150)
+  mother_name_en  String                  @db.VarChar(100)
+  mobile          String                  @db.VarChar(11)
+  dob             DateTime                @db.Date
+  gender          String?                 @db.VarChar(6)
+  roll            String?                 @db.VarChar(6)
+  registration_no String?                 @db.VarChar(10)
+  gpa             Decimal?                @db.Decimal(3, 2)
+  created_ip      String?                 @db.VarChar(64)
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
+  school          School                  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  revisions       certificate_revisions[]
+
+  @@unique([school_id, passing_year, mobile, dob, exam])
+  @@index([school_id, updated_at])
+}
+
+/// Copy of a `certificates` row taken before each edit. `ip` is the editor's address.
+model certificate_revisions {
+  id              Int          @id @default(autoincrement())
+  certificate_id  String       @db.Uuid
+  school_id       Int          @default(dbgenerated("app.current_school_id()"))
+  exam            String       @db.VarChar(10)
+  passing_year    Int
+  student_name_bn String       @db.VarChar(150)
+  student_name_en String       @db.VarChar(100)
+  father_name_bn  String       @db.VarChar(150)
+  father_name_en  String       @db.VarChar(100)
+  mother_name_bn  String       @db.VarChar(150)
+  mother_name_en  String       @db.VarChar(100)
+  mobile          String       @db.VarChar(11)
+  dob             DateTime     @db.Date
+  gender          String?      @db.VarChar(6)
+  roll            String?      @db.VarChar(6)
+  registration_no String?      @db.VarChar(10)
+  gpa             Decimal?     @db.Decimal(3, 2)
+  ip              String?      @db.VarChar(64)
+  created_at      DateTime     @default(now())
+  certificate     certificates @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+  school          School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@index([certificate_id])
+  @@index([school_id])
 }
 
 model holidays {

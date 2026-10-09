@@ -55,6 +55,7 @@ const SmsManagement = lazy(() => import('./pages/Admin/SmsManagement'));
 const Billing = lazy(() => import('./pages/Admin/Billing'));
 const Notice = lazy(() => import('./pages/Admin/Notice'));
 const Holidays = lazy(() => import('./pages/Admin/Holidays'));
+const Certificates = lazy(() => import('./pages/Admin/Certificates'));
 const Admission = lazy(() => import('./pages/Admin/Admission'));
 const AdmissionSettings = lazy(() => import('./pages/Admin/AdmissionSettings'));
 const AdmissionResult = lazy(() => import('./pages/Admin/AdmissionResult'));
@@ -100,6 +101,7 @@ registerRoutePrefetchers({
   '/admin/settings/billing': Billing,
   '/admin/notice': Notice,
   '/admin/holiday': Holidays,
+  '/admin/certificates': Certificates,
   '/admin/events': Events,
   '/admin/gallery/upload': Gallery,
   '/admin/gallery/pending': GalleryModeration,
@@ -453,6 +455,7 @@ function App() {
                               <Route path="/settings/billing" element={<Billing />} />
                               <Route path="/notice" element={<Notice />} />
                               <Route path="/holiday" element={<Holidays />} />
+                              <Route path="/certificates" element={<Certificates />} />
                               <Route path="/admission/form" element={<Admission />} />
                               <Route path="/admission/settings" element={<AdmissionSettings />} />
                               <Route path="/admission/result" element={<AdmissionResult />} />

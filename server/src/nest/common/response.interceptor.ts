@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, StreamableFile } from '@nestjs/common';
 import type { NestInterceptor } from '@nestjs/common';
 import { map } from 'rxjs';
 
@@ -6,6 +6,8 @@ import { map } from 'rxjs';
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
   intercept(_ctx: ExecutionContext, next: CallHandler) {
-    return next.handle().pipe(map((data) => ({ success: true, data })));
+    return next
+      .handle()
+      .pipe(map((data) => (data instanceof StreamableFile ? data : { success: true, data })));
   }
 }
