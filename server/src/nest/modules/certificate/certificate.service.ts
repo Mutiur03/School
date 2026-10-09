@@ -283,6 +283,11 @@ export class CertificateService {
     }));
   }
 
+  /** Admin: deletes the certificate; its revisions go with it (ON DELETE CASCADE). */
+  async remove(schoolId: number, id: string) {
+    await this.prisma.certificates.delete({ where: { id, school_id: schoolId } });
+  }
+
   async generatePdf(schoolId: number, id: string) {
     const row = await this.prisma.certificates.findUniqueOrThrow({
       where: { id, school_id: schoolId },

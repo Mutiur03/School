@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { Auth } from '../../common/auth.guard.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { CertificateService } from './certificate.service.js';
@@ -18,5 +18,10 @@ export class CertificateAdminController {
   @Get(':id/revisions')
   history(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
     return this.certificates.history(schoolId, id);
+  }
+
+  @Delete(':id')
+  remove(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
+    return this.certificates.remove(schoolId, id);
   }
 }

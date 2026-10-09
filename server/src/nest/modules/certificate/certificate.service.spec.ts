@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@/generated/prisma/client.js';
 import type { PrismaClient } from '@/generated/prisma/client.js';
-import { CertificatePdfService } from './certificate-pdf.service.js';
+import type { CertificatePdfService } from './certificate-pdf.service.js';
 import { CertificateService } from './certificate.service.js';
 import type { CreateCertificateDto } from './dto/create-certificate.dto.js';
 
@@ -288,6 +288,27 @@ describe('CertificateService.history', () => {
       [{ field: 'gpa', from: '4.75', to: '5.00' }],
       [{ field: 'student_name_en', from: 'Md. Rahim Uddin', to: 'Md. Rahim' }],
     ]);
+  });
+});
+
+describe('CertificateService.remove', () => {
+  const del = jest.fn<Fn>();
+  const remover = new CertificateService(
+    { certificates: { delete: del } } as unknown as PrismaClient,
+    { generate } as unknown as CertificatePdfService,
+  );
+
+  it('deletes by id scoped to school_id', async () => {
+    del.mockResolvedValue({});
+    await remover.remove(1, ID);
+    expect(del).toHaveBeenCalledWith({ where: { id: ID, school_id: 1 } });
+  });
+
+  it('bubbles P2025 for another tenant or unknown id (→ 404)', async () => {
+    del.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('nope', { code: 'P2025', clientVersion: 'x' }),
+    );
+    await expect(remover.remove(2, ID)).rejects.toMatchObject({ code: 'P2025' });
   });
 });
 

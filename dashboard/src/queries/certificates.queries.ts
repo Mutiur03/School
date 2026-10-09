@@ -1,5 +1,6 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios, { AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
 
 export interface CertificateRecord {
   id: string;
@@ -68,3 +69,18 @@ export const useCertificateHistory = (id: string | null) =>
     enabled: !!id,
     queryFn: async () => (await axios.get(`/api/admin/certificates/${id}/revisions`)).data.data,
   });
+
+export const useDeleteCertificate = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await axios.delete(`/api/admin/certificates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['certificates'] });
+      toast.success('Certificate deleted');
+    },
+    onError: (error: AxiosError<{ message?: string }>) =>
+      toast.error(error.response?.data?.message || 'Error deleting certificate'),
+  });
+};

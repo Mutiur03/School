@@ -2,12 +2,13 @@ import React, { useDeferredValue, useState } from 'react';
 import { RotateCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Popup, SectionCard, TablePagination } from '@/components';
+import { ConfirmationPopup, Popup, SectionCard, TablePagination } from '@/components';
 import ActionButton from '@/components/ActionButton';
 import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import {
   useCertificateHistory,
   useCertificates,
+  useDeleteCertificate,
   type CertificateRecord,
   type CertificateSortKey as SortKey,
 } from '@/queries/certificates.queries';
@@ -185,6 +186,8 @@ export default function Certificates() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [open, setOpen] = useState<CertificateRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CertificateRecord | null>(null);
+  const deleteCertificate = useDeleteCertificate();
 
   const filtersActive = Boolean(
     nameFilter || mobileFilter || examFilters.length || yearFilters.length || editFilters.length,
@@ -413,7 +416,10 @@ export default function Certificates() {
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right">
-                      <ActionButton action="view" iconOnly onClick={() => setOpen(r)} />
+                      <div className="flex items-center justify-end gap-0.5">
+                        <ActionButton action="view" iconOnly onClick={() => setOpen(r)} />
+                        <ActionButton action="delete" iconOnly onClick={() => setDeleteTarget(r)} />
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -439,6 +445,17 @@ export default function Certificates() {
           }}
         />
       </SectionCard>
+
+      <ConfirmationPopup
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteCertificate.mutate(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        confirmLabel="Delete certificate"
+        msg={`Delete the certificate of ${deleteTarget?.data.student_name_en ?? 'this student'}? Its edit history is deleted too. This cannot be undone.`}
+      />
 
       {open && <CertificateHistory record={open} onClose={() => setOpen(null)} />}
     </div>
