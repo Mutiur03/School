@@ -28,6 +28,12 @@ export class PromotionsController {
     return this.promotion.promote(schoolId, year);
   }
 
+  /** Number the failed class-6 students left without a roll by the promotion (run after importing admissions). */
+  @Post(':year/retained')
+  createRetained(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
+    return this.promotion.assignRetained(schoolId, year);
+  }
+
   /** Dry run of the promotion. */
   @Get(':year/plan')
   findPlan(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {

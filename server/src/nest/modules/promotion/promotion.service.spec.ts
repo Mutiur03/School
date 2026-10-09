@@ -19,6 +19,7 @@ const model = () => ({
   update: jest.fn<Fn>().mockResolvedValue({}),
   updateMany: jest.fn<Fn>().mockResolvedValue({}),
   upsert: jest.fn<Fn>().mockResolvedValue({}),
+  create: jest.fn<Fn>().mockResolvedValue({}),
   createMany: jest.fn<Fn>().mockResolvedValue({}),
   deleteMany: jest.fn<Fn>().mockResolvedValue({}),
   groupBy: jest.fn<Fn>().mockResolvedValue([]),
@@ -268,7 +269,8 @@ describe('PromotionService.promote', () => {
   it('replaces only the plan students’ next-year rows, alternates sections, skips Pending', async () => {
     seedPromotion();
     await expect(service.promote(S, YEAR)).resolves.toEqual({
-      promoted: 3,
+      promoted: 2,
+      awaitingRoll: 1,
       skipped: 1,
       newYear: YEAR + 1,
     });
@@ -282,8 +284,11 @@ describe('PromotionService.promote', () => {
     ).toEqual([
       [102, 7, 'A', 5, S], // merit 1 → A, after the reserved roll 4
       [101, 7, 'B', 1, S], // merit 2 → B
-      [103, 6, 'A', 1, S], // failed → retained in 6
-    ]);
+    ]); // failed class-6 student 103 gets no row until assignRetained
+    expect(db.student_enrollments.update).toHaveBeenCalledWith({
+      where: { id: 3, school_id: S },
+      data: { final_merit: 3, next_year_section: 'A', next_year_roll: 0 },
+    });
     expect(db.student_enrollments.update).toHaveBeenCalledWith({
       where: { id: 2, school_id: S },
       data: { final_merit: 1, next_year_section: 'A', next_year_roll: 5 },
@@ -329,7 +334,108 @@ describe('PromotionService.promote', () => {
   it('preview reports skipped students', async () => {
     seedPromotion();
     const preview = await service.previewPromotion(S, YEAR);
-    expect(preview.summary).toMatchObject({ total: 3, skipped: 1 });
+    expect(preview.summary).toMatchObject({ total: 3, skipped: 1, awaiting_roll: 1 });
+    expect(preview.students.find((r) => r.student_id === 103)!.new_roll).toBeNull();
+  });
+});
+
+describe('PromotionService.promote with class-6 admissions already imported', () => {
+  it('numbers failed class-6 students right away, after the admissions', async () => {
+    seedClass(
+      6,
+      { 1: [40, 50], 3: [20, 20] },
+      { saved: { 3: { status: 'Failed' } }, nextYear: [{ class: 6, section: 'A', roll: 9 }] },
+    );
+    db.student_enrollments.count.mockImplementation(async (args: any) =>
+      args.where.student?.enrollments ? 1 : 0,
+    );
+    await expect(service.promote(S, YEAR)).resolves.toMatchObject({
+      promoted: 2,
+      awaitingRoll: 0,
+    });
+    const created = db.student_enrollments.createMany.mock.calls[0][0].data;
+    expect(created.map((e: any) => [e.student_id, e.class, e.section, e.roll])).toEqual([
+      [101, 7, 'A', 1],
+      [103, 6, 'B', 1], // merit 2 → B; admission holds A9, not B
+    ]);
+    const preview = await service.previewPromotion(S, YEAR);
+    expect(preview.summary).toMatchObject({ class6_admissions: true, awaiting_roll: 0 });
+  });
+});
+
+describe('PromotionService.promote admission check', () => {
+  it('next-year class-6 rows of students enrolled this year do not count as admissions', async () => {
+    seedClass(
+      6,
+      { 1: [40, 50], 3: [20, 20] },
+      { saved: { 3: { status: 'Failed' } }, nextYear: [{ class: 6, section: 'A', roll: 9 }] },
+    );
+    await expect(service.promote(S, YEAR)).resolves.toMatchObject({ awaitingRoll: 1 });
+    expect(db.student_enrollments.count).toHaveBeenCalledWith({
+      where: {
+        school_id: S,
+        year: YEAR + 1,
+        class: 6,
+        student_id: { notIn: [101, 103] },
+        student: { enrollments: { none: { school_id: S, year: YEAR } } },
+      },
+    });
+  });
+});
+
+describe('PromotionService.assignRetained', () => {
+  const waiting = [
+    { id: 3, student_id: 103, group: null, next_year_section: 'A', fourth_subject_id: null },
+    { id: 5, student_id: 105, group: null, next_year_section: 'B', fourth_subject_id: null },
+    { id: 7, student_id: 107, group: null, next_year_section: 'A', fourth_subject_id: null },
+  ];
+
+  it('numbers waiting students in merit order after the rolls already taken', async () => {
+    db.student_enrollments.findMany.mockImplementation(async (args: any) =>
+      args.orderBy ? waiting : [{ class: 6, section: 'A', roll: 12 }],
+    );
+    await expect(service.assignRetained(S, YEAR)).resolves.toEqual({
+      assigned: 3,
+      newYear: YEAR + 1,
+    });
+
+    expect(db.student_enrollments.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          school_id: S,
+          year: YEAR,
+          class: 6,
+          status: 'Failed',
+          next_year_roll: 0,
+        }),
+        orderBy: { final_merit: 'asc' },
+      }),
+    );
+    const created = db.student_enrollments.create.mock.calls.map(([a]: any) => [
+      a.data.student_id,
+      a.data.class,
+      a.data.section,
+      a.data.roll,
+      a.data.year,
+      a.data.school_id,
+    ]);
+    expect(created).toEqual([
+      [103, 6, 'A', 13, YEAR + 1, S],
+      [105, 6, 'B', 1, YEAR + 1, S],
+      [107, 6, 'A', 14, YEAR + 1, S],
+    ]);
+    expect(db.student_enrollments.update).toHaveBeenCalledWith({
+      where: { id: 3, school_id: S },
+      data: { next_year_roll: 13 },
+    });
+  });
+
+  it('does nothing when nobody is waiting', async () => {
+    await expect(service.assignRetained(S, YEAR)).resolves.toEqual({
+      assigned: 0,
+      newYear: YEAR + 1,
+    });
+    expect(db.student_enrollments.create).not.toHaveBeenCalled();
   });
 });
 

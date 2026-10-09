@@ -178,7 +178,7 @@ export async function loadSessionResults(
     .sort(
       (a, b) =>
         a.classLevel - b.classLevel ||
-        (a.group ?? '').localeCompare(b.group ?? '') ||
+        (a.classLevel === 10 ? (a.group ?? '').localeCompare(b.group ?? '') : 0) ||
         a.position - b.position,
     );
 

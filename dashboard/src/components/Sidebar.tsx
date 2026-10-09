@@ -134,11 +134,6 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           link: '/admin/result/generate-result',
           id: 'generate-result',
         },
-        {
-          label: 'Override Pass/Fail',
-          link: '/admin/result/customize-result',
-          id: 'customize-result',
-        },
       ],
     },
     {

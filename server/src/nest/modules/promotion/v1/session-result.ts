@@ -234,11 +234,11 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
   };
 }
 
-/** Merit position per enrollment: by class (+ group for 9-10), passed first, then marks/GPA/section/roll. */
+/** Merit position per enrollment: by class (+ group for class 10 only; class 9 ranks across groups), passed first, then marks/GPA/section/roll. */
 export function rankStudents(results: StudentSessionResult[]): Map<number, number> {
   const buckets = new Map<string, StudentSessionResult[]>();
   for (const r of results) {
-    const key = `${r.classLevel}|${r.classLevel >= 9 ? (r.group ?? '') : ''}`;
+    const key = `${r.classLevel}|${r.classLevel === 10 ? (r.group ?? '') : ''}`;
     buckets.set(key, [...(buckets.get(key) ?? []), r]);
   }
   const positions = new Map<number, number>();

@@ -40,6 +40,7 @@ import { useStudents, type StudentSortKey } from '@/queries/students.queries';
 import { useExams } from '@/queries/exam.queries';
 import {
   useUpdatePromotionStatus,
+  useAssignRetained,
   useGeneratePromotionRoll,
   usePromotionPreview,
   useGraduationPreview,
@@ -266,6 +267,7 @@ const GenerateResult = () => {
   const { mutate: fetchGraduationPreview, isPending: isGraduationPreviewLoading } =
     useGraduationPreview();
   const { mutate: generateRoll, isPending: isGeneratingRoll } = useGeneratePromotionRoll();
+  const { mutate: assignRetained, isPending: isAssigningRetained } = useAssignRetained();
   const { mutate: graduateClass10, isPending: isGraduating } = useGraduateClass10();
   const { mutate: overrideStatus } = useOverrideEnrollmentStatus();
 
@@ -294,6 +296,7 @@ const GenerateResult = () => {
   const class10 = yearStats?.class10;
   const promoted = yearStats?.promoted ?? false;
   const nextYearTotal = yearStats?.next_year_enrollments ?? 0;
+  const awaitingRoll = yearStats?.awaiting_roll ?? 0;
   const class10Graduated = (class10?.graduated ?? 0) > 0;
 
   const handleYearChange = (value: string) => {
@@ -535,6 +538,9 @@ const GenerateResult = () => {
           detail={
             <>
               Classes 6–9 → {year + 1}.{' '}
+              {awaitingRoll > 0
+                ? `${awaitingRoll} failed class-6 student${awaitingRoll === 1 ? '' : 's'} have no roll yet — import admissions, then assign. `
+                : ''}
               {nextYearTotal === 0
                 ? 'No enrollments there yet — safe to promote.'
                 : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces the promoted students’ rows.`}
@@ -551,6 +557,17 @@ const GenerateResult = () => {
             {promoteBusy ? <RefreshCw className="animate-spin" /> : <Trophy />}
             Review & promote
           </Button>
+          {awaitingRoll > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => assignRetained(year)}
+              disabled={isAssigningRetained}
+            >
+              {isAssigningRetained ? <RefreshCw className="animate-spin" /> : <Users />}
+              Assign retained ({awaitingRoll})
+            </Button>
+          ) : null}
         </Step>
 
         <Step

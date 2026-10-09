@@ -117,6 +117,21 @@ export function PromotionPreviewDialog({
               </Alert>
             ) : null}
 
+            {summary.awaiting_roll > 0 ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  No new class-6 admissions found for {preview.newYear}.{' '}
+                  <strong>
+                    {summary.awaiting_roll} failed class-6 student
+                    {summary.awaiting_roll === 1 ? '' : 's'} will be put on hold
+                  </strong>{' '}
+                  with no roll. Import the admissions, then assign them manually with{' '}
+                  <strong>Assign retained</strong>.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {summary.existing_next_year_enrollments > 0 ? (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
@@ -163,8 +178,12 @@ export function PromotionPreviewDialog({
                         {row.final_merit || '—'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                        Cl {row.new_class} · {row.new_section}
-                        {row.new_roll}
+                        Cl {row.new_class} ·{' '}
+                        {row.new_roll == null ? (
+                          <span className="text-muted-foreground">roll after admissions</span>
+                        ) : (
+                          `${row.new_section}${row.new_roll}`
+                        )}
                       </td>
                     </tr>
                   ))}

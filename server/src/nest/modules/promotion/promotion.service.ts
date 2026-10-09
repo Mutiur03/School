@@ -8,13 +8,15 @@ import { loadSessionResults } from './session-results.js';
 import type { SessionResultRow } from './session-results.js';
 
 const PROMOTION_CLASSES = [6, 7, 8, 9];
+/** Class that takes outside admissions: its failed students get their roll via `assignRetained`, after the import. */
+const DEFERRED_CLASS = 6;
 const TX_OPTIONS = { timeout: 120_000 };
 
 type Tx = Prisma.TransactionClient;
 
-/** Same bucket as the engine's rank: class, plus group for 9-10. */
+/** Same bucket as the engine's rank: class, plus group for class 10 only. */
 const bucketOf = (r: SessionResultRow) =>
-  `${r.classLevel}|${r.classLevel >= 9 ? (r.group ?? '') : ''}`;
+  `${r.classLevel}|${r.classLevel === 10 ? (r.group ?? '') : ''}`;
 
 const subjectKey = (s: { name: string; class: number; group: string | null }) =>
   `${s.name}|${s.class}|${s.group ?? ''}`;
@@ -185,20 +187,34 @@ export class PromotionService {
       await this.completeResults(schoolId, year, PROMOTION_CLASSES),
     );
     const studentIds = ranked.map((r) => r.result.studentId);
-    const [taken, existingNextYear, subjectsNextYear] = await Promise.all([
+    const [taken, existingNextYear, subjectsNextYear, newClass6] = await Promise.all([
       this.otherNextYear(schoolId, newYear, studentIds),
       this.prisma.student_enrollments.count({
         where: { school_id: schoolId, year: newYear, student_id: { in: studentIds } },
       }),
       this.prisma.subjects.count({ where: { school_id: schoolId, year: newYear } }),
+      // Newly admitted = next-year class 6 with no enrollment this year (Pending/skipped students have one).
+      this.prisma.student_enrollments.count({
+        where: {
+          school_id: schoolId,
+          year: newYear,
+          class: DEFERRED_CLASS,
+          student_id: { notIn: studentIds },
+          student: { enrollments: { none: { school_id: schoolId, year } } },
+        },
+      }),
     ]);
 
     // Odd merit → section A, even → B; rolls count up per next-year class+section in merit order
     // (rows are already ordered class → group → merit, so promoted students precede the retained).
+    // With no class-6 admissions in `newYear` yet, failed class-6 students keep a null roll (on hold):
+    // `assignRetained` numbers them after the admissions are imported.
+    const class6Admissions = newClass6 > 0;
     const nextRoll = rollCounter(taken);
     const students = ranked.map(({ result: r, status, fourthSubjectId, finalMerit }) => {
       const new_class = status === 'Passed' ? r.classLevel + 1 : r.classLevel;
       const new_section = finalMerit % 2 === 1 ? 'A' : 'B';
+      const deferred = status === 'Failed' && r.classLevel === DEFERRED_CLASS && !class6Admissions;
       return {
         enrollment_id: r.enrollmentId,
         student_id: r.studentId,
@@ -212,15 +228,23 @@ export class PromotionService {
         final_merit: finalMerit,
         new_class,
         new_section,
-        new_roll: nextRoll(new_class, new_section),
+        new_roll: deferred ? null : nextRoll(new_class, new_section),
         fourth_subject_id: fourthSubjectId,
       };
     });
-    return { year, newYear, students, skipped, existingNextYear, subjectsNextYear };
+    return {
+      year,
+      newYear,
+      students,
+      skipped,
+      existingNextYear,
+      subjectsNextYear,
+      class6Admissions,
+    };
   }
 
   async previewPromotion(schoolId: number, year: number) {
-    const { newYear, students, skipped, existingNextYear, subjectsNextYear } =
+    const { newYear, students, skipped, existingNextYear, subjectsNextYear, class6Admissions } =
       await this.promotionPlan(schoolId, year);
     return {
       year,
@@ -230,6 +254,8 @@ export class PromotionService {
         total: students.length,
         passed_promoted: students.filter((s) => s.status === 'Passed').length,
         failed_retained: students.filter((s) => s.status === 'Failed').length,
+        awaiting_roll: students.filter((s) => s.new_roll == null).length,
+        class6_admissions: class6Admissions,
         skipped,
         section_a: students.filter((s) => s.new_section === 'A').length,
         section_b: students.filter((s) => s.new_section === 'B').length,
@@ -288,7 +314,8 @@ export class PromotionService {
 
   async promote(schoolId: number, year: number) {
     const { newYear, students, skipped } = await this.promotionPlan(schoolId, year);
-    if (!students.length) return { promoted: 0, skipped, newYear };
+    if (!students.length) return { promoted: 0, awaitingRoll: 0, skipped, newYear };
+    const placed = students.filter((s) => s.new_roll != null);
 
     await rlsTransaction(async (tx) => {
       const ids = students.map((s) => s.student_id);
@@ -304,17 +331,17 @@ export class PromotionService {
           data: {
             final_merit: s.final_merit,
             next_year_section: s.new_section,
-            next_year_roll: s.new_roll,
+            next_year_roll: s.new_roll ?? 0, // 0 + a section = waiting for `assignRetained`
           },
         });
       }
       await tx.student_enrollments.createMany({
-        data: students.map((s) => ({
+        data: placed.map((s) => ({
           school_id: schoolId,
           student_id: s.student_id,
           class: s.new_class,
           section: s.new_section,
-          roll: s.new_roll,
+          roll: s.new_roll!,
           year: newYear,
           group: s.group,
           status: 'Pending',
@@ -323,7 +350,77 @@ export class PromotionService {
       });
     }, TX_OPTIONS);
 
-    return { promoted: students.length, skipped, newYear };
+    return {
+      promoted: placed.length,
+      awaitingRoll: students.length - placed.length,
+      skipped,
+      newYear,
+    };
+  }
+
+  /** Enrollments of `year` still waiting for a next-year roll (section set, roll 0). */
+  private awaitingRollWhere(schoolId: number, year: number) {
+    return {
+      school_id: schoolId,
+      year,
+      class: DEFERRED_CLASS,
+      status: 'Failed',
+      next_year_roll: 0,
+      next_year_section: { not: null },
+      student: { available: true },
+    };
+  }
+
+  /**
+   * Gives the failed class-6 students their next-year class-6 enrollment, in merit order, with rolls
+   * after everyone already enrolled there (e.g. admissions imported since the promotion).
+   */
+  async assignRetained(schoolId: number, year: number) {
+    const newYear = year + 1;
+    const waiting = await this.prisma.student_enrollments.findMany({
+      where: this.awaitingRollWhere(schoolId, year),
+      select: {
+        id: true,
+        student_id: true,
+        group: true,
+        next_year_section: true,
+        fourth_subject_id: true,
+      },
+      orderBy: { final_merit: 'asc' },
+    });
+    if (!waiting.length) return { assigned: 0, newYear };
+
+    await rlsTransaction(async (tx) => {
+      const taken = await tx.student_enrollments.findMany({
+        where: { school_id: schoolId, year: newYear, class: DEFERRED_CLASS },
+        select: { class: true, section: true, roll: true },
+      });
+      const nextRoll = rollCounter(taken);
+      const mapSubject = await this.subjectMapping(tx, schoolId, year, newYear);
+      for (const e of waiting) {
+        const section = e.next_year_section!;
+        const roll = nextRoll(DEFERRED_CLASS, section);
+        await tx.student_enrollments.create({
+          data: {
+            school_id: schoolId,
+            student_id: e.student_id,
+            class: DEFERRED_CLASS,
+            section,
+            roll,
+            year: newYear,
+            group: e.group,
+            status: 'Pending',
+            fourth_subject_id: mapSubject(e.fourth_subject_id, DEFERRED_CLASS),
+          },
+        });
+        await tx.student_enrollments.update({
+          where: { id: e.id, school_id: schoolId },
+          data: { next_year_roll: roll },
+        });
+      }
+    }, TX_OPTIONS);
+
+    return { assigned: waiting.length, newYear };
   }
 
   private async graduationPlan(schoolId: number, year: number) {
@@ -453,22 +550,24 @@ export class PromotionService {
     const promotionWhere = { ...base, class: { in: PROMOTION_CLASSES } };
     const class10Where = { ...base, class: 10 };
 
-    const [promotionByStatus, class10ByStatus, promotedCount, nextYearCount] = await Promise.all([
-      this.prisma.student_enrollments.groupBy({
-        by: ['status'],
-        where: promotionWhere,
-        _count: { _all: true },
-      }),
-      this.prisma.student_enrollments.groupBy({
-        by: ['status'],
-        where: class10Where,
-        _count: { _all: true },
-      }),
-      this.prisma.student_enrollments.count({
-        where: { ...promotionWhere, next_year_section: { not: null } },
-      }),
-      this.prisma.student_enrollments.count({ where: { school_id: schoolId, year: newYear } }),
-    ]);
+    const [promotionByStatus, class10ByStatus, promotedCount, nextYearCount, awaitingRoll] =
+      await Promise.all([
+        this.prisma.student_enrollments.groupBy({
+          by: ['status'],
+          where: promotionWhere,
+          _count: { _all: true },
+        }),
+        this.prisma.student_enrollments.groupBy({
+          by: ['status'],
+          where: class10Where,
+          _count: { _all: true },
+        }),
+        this.prisma.student_enrollments.count({
+          where: { ...promotionWhere, next_year_section: { not: null } },
+        }),
+        this.prisma.student_enrollments.count({ where: { school_id: schoolId, year: newYear } }),
+        this.prisma.student_enrollments.count({ where: this.awaitingRollWhere(schoolId, year) }),
+      ]);
 
     const tally = (rows: { status: string; _count: { _all: number } }[]) => {
       const counts = { passed: 0, failed: 0, pending: 0, graduated: 0, total: 0 };
@@ -487,6 +586,7 @@ export class PromotionService {
       class10: tally(class10ByStatus),
       promoted: promotedCount > 0,
       next_year_enrollments: nextYearCount,
+      awaiting_roll: awaitingRoll,
     };
   }
 }

@@ -48,7 +48,6 @@ const ExamPDFRoutine = lazy(() => import('./pages/Admin/ExamPDFRoutine'));
 const AddMarks = lazy(() => import('./pages/Admin/AddMarks'));
 const NewSubject = lazy(() => import('./pages/Admin/NewSubject'));
 const AddLevel = lazy(() => import('./pages/Admin/AddLevel'));
-const UpdateStatus = lazy(() => import('./pages/Admin/UpdateStatus'));
 const Attendence = lazy(() => import('./pages/Admin/Attendence'));
 const StayCheck = lazy(() => import('./pages/Admin/StayCheck'));
 const SmsManagement = lazy(() => import('./pages/Admin/SmsManagement'));
@@ -82,7 +81,6 @@ registerRoutePrefetchers({
   '/admin/result/add-marks': AddMarks,
   '/admin/result/view-marks': ViewMarks,
   '/admin/result/generate-result': GenerateResult,
-  '/admin/result/customize-result': UpdateStatus,
   '/admin/registration/class-6': ClassRegForm,
   '/admin/registration/class-8': ClassRegForm,
   '/admin/registration/junior-scholarship': ClassRegForm,
@@ -446,7 +444,6 @@ function App() {
                               <Route path="/result/add-marks" element={<AddMarks />} />
                               <Route path="/result/add-subject" element={<NewSubject />} />
                               <Route path="/result/assigned-teachers" element={<AddLevel />} />
-                              <Route path="/result/customize-result" element={<UpdateStatus />} />
                               <Route path="/attendance" element={<Attendence />} />
                               <Route path="/attendance-double" element={<StayCheck />} />
                               <Route path="/sms-management" element={<SmsManagement />} />
