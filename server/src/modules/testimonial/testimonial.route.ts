@@ -6,7 +6,7 @@ import { generateTestimonialPdf } from './testimonial.service.js';
 
 const router = express.Router();
 
-// Public: stateless — student fills info, gets Bangla + English testimonial in one A4 PDF.
+// Public: stateless — student fills info, gets Bangla + English certificate in one A4 PDF.
 router.post(
   '/api/testimonial/pdf',
   validate(testimonialSchema),
@@ -15,7 +15,7 @@ router.post(
     const name = String(req.body.student_name_en).replace(/[^A-Za-z0-9]+/g, '_');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Disposition', `inline; filename="Testimonial_${name}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="Certificate_${name}.pdf"`);
     res.end(pdf);
   }),
 );

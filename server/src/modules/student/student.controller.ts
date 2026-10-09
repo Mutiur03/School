@@ -381,7 +381,7 @@ export class StudentController {
       throw new ApiError(400, 'Invalid student id', parsedId.error.issues);
     }
     const { pdfBuffer, studentName } = await StudentService.generateTestimonials(parsedId.data);
-    const filename = `Testimonial_${studentName.replace(/\s+/g, '_')}.pdf`;
+    const filename = `Certificate_${studentName.replace(/\s+/g, '_')}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.status(200).send(pdfBuffer);

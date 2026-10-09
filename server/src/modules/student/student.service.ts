@@ -1173,7 +1173,7 @@ async function generatePDF(data: {
     fragments.push({ text: 'section', font: bodyFont });
     fragments.push({ text: data.section, font: bodyFontBold });
     fragments.push({
-      text: 'of this school. According to the admission information his date of birth is',
+      text: 'of this school. According to the information of school, his date of birth is',
       font: bodyFont,
     });
     fragments.push({ text: data.dob + '.', font: bodyFontBold });

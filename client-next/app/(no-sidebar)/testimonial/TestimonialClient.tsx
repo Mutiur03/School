@@ -5,7 +5,7 @@ import { useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import {
   TESTIMONIAL_FIRST_YEAR,
   TESTIMONIAL_GENDERS,
@@ -32,8 +32,10 @@ const EXAM_LABEL: Record<string, string> = {
   '7': 'Class 7',
   '8': 'Class 8',
 };
+const BN_ROLE = { student: 'শিক্ষার্থীর', father: 'পিতার', mother: 'মাতার' } as const;
 const INPUT =
-  'w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500';
+  'h-10 w-full rounded-lg border border-slate-300 bg-slate-50/60 px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/15 aria-[invalid=true]:border-destructive';
+const LABEL = 'mb-1.5 block text-[13px] font-medium text-slate-800';
 
 /** Keeps GPA typing valid: one digit 0-5, optional dot, up to 2 decimals (e.g. 4.75). */
 function filterGpa(value: string) {
@@ -55,7 +57,14 @@ async function errMsg(error: unknown) {
   return 'Failed to generate PDF';
 }
 
-export default function TestimonialClient({ askGender }: { askGender: boolean }) {
+export default function TestimonialClient({
+  schoolGender,
+}: {
+  schoolGender: 'Boys' | 'Girls' | null;
+}) {
+  const askGender = !schoolGender;
+  const studentPrefix =
+    schoolGender === 'Boys' ? 'Md' : schoolGender === 'Girls' ? 'Mst' : 'Md/Mst';
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const {
     register,
@@ -111,7 +120,11 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
 
   const err = (name: keyof TestimonialInput) => {
     const e = (errors as FieldErrors<TestimonialInput>)[name];
-    return e ? <p className="mt-1 text-xs text-red-600">{String(e.message)}</p> : null;
+    return e ? (
+      <p id={`${name}-error`} className="text-destructive mt-1 text-xs">
+        {String(e.message)}
+      </p>
+    ) : null;
   };
 
   const text = (
@@ -119,15 +132,21 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
     label: string,
     filter: (v: string) => string,
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
+    hint?: string,
   ) => (
     <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium text-gray-700">
-        {label} <span className="text-red-600">*</span>
+      <label htmlFor={name} className={LABEL}>
+        {label} <span className="text-destructive">*</span>
       </label>
       <input
         id={name}
         className={INPUT}
         spellCheck={false}
+        aria-invalid={!!errors[name]}
+        aria-describedby={
+          [hint && `${name}-hint`, errors[name] && `${name}-error`].filter(Boolean).join(' ') ||
+          undefined
+        }
         {...extra}
         {...register(name, { setValueAs: (v) => filter(String(v ?? '')) })}
         onInput={(e) => {
@@ -137,131 +156,189 @@ export default function TestimonialClient({ askGender }: { askGender: boolean })
           if (next !== input.value) input.value = next;
         }}
       />
+      {hint && (
+        <p id={`${name}-hint`} className="text-muted-foreground mt-1 text-xs leading-4">
+          {hint}
+        </p>
+      )}
       {err(name)}
     </div>
   );
 
+  // Bangla and English name for one person.
+  const person = (title: string, key: 'student' | 'father' | 'mother', hint: string) => (
+    <>
+      {text(
+        `${key}_name_bn` as keyof TestimonialInput,
+        `${BN_ROLE[key]} নাম (বাংলায়)`,
+        filterBanglaInput,
+      )}
+      {text(
+        `${key}_name_en` as keyof TestimonialInput,
+        `${title}'s name (English)`,
+        filterEnglishInput,
+        {},
+        hint,
+      )}
+    </>
+  );
+
+  // Titled group of fields inside the form; groups are divided by a hairline, not boxed.
+  const group = (title: string, children: React.ReactNode) => (
+    <div
+      role="group"
+      aria-label={title}
+      className="grid gap-x-4 gap-y-5 border-t border-slate-200 pt-7 first:border-t-0 first:pt-0 sm:grid-cols-2"
+    >
+      {/* <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2">{title}</h2> */}
+      {children}
+    </div>
+  );
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="mb-2 text-3xl font-bold text-gray-800">Testimonial</h1>
-      <p className="mb-8 text-gray-600">
-        Fill in your information to download your testimonial (Bangla &amp; English) as a PDF.
-      </p>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-        noValidate
-      >
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="passing_year" className="mb-1 block text-sm font-medium text-gray-700">
-              Passing year <span className="text-red-600">*</span>
-            </label>
-            <select id="passing_year" className={INPUT} {...register('passing_year')}>
-              {YEARS.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-            {err('passing_year')}
-          </div>
-          <div>
-            <label htmlFor="exam" className="mb-1 block text-sm font-medium text-gray-700">
-              Class / Exam passed <span className="text-red-600">*</span>
-            </label>
-            <select id="exam" className={INPUT} defaultValue="SSC" {...register('exam')}>
-              {examOptions.map((o) => (
-                <option key={o} value={o}>
-                  {EXAM_LABEL[o]}
-                </option>
-              ))}
-            </select>
-            {err('exam')}
-          </div>
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          {text('student_name_bn', 'শিক্ষার্থীর নাম (বাংলায়)', filterBanglaInput, {})}
-          {text('student_name_en', "Student's name (English)", filterEnglishInput, {})}
-          {text('father_name_bn', 'পিতার নাম (বাংলায়)', filterBanglaInput, {})}
-          {text('father_name_en', "Father's name (English)", filterEnglishInput, {})}
-          {text('mother_name_bn', 'মাতার নাম (বাংলায়)', filterBanglaInput, {})}
-          {text('mother_name_en', "Mother's name (English)", filterEnglishInput, {})}
-          {text('mobile', 'Mobile number', (v) => filterNumericInput(v).slice(0, 11), {
-            inputMode: 'tel',
-            autoComplete: 'tel',
-          })}
-          {askGender && (
-            <div>
-              <label htmlFor="gender" className="mb-1 block text-sm font-medium text-gray-700">
-                Gender <span className="text-red-600">*</span>
-              </label>
-              <select id="gender" className={INPUT} {...register('gender')}>
-                {TESTIMONIAL_GENDERS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-              {err('gender')}
-            </div>
-          )}
-          <div>
-            <label htmlFor="dob" className="mb-1 block text-sm font-medium text-gray-700">
-              Date of birth <span className="text-red-600">*</span>
-            </label>
-            <input id="dob" type="date" className={INPUT} {...register('dob')} />
-            {err('dob')}
-          </div>
-        </div>
-
-        {requiresRollRegistration && (
-          <div className="grid gap-5 sm:grid-cols-2">
-            {text('roll', 'Roll number', (v) => filterNumericInput(v).slice(0, 6), {
-              inputMode: 'numeric',
-            })}
-            {text(
-              'registration_no',
-              'Registration number',
-              (v) => filterNumericInput(v).slice(0, 10),
-              {
-                inputMode: 'numeric',
-              },
-            )}
-            {text('gpa', 'GPA', filterGpa, {
-              inputMode: 'decimal',
-            })}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-60"
+    <div className="px-4 pb-16 pt-4 sm:px-6">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-3xl font-semibold leading-none tracking-tighter text-slate-900 md:text-4xl">
+          Certificate (প্রত্যয়নপত্র)
+        </h1>
+        <p className="mb-6 mt-3 text-sm leading-relaxed text-slate-600">
+          Enter details exactly as in the school record. You get one PDF: a Bangla page followed by
+          an English page.
+        </p>
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-7 rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 sm:p-8"
+          noValidate
         >
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Generating PDF…' : 'Open Testimonial PDF'}
-        </button>
-        {isSubmitting && (
-          <p role="status" className="text-center text-sm text-gray-600">
-            Generating your testimonial, please wait…
-          </p>
-        )}
-        {pdfUrl && !isSubmitting && (
-          <p className="text-center text-sm">
-            Your testimonial is ready.{' '}
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-blue-600 underline"
+          {group(
+            'Exam',
+            <>
+              <div>
+                <label htmlFor="exam" className={LABEL}>
+                  Class / Exam passed <span className="text-destructive">*</span>
+                </label>
+                <select id="exam" className={INPUT} defaultValue="SSC" {...register('exam')}>
+                  {examOptions.map((o) => (
+                    <option key={o} value={o}>
+                      {EXAM_LABEL[o]}
+                    </option>
+                  ))}
+                </select>
+                {err('exam')}
+              </div>
+              <div>
+                <label htmlFor="passing_year" className={LABEL}>
+                  Passing year <span className="text-destructive">*</span>
+                </label>
+                <select id="passing_year" className={INPUT} {...register('passing_year')}>
+                  {YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                {err('passing_year')}
+              </div>
+              {requiresRollRegistration && (
+                <>
+                  {text('roll', 'Roll number', (v) => filterNumericInput(v).slice(0, 6), {
+                    inputMode: 'numeric',
+                  })}
+                  {text(
+                    'registration_no',
+                    'Registration number',
+                    (v) => filterNumericInput(v).slice(0, 10),
+                    { inputMode: 'numeric' },
+                  )}
+                  {text('gpa', 'GPA', filterGpa, { inputMode: 'decimal' })}
+                </>
+              )}
+            </>,
+          )}
+
+          {group(
+            'Student',
+            <>
+              {person(
+                'Student',
+                'student',
+                `${studentPrefix} এরপর (.) ফুলস্টপ আছে কিনা ভালোভাবে দেখে নিন।`,
+              )}
+              <div>
+                <label htmlFor="dob" className={LABEL}>
+                  Date of birth <span className="text-destructive">*</span>
+                </label>
+                <input
+                  id="dob"
+                  type="date"
+                  className={INPUT}
+                  aria-invalid={!!errors.dob}
+                  {...register('dob')}
+                />
+                {err('dob')}
+              </div>
+              {askGender && (
+                <div>
+                  <label htmlFor="gender" className={LABEL}>
+                    Gender <span className="text-destructive">*</span>
+                  </label>
+                  <select id="gender" className={INPUT} {...register('gender')}>
+                    {TESTIMONIAL_GENDERS.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                  {err('gender')}
+                </div>
+              )}
+            </>,
+          )}
+
+          {group(
+            'Parents',
+            <>
+              {person('Father', 'father', 'Md এরপর (.) ফুলস্টপ আছে কিনা ভালোভাবে দেখে নিন।')}
+              {person('Mother', 'mother', 'Mst এরপরে (.) ফুলস্টপ আছে কিনা ভালোভাবে দেখে নিন।')}
+            </>,
+          )}
+
+          {group(
+            'Contact',
+            text('mobile', 'Mobile number', (v) => filterNumericInput(v).slice(0, 11), {
+              inputMode: 'tel',
+              autoComplete: 'tel',
+            }),
+          )}
+
+          <div className="border-t border-slate-200 pt-6">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 active:scale-[0.98] disabled:opacity-60"
             >
-              Open PDF
-            </a>
-          </p>
-        )}
-      </form>
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isSubmitting ? 'Generating PDF…' : 'Open certificate PDF'}
+            </button>
+            {isSubmitting && (
+              <p role="status" className="mt-3 text-center text-sm text-slate-600">
+                Generating your certificate, please wait…
+              </p>
+            )}
+            {pdfUrl && !isSubmitting && (
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+              >
+                <FileText className="h-5 w-5 shrink-0" strokeWidth={1.75} />
+                Your certificate is ready. Open PDF
+              </a>
+            )}
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

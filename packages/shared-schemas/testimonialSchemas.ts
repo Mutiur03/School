@@ -37,7 +37,7 @@ const englishName = (label: string) =>
 
 export const testimonialSchema = z
   .object({
-    kind: z.enum(TESTIMONIAL_KINDS, 'Select testimonial type'),
+    kind: z.enum(TESTIMONIAL_KINDS, 'Select certificate type'),
     exam: z.string().trim().min(1, 'Select exam / class'),
     passing_year: z.coerce
       .number('Passing year is required')
