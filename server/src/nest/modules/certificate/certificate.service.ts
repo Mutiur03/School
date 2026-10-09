@@ -94,7 +94,14 @@ const toRow = (d: CreateCertificateDto) => ({
 });
 
 /** Column values → the form shape the API, PDF and diff work with (empty optionals omitted). */
-const toData = ({ dob, gender, roll, registration_no, gpa, ...rest }: Row): CreateCertificateDto => ({
+const toData = ({
+  dob,
+  gender,
+  roll,
+  registration_no,
+  gpa,
+  ...rest
+}: Row): CreateCertificateDto => ({
   ...rest,
   dob: dob.toISOString().slice(0, 10),
   ...(gender && { gender: gender as CreateCertificateDto['gender'] }),
@@ -264,7 +271,10 @@ export class CertificateService {
       }),
     ]);
     // Revision i holds the data before edit i, so edit i = revision i → revision i+1 (or current).
-    const versions = [...revisions.map(({ id: _id, ip: _ip, created_at: _at, ...row }) => row), current];
+    const versions = [
+      ...revisions.map(({ id: _id, ip: _ip, created_at: _at, ...row }) => row),
+      current,
+    ];
     return revisions.map(({ id, ip, created_at }, i) => ({
       id,
       ip,

@@ -215,12 +215,7 @@ describe('CertificateService.update', () => {
     const edited = { ...board, mobile: '01812345678', gpa: '5.00' };
     transaction.mockResolvedValue(['rev', { id: ID, ...rowOf(edited) }]);
 
-    const out = await service.update(
-      1,
-      ID,
-      { mobile: '01812345678', gpa: '5.00' },
-      '1.2.3.4',
-    );
+    const out = await service.update(1, ID, { mobile: '01812345678', gpa: '5.00' }, '1.2.3.4');
 
     expect(findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: ID, school_id: 1 },

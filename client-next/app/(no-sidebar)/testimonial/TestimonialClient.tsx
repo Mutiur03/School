@@ -288,8 +288,8 @@ export default function TestimonialClient({
             className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800"
           >
             <span>
-              Editing saved certificate{studentName ? ` of ${studentName}` : ''}. Changes are
-              saved to the same record.
+              Editing saved certificate{studentName ? ` of ${studentName}` : ''}. Changes are saved
+              to the same record.
             </span>
             <button
               type="button"
@@ -393,7 +393,10 @@ export default function TestimonialClient({
             </div>
 
             {matches?.length === 0 && (
-              <div role="status" className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div
+                role="status"
+                className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900"
+              >
                 <p className="font-medium">No saved certificate found.</p>
                 <p className="mt-0.5 text-amber-800">
                   Check the passing year, mobile number and date of birth, or close this and fill

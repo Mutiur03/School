@@ -1,6 +1,13 @@
 import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
-export const CERTIFICATE_SORT_KEYS = ['name', 'exam', 'year', 'mobile', 'updated', 'edits'] as const;
+export const CERTIFICATE_SORT_KEYS = [
+  'name',
+  'exam',
+  'year',
+  'mobile',
+  'updated',
+  'edits',
+] as const;
 
 /** Admin list query. Everything arrives as a string; multi-values are comma-separated. */
 export class ListCertificateDto {

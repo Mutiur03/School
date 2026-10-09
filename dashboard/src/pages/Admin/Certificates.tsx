@@ -13,7 +13,6 @@ import {
 } from '@/queries/certificates.queries';
 import { cn } from '@/lib/utils';
 
-
 const EXAM_LABEL: Record<string, string> = {
   SSC: 'SSC',
   JSC: 'JSC',
@@ -81,7 +80,12 @@ function CertificateHistory({
   const { data: revisions, isLoading } = useCertificateHistory(record.id);
 
   return (
-    <Popup open onOpenChange={(o) => !o && onClose()} size="xl" aria-labelledby="cert-history-title">
+    <Popup
+      open
+      onOpenChange={(o) => !o && onClose()}
+      size="xl"
+      aria-labelledby="cert-history-title"
+    >
       <div className="border-border flex items-start justify-between gap-3 border-b px-5 py-4">
         <div className="min-w-0">
           <h2 id="cert-history-title" className="truncate text-base font-semibold">
