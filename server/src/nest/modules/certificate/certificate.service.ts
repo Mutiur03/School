@@ -66,6 +66,13 @@ const FIELDS = {
   father_name_en: true,
   mother_name_bn: true,
   mother_name_en: true,
+  address_district: true,
+  address_upazila: true,
+  address_post_office: true,
+  address_post_office_bn: true,
+  address_post_code: true,
+  address_village_road: true,
+  address_village_road_bn: true,
   mobile: true,
   dob: true,
   gender: true,
@@ -85,6 +92,13 @@ const toRow = (d: CreateCertificateDto) => ({
   father_name_en: d.father_name_en,
   mother_name_bn: d.mother_name_bn,
   mother_name_en: d.mother_name_en,
+  address_district: d.address_district,
+  address_upazila: d.address_upazila,
+  address_post_office: d.address_post_office,
+  address_post_office_bn: d.address_post_office_bn,
+  address_post_code: d.address_post_code,
+  address_village_road: d.address_village_road,
+  address_village_road_bn: d.address_village_road_bn,
   mobile: d.mobile,
   dob: new Date(d.dob),
   gender: d.gender ?? null,
@@ -288,16 +302,17 @@ export class CertificateService {
     await this.prisma.certificates.delete({ where: { id, school_id: schoolId } });
   }
 
-  async generatePdf(schoolId: number, id: string) {
+  async generatePdf(schoolId: number, id: string, withAddress = false) {
     const row = await this.prisma.certificates.findUniqueOrThrow({
       where: { id, school_id: schoolId },
       select: FIELDS,
     });
     const data = toData(row);
-    const buffer = await this.pdf.generate(schoolId, {
-      ...data,
-      kind: kindOf(data.exam),
-    } as TestimonialData);
+    const buffer = await this.pdf.generate(
+      schoolId,
+      { ...data, kind: kindOf(data.exam) } as TestimonialData,
+      withAddress,
+    );
     return { buffer, name: data.student_name_en.replace(/[^A-Za-z0-9]+/g, '_') };
   }
 }

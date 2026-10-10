@@ -1,4 +1,14 @@
-import { Controller, Delete, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Header,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import { Auth } from '../../common/auth.guard.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { CertificateService } from './certificate.service.js';
@@ -18,6 +28,17 @@ export class CertificateAdminController {
   @Get(':id/revisions')
   history(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
     return this.certificates.history(schoolId, id);
+  }
+
+  // Admin-only: same certificate PDF but with the student's address printed.
+  @Get(':id/pdf')
+  @Header('Cache-Control', 'no-store')
+  async pdf(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
+    const { buffer, name } = await this.certificates.generatePdf(schoolId, id, true);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `inline; filename="Certificate_${name}.pdf"`,
+    });
   }
 
   @Delete(':id')

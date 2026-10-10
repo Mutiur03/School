@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { BANGLA_ONLY, NAME, PHONE_NUMBER, REGISTRATION_NO } from './regex.js';
+import {
+  ADDRESS_TEXT,
+  BANGLA_ADDRESS,
+  BANGLA_ONLY,
+  NAME,
+  PHONE_NUMBER,
+  POST_CODE,
+  REGISTRATION_NO,
+} from './regex.js';
 import { isValidDateOfBirth } from './utils.js';
 
 /** "board" = JSC/SSC pass testimonial, "class" = Class 6/7/8 annual-exam pass testimonial. */
@@ -34,6 +42,27 @@ const banglaName = (label: string) =>
     .regex(BANGLA_ONLY, `${label} must be in Bangla`);
 const englishName = (label: string) =>
   z.string().trim().min(1, `${label} is required`).regex(NAME, `${label} must be in English`);
+const banglaAddress = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(200)
+    .regex(BANGLA_ADDRESS, `${label} must be in Bangla`);
+const englishAddress = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(100)
+    .regex(ADDRESS_TEXT, `${label} must be a valid address`);
+const place = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .max(50)
+    .regex(ADDRESS_TEXT, `Select a valid ${label.toLowerCase()}`);
 
 export const testimonialSchema = z
   .object({
@@ -50,6 +79,13 @@ export const testimonialSchema = z
     father_name_en: englishName("Father's name (English)"),
     mother_name_bn: banglaName("Mother's name (Bangla)"),
     mother_name_en: englishName("Mother's name (English)"),
+    address_district: place('District'),
+    address_upazila: place('Upazila'),
+    address_post_office: englishAddress('Post office'),
+    address_post_office_bn: banglaAddress('Post office (Bangla)'),
+    address_post_code: z.string().trim().regex(POST_CODE, 'Post code must be 4 digits'),
+    address_village_road: englishAddress('Village/Road/House no'),
+    address_village_road_bn: banglaAddress('Village/Road/House no (Bangla)'),
     mobile: z
       .string()
       .trim()

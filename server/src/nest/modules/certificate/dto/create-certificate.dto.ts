@@ -1,8 +1,11 @@
 import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Min } from 'class-validator';
 import {
+  ADDRESS_TEXT,
+  BANGLA_ADDRESS,
   BANGLA_ONLY,
   NAME,
   PHONE_NUMBER,
+  POST_CODE,
   TESTIMONIAL_FIRST_YEAR,
   TESTIMONIAL_GENDERS,
 } from '@school/shared-schemas';
@@ -34,6 +37,27 @@ export class CreateCertificateDto {
 
   @Matches(NAME)
   mother_name_en!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_district!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_upazila!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_post_office!: string;
+
+  @Matches(BANGLA_ADDRESS)
+  address_post_office_bn!: string;
+
+  @Matches(POST_CODE)
+  address_post_code!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_village_road!: string;
+
+  @Matches(BANGLA_ADDRESS)
+  address_village_road_bn!: string;
 
   @Matches(PHONE_NUMBER)
   mobile!: string;

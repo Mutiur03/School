@@ -9,9 +9,12 @@ import { FileText, Loader2, Search, X } from 'lucide-react';
 import {
   TESTIMONIAL_FIRST_YEAR,
   TESTIMONIAL_GENDERS,
+  districts,
   filterBanglaInput,
   filterEnglishInput,
   filterNumericInput,
+  getUpazilasByDistrict,
+  sentenceCaseAddressInput,
   testimonialExamOptions,
   testimonialRequiresRollRegistration,
   testimonialSchema,
@@ -53,6 +56,13 @@ const blank = (askGender: boolean): TestimonialInput => ({
   father_name_en: '',
   mother_name_bn: '',
   mother_name_en: '',
+  address_district: '',
+  address_upazila: '',
+  address_post_office: '',
+  address_post_office_bn: '',
+  address_post_code: '',
+  address_village_road: '',
+  address_village_road_bn: '',
   mobile: '',
   dob: '',
   roll: '',
@@ -139,6 +149,8 @@ export default function TestimonialClient({
   }, [kind, setValue]);
 
   const studentName = useWatch({ control, name: 'student_name_en' });
+  const addressDistrict = useWatch({ control, name: 'address_district' });
+  const addressUpazilas = useMemo(() => getUpazilasByDistrict(addressDistrict), [addressDistrict]);
 
   /** Back to a blank form that creates a new record instead of editing the loaded one. */
   function startNew() {
@@ -210,37 +222,49 @@ export default function TestimonialClient({
     filter: (v: string) => string,
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
     hint?: string,
-  ) => (
-    <div>
-      <label htmlFor={name} className={LABEL}>
-        {label} <span className="text-destructive">*</span>
-      </label>
-      <input
-        id={name}
-        className={INPUT}
-        spellCheck={false}
-        aria-invalid={!!errors[name]}
-        aria-describedby={
-          [hint && `${name}-hint`, errors[name] && `${name}-error`].filter(Boolean).join(' ') ||
-          undefined
-        }
-        {...extra}
-        {...register(name, { setValueAs: (v) => filter(String(v ?? '')) })}
-        onInput={(e) => {
-          // setValueAs only shapes the submitted value; rewrite the field itself while typing.
-          const input = e.currentTarget;
-          const next = filter(input.value);
-          if (next !== input.value) input.value = next;
-        }}
-      />
-      {hint && (
-        <p id={`${name}-hint`} className="text-muted-foreground mt-1 text-xs leading-4">
-          {hint}
-        </p>
-      )}
-      {err(name)}
-    </div>
-  );
+    // Normalization applied on blur/submit, if different from while-typing (e.g. trimming
+    // trailing space only once typing is done, so a mid-word space isn't eaten immediately).
+    commitFilter: (v: string) => string = filter,
+  ) => {
+    const registration = register(name, { setValueAs: (v) => commitFilter(String(v ?? '')) });
+    return (
+      <div>
+        <label htmlFor={name} className={LABEL}>
+          {label} <span className="text-destructive">*</span>
+        </label>
+        <input
+          id={name}
+          className={INPUT}
+          spellCheck={false}
+          aria-invalid={!!errors[name]}
+          aria-describedby={
+            [hint && `${name}-hint`, errors[name] && `${name}-error`].filter(Boolean).join(' ') ||
+            undefined
+          }
+          {...extra}
+          {...registration}
+          onInput={(e) => {
+            // setValueAs only shapes the submitted value; rewrite the field itself while typing.
+            const input = e.currentTarget;
+            const next = filter(input.value);
+            if (next !== input.value) input.value = next;
+          }}
+          onBlur={(e) => {
+            const input = e.currentTarget;
+            const next = commitFilter(input.value);
+            if (next !== input.value) input.value = next;
+            registration.onBlur(e);
+          }}
+        />
+        {hint && (
+          <p id={`${name}-hint`} className="text-muted-foreground mt-1 text-xs leading-4">
+            {hint}
+          </p>
+        )}
+        {err(name)}
+      </div>
+    );
+  };
 
   // Bangla and English name for one person.
   const person = (title: string, key: 'student' | 'father' | 'mother', hint: string) => (
@@ -549,6 +573,79 @@ export default function TestimonialClient({
             <>
               {person('Father', 'father', 'Md এরপর (.) ফুলস্টপ আছে কিনা ভালোভাবে দেখে নিন।')}
               {person('Mother', 'mother', 'Mst এরপরে (.) ফুলস্টপ আছে কিনা ভালোভাবে দেখে নিন।')}
+            </>,
+          )}
+
+          {group(
+            'Address',
+            <>
+              <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2">
+                স্থায়ী ঠিকানা (Permanent Address)
+              </h2>
+              <div>
+                <label htmlFor="address_district" className={LABEL}>
+                  District <span className="text-destructive">*</span>
+                </label>
+                <select
+                  id="address_district"
+                  className={INPUT}
+                  {...register('address_district', {
+                    onChange: () => setValue('address_upazila', ''),
+                  })}
+                >
+                  <option value="">Select District</option>
+                  {districts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+                {err('address_district')}
+              </div>
+              <div>
+                <label htmlFor="address_upazila" className={LABEL}>
+                  Upazila/Thana <span className="text-destructive">*</span>
+                </label>
+                <select
+                  id="address_upazila"
+                  className={INPUT}
+                  disabled={!addressDistrict}
+                  {...register('address_upazila')}
+                >
+                  <option value="">Select Upazila/Thana</option>
+                  {addressUpazilas.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                {err('address_upazila')}
+              </div>
+              {text(
+                'address_post_office',
+                'Post office',
+                (v) => sentenceCaseAddressInput(v, false),
+                {},
+                undefined,
+                (v) => sentenceCaseAddressInput(v, true),
+              )}
+              {text('address_post_office_bn', 'ডাকঘর (বাংলায়)', filterBanglaInput)}
+              {text('address_post_code', 'Post code', (v) => filterNumericInput(v).slice(0, 4), {
+                inputMode: 'numeric',
+              })}
+              {text(
+                'address_village_road',
+                'Village/Road/House no',
+                (v) => sentenceCaseAddressInput(v, false),
+                {},
+                'Since this cannot be auto-translated, please also fill it in Bangla below.',
+                (v) => sentenceCaseAddressInput(v, true),
+              )}
+              {text(
+                'address_village_road_bn',
+                'গ্রাম/রাস্তা/বাড়ি নং (বাংলায়)',
+                filterBanglaInput,
+              )}
             </>,
           )}
 

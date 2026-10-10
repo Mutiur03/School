@@ -38,6 +38,13 @@ const board: CreateCertificateDto = {
   father_name_en: 'Md. Karim Uddin',
   mother_name_bn: 'রহিমা বেগম',
   mother_name_en: 'Mst. Rahima Begum',
+  address_district: 'Kishoreganj',
+  address_upazila: 'Karimganj',
+  address_post_office: 'Karimganj',
+  address_post_office_bn: 'করিমগঞ্জ',
+  address_post_code: '2310',
+  address_village_road: 'Rahimpur',
+  address_village_road_bn: 'রহিমপুর',
   mobile: '01712345678',
   dob: '2005-03-14',
   roll: '123456',
@@ -321,7 +328,14 @@ describe('CertificateService.generatePdf', () => {
       where: { id: ID, school_id: 1 },
       select: expect.objectContaining({ student_name_en: true }),
     });
-    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' });
+    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' }, false);
     expect(out.name).toBe('Md_Rahim_Uddin');
+  });
+
+  it('passes withAddress through to the PDF renderer', async () => {
+    findUniqueOrThrow.mockResolvedValue(rowOf(board));
+    generate.mockResolvedValue(Buffer.from('pdf'));
+    await service.generatePdf(1, ID, true);
+    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' }, true);
   });
 });

@@ -58,6 +58,31 @@ const CLASS_BN: Record<string, string> = { '6': 'ষষ্ঠ', '7': 'সপ্�
 const CLASS_EN: Record<string, string> = { '6': 'Six', '7': 'Seven', '8': 'Eight', '9': 'Nine' };
 const nextClass = (exam: string) => String(Number(exam) + 1);
 
+/** Student's address from the structured district/upazila/post-office/village fields. */
+function addressLine(d: TestimonialData, bn: boolean) {
+  const district = districts.find((item) => item.id === d.address_district);
+  const upazila = upazilas.find((item) => item.id === d.address_upazila);
+  return bn
+    ? [
+        d.address_village_road_bn && `গ্রাম/রাস্তা/বাড়ি নং: ${d.address_village_road_bn}`,
+        d.address_post_office_bn &&
+          `ডাকঘর: ${d.address_post_office_bn}${d.address_post_code ? ` (${bnNum(d.address_post_code)})` : ''}`,
+        upazila?.bn && `উপজেলা/থানা: ${upazila.bn}`,
+        district?.bn && `জেলা: ${district.bn}`,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : [
+        d.address_village_road && `Village/Road No/House No: ${d.address_village_road}`,
+        d.address_post_office &&
+          `Post Office: ${d.address_post_office}${d.address_post_code ? ` (${d.address_post_code})` : ''}`,
+        upazila?.name && `Upazila/Thana: ${upazila.name}`,
+        district?.name && `District: ${district.name}`,
+      ]
+        .filter(Boolean)
+        .join(', ');
+}
+
 const fontBase64 = (file: string) => {
   const p = path.join('public', 'fonts', file);
   return fs.existsSync(p) ? fs.readFileSync(p).toString('base64') : '';
@@ -113,7 +138,7 @@ async function loadSchool(prisma: PrismaClient, schoolId: number) {
 
 type School = Awaited<ReturnType<typeof loadSchool>>;
 
-function buildHtml(d: TestimonialData, s: School) {
+function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
   const male = s.gender === 'Boys' || (s.gender !== 'Girls' && d.gender === 'Male');
   const he = male ? 'he' : 'she';
   const his = male ? 'his' : 'her';
@@ -145,10 +170,12 @@ function buildHtml(d: TestimonialData, s: School) {
     const hr = honor ? 'তাঁর' : 'তার';
     const bnHe = honor ? 'তিনি' : 'সে';
     const n = honor ? 'ন' : '';
+    const addrBn = withAddress ? addressLine(d, true) : '';
+    const addrEn = withAddress ? addressLine(d, false) : '';
     const bodyBn = isBoard
-      ? `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))} এ বিদ্যালয় হতে ${bBn((BOARD_BN[s.board!] ?? esc(s.board)) + 'ের')} অধীনে ${bBn(bnNum(year))} সালে ${examBn} পরীক্ষায় অংশগ্রহণ করে জিপিএ ${bBn(bnNum(gpa))} প্রাপ্ত হয়ে উত্তীর্ণ হয়েছে${n}। ${hr} ${examBn} পরীক্ষার রোল নম্বর ${bBn(bnNum(d.roll!))} এবং রেজিস্ট্রেশন নম্বর ${bBn(bnNum(d.registration_no!))}। বিদ্যালয়ের তথ্য অনুযায়ী ${hr} জন্ম তারিখ ${bBn(dobBn)}।`
-      : `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))} এ বিদ্যালয় হতে ${bBn(bnNum(year))} সালে বার্ষিক পরীক্ষায় অংশগ্রহণ করে ${bBn(CLASS_BN[d.exam] + ' শ্রেণি থেকে ' + CLASS_BN[nextClass(d.exam)] + ' শ্রেণিতে')} উত্তীর্ণ হয়েছে${n}।${hasRollRegistration ? ` ${hr} রোল নম্বর ${bBn(bnNum(d.roll!))} এবং রেজিস্ট্রেশন নম্বর ${bBn(bnNum(d.registration_no!))}।` : ''} বিদ্যালয়ের তথ্য অনুযায়ী ${hr} জন্ম তারিখ ${bBn(dobBn)}।`;
-    const intro = `This is to certify that ${b(d.student_name_en)}, ${male ? 'son' : 'daughter'} of ${b(d.father_name_en)} and ${b(d.mother_name_en)}`;
+      ? `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))}${addrBn ? `, ${bBn(addrBn)}` : ''} এ বিদ্যালয় হতে ${bBn((BOARD_BN[s.board!] ?? esc(s.board)) + 'ের')} অধীনে ${bBn(bnNum(year))} সালে ${examBn} পরীক্ষায় অংশগ্রহণ করে জিপিএ ${bBn(bnNum(gpa))} প্রাপ্ত হয়ে উত্তীর্ণ হয়েছে${n}। ${hr} ${examBn} পরীক্ষার রোল নম্বর ${bBn(bnNum(d.roll!))} এবং রেজিস্ট্রেশন নম্বর ${bBn(bnNum(d.registration_no!))}। বিদ্যালয়ের তথ্য অনুযায়ী ${hr} জন্ম তারিখ ${bBn(dobBn)}।`
+      : `প্রত্যয়ন করা যাচ্ছে যে, ${bBn(esc(d.student_name_bn))}, পিতা: ${bBn(esc(d.father_name_bn))}, মাতা: ${bBn(esc(d.mother_name_bn))}${addrBn ? `, ${bBn(addrBn)}` : ''} এ বিদ্যালয় হতে ${bBn(bnNum(year))} সালে বার্ষিক পরীক্ষায় অংশগ্রহণ করে ${bBn(CLASS_BN[d.exam] + ' শ্রেণি থেকে ' + CLASS_BN[nextClass(d.exam)] + ' শ্রেণিতে')} উত্তীর্ণ হয়েছে${n}।${hasRollRegistration ? ` ${hr} রোল নম্বর ${bBn(bnNum(d.roll!))} এবং রেজিস্ট্রেশন নম্বর ${bBn(bnNum(d.registration_no!))}।` : ''} বিদ্যালয়ের তথ্য অনুযায়ী ${hr} জন্ম তারিখ ${bBn(dobBn)}।`;
+    const intro = `This is to certify that ${b(d.student_name_en)}, ${male ? 'son' : 'daughter'} of ${b(d.father_name_en)} and ${b(d.mother_name_en)}${addrEn ? ` of ${b(addrEn)}` : ''}`;
     const bodyEn = isBoard
       ? `${intro}, bearing Roll Number ${b(d.roll)} and Registration Number ${b(d.registration_no)} from this school under ${b(s.board)}, duly passed the ${b(d.exam)} examination ${b(year)} securing GPA ${b(gpa)} in the scale of 5.00. According to the information of school, ${his} date of birth is ${b(dobEn)}.`
       : `${intro}, a student of this school, has successfully passed the annual examination of ${b(year)} and been promoted from Class ${b(CLASS_EN[d.exam])} to Class ${b(CLASS_EN[nextClass(d.exam)])}.${hasRollRegistration ? ` Roll Number ${b(d.roll)} and Registration Number ${b(d.registration_no)}.` : ''} According to the information of school, ${his} date of birth is ${b(dobEn)}.`;
@@ -162,6 +189,7 @@ function buildHtml(d: TestimonialData, s: School) {
           ['নাম', esc(d.student_name_bn)],
           ['পিতার নাম', esc(d.father_name_bn)],
           ['মাতার নাম', esc(d.mother_name_bn)],
+          ...(withAddress && addressLine(d, true) ? [['ঠিকানা', esc(addressLine(d, true))]] : []),
           [
             isBoard ? `${examBn} পরীক্ষা` : 'শ্রেণি',
             isBoard
@@ -174,6 +202,9 @@ function buildHtml(d: TestimonialData, s: School) {
           ['Name', esc(d.student_name_en)],
           ["Father's Name", esc(d.father_name_en)],
           ["Mother's Name", esc(d.mother_name_en)],
+          ...(withAddress && addressLine(d, false)
+            ? [['Address', esc(addressLine(d, false))]]
+            : []),
           [
             isBoard ? `${d.exam} Exam` : 'Class',
             isBoard
@@ -302,7 +333,7 @@ function buildHtml(d: TestimonialData, s: School) {
 export class CertificatePdfService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  async generate(schoolId: number, data: TestimonialData) {
+  async generate(schoolId: number, data: TestimonialData, withAddress = false) {
     const school = await loadSchool(this.prisma, schoolId);
     if (data.kind === 'board' && !school.board) {
       throw new BadRequestException(
@@ -312,7 +343,7 @@ export class CertificatePdfService {
     if (school.gender !== 'Boys' && school.gender !== 'Girls' && !data.gender) {
       throw new BadRequestException('Gender is required');
     }
-    const html = buildHtml(data, school);
+    const html = buildHtml(data, school, withAddress);
     const browser = await puppeteer.launch({
       headless: true,
       args: [

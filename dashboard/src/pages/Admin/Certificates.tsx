@@ -1,5 +1,8 @@
 import React, { useDeferredValue, useState } from 'react';
 import { RotateCw, X } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { openBlobInNewTab } from '@school/common-ui/blob';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmationPopup, Popup, SectionCard, TablePagination } from '@/components';
@@ -42,6 +45,13 @@ const DETAILS: [string, string][] = [
   ['father_name_bn', "Father's name (Bangla)"],
   ['mother_name_en', "Mother's name (English)"],
   ['mother_name_bn', "Mother's name (Bangla)"],
+  ['address_district', 'District'],
+  ['address_upazila', 'Upazila/Thana'],
+  ['address_post_office', 'Post office'],
+  ['address_post_office_bn', 'Post office (Bangla)'],
+  ['address_post_code', 'Post code'],
+  ['address_village_road', 'Village/Road/House no'],
+  ['address_village_road_bn', 'Village/Road/House no (Bangla)'],
   ['dob', 'Date of birth'],
   ['gender', 'Gender'],
   ['mobile', 'Mobile'],
@@ -59,6 +69,22 @@ const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const label = (field: string) => field.replace(/_/g, ' ');
 const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+// Pre-opens the tab synchronously (so popup blockers don't catch the later, async navigation),
+// then fetches the PDF and redirects that tab to it.
+async function openCertificatePdf(url: string) {
+  const tab = window.open('', '_blank');
+  tab?.document.write(
+    '<title>Generating…</title><body style="font:14px sans-serif;display:flex;height:100vh;align-items:center;justify-content:center;color:#475569">Generating certificate PDF…</body>',
+  );
+  try {
+    const res = await axios.get(url, { responseType: 'blob' });
+    openBlobInNewTab(new Blob([res.data], { type: 'application/pdf' }), tab ?? undefined);
+  } catch {
+    tab?.close();
+    toast.error('Failed to open certificate PDF');
+  }
+}
 
 const CloseButton = ({ onClick }: { onClick: () => void }) => (
   <button
@@ -106,14 +132,22 @@ function CertificateHistory({
             <h3 className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
               Details
             </h3>
-            <a
-              href={`/api/certificates/${record.id}/pdf`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary text-xs font-medium hover:underline"
-            >
-              Open certificate PDF
-            </a>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => openCertificatePdf(`/api/certificates/${record.id}/pdf`)}
+                className="text-primary text-xs font-medium hover:underline"
+              >
+                Open certificate PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => openCertificatePdf(`/api/admin/certificates/${record.id}/pdf`)}
+                className="text-primary text-xs font-medium hover:underline"
+              >
+                Open with address (admin only)
+              </button>
+            </div>
           </div>
           <dl className="border-border grid gap-x-6 gap-y-3 rounded-lg border p-3 text-sm sm:grid-cols-2">
             {DETAILS.filter(([key]) => record.data[key] != null && record.data[key] !== '').map(
