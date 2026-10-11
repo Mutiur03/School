@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Header,
-  Ip,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -11,6 +10,7 @@ import {
   Query,
   StreamableFile,
 } from '@nestjs/common';
+import { ClientIp } from '../../common/client-ip.decorator.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { CertificateService } from './certificate.service.js';
 import { CreateCertificateDto } from './dto/create-certificate.dto.js';
@@ -28,7 +28,7 @@ export class CertificateController {
   }
 
   @Post()
-  create(@SchoolId() schoolId: number, @Body() dto: CreateCertificateDto, @Ip() ip: string) {
+  create(@SchoolId() schoolId: number, @Body() dto: CreateCertificateDto, @ClientIp() ip: string) {
     return this.certificates.create(schoolId, dto, ip);
   }
 
@@ -37,7 +37,7 @@ export class CertificateController {
     @SchoolId() schoolId: number,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCertificateDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
   ) {
     return this.certificates.update(schoolId, id, dto, ip);
   }
