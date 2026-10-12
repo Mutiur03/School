@@ -144,7 +144,7 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending:
   const his = male ? 'his' : 'her';
   const dobDate = parseDateOfBirth(d.dob)!;
   const dob = ddmmyyyy(dobDate);
-  const dobEn = `${dob} (${dobDate.getDate()} ${dobDate.toLocaleString('en-GB', { month: 'short' })} ${dobDate.getFullYear()})`;
+  const dobEn = `${dob} (${dobDate.getDate()} ${dobDate.toLocaleString('en-GB', { month: 'long' })} ${dobDate.getFullYear()})`;
   const dobBn = bnNum(
     `${dob} (${dobDate.getDate()} ${MONTH_BN[dobDate.getMonth()]} ${dobDate.getFullYear()})`,
   );
@@ -178,7 +178,7 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending:
     const intro = `This is to certify that ${b(d.student_name_en)}, ${male ? 'son' : 'daughter'} of ${b(d.father_name_en)} and ${b(d.mother_name_en)}${addrEn ? ` of ${b(addrEn)}` : ''}`;
     const bodyEn = isBoard
       ? `${intro}, bearing Roll Number ${b(d.roll)} and Registration Number ${b(d.registration_no)} from this school under ${b(s.board)}, duly passed the ${b(d.exam)} examination ${b(year)} securing GPA ${b(gpa)} in the scale of 5.00. According to the information of school, ${his} date of birth is ${b(dobEn)}.`
-      : `${intro}, a student of this school, has successfully passed the annual examination of ${b(year)} and been promoted from Class ${b(CLASS_EN[d.exam])} to Class ${b(CLASS_EN[nextClass(d.exam)])}.${hasRollRegistration ? ` Roll Number ${b(d.roll)} and Registration Number ${b(d.registration_no)}.` : ''} According to the information of school, ${his} date of birth is ${b(dobEn)}.`;
+      : `${intro} a student of this school successfully passed the annual examination of ${b(year)} from class ${b(CLASS_EN[d.exam].toLowerCase())} to class ${b(CLASS_EN[nextClass(d.exam)].toLowerCase())}.${hasRollRegistration ? ` Roll Number ${b(d.roll)} and Registration Number ${b(d.registration_no)}.` : ''} According to the information of school, ${his} date of birth is ${b(dobEn)}.`;
     const tx = (en: string, bnText: string) => (bn ? bnText : en);
     const note = tx(
       'The certificate will not be issued if the certificate information prepared differs from the information preserved by the school.',
@@ -186,9 +186,11 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending:
     );
     const rows = bn
       ? [
-          ['নাম', esc(d.student_name_bn)],
-          ['পিতার নাম', esc(d.father_name_bn)],
-          ['মাতার নাম', esc(d.mother_name_bn)],
+          [
+            'নাম',
+            `${esc(d.student_name_bn)} | পিতার নাম: ${esc(d.father_name_bn)} | মাতার নাম: ${esc(d.mother_name_bn)}`,
+            'nm',
+          ],
           ...(withAddress && addressLine(d, true)
             ? [['ঠিকানা', esc(addressLine(d, true)), 'addr']]
             : []),
@@ -201,9 +203,11 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending:
           ['জন্ম তারিখ', dobBn],
         ]
       : [
-          ['Name', esc(d.student_name_en)],
-          ["Father's Name", esc(d.father_name_en)],
-          ["Mother's Name", esc(d.mother_name_en)],
+          [
+            'Name',
+            `${esc(d.student_name_en)} | Father's Name: ${esc(d.father_name_en)} | Mother's Name: ${esc(d.mother_name_en)}`,
+            'nm',
+          ],
           ...(withAddress && addressLine(d, false)
             ? [['Address', esc(addressLine(d, false)), 'addr']]
             : []),
@@ -270,6 +274,10 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending:
           <div class="rg">${tx('Received by: ...........................................', 'গ্রহীতার স্বাক্ষর: ...........................................')}</div>
           <div class="rg">${tx(`Mobile: ${esc(d.mobile)}`, `মোবাইল নং: ${bnNum(d.mobile)}`)}</div>
         </div>
+        <div class="ra">
+          <div class="rg">${tx('Attachment:', 'সংযুক্তি:')}</div>
+          <ul><li class="rg">${tx('NID/Birth Registration photocopy', 'জাতীয় পরিচয়পত্র/জন্ম নিবন্ধন সনদের ফটোকপি')}</li></ul>
+        </div>
       </div>
     </div>`;
   };
@@ -319,16 +327,19 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending:
     .cert p.nj { text-align: left; }
     .vb { position: absolute; bottom: 58pt; left: 50%; width: 70pt; margin-left: -35pt; padding-top: 3pt; border-top: 1px dashed #000; text-align: center; font-size: 11pt; }
     .bn .vb { font-size: 12pt; }
-    .rc { position: relative; height: calc(297mm - 575pt); padding: 10pt 70pt 0; }
-    .rn { text-align: center; font-size: 8.5pt; line-height: 1.25; margin-bottom: 6pt; }
+    .rc { position: relative; height: calc(297mm - 575pt); padding: 6pt 70pt 0; }
+    .rn { text-align: center; font-size: 8.5pt; line-height: 1.25; margin-bottom: 3pt; }
     .bn .rn { font-size: 10pt; }
-    .rs { text-align: center; font-size: 14pt; font-weight: bold; }
-    .rl { text-align: center; font-size: 11pt; margin-top: 3pt; }
-    .rt { text-align: center; font-size: 12pt; margin: 8pt 0 6pt; }
-    .rm { font-size: 9pt; margin-bottom: 4pt; }
-    .rr { font-size: 10pt; margin-bottom: 2pt; }
-    .rgs { position: absolute; right: 70pt; bottom: 10pt; }
-    .rg { font-size: 10pt; margin-bottom: 4pt; }
+    .rs { text-align: center; font-size: 14pt; font-weight: bold; line-height: 1.2; }
+    .rl { text-align: center; font-size: 11pt; margin-top: 1pt; }
+    .rt { text-align: center; font-size: 12pt; margin: 4pt 0 3pt; }
+    .rm { font-size: 9pt; margin-bottom: 3pt; }
+    .rr { font-size: 10pt; margin-bottom: 4pt; }
+    .rr.nm { white-space: nowrap; }
+    .rgs { width: fit-content; margin: 20pt 0 0 auto; }
+    .rg { font-size: 10pt; margin-bottom: 3pt; }
+    .ra { margin-top: 4pt; }
+    .ra ul { padding-left: 12pt; }
     .pending-wm { position: absolute; top: 50%; left: 50%; z-index: 6; width: 76%; transform: translate(-50%, -50%) rotate(-26deg); border: 8px solid #facc15; padding: 10px 18px; opacity: 0.65; text-align: center; color: #facc15; font-family: 'TNR', 'Times New Roman', serif; font-size: 100px; font-weight: 700; letter-spacing: 0.08em; line-height: 1; white-space: nowrap; }
   </style></head><body>${section(true)}${section(false)}</body></html>`;
 }
@@ -364,8 +375,8 @@ export class CertificatePdfService {
       await page.setJavaScriptEnabled(false);
       await page.setContent(html.normalize('NFC'), { waitUntil: 'load' });
       await page.evaluateHandle('document.fonts.ready').catch(() => undefined);
-      // Shrink long school names to the header width so they never overflow and stay centred.
-      await page.$$eval('.school', (els) =>
+      // Shrink long school names and the one-line name row to their width so they never overflow.
+      await page.$$eval('.school, .rr.nm', (els) =>
         els.forEach((el) => {
           const e = el as HTMLElement;
           if (e.scrollWidth > e.clientWidth) {
@@ -373,18 +384,15 @@ export class CertificatePdfService {
           }
         }),
       );
-      // The receipt has a fixed height with the signature pinned to its bottom; a very long
-      // address shrinks only the address row, so the other candidate rows stay the same size
-      // with or without the address.
+      // The receipt has a fixed height; if a very long address pushes the attachment past its
+      // bottom, only the address row shrinks, so the other rows stay the same size.
       await page.$$eval('.rc', (els) =>
         els.forEach((el) => {
           const addr = el.querySelector<HTMLElement>('.rr.addr');
           if (!addr) return;
-          const rows = el.querySelectorAll('.rr');
-          const sign = el.querySelector('.rgs')!;
+          const last = el.querySelector('.ra')!;
           const overflows = () =>
-            rows[rows.length - 1].getBoundingClientRect().bottom >
-            sign.getBoundingClientRect().top - 2;
+            last.getBoundingClientRect().bottom > el.getBoundingClientRect().bottom - 6;
           for (let i = 0; i < 20 && overflows(); i++) {
             addr.style.fontSize = `${parseFloat(getComputedStyle(addr).fontSize) * 0.95}px`;
           }
