@@ -1,7 +1,7 @@
 import { Matches } from 'class-validator';
-import { PHONE_NUMBER } from '@school/shared-schemas';
+import { NID, PHONE_NUMBER } from '@school/shared-schemas';
 
-/** Query params arrive as strings. */
+/** Query params arrive as strings. Batch + phone + class + birth reg/NID is the unique key. */
 export class FindCertificateDto {
   @Matches(/^\d{4}$/)
   passing_year!: string;
@@ -9,6 +9,9 @@ export class FindCertificateDto {
   @Matches(PHONE_NUMBER)
   mobile!: string;
 
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
-  dob!: string;
+  @Matches(/^(SSC|JSC|6|7|8)$/)
+  exam!: string;
+
+  @Matches(NID)
+  birth_reg_no!: string;
 }

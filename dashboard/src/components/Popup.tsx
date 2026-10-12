@@ -41,7 +41,8 @@ const Popup = ({
         aria-labelledby={ariaLabelledBy}
         className={cn(
           // grid-cols-1 = minmax(0,1fr): long unbroken text (file names) truncates instead of widening the dialog
-          'max-h-[90vh] w-full max-w-[calc(100%-2rem)] grid-cols-1 overflow-y-auto p-0',
+          // flex column, no scroll here — inner max-h-[65vh] overflow-y-auto bodies own scrolling; scrolling both nests two scrollbars
+          'flex max-h-[90vh] w-full max-w-[calc(100%-2rem)] grid-cols-1 flex-col overflow-hidden p-0',
           sizeClasses[size],
           className,
         )}

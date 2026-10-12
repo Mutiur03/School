@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@/generated/prisma/client.js';
 import type { PrismaClient } from '@/generated/prisma/client.js';
 import type { CertificatePdfService } from './certificate-pdf.service.js';
@@ -46,6 +46,7 @@ const board: CreateCertificateDto = {
   address_village_road: 'Rahimpur',
   address_village_road_bn: 'রহিমপুর',
   mobile: '01712345678',
+  birth_reg_no: '19901234567890123',
   dob: '2005-03-14',
   roll: '123456',
   registration_no: '1234567890',
@@ -73,14 +74,14 @@ const columnsOf = (d: CreateCertificateDto) => ({
 afterEach(() => jest.resetAllMocks());
 
 describe('CertificateService.create', () => {
-  it('writes one real column per field with school_id and created_ip', async () => {
-    create.mockResolvedValue({ id: ID, ...rowOf(board) });
-    const out = await service.create(1, board, '1.2.3.4');
+  it('writes one real column per field with school_id and pending status', async () => {
+    create.mockResolvedValue({ id: ID, status: 'pending', ...rowOf(board) });
+    const out = await service.create(1, board);
     expect(create).toHaveBeenCalledWith({
-      data: { school_id: 1, created_ip: '1.2.3.4', ...columnsOf(board) },
-      select: expect.objectContaining({ id: true, student_name_en: true, gpa: true }),
+      data: { school_id: 1, status: 'pending', ...columnsOf(board) },
+      select: expect.objectContaining({ id: true, status: true, student_name_en: true, gpa: true }),
     });
-    expect(out).toEqual({ id: ID, data: board });
+    expect(out).toEqual({ id: ID, status: 'pending', data: board });
   });
 
   it.each([
@@ -91,6 +92,7 @@ describe('CertificateService.create', () => {
     ['missing registration', { registration_no: undefined }],
     ['GPA over 5', { gpa: '5.50' }],
     ['missing GPA', { gpa: undefined }],
+    ['short birth reg', { birth_reg_no: '123' }],
   ])('rejects %s → 400', async (_name, patch) => {
     await expect(service.create(1, { ...board, ...patch })).rejects.toBeInstanceOf(
       BadRequestException,
@@ -99,7 +101,11 @@ describe('CertificateService.create', () => {
   });
 
   it('stores null roll/registration/GPA for a class 6 record', async () => {
-    create.mockResolvedValue({ id: ID, ...rowOf({ ...board, exam: '6', roll: undefined }) });
+    create.mockResolvedValue({
+      id: ID,
+      status: 'pending',
+      ...rowOf({ ...board, exam: '6', roll: undefined }),
+    });
     await service.create(1, { ...board, exam: '6' });
     expect(create.mock.calls[0][0].data).toMatchObject({
       exam: '6',
@@ -118,24 +124,39 @@ describe('CertificateService.create', () => {
 });
 
 describe('CertificateService.findAll', () => {
-  it('filters by school_id + year + mobile + dob (a real DATE) and maps rows back to the form', async () => {
-    findMany.mockResolvedValue([{ id: ID, ...rowOf(board) }]);
+  it('filters by school_id + batch + mobile + class + birth reg and maps rows back to the form', async () => {
+    findMany.mockResolvedValue([{ id: ID, status: 'pending', ...rowOf(board) }]);
     const out = await service.findAll(1, {
       passing_year: '2020',
       mobile: '01712345678',
-      dob: '2005-03-14',
+      exam: 'SSC',
+      birth_reg_no: '19901234567890123',
     });
     expect(findMany).toHaveBeenCalledWith({
       where: {
         school_id: 1,
         passing_year: 2020,
         mobile: '01712345678',
-        dob: new Date('2005-03-14'),
+        exam: 'SSC',
+        birth_reg_no: '19901234567890123',
       },
-      select: expect.objectContaining({ id: true, mobile: true }),
+      select: expect.objectContaining({ id: true, status: true, mobile: true }),
       orderBy: { updated_at: 'desc' },
     });
-    expect(out).toEqual([{ id: ID, data: board }]);
+    expect(out).toEqual([{ id: ID, status: 'pending', data: board }]);
+  });
+
+  it('maps a legacy row without birth reg (NULL) to an empty string', async () => {
+    findMany.mockResolvedValue([
+      { id: ID, status: 'approved', ...rowOf(board), birth_reg_no: null },
+    ]);
+    const [row] = await service.findAll(1, {
+      passing_year: '2020',
+      mobile: '01712345678',
+      exam: 'SSC',
+      birth_reg_no: '19901234567890123',
+    });
+    expect(row.data.birth_reg_no).toBe('');
   });
 });
 
@@ -190,14 +211,14 @@ describe('CertificateService.findAllForAdmin', () => {
     expect(findMany.mock.calls[0][0]).toMatchObject({ take: 200 });
   });
 
-  it('maps rows to { id, edits, data } with the audit columns', async () => {
+  it('maps rows to { id, status, edits, data } with the audit columns', async () => {
     findMany.mockResolvedValue([
       {
         id: ID,
+        status: 'approved',
         ...rowOf(board),
         created_at: 'c',
         updated_at: 'u',
-        created_ip: '1.1.1.1',
         _count: { revisions: 2 },
       },
     ]);
@@ -205,9 +226,9 @@ describe('CertificateService.findAllForAdmin', () => {
     const out = await service.findAllForAdmin(1, {});
     expect(out.items[0]).toEqual({
       id: ID,
+      status: 'approved',
       created_at: 'c',
       updated_at: 'u',
-      created_ip: '1.1.1.1',
       edits: 2,
       data: board,
     });
@@ -216,52 +237,52 @@ describe('CertificateService.findAllForAdmin', () => {
 
 describe('CertificateService.update', () => {
   it('copies the current row into a revision, then applies the merged edit', async () => {
-    findUniqueOrThrow.mockResolvedValue(rowOf(board));
+    findUniqueOrThrow.mockResolvedValue({ status: 'pending', ...rowOf(board) });
     createRevision.mockReturnValue('rev' as never);
     update.mockReturnValue('upd' as never);
     const edited = { ...board, mobile: '01812345678', gpa: '5.00' };
-    transaction.mockResolvedValue(['rev', { id: ID, ...rowOf(edited) }]);
+    transaction.mockResolvedValue(['rev', { id: ID, status: 'pending', ...rowOf(edited) }]);
 
-    const out = await service.update(1, ID, { mobile: '01812345678', gpa: '5.00' }, '1.2.3.4');
+    const out = await service.update(1, ID, { mobile: '01812345678', gpa: '5.00' });
 
     expect(findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: ID, school_id: 1 },
-      select: expect.objectContaining({ student_name_en: true }),
+      select: expect.objectContaining({ status: true, student_name_en: true }),
     });
     expect(createRevision).toHaveBeenCalledWith({
       data: {
         school_id: 1,
         certificate_id: ID,
         ...rowOf(board),
-        ip: '1.2.3.4',
       },
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: ID, school_id: 1 },
       data: columnsOf(edited),
-      select: expect.objectContaining({ id: true }),
+      select: expect.objectContaining({ id: true, status: true }),
     });
     expect(transaction).toHaveBeenCalledWith(['rev', 'upd']);
-    expect(out).toEqual({ id: ID, data: edited });
+    expect(out).toEqual({ id: ID, status: 'pending', data: edited });
   });
 
   it('does nothing when the saved data is identical (no revision, no write)', async () => {
-    findUniqueOrThrow.mockResolvedValue(rowOf(board));
+    findUniqueOrThrow.mockResolvedValue({ status: 'pending', ...rowOf(board) });
     const out = await service.update(1, ID, { ...board });
     expect(transaction).not.toHaveBeenCalled();
     expect(createRevision).not.toHaveBeenCalled();
-    expect(out).toEqual({ id: ID, data: board });
+    expect(out).toEqual({ id: ID, status: 'pending', data: board });
   });
 
-  it('stores IPv4 clients without the ::ffff: prefix', async () => {
-    findUniqueOrThrow.mockResolvedValue(rowOf(board));
-    transaction.mockResolvedValue(['rev', { id: ID, ...rowOf(board) }]);
-    await service.update(1, ID, { gpa: '5.00' }, '::ffff:10.0.0.7');
-    expect(createRevision.mock.calls[0][0].data.ip).toBe('10.0.0.7');
+  it('rejects edits when approved', async () => {
+    findUniqueOrThrow.mockResolvedValue({ status: 'approved', ...rowOf(board) });
+    await expect(service.update(1, ID, { mobile: '01812345678' })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('re-validates the merged result and writes nothing on failure', async () => {
-    findUniqueOrThrow.mockResolvedValue(rowOf(board));
+    findUniqueOrThrow.mockResolvedValue({ status: 'pending', ...rowOf(board) });
     await expect(service.update(1, ID, { gpa: '9.00' })).rejects.toBeInstanceOf(
       BadRequestException,
     );
@@ -276,19 +297,46 @@ describe('CertificateService.update', () => {
   });
 });
 
+describe('CertificateService.updateStatus', () => {
+  it('public may confirm pending → approved', async () => {
+    findUniqueOrThrow.mockResolvedValue({ status: 'pending' });
+    update.mockResolvedValue({ id: ID, status: 'approved', ...rowOf(board) });
+    const out = await service.updateStatus(1, ID, 'approved');
+    expect(update).toHaveBeenCalledWith({
+      where: { id: ID, school_id: 1 },
+      data: { status: 'approved' },
+      select: expect.objectContaining({ id: true, status: true }),
+    });
+    expect(out).toEqual({ id: ID, status: 'approved', data: board });
+  });
+
+  it('public may not unlock approved → pending', async () => {
+    findUniqueOrThrow.mockResolvedValue({ status: 'approved' });
+    await expect(service.updateStatus(1, ID, 'pending')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('admin may unlock approved → pending', async () => {
+    findUniqueOrThrow.mockResolvedValue({ status: 'approved' });
+    update.mockResolvedValue({ id: ID, status: 'pending', ...rowOf(board) });
+    const out = await service.updateStatus(1, ID, 'pending', { asAdmin: true });
+    expect(out.status).toBe('pending');
+  });
+});
+
 describe('CertificateService.history', () => {
   it('diffs each revision against the next version, the last one against current', async () => {
     const v2 = { ...board, gpa: '5.00' };
     const v3 = { ...v2, student_name_en: 'Md. Rahim' };
     findUniqueOrThrow.mockResolvedValue(rowOf(v3));
     findManyRevisions.mockResolvedValue([
-      { id: 1, ip: '1.1.1.1', created_at: 'a', ...rowOf(board) },
-      { id: 2, ip: '2.2.2.2', created_at: 'b', ...rowOf(v2) },
+      { id: 1, created_at: 'a', ...rowOf(board) },
+      { id: 2, created_at: 'b', ...rowOf(v2) },
     ]);
     const out = await service.history(1, ID);
     expect(findManyRevisions).toHaveBeenCalledWith({
       where: { certificate_id: ID, school_id: 1 },
-      select: expect.objectContaining({ id: true, ip: true }),
+      select: expect.objectContaining({ id: true }),
       orderBy: { id: 'asc' },
     });
     expect(out.map((r) => r.changes)).toEqual([
@@ -321,21 +369,27 @@ describe('CertificateService.remove', () => {
 
 describe('CertificateService.generatePdf', () => {
   it('scopes the read by school_id and renders with the derived kind', async () => {
-    findUniqueOrThrow.mockResolvedValue(rowOf(board));
+    findUniqueOrThrow.mockResolvedValue({ status: 'approved', ...rowOf(board) });
     generate.mockResolvedValue(Buffer.from('pdf'));
     const out = await service.generatePdf(1, ID);
     expect(findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: ID, school_id: 1 },
-      select: expect.objectContaining({ student_name_en: true }),
+      select: expect.objectContaining({ status: true, student_name_en: true }),
     });
-    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' }, false);
+    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' }, false, false);
     expect(out.name).toBe('Md_Rahim_Uddin');
   });
 
-  it('passes withAddress through to the PDF renderer', async () => {
-    findUniqueOrThrow.mockResolvedValue(rowOf(board));
+  it('refuses the public PDF while pending', async () => {
+    findUniqueOrThrow.mockResolvedValue({ status: 'pending', ...rowOf(board) });
+    await expect(service.generatePdf(1, ID)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('lets admins render a pending certificate stamped, with address when asked', async () => {
+    findUniqueOrThrow.mockResolvedValue({ status: 'pending', ...rowOf(board) });
     generate.mockResolvedValue(Buffer.from('pdf'));
-    await service.generatePdf(1, ID, true);
-    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' }, true);
+    await service.generatePdf(1, ID, { withAddress: true, asAdmin: true });
+    expect(generate).toHaveBeenCalledWith(1, { ...board, kind: 'board' }, true, true);
   });
 });

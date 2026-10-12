@@ -10,12 +10,12 @@ import {
   Query,
   StreamableFile,
 } from '@nestjs/common';
-import { ClientIp } from '../../common/client-ip.decorator.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { CertificateService } from './certificate.service.js';
 import { CreateCertificateDto } from './dto/create-certificate.dto.js';
 import { FindCertificateDto } from './dto/find-certificate.dto.js';
 import { UpdateCertificateDto } from './dto/update-certificate.dto.js';
+import { UpdateCertificateStatusDto } from './dto/update-certificate-status.dto.js';
 
 // Public (no login): the record's random UUID, or year + mobile + DOB for lookup, is the access key.
 @Controller('certificates')
@@ -28,8 +28,13 @@ export class CertificateController {
   }
 
   @Post()
-  create(@SchoolId() schoolId: number, @Body() dto: CreateCertificateDto, @ClientIp() ip: string) {
-    return this.certificates.create(schoolId, dto, ip);
+  create(@SchoolId() schoolId: number, @Body() dto: CreateCertificateDto) {
+    return this.certificates.create(schoolId, dto);
+  }
+
+  @Get(':id')
+  findOne(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
+    return this.certificates.findOne(schoolId, id);
   }
 
   @Patch(':id')
@@ -37,9 +42,18 @@ export class CertificateController {
     @SchoolId() schoolId: number,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCertificateDto,
-    @ClientIp() ip: string,
   ) {
-    return this.certificates.update(schoolId, id, dto, ip);
+    return this.certificates.update(schoolId, id, dto);
+  }
+
+  /** Self-confirm only (pending → approved). Unlock is admin-only. */
+  @Patch(':id/status')
+  updateStatus(
+    @SchoolId() schoolId: number,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCertificateStatusDto,
+  ) {
+    return this.certificates.updateStatus(schoolId, id, dto.status);
   }
 
   @Get(':id/pdf')

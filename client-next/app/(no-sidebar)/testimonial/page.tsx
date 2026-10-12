@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { fetchSchoolConfig } from '@/queries/school.queries';
 import TestimonialClient from './TestimonialClient';
 
@@ -10,5 +11,9 @@ export default async function TestimonialPage() {
   // Boys'/girls' schools imply gender; co-ed (or unset) asks for it.
   const schoolGender =
     academic.gender === 'Boys' || academic.gender === 'Girls' ? academic.gender : null;
-  return <TestimonialClient schoolGender={schoolGender} />;
+  return (
+    <Suspense fallback={null}>
+      <TestimonialClient schoolGender={schoolGender} />
+    </Suspense>
+  );
 }

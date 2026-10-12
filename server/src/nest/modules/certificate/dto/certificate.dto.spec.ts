@@ -29,6 +29,7 @@ const valid = {
   address_village_road: 'Rahimpur',
   address_village_road_bn: 'রহিমপুর',
   mobile: '01712345678',
+  birth_reg_no: '19901234567890123',
   dob: '2005-03-14',
   roll: '123456',
   registration_no: '1234567890',
@@ -47,6 +48,7 @@ describe('CreateCertificateDto', () => {
     [{ ...valid, passing_year: 1970 }],
     [{ ...valid, passing_year: '2020' }],
     [{ ...valid, gender: 'Other' }],
+    [{ ...valid, birth_reg_no: '123' }],
     [{ ...valid, kind: 'board' }],
     [{ ...valid, school_id: 2 }],
   ])('rejects %j → 400', async (body) => {
@@ -55,6 +57,12 @@ describe('CreateCertificateDto', () => {
 
   it('accepts a full board body', async () => {
     await expect(run(valid, CreateCertificateDto)).resolves.toMatchObject(valid);
+  });
+
+  it('accepts a 10-digit NID in place of birth registration', async () => {
+    await expect(
+      run({ ...valid, birth_reg_no: '1234567890' }, CreateCertificateDto),
+    ).resolves.toMatchObject({ birth_reg_no: '1234567890' });
   });
 
   it('accepts a class body without roll/registration/GPA', async () => {
@@ -90,6 +98,7 @@ describe('ListCertificateDto', () => {
       exam: 'SSC,JSC',
       year: '2020,2021',
       edits: 'edited',
+      status: 'pending,approved',
     };
     await expect(run(full, ListCertificateDto, 'query')).resolves.toMatchObject(full);
   });
@@ -102,6 +111,7 @@ describe('ListCertificateDto', () => {
     [{ year: '20,21' }],
     [{ exam: 'SSC;DROP' }],
     [{ edits: 'some' }],
+    [{ status: 'rejected' }],
     [{ school_id: '2' }],
   ])('rejects %j → 400', async (body) => {
     await expect(run(body, ListCertificateDto, 'query')).rejects.toMatchObject({ status: 400 });
@@ -109,17 +119,24 @@ describe('ListCertificateDto', () => {
 });
 
 describe('FindCertificateDto', () => {
-  const query = { passing_year: '2020', mobile: '01712345678', dob: '2005-03-14' };
+  const query = {
+    passing_year: '2020',
+    mobile: '01712345678',
+    exam: 'SSC',
+    birth_reg_no: '19901234567890123',
+  };
 
-  it('accepts year + mobile + dob', async () => {
+  it('accepts batch + mobile + class + birth reg/NID', async () => {
     await expect(run(query, FindCertificateDto, 'query')).resolves.toMatchObject(query);
   });
 
   it.each([
     [{ ...query, passing_year: '20' }],
     [{ ...query, mobile: '1' }],
-    [{ ...query, dob: '14/03/2005' }],
-    [{ mobile: query.mobile, dob: query.dob }],
+    [{ ...query, exam: 'HSC' }],
+    [{ ...query, birth_reg_no: '123' }],
+    [{ ...query, dob: '2005-03-14' }],
+    [{ mobile: query.mobile, exam: query.exam, birth_reg_no: query.birth_reg_no }],
   ])('rejects %j → 400', async (body) => {
     await expect(run(body, FindCertificateDto, 'query')).rejects.toMatchObject({ status: 400 });
   });

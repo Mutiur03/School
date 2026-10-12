@@ -26,6 +26,29 @@ export function openBlobInNewTab(blob: Blob, targetWindow?: Window | null): Wind
   return window.open(url, '_blank');
 }
 
+const LOADING_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{display:flex;align-items:center;justify-content:center;padding:24px;background:#f8fafc;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center}
+.s{width:40px;height:40px;margin:0 auto 16px;border:4px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:r .8s linear infinite}
+p{margin:0;max-width:28rem;font-size:clamp(15px,4.5vw,18px);font-weight:600;color:#0f172a}
+.h{margin-top:4px;font-size:14px;font-weight:400;color:#64748b}
+@keyframes r{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.s{animation-duration:2.4s}}
+</style></head><body><main role="status" aria-live="polite"><div class="s" aria-hidden="true"></div><p></p><p class="h">This can take a few seconds. Keep this tab open.</p></main></body></html>`;
+
+/**
+ * Opens a tab synchronously (inside the click, so popup blockers allow it) showing a loading
+ * page until `openBlobInNewTab(blob, tab)` points it at the PDF. Close it on failure.
+ */
+export function openPdfLoadingTab(message = 'Generating PDF…'): Window | null {
+  const tab = window.open('', '_blank');
+  if (!tab) return null;
+  tab.document.write(LOADING_PAGE);
+  tab.document.close();
+  tab.document.title = message;
+  tab.document.querySelector('p')!.textContent = message;
+  return tab;
+}
+
 export function getFilenameFromContentDisposition(
   header: string | undefined | null,
 ): string | null {

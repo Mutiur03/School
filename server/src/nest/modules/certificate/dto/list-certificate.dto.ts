@@ -47,4 +47,8 @@ export class ListCertificateDto {
   @IsOptional()
   @IsIn(['edited', 'never'])
   edits?: 'edited' | 'never';
+
+  @IsOptional()
+  @Matches(/^(pending|approved)(,(pending|approved))?$/)
+  status?: string;
 }

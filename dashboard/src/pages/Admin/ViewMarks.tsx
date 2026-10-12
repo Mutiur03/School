@@ -18,7 +18,7 @@ import {
 } from '@/queries/marks.queries';
 import { MarksheetGenProgress } from '@/components/MarksheetGenProgress';
 import { BundleStalePreview } from '@/components/BundleStalePreview';
-import { downloadBlob, openBlobInNewTab } from '@school/common-ui/blob';
+import { downloadBlob, openBlobInNewTab, openPdfLoadingTab } from '@school/common-ui/blob';
 
 interface TeacherLevel {
   id: number;
@@ -216,13 +216,7 @@ const ViewMarks = () => {
     const loadingToast = toast.loading('Generating transcript...');
     downloadProgressToastRef.current = loadingToast;
 
-    // Create new window immediately to bypass popup blockers
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(
-        'Loading marksheet... If this takes too long, please check for errors.',
-      );
-    }
+    const newWindow = openPdfLoadingTab('Generating marksheet…');
 
     try {
       const response = await axios.get(`/api/marks/${id}/${year}/${exam}/download`, {
@@ -247,12 +241,7 @@ const ViewMarks = () => {
     const loadingToast = toast.loading('Generating transcript...');
     downloadProgressToastRef.current = loadingToast;
 
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(
-        'Loading marksheet... If this takes too long, please check for errors.',
-      );
-    }
+    const newWindow = openPdfLoadingTab('Generating marksheets…');
 
     try {
       const response = await axios.get(

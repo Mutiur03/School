@@ -1,19 +1,21 @@
 import React, { useDeferredValue, useState } from 'react';
-import { RotateCw, X } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2, RotateCw, X } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { openBlobInNewTab } from '@school/common-ui/blob';
+import { openBlobInNewTab, openPdfLoadingTab } from '@school/common-ui/blob';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConfirmationPopup, Popup, SectionCard, TablePagination } from '@/components';
+import { ConfirmationPopup, Popup, SectionCard, StatusBadge, TablePagination } from '@/components';
 import ActionButton from '@/components/ActionButton';
 import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import {
   useCertificateHistory,
   useCertificates,
   useDeleteCertificate,
+  useUpdateCertificateStatus,
   type CertificateRecord,
   type CertificateSortKey as SortKey,
+  type CertificateStatus,
 } from '@/queries/certificates.queries';
 import { cn } from '@/lib/utils';
 
@@ -29,13 +31,22 @@ const COLUMNS: { label: string; sortKey?: SortKey; className?: string }[] = [
   { label: 'Exam', sortKey: 'exam' },
   { label: 'Year', sortKey: 'year' },
   { label: 'Mobile', sortKey: 'mobile' },
+  { label: 'Status' },
   { label: 'Last updated', sortKey: 'updated' },
   { label: 'Edits', sortKey: 'edits' },
   { label: 'Actions' },
 ];
 
 // Edits to these change what the certificate says, so they are flagged for review.
-const SENSITIVE = new Set(['gpa', 'dob', 'roll', 'registration_no', 'passing_year', 'exam']);
+const SENSITIVE = new Set([
+  'gpa',
+  'dob',
+  'roll',
+  'registration_no',
+  'passing_year',
+  'exam',
+  'birth_reg_no',
+]);
 
 // Every stored field, in reading order, for the details view.
 const DETAILS: [string, string][] = [
@@ -53,6 +64,7 @@ const DETAILS: [string, string][] = [
   ['address_village_road', 'Village/Road/House no'],
   ['address_village_road_bn', 'Village/Road/House no (Bangla)'],
   ['dob', 'Date of birth'],
+  ['birth_reg_no', 'Birth reg. / NID no.'],
   ['gender', 'Gender'],
   ['mobile', 'Mobile'],
   ['exam', 'Exam'],
@@ -70,13 +82,8 @@ const when = (iso: string) =>
 const label = (field: string) => field.replace(/_/g, ' ');
 const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
 
-// Pre-opens the tab synchronously (so popup blockers don't catch the later, async navigation),
-// then fetches the PDF and redirects that tab to it.
 async function openCertificatePdf(url: string) {
-  const tab = window.open('', '_blank');
-  tab?.document.write(
-    '<title>Generating…</title><body style="font:14px sans-serif;display:flex;height:100vh;align-items:center;justify-content:center;color:#475569">Generating certificate PDF…</body>',
-  );
+  const tab = openPdfLoadingTab('Generating certificate PDF…');
   try {
     const res = await axios.get(url, { responseType: 'blob' });
     openBlobInNewTab(new Blob([res.data], { type: 'application/pdf' }), tab ?? undefined);
@@ -100,11 +107,16 @@ const CloseButton = ({ onClick }: { onClick: () => void }) => (
 function CertificateHistory({
   record,
   onClose,
+  onStatusChange,
 }: {
   record: CertificateRecord;
   onClose: () => void;
+  onStatusChange: (status: CertificateStatus) => void;
 }) {
   const { data: revisions, isLoading } = useCertificateHistory(record.id);
+  const updateStatus = useUpdateCertificateStatus();
+  const setStatus = (status: CertificateStatus) =>
+    updateStatus.mutate({ id: record.id, status }, { onSuccess: () => onStatusChange(status) });
 
   return (
     <Popup
@@ -118,10 +130,8 @@ function CertificateHistory({
           <h2 id="cert-history-title" className="truncate text-base font-semibold">
             {record.data.student_name_en}
           </h2>
-          <p className="text-muted-foreground text-xs">
-            Created {when(record.created_at)}
-            {record.created_ip && ` · ${record.created_ip}`}
-          </p>
+          <p className="text-muted-foreground text-xs">Created {when(record.created_at)}</p>
+          <StatusBadge status={record.status} className="mt-1.5" />
         </div>
         <CloseButton onClick={onClose} />
       </div>
@@ -135,7 +145,9 @@ function CertificateHistory({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => openCertificatePdf(`/api/certificates/${record.id}/pdf`)}
+                onClick={() =>
+                  openCertificatePdf(`/api/admin/certificates/${record.id}/pdf?address=false`)
+                }
                 className="text-primary text-xs font-medium hover:underline"
               >
                 Open certificate PDF
@@ -179,7 +191,6 @@ function CertificateHistory({
           <div key={r.id} className="border-border space-y-2 rounded-lg border p-3">
             <p className="text-muted-foreground text-xs">
               Edited by student · {when(r.created_at)}
-              {r.ip && ` · ${r.ip}`}
             </p>
             {r.changes.length === 0 && (
               <p className="text-muted-foreground text-sm">Saved again with no changes.</p>
@@ -203,6 +214,34 @@ function CertificateHistory({
           </div>
         ))}
       </div>
+
+      <div className="border-border flex flex-wrap items-center justify-between gap-2 border-t px-5 py-3">
+        <p className="text-muted-foreground text-xs">
+          {record.status === 'approved'
+            ? 'Locked: the student cannot edit it.'
+            : 'The student can still edit it.'}
+        </p>
+        {record.status === 'pending' ? (
+          <Button
+            type="button"
+            disabled={updateStatus.isPending}
+            onClick={() => setStatus('approved')}
+          >
+            {updateStatus.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+            Approve
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={updateStatus.isPending}
+            onClick={() => setStatus('pending')}
+          >
+            {updateStatus.isPending ? <Loader2 className="animate-spin" /> : <Clock />}
+            Mark as pending (allow edit)
+          </Button>
+        )}
+      </div>
     </Popup>
   );
 }
@@ -213,6 +252,7 @@ export default function Certificates() {
   const [examFilters, setExamFilters] = useState<string[]>([]);
   const [yearFilters, setYearFilters] = useState<string[]>([]);
   const [editFilters, setEditFilters] = useState<string[]>([]);
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [sort, setSort] = useState<{ key: SortKey; order: SortOrder } | null>({
     key: 'updated',
     order: 'desc',
@@ -224,7 +264,12 @@ export default function Certificates() {
   const deleteCertificate = useDeleteCertificate();
 
   const filtersActive = Boolean(
-    nameFilter || mobileFilter || examFilters.length || yearFilters.length || editFilters.length,
+    nameFilter ||
+    mobileFilter ||
+    examFilters.length ||
+    yearFilters.length ||
+    editFilters.length ||
+    statusFilters.length,
   );
   const clearFilters = () => {
     setNameFilter('');
@@ -232,6 +277,7 @@ export default function Certificates() {
     setExamFilters([]);
     setYearFilters([]);
     setEditFilters([]);
+    setStatusFilters([]);
     setPage(1);
   };
   // Any filter/sort change returns to the first page.
@@ -256,6 +302,7 @@ export default function Certificates() {
     year: yearFilters,
     // Both boxes ticked means no filter.
     edits: editFilters.length === 1 ? (editFilters[0] as 'edited' | 'never') : undefined,
+    status: statusFilters.length === 1 ? (statusFilters[0] as CertificateStatus) : undefined,
   });
   const rows = data?.items ?? [];
   const meta = data?.meta;
@@ -311,6 +358,17 @@ export default function Certificates() {
         }}
       />
     ),
+    Status: (
+      <ColumnHeaderMenu
+        label="Status"
+        options={[
+          { value: 'pending', label: 'Pending' },
+          { value: 'approved', label: 'Approved' },
+        ]}
+        selected={statusFilters}
+        onSelectedChange={withReset(setStatusFilters)}
+      />
+    ),
     'Last updated': <ColumnHeaderMenu label="Last updated" {...sortProps('updated')} />,
     Edits: (
       <ColumnHeaderMenu
@@ -335,8 +393,11 @@ export default function Certificates() {
   const summary = meta
     ? [
         `${filtersActive ? `${meta.total.toLocaleString()} of ` : ''}${plural(meta.totalAll, 'certificate')}`,
+        meta.pendingCount ? `${meta.pendingCount.toLocaleString()} pending` : null,
         `${meta.editedCount.toLocaleString()} edited`,
-      ].join(' · ')
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : ' ';
 
   const emptyState = (
@@ -436,6 +497,9 @@ export default function Certificates() {
                     </td>
                     <td className="px-4 py-2 text-sm tabular-nums">{r.data.passing_year}</td>
                     <td className="px-4 py-2 text-sm tabular-nums">{r.data.mobile}</td>
+                    <td className="px-4 py-2">
+                      <StatusBadge status={r.status} />
+                    </td>
                     <td className="text-muted-foreground whitespace-nowrap px-4 py-2 text-sm">
                       {when(r.updated_at)}
                     </td>
@@ -491,7 +555,13 @@ export default function Certificates() {
         msg={`Delete the certificate of ${deleteTarget?.data.student_name_en ?? 'this student'}? Its edit history is deleted too. This cannot be undone.`}
       />
 
-      {open && <CertificateHistory record={open} onClose={() => setOpen(null)} />}
+      {open && (
+        <CertificateHistory
+          record={open}
+          onClose={() => setOpen(null)}
+          onStatusChange={(status) => setOpen((r) => r && { ...r, status })}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import {
+  NID,
   REGISTRATION_NO,
   isValidDateOfBirth,
   parseDateOfBirth,
@@ -15,6 +16,9 @@ import type { CreateCertificateDto } from './dto/create-certificate.dto.js';
 import type { FindCertificateDto } from './dto/find-certificate.dto.js';
 import type { ListCertificateDto } from './dto/list-certificate.dto.js';
 import type { UpdateCertificateDto } from './dto/update-certificate.dto.js';
+
+export const CERTIFICATE_STATUSES = ['pending', 'approved'] as const;
+export type CertificateStatus = (typeof CERTIFICATE_STATUSES)[number];
 
 const kindOf = (exam: string) => (exam === 'SSC' || exam === 'JSC' ? 'board' : 'class');
 const bad = (message: string): never => {
@@ -45,6 +49,7 @@ function clean(input: CreateCertificateDto): CreateCertificateDto {
     delete d.roll;
     delete d.registration_no;
   }
+  if (!NID.test(d.birth_reg_no)) bad('Birth Registration / NID number must be 10, 13 or 17 digits');
   if (kind === 'board') {
     const gpa = Number(d.gpa);
     if (!d.gpa || !/^\d(\.\d{1,2})?$/.test(d.gpa) || gpa < 1 || gpa > 5) {
@@ -79,6 +84,7 @@ const FIELDS = {
   roll: true,
   registration_no: true,
   gpa: true,
+  birth_reg_no: true,
 } as const;
 type Row = Prisma.certificatesGetPayload<{ select: typeof FIELDS }>;
 
@@ -105,6 +111,7 @@ const toRow = (d: CreateCertificateDto) => ({
   roll: d.roll ?? null,
   registration_no: d.registration_no ?? null,
   gpa: d.gpa ?? null,
+  birth_reg_no: d.birth_reg_no,
 });
 
 /** Column values → the form shape the API, PDF and diff work with (empty optionals omitted). */
@@ -114,18 +121,17 @@ const toData = ({
   roll,
   registration_no,
   gpa,
+  birth_reg_no,
   ...rest
 }: Row): CreateCertificateDto => ({
   ...rest,
+  birth_reg_no: birth_reg_no ?? '',
   dob: dob.toISOString().slice(0, 10),
   ...(gender && { gender: gender as CreateCertificateDto['gender'] }),
   ...(roll && { roll }),
   ...(registration_no && { registration_no }),
   ...(gpa && { gpa: gpa.toFixed(2) }),
 });
-
-/** Node reports IPv4 clients as "::ffff:1.2.3.4"; store the plain address. */
-const plainIp = (ip?: string) => ip?.replace(/^::ffff:/, '');
 
 /** Fields whose value differs between two versions. */
 function diff(before: CreateCertificateDto, after: CreateCertificateDto) {
@@ -143,55 +149,101 @@ export class CertificateService {
     private readonly pdf: CertificatePdfService,
   ) {}
 
-  async create(schoolId: number, dto: CreateCertificateDto, ip?: string) {
+  async create(schoolId: number, dto: CreateCertificateDto) {
     const data = clean(dto);
-    const { id, ...saved } = await this.prisma.certificates.create({
-      data: { school_id: schoolId, created_ip: plainIp(ip), ...toRow(data) },
-      select: { id: true, ...FIELDS },
+    const { id, status, ...saved } = await this.prisma.certificates.create({
+      data: { school_id: schoolId, status: 'pending', ...toRow(data) },
+      select: { id: true, status: true, ...FIELDS },
     });
-    return { id, data: toData(saved) };
+    return { id, status, data: toData(saved) };
   }
 
-  /** Public lookup: the year + mobile + DOB triple is the proof of ownership. */
+  /** Public lookup: batch + phone + class + birth reg/NID (the unique key) is the proof of ownership. */
   async findAll(schoolId: number, q: FindCertificateDto) {
     const rows = await this.prisma.certificates.findMany({
       where: {
         school_id: schoolId,
         passing_year: Number(q.passing_year),
         mobile: q.mobile,
-        dob: new Date(q.dob),
+        exam: q.exam,
+        birth_reg_no: q.birth_reg_no,
       },
-      select: { id: true, ...FIELDS },
+      select: { id: true, status: true, ...FIELDS },
       orderBy: { updated_at: 'desc' },
     });
-    return rows.map(({ id, ...row }) => ({ id, data: toData(row) }));
+    return rows.map(({ id, status, ...row }) => ({ id, status, data: toData(row) }));
   }
 
-  /** Copies the current row into certificate_revisions (with the editor's IP), then applies the edit. */
-  async update(schoolId: number, id: string, dto: UpdateCertificateDto, ip?: string) {
+  /** UUID is the access key — used by the confirm/preview page. */
+  async findOne(schoolId: number, id: string) {
+    const {
+      id: savedId,
+      status,
+      ...row
+    } = await this.prisma.certificates.findUniqueOrThrow({
+      where: { id, school_id: schoolId },
+      select: { id: true, status: true, ...FIELDS },
+    });
+    return { id: savedId, status, data: toData(row) };
+  }
+
+  /** Copies the current row into certificate_revisions, then applies the edit. Locked once approved. */
+  async update(schoolId: number, id: string, dto: UpdateCertificateDto) {
     const current = await this.prisma.certificates.findUniqueOrThrow({
       where: { id, school_id: schoolId },
-      select: FIELDS,
+      select: { status: true, ...FIELDS },
     });
-    const data = clean({ ...toData(current), ...dto });
+    if (current.status !== 'pending') {
+      throw new ForbiddenException('This form can no longer be edited');
+    }
+    const { status, ...fields } = current;
+    const data = clean({ ...toData(fields), ...dto });
     // Re-saving identical data is not an edit: no revision, nothing written.
-    if (!diff(toData(current), data).length) return { id, data };
-    const [, { id: savedId, ...saved }] = await this.prisma.$transaction([
+    if (!diff(toData(fields), data).length) return { id, status, data };
+    const [, { id: savedId, status: savedStatus, ...saved }] = await this.prisma.$transaction([
       this.prisma.certificate_revisions.create({
         data: {
           school_id: schoolId,
           certificate_id: id,
-          ...current,
-          ip: plainIp(ip),
+          ...fields,
         },
       }),
       this.prisma.certificates.update({
         where: { id, school_id: schoolId },
         data: toRow(data),
-        select: { id: true, ...FIELDS },
+        select: { id: true, status: true, ...FIELDS },
       }),
     ]);
-    return { id: savedId, data: toData(saved) };
+    return { id: savedId, status: savedStatus, data: toData(saved) };
+  }
+
+  /**
+   * Public may only self-confirm (pending → approved). Admin may set either status
+   * (unlock = mark pending so the applicant can edit again).
+   */
+  async updateStatus(
+    schoolId: number,
+    id: string,
+    status: CertificateStatus,
+    { asAdmin = false }: { asAdmin?: boolean } = {},
+  ) {
+    const current = await this.prisma.certificates.findUniqueOrThrow({
+      where: { id, school_id: schoolId },
+      select: { status: true },
+    });
+    if (!asAdmin && !(status === 'approved' && current.status === 'pending')) {
+      throw new ForbiddenException('Unauthorized status change');
+    }
+    const {
+      id: savedId,
+      status: savedStatus,
+      ...row
+    } = await this.prisma.certificates.update({
+      where: { id, school_id: schoolId },
+      data: { status },
+      select: { id: true, status: true, ...FIELDS },
+    });
+    return { id: savedId, status: savedStatus, data: toData(row) };
   }
 
   /** Admin: one filtered, sorted page of certificates plus the totals the list header needs. */
@@ -215,17 +267,18 @@ export class CertificateService {
       ...(q.mobile && { mobile: { contains: q.mobile } }),
       ...(q.exam && { exam: { in: q.exam.split(',') } }),
       ...(q.year && { passing_year: { in: q.year.split(',').map(Number) } }),
+      ...(q.status && { status: { in: q.status.split(',') } }),
       ...(q.edits && { revisions: q.edits === 'edited' ? { some: {} } : { none: {} } }),
     };
-    const [rows, total, totalAll, editedCount, exams, years] = await Promise.all([
+    const [rows, total, totalAll, editedCount, pendingCount, exams, years] = await Promise.all([
       this.prisma.certificates.findMany({
         where,
         select: {
           id: true,
+          status: true,
           ...FIELDS,
           created_at: true,
           updated_at: true,
-          created_ip: true,
           _count: { select: { revisions: true } },
         },
         orderBy: [sortBy, { id: 'asc' }],
@@ -236,6 +289,9 @@ export class CertificateService {
       this.prisma.certificates.count({ where: { school_id: schoolId } }),
       this.prisma.certificates.count({
         where: { school_id: schoolId, revisions: { some: {} } },
+      }),
+      this.prisma.certificates.count({
+        where: { school_id: schoolId, status: 'pending' },
       }),
       this.prisma.certificates.findMany({
         where: { school_id: schoolId },
@@ -250,11 +306,11 @@ export class CertificateService {
       }),
     ]);
     return {
-      items: rows.map(({ id, created_at, updated_at, created_ip, _count, ...row }) => ({
+      items: rows.map(({ id, status, created_at, updated_at, _count, ...row }) => ({
         id,
+        status,
         created_at,
         updated_at,
-        created_ip,
         edits: _count.revisions,
         data: toData(row),
       })),
@@ -265,6 +321,7 @@ export class CertificateService {
         totalPages: Math.ceil(total / limit),
         totalAll,
         editedCount,
+        pendingCount,
         exams: exams.map((e) => e.exam),
         years: years.map((y) => y.passing_year),
       },
@@ -280,18 +337,14 @@ export class CertificateService {
       }),
       this.prisma.certificate_revisions.findMany({
         where: { certificate_id: id, school_id: schoolId },
-        select: { id: true, ip: true, created_at: true, ...FIELDS },
+        select: { id: true, created_at: true, ...FIELDS },
         orderBy: { id: 'asc' },
       }),
     ]);
     // Revision i holds the data before edit i, so edit i = revision i → revision i+1 (or current).
-    const versions = [
-      ...revisions.map(({ id: _id, ip: _ip, created_at: _at, ...row }) => row),
-      current,
-    ];
-    return revisions.map(({ id, ip, created_at }, i) => ({
+    const versions = [...revisions.map(({ id: _id, created_at: _at, ...row }) => row), current];
+    return revisions.map(({ id, created_at }, i) => ({
       id,
-      ip,
       created_at,
       changes: diff(toData(versions[i]), toData(versions[i + 1])),
     }));
@@ -302,16 +355,25 @@ export class CertificateService {
     await this.prisma.certificates.delete({ where: { id, school_id: schoolId } });
   }
 
-  async generatePdf(schoolId: number, id: string, withAddress = false) {
-    const row = await this.prisma.certificates.findUniqueOrThrow({
+  /** Pending: admin-only, stamped "PENDING". Approved: clean copy for everyone. */
+  async generatePdf(
+    schoolId: number,
+    id: string,
+    { withAddress = false, asAdmin = false }: { withAddress?: boolean; asAdmin?: boolean } = {},
+  ) {
+    const { status, ...row } = await this.prisma.certificates.findUniqueOrThrow({
       where: { id, school_id: schoolId },
-      select: FIELDS,
+      select: { status: true, ...FIELDS },
     });
+    if (!asAdmin && status !== 'approved') {
+      throw new ForbiddenException('Confirm the certificate before downloading the PDF');
+    }
     const data = toData(row);
     const buffer = await this.pdf.generate(
       schoolId,
       { ...data, kind: kindOf(data.exam) } as TestimonialData,
       withAddress,
+      status !== 'approved',
     );
     return { buffer, name: data.student_name_en.replace(/[^A-Za-z0-9]+/g, '_') };
   }

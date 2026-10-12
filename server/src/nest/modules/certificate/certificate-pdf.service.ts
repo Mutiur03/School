@@ -138,7 +138,7 @@ async function loadSchool(prisma: PrismaClient, schoolId: number) {
 
 type School = Awaited<ReturnType<typeof loadSchool>>;
 
-function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
+function buildHtml(d: TestimonialData, s: School, withAddress: boolean, pending: boolean) {
   const male = s.gender === 'Boys' || (s.gender !== 'Girls' && d.gender === 'Male');
   const he = male ? 'he' : 'she';
   const his = male ? 'his' : 'her';
@@ -189,7 +189,9 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
           ['নাম', esc(d.student_name_bn)],
           ['পিতার নাম', esc(d.father_name_bn)],
           ['মাতার নাম', esc(d.mother_name_bn)],
-          ...(withAddress && addressLine(d, true) ? [['ঠিকানা', esc(addressLine(d, true))]] : []),
+          ...(withAddress && addressLine(d, true)
+            ? [['ঠিকানা', esc(addressLine(d, true)), 'addr']]
+            : []),
           [
             isBoard ? `${examBn} পরীক্ষা` : 'শ্রেণি',
             isBoard
@@ -203,7 +205,7 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
           ["Father's Name", esc(d.father_name_en)],
           ["Mother's Name", esc(d.mother_name_en)],
           ...(withAddress && addressLine(d, false)
-            ? [['Address', esc(addressLine(d, false))]]
+            ? [['Address', esc(addressLine(d, false)), 'addr']]
             : []),
           [
             isBoard ? `${d.exam} Exam` : 'Class',
@@ -215,6 +217,7 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
         ];
     return `
     <div class="page ${bn ? 'bn' : 'en'}">
+      ${pending ? '<div class="pending-wm">PENDING</div>' : ''}
       <div class="cert">
         <div class="hd">
           ${s.logo ? `<img class="logo" src="${s.logo}" alt="" />` : ''}
@@ -262,7 +265,7 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
         }
         <div class="rt">${tx('Office Copy (Receipt / Acknowledgement)', 'অফিস কপি (প্রাপ্তি স্বীকার)')}</div>
         <div class="rm rmrow"><span>${tx('Memo No:', 'স্মারক নং:')}</span><span class="dt">${tx('Date:', 'তারিখ:')}</span></div>
-        ${rows.map(([k, v]) => `<div class="rr">${k}: ${v}</div>`).join('')}
+        ${rows.map(([k, v, cls]) => `<div class="rr${cls ? ` ${cls}` : ''}">${k}: ${v}</div>`).join('')}
         <div class="rgs">
           <div class="rg">${tx('Received by: ...........................................', 'গ্রহীতার স্বাক্ষর: ...........................................')}</div>
           <div class="rg">${tx(`Mobile: ${esc(d.mobile)}`, `মোবাইল নং: ${bnNum(d.mobile)}`)}</div>
@@ -316,16 +319,17 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
     .cert p.nj { text-align: left; }
     .vb { position: absolute; bottom: 58pt; left: 50%; width: 70pt; margin-left: -35pt; padding-top: 3pt; border-top: 1px dashed #000; text-align: center; font-size: 11pt; }
     .bn .vb { font-size: 12pt; }
-    .rc { padding: 14pt 70pt 0; }
+    .rc { position: relative; height: calc(297mm - 575pt); padding: 10pt 70pt 0; }
     .rn { text-align: center; font-size: 8.5pt; line-height: 1.25; margin-bottom: 6pt; }
     .bn .rn { font-size: 10pt; }
     .rs { text-align: center; font-size: 14pt; font-weight: bold; }
     .rl { text-align: center; font-size: 11pt; margin-top: 3pt; }
     .rt { text-align: center; font-size: 12pt; margin: 8pt 0 6pt; }
     .rm { font-size: 9pt; margin-bottom: 4pt; }
-    .rr { font-size: 10pt; margin-bottom: 4pt; }
-    .rgs { width: fit-content; margin-left: auto; }
+    .rr { font-size: 10pt; margin-bottom: 2pt; }
+    .rgs { position: absolute; right: 70pt; bottom: 10pt; }
     .rg { font-size: 10pt; margin-bottom: 4pt; }
+    .pending-wm { position: absolute; top: 50%; left: 50%; z-index: 6; width: 76%; transform: translate(-50%, -50%) rotate(-26deg); border: 8px solid #facc15; padding: 10px 18px; opacity: 0.65; text-align: center; color: #facc15; font-family: 'TNR', 'Times New Roman', serif; font-size: 100px; font-weight: 700; letter-spacing: 0.08em; line-height: 1; white-space: nowrap; }
   </style></head><body>${section(true)}${section(false)}</body></html>`;
 }
 
@@ -333,7 +337,7 @@ function buildHtml(d: TestimonialData, s: School, withAddress: boolean) {
 export class CertificatePdfService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  async generate(schoolId: number, data: TestimonialData, withAddress = false) {
+  async generate(schoolId: number, data: TestimonialData, withAddress = false, pending = false) {
     const school = await loadSchool(this.prisma, schoolId);
     if (data.kind === 'board' && !school.board) {
       throw new BadRequestException(
@@ -343,7 +347,7 @@ export class CertificatePdfService {
     if (school.gender !== 'Boys' && school.gender !== 'Girls' && !data.gender) {
       throw new BadRequestException('Gender is required');
     }
-    const html = buildHtml(data, school, withAddress);
+    const html = buildHtml(data, school, withAddress, pending);
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -366,6 +370,23 @@ export class CertificatePdfService {
           const e = el as HTMLElement;
           if (e.scrollWidth > e.clientWidth) {
             e.style.fontSize = `${(parseFloat(getComputedStyle(e).fontSize) * e.clientWidth) / e.scrollWidth}px`;
+          }
+        }),
+      );
+      // The receipt has a fixed height with the signature pinned to its bottom; a very long
+      // address shrinks only the address row, so the other candidate rows stay the same size
+      // with or without the address.
+      await page.$$eval('.rc', (els) =>
+        els.forEach((el) => {
+          const addr = el.querySelector<HTMLElement>('.rr.addr');
+          if (!addr) return;
+          const rows = el.querySelectorAll('.rr');
+          const sign = el.querySelector('.rgs')!;
+          const overflows = () =>
+            rows[rows.length - 1].getBoundingClientRect().bottom >
+            sign.getBoundingClientRect().top - 2;
+          for (let i = 0; i < 20 && overflows(); i++) {
+            addr.style.fontSize = `${parseFloat(getComputedStyle(addr).fontSize) * 0.95}px`;
           }
         }),
       );

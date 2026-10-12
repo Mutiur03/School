@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { FileText, Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import {
   TESTIMONIAL_FIRST_YEAR,
   TESTIMONIAL_GENDERS,
+  NID,
   districts,
   filterBanglaInput,
   filterEnglishInput,
@@ -40,7 +42,16 @@ const INPUT =
   'h-10 w-full rounded-lg border border-slate-300 bg-slate-50/60 px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/15 aria-[invalid=true]:border-destructive';
 const LABEL = 'mb-1.5 block text-[13px] font-medium text-slate-800';
 
-const BLANK_LOOKUP = { passing_year: String(CURRENT_YEAR), mobile: '', dob: '' };
+const BLANK_LOOKUP = {
+  passing_year: String(CURRENT_YEAR),
+  exam: 'SSC',
+  mobile: '',
+  birth_reg_no: '',
+};
+const examOptionsFor = (year: number) => [
+  ...testimonialExamOptions('class', year),
+  ...testimonialExamOptions('board', year).reverse(),
+];
 
 /**
  * Every field spelled out. `reset()` with only some keys leaves the other uncontrolled inputs
@@ -64,6 +75,7 @@ const blank = (askGender: boolean): TestimonialInput => ({
   address_village_road: '',
   address_village_road_bn: '',
   mobile: '',
+  birth_reg_no: '',
   dob: '',
   roll: '',
   registration_no: '',
@@ -95,7 +107,7 @@ async function errMsg(error: unknown) {
     : String(message ?? 'Request failed');
 }
 
-type Saved = { id: string; data: TestimonialData };
+type Saved = { id: string; status: 'pending' | 'approved'; data: TestimonialData };
 
 export default function TestimonialClient({
   schoolGender,
@@ -105,7 +117,8 @@ export default function TestimonialClient({
   const askGender = !schoolGender;
   const studentPrefix =
     schoolGender === 'Boys' ? 'Md' : schoolGender === 'Girls' ? 'Mst' : 'Md/Mst';
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const router = useRouter();
+  const editId = useSearchParams().get('id');
   // Set once the record is saved (or loaded by lookup): later submits edit it instead of creating a duplicate.
   const [savedId, setSavedId] = useState<string | null>(null);
   const [lookup, setLookup] = useState(BLANK_LOOKUP);
@@ -127,13 +140,8 @@ export default function TestimonialClient({
 
   const year = Number(useWatch({ control, name: 'passing_year' }));
   const exam = useWatch({ control, name: 'exam' });
-  const examOptions = useMemo(
-    () => [
-      ...testimonialExamOptions('class', year),
-      ...testimonialExamOptions('board', year).reverse(),
-    ],
-    [year],
-  );
+  const examOptions = useMemo(() => examOptionsFor(year), [year]);
+  const lookupExams = examOptionsFor(Number(lookup.passing_year));
   const kind: TestimonialKind = exam === 'SSC' || exam === 'JSC' ? 'board' : 'class';
   const requiresRollRegistration = testimonialRequiresRollRegistration(exam, year);
 
@@ -155,7 +163,6 @@ export default function TestimonialClient({
   /** Back to a blank form that creates a new record instead of editing the loaded one. */
   function startNew() {
     setSavedId(null);
-    setPdfUrl(null);
     setMatches(null);
     setLookup(BLANK_LOOKUP);
     reset(blank(askGender));
@@ -166,10 +173,14 @@ export default function TestimonialClient({
     finderRef.current?.showModal();
   }
 
-  function load({ id, data }: Saved) {
+  function load({ id, status, data }: Saved) {
+    // Confirmed records are locked: show the confirmation/download page instead of the form.
+    if (status === 'approved') {
+      router.push(`/testimonial/confirm/${id}`);
+      return;
+    }
     setSavedId(id);
     setMatches(null);
-    setPdfUrl(null);
     // Over a blank form so fields the saved record doesn't have (e.g. roll for a class exam) are cleared.
     reset({ ...blank(askGender), ...(data as unknown as TestimonialInput) });
     finderRef.current?.close();
@@ -187,21 +198,24 @@ export default function TestimonialClient({
     }
   }
 
+  // "Edit details" from the confirm page comes back here with ?id=.
+  useEffect(() => {
+    if (!editId) return;
+    axios
+      .get<{ data: Saved }>(`/api/certificates/${editId}`)
+      .then((res) => load(res.data.data))
+      .catch(async (error) => toast.error(await errMsg(error)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
   async function onSubmit({ kind: _kind, ...body }: TestimonialData) {
-    setPdfUrl(null);
     try {
-      // Save first (create, or edit with revision history), then render the saved record.
+      // Save (create, or edit with revision history), then review and confirm on the preview page.
       const saved = savedId
         ? await axios.patch<{ data: Saved }>(`/api/certificates/${savedId}`, body)
         : await axios.post<{ data: Saved }>('/api/certificates', body);
       setSavedId(saved.data.data.id);
-      const res = await axios.get(`/api/certificates/${saved.data.data.id}/pdf`, {
-        responseType: 'blob',
-      });
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      // Opened only once the server has sent the PDF. If the browser blocks the popup
-      // (the click's permission can expire while generating), offer a link instead.
-      if (!window.open(url, '_blank')) setPdfUrl(url);
+      router.push(`/testimonial/confirm/${saved.data.data.id}`);
     } catch (error) {
       toast.error(await errMsg(error));
     }
@@ -347,7 +361,8 @@ export default function TestimonialClient({
                 Find my certificate
               </h2>
               <p className="mt-0.5 text-xs text-slate-600">
-                Enter the passing year, mobile number and date of birth you used before.
+                Enter the passing year, class, mobile number and Birth Registration / NID number you
+                used before.
               </p>
             </div>
             <button
@@ -360,7 +375,7 @@ export default function TestimonialClient({
             </button>
           </div>
           <div className="space-y-4 px-5 py-4">
-            <div className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
+            <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="lookup_year" className={LABEL}>
                   Passing year
@@ -370,13 +385,38 @@ export default function TestimonialClient({
                   className={INPUT}
                   value={lookup.passing_year}
                   onChange={(e) => {
-                    setLookup({ ...lookup, passing_year: e.target.value });
+                    const exams = examOptionsFor(Number(e.target.value));
+                    setLookup({
+                      ...lookup,
+                      passing_year: e.target.value,
+                      exam: exams.includes(lookup.exam) ? lookup.exam : exams[exams.length - 1],
+                    });
                     setMatches(null);
                   }}
                 >
                   {YEARS.map((y) => (
                     <option key={y} value={y}>
                       {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="lookup_exam" className={LABEL}>
+                  Class / Exam passed
+                </label>
+                <select
+                  id="lookup_exam"
+                  className={INPUT}
+                  value={lookup.exam}
+                  onChange={(e) => {
+                    setLookup({ ...lookup, exam: e.target.value });
+                    setMatches(null);
+                  }}
+                >
+                  {lookupExams.map((o) => (
+                    <option key={o} value={o}>
+                      {EXAM_LABEL[o]}
                     </option>
                   ))}
                 </select>
@@ -400,16 +440,19 @@ export default function TestimonialClient({
                 />
               </div>
               <div>
-                <label htmlFor="lookup_dob" className={LABEL}>
-                  Date of birth
+                <label htmlFor="lookup_birth_reg_no" className={LABEL}>
+                  Birth Registration / NID number
                 </label>
                 <input
-                  id="lookup_dob"
-                  type="date"
+                  id="lookup_birth_reg_no"
+                  inputMode="numeric"
                   className={INPUT}
-                  value={lookup.dob}
+                  value={lookup.birth_reg_no}
                   onChange={(e) => {
-                    setLookup({ ...lookup, dob: e.target.value });
+                    setLookup({
+                      ...lookup,
+                      birth_reg_no: filterNumericInput(e.target.value).slice(0, 17),
+                    });
                     setMatches(null);
                   }}
                 />
@@ -423,8 +466,8 @@ export default function TestimonialClient({
               >
                 <p className="font-medium">No saved certificate found.</p>
                 <p className="mt-0.5 text-amber-800">
-                  Check the passing year, mobile number and date of birth, or close this and fill
-                  the form below to create a new certificate.
+                  Check the passing year, class, mobile number and Birth Registration / NID number,
+                  or close this and fill the form below to create a new certificate.
                 </p>
               </div>
             )}
@@ -450,7 +493,7 @@ export default function TestimonialClient({
                           </span>
                         </span>
                         <span className="shrink-0 text-xs font-medium text-emerald-700">
-                          Edit →
+                          {m.status === 'approved' ? 'Confirmed · Download →' : 'Edit →'}
                         </span>
                       </button>
                     </li>
@@ -470,7 +513,7 @@ export default function TestimonialClient({
             <button
               type="button"
               onClick={find}
-              disabled={finding || lookup.mobile.length !== 11 || !lookup.dob}
+              disabled={finding || lookup.mobile.length !== 11 || !NID.test(lookup.birth_reg_no)}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50"
             >
               {finding && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -550,6 +593,13 @@ export default function TestimonialClient({
                 />
                 {err('dob')}
               </div>
+              {text(
+                'birth_reg_no',
+                'Birth Registration / NID number',
+                (v) => filterNumericInput(v).slice(0, 17),
+                { inputMode: 'numeric' },
+                'Birth registration (17 digits) or NID (10, 13 or 17 digits).',
+              )}
               {askGender && (
                 <div>
                   <label htmlFor="gender" className={LABEL}>
@@ -664,28 +714,12 @@ export default function TestimonialClient({
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 active:scale-[0.98] disabled:opacity-60"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSubmitting
-                ? 'Generating PDF…'
-                : savedId
-                  ? 'Save changes & open certificate PDF'
-                  : 'Open certificate PDF'}
+              {isSubmitting ? 'Saving…' : savedId ? 'Save changes & review' : 'Save & review'}
             </button>
-            {isSubmitting && (
-              <p role="status" className="mt-3 text-center text-sm text-slate-600">
-                Generating your certificate, please wait…
-              </p>
-            )}
-            {pdfUrl && !isSubmitting && (
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
-              >
-                <FileText className="h-5 w-5 shrink-0" strokeWidth={1.75} />
-                Your certificate is ready. Open PDF
-              </a>
-            )}
+            <p className="mt-3 text-center text-xs text-slate-500">
+              You can preview the PDF on the next page. Once you confirm, it can no longer be
+              edited.
+            </p>
           </div>
         </form>
       </div>

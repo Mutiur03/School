@@ -4,6 +4,7 @@ import {
   BANGLA_ADDRESS,
   BANGLA_ONLY,
   NAME,
+  NID,
   PHONE_NUMBER,
   POST_CODE,
   TESTIMONIAL_FIRST_YEAR,
@@ -61,6 +62,10 @@ export class CreateCertificateDto {
 
   @Matches(PHONE_NUMBER)
   mobile!: string;
+
+  /** Birth registration (17 digits) or NID (10/13/17 digits). */
+  @Matches(NID)
+  birth_reg_no!: string;
 
   @IsString()
   @IsNotEmpty()

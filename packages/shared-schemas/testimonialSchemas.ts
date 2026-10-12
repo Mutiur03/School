@@ -4,6 +4,7 @@ import {
   BANGLA_ADDRESS,
   BANGLA_ONLY,
   NAME,
+  NID,
   PHONE_NUMBER,
   POST_CODE,
   REGISTRATION_NO,
@@ -90,6 +91,12 @@ export const testimonialSchema = z
       .string()
       .trim()
       .regex(PHONE_NUMBER, 'Mobile number must be 11 digits and start with 01'),
+    /** Birth registration (17 digits) or NID (10/13/17 digits). */
+    birth_reg_no: z
+      .string()
+      .trim()
+      .min(1, 'Birth Registration / NID number is required')
+      .regex(NID, 'Must be 10, 13 or 17 digits'),
     /** Only needed for co-ed schools; boys'/girls' schools derive it server-side. */
     gender: z.enum(TESTIMONIAL_GENDERS, 'Select gender').optional(),
     dob: z.string().trim().refine(isValidDateOfBirth, 'Enter a valid date of birth'),

@@ -491,17 +491,21 @@ model certificates {
   roll            String?                 @db.VarChar(6)
   registration_no String?                 @db.VarChar(10)
   gpa             Decimal?                @db.Decimal(3, 2)
-  created_ip      String?                 @db.VarChar(64)
+  /// Birth registration or NID; NULL only on rows created before it was collected.
+  birth_reg_no    String?                 @db.VarChar(17)
+  /// pending = editable; approved = locked for public (admin can set back to pending).
+  status          String                  @default("pending")
   created_at      DateTime                @default(now())
   updated_at      DateTime                @updatedAt
   school          School                  @relation(fields: [school_id], references: [id], onDelete: Cascade)
   revisions       certificate_revisions[]
 
-  @@unique([school_id, passing_year, mobile, dob, exam])
+  @@unique([school_id, passing_year, mobile, exam, birth_reg_no])
   @@index([school_id, updated_at])
+  @@index([school_id, status])
 }
 
-/// Copy of a `certificates` row taken before each edit. `ip` is the editor's address.
+/// Copy of a `certificates` row taken before each edit.
 model certificate_revisions {
   id              Int          @id @default(autoincrement())
   certificate_id  String       @db.Uuid
@@ -527,7 +531,7 @@ model certificate_revisions {
   roll            String?      @db.VarChar(6)
   registration_no String?      @db.VarChar(10)
   gpa             Decimal?     @db.Decimal(3, 2)
-  ip              String?      @db.VarChar(64)
+  birth_reg_no    String?      @db.VarChar(17)
   created_at      DateTime     @default(now())
   certificate     certificates @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
   school          School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
