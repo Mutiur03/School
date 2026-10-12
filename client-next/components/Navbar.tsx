@@ -1,5 +1,6 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import './Navbar.css';
 import Link from '@/components/Link';
@@ -25,7 +26,38 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSubDropdown, setActiveSubDropdown] = useState<string | null>(null);
   const routineQuery = useRoutinePDF();
-  const navPanelRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
+
+  const closeAll = () => {
+    // Desktop dropdowns also open via :focus-within, so release focus to actually hide them.
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && navRef.current?.contains(focused)) focused.blur();
+    setIsNavOpen(false);
+    setActiveDropdown(null);
+    setActiveSubDropdown(null);
+  };
+
+  // Close after any route change (covers every link, mobile and desktop).
+  useEffect(() => {
+    closeAll();
+  }, [pathname]);
+
+  // Close on outside click/tap and Escape.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) closeAll();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAll();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
 
   const handleRoutineClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,6 +88,9 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
   };
 
   const toggleDropdown = (itemId: string) => {
+    if (activeDropdown === itemId && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur(); // else :focus-within keeps the menu open
+    }
     setActiveDropdown(activeDropdown === itemId ? null : itemId);
     setActiveSubDropdown(null);
   };
@@ -64,29 +99,26 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
     setActiveSubDropdown(activeSubDropdown === subItemId ? null : subItemId);
   };
 
+  // Real links close the menu on desktop too, so a click-opened dropdown doesn't linger.
   const closeNavbarIfMobile = (href?: string | null) => {
     const isRealHref = !!href && href.trim() !== '' && href.trim() !== '#';
-    if (typeof window !== 'undefined' && window.innerWidth <= 1199 && isRealHref) {
-      setIsNavOpen(false);
-      setActiveDropdown(null);
-      setActiveSubDropdown(null);
-    }
+    if (isRealHref) closeAll();
   };
 
   const portalLinks = school?.links ?? {};
   const loginDropdown = [
-    portalLinks.teacherLogin
-      ? {
-          id: 'menu-item-3548',
-          href: portalLinks.teacherLogin,
-          text: 'Teacher',
-        }
-      : null,
     portalLinks.studentLogin
       ? {
           id: 'menu-item-3549',
           href: portalLinks.studentLogin,
           text: 'Student',
+        }
+      : null,
+    portalLinks.teacherLogin
+      ? {
+          id: 'menu-item-3548',
+          href: portalLinks.teacherLogin,
+          text: 'Teacher',
         }
       : null,
   ].filter((item) => item !== null);
@@ -108,8 +140,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'About',
       dropdown: [
-        { id: 'menu-item-3342', href: '/at-a-glance', text: 'At a glance' },
         { id: 'menu-item-3341', href: '/at-a-glance', text: 'Aims & Goals' },
+        { id: 'menu-item-3342', href: '/at-a-glance', text: 'At a glance' },
         { id: 'menu-item-3385', href: '/gallery', text: 'Photo Gallery' },
         { id: 'menu-item-3348', href: '/at-a-glance', text: 'Seat Capacity' },
         // { id: "menu-item-3343", href: "#", text: "Hostel Info" }
@@ -123,8 +155,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       text: 'Information',
       dropdown: [
         { id: 'menu-item-3350', href: '#', text: 'Administration' },
-        { id: 'menu-item-3657', href: '/teacher-list', text: 'Teacher List' },
         { id: 'menu-item-3357', href: '/staff-list', text: 'Staff Info' },
+        { id: 'menu-item-3657', href: '/teacher-list', text: 'Teacher List' },
       ],
     },
     // {
@@ -155,6 +187,10 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Activities',
       dropdown: [
+        { id: 'menu-item-3359', href: '#', text: 'Cultural activities' },
+        { id: 'menu-item-3362', href: '#', text: 'Debating club' },
+        { id: 'menu-item-3365', href: '#', text: 'Red Crescent' },
+        { id: 'menu-item-3368', href: '#', text: 'Scout' },
         {
           id: 'menu-item-3360',
           href: '#',
@@ -162,10 +198,6 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
           // hasChildren: true,
           subDropdown: [{ id: 'menu-item-3361', href: '#', text: 'Cultural activities' }],
         },
-        { id: 'menu-item-3368', href: '#', text: 'Scout' },
-        { id: 'menu-item-3365', href: '#', text: 'Red Crescent' },
-        { id: 'menu-item-3359', href: '#', text: 'Cultural activities' },
-        { id: 'menu-item-3362', href: '#', text: 'Debating club' },
       ],
     },
     {
@@ -175,16 +207,17 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Academic',
       dropdown: [
-        { id: 'menu-item-3374', href: '#', text: 'Creative Learning' },
-        { id: 'menu-item-3376', href: '/exam-routine', text: 'Exam schedule' },
         {
           id: 'menu-item-3371',
           href: '#',
           text: 'Academic Calender',
         },
-        { id: 'menu-item-3382', href: '#', text: 'Vacation Calendar' },
-        { id: 'menu-item-3378', href: '#', text: 'Library' },
+        { id: 'menu-item-testimonial', href: '/testimonial', text: 'Certificate (Protyoyonpatro)' },
+        { id: 'menu-item-3374', href: '#', text: 'Creative Learning' },
+        { id: 'menu-item-3376', href: '/exam-routine', text: 'Exam schedule' },
         { id: 'menu-item-3377', href: '#', text: 'Laboratory' },
+        { id: 'menu-item-3378', href: '#', text: 'Library' },
+        { id: 'menu-item-3382', href: '#', text: 'Vacation Calendar' },
       ],
     },
     {
@@ -195,18 +228,18 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       text: 'Notices',
       dropdown: [
         {
-          id: 'menu-item-3543',
-          href: '/notices',
-          text: 'Official Notices',
-          className:
-            'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item',
-        },
-        {
           id: 'menu-item-3544',
           href: '/events',
           text: 'Events',
           className:
             'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3544 nav-item',
+        },
+        {
+          id: 'menu-item-3543',
+          href: '/notices',
+          text: 'Official Notices',
+          className:
+            'menu-item menu-item-type-taxonomy menu-item-object-cnotices-categories menu-item-3543 nav-item',
         },
       ],
     },
@@ -217,12 +250,12 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Admission',
       dropdown: [
+        { id: 'menu-item-3388', href: '/admission', text: 'Admission Form' },
         {
           id: 'menu-item-3387',
           href: '/admission/notice',
           text: 'Admission Notice',
         },
-        { id: 'menu-item-3388', href: '/admission', text: 'Admission Form' },
         {
           id: 'menu-item-3389',
           href: '/admission/results',
@@ -265,22 +298,15 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
       href: '#',
       text: 'Registration',
       dropdown: [
-        { id: 'menu-item-3547', href: '/registration/class-9', text: 'Class Nine' },
+        { id: 'menu-item-3549', href: '/registration/class-6', text: 'Class Six' },
         { id: 'menu-item-3548', href: '/registration/class-8', text: 'Class Eight' },
+        { id: 'menu-item-3547', href: '/registration/class-9', text: 'Class Nine' },
         // {
         //   id: 'menu-item-jse',
         //   href: '/registration/junior-scholarship',
         //   text: 'Junior Scholarship',
         // },
-        { id: 'menu-item-3549', href: '/registration/class-6', text: 'Class Six' },
       ],
-    },
-    {
-      id: 'menu-item-testimonial',
-      className:
-        'nav_green menu-item menu-item-type-post_type menu-item-object-page menu-item-testimonial nav-item',
-      href: '/testimonial',
-      text: 'Testimonial',
     },
     {
       id: 'menu-item-3541',
@@ -312,6 +338,7 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
 
   return (
     <nav
+      ref={navRef}
       id="site-navigation"
       // className="main-navigation navbar navbar-expand-md navbar-light row"
       role="navigation"
@@ -333,17 +360,23 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
           </div>
         </button>
       </div>
-      <div
-        id="TF-Navbar"
-        ref={navPanelRef}
-        className={`navbar-collapse col-md-12 ${isNavOpen ? 'show' : ''}`}
-      >
+      <div id="TF-Navbar" className={`navbar-collapse col-md-12 ${isNavOpen ? 'show' : ''}`}>
         <ul id="primary-menu" className="nav navbar-nav primary-menu">
           {menuItems.map((item) => (
             <li
               key={item.id}
               id={item.id}
               className={`${item.className} ${activeDropdown === item.id ? 'show' : ''}`}
+              onMouseEnter={(e) => {
+                // Hovering another item replaces a click-opened (or focus-held) dropdown.
+                if (activeDropdown === item.id) return;
+                const focused = document.activeElement;
+                if (focused instanceof HTMLElement && !e.currentTarget.contains(focused)) {
+                  focused.blur();
+                }
+                setActiveDropdown(null);
+                setActiveSubDropdown(null);
+              }}
             >
               {isExternalLink(item.href) && !item.dropdown ? (
                 <a
@@ -391,6 +424,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                     if (item.dropdown) {
                       e.preventDefault();
                       toggleDropdown(item.id);
+                    } else {
+                      closeNavbarIfMobile(item.href);
                     }
                   }}
                 >
@@ -492,6 +527,8 @@ export function Navbar({ menuItems: menuItemsProp, school }: NavbarProps) {
                           onClick={(e) => {
                             if (subItem.id === 'menu-item-3371') {
                               handleRoutineClick(e);
+                              closeAll();
+                              return;
                             }
                             closeNavbarIfMobile(subItem.href);
                           }}

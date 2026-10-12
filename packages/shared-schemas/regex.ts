@@ -11,6 +11,7 @@ export const SUBJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 .()&/'-]{1,98}[A-Za-z0-9).]$
 export const CLASS_NUM = /^(?:[1-9]|10)$/;
 export const SECTION = /^[A-Za-z]$/;
 export const ADDRESS_TEXT = /^[A-Za-z0-9\s,./()'-]{2,100}$/;
+export const BANGLA_ADDRESS = /^[ঀ-৿0-9\s,./()'-]{2,200}$/;
 export const DESIGNATION = /^[A-Za-z][A-Za-z0-9\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{0,49}$/;
 export const USERNAME = /^[A-Za-z0-9_.@-]+$/;
 // eslint-disable-next-line no-control-regex -- validates full ASCII range for legacy inputs

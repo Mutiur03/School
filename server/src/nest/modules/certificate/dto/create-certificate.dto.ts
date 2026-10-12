@@ -1,0 +1,89 @@
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Min } from 'class-validator';
+import {
+  ADDRESS_TEXT,
+  BANGLA_ADDRESS,
+  BANGLA_ONLY,
+  NAME,
+  NID,
+  PHONE_NUMBER,
+  POST_CODE,
+  TESTIMONIAL_FIRST_YEAR,
+  TESTIMONIAL_GENDERS,
+} from '@school/shared-schemas';
+
+/** Field shapes only; exam/year/roll/GPA/DOB rules are business rules checked in the service. */
+export class CreateCertificateDto {
+  @IsString()
+  @IsNotEmpty()
+  exam!: string;
+
+  @IsInt()
+  @Min(TESTIMONIAL_FIRST_YEAR)
+  passing_year!: number;
+
+  @Matches(BANGLA_ONLY)
+  student_name_bn!: string;
+
+  @Matches(NAME)
+  student_name_en!: string;
+
+  @Matches(BANGLA_ONLY)
+  father_name_bn!: string;
+
+  @Matches(NAME)
+  father_name_en!: string;
+
+  @Matches(BANGLA_ONLY)
+  mother_name_bn!: string;
+
+  @Matches(NAME)
+  mother_name_en!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_district!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_upazila!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_post_office!: string;
+
+  @Matches(BANGLA_ADDRESS)
+  address_post_office_bn!: string;
+
+  @Matches(POST_CODE)
+  address_post_code!: string;
+
+  @Matches(ADDRESS_TEXT)
+  address_village_road!: string;
+
+  @Matches(BANGLA_ADDRESS)
+  address_village_road_bn!: string;
+
+  @Matches(PHONE_NUMBER)
+  mobile!: string;
+
+  /** Birth registration (17 digits) or NID (10/13/17 digits). */
+  @Matches(NID)
+  birth_reg_no!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  dob!: string;
+
+  @IsOptional()
+  @IsIn(TESTIMONIAL_GENDERS)
+  gender?: (typeof TESTIMONIAL_GENDERS)[number];
+
+  @IsOptional()
+  @IsString()
+  roll?: string;
+
+  @IsOptional()
+  @IsString()
+  registration_no?: string;
+
+  @IsOptional()
+  @IsString()
+  gpa?: string;
+}

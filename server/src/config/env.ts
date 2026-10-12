@@ -41,7 +41,7 @@ const envSchema = z.object({
   PRISMA_LOG_QUERIES: z.enum(['true', 'false']).optional(),
   PRISMA_SLOW_QUERY_MS: z.string().optional(),
 
-  /** Express trust proxy hops (e.g. "1" behind nginx). "true"/"false" also accepted. */
+  /** Express trust proxy hops: "1" behind nginx only, "2" behind Cloudflare + nginx. Must equal the real hop count or req.ip is wrong/spoofable. "true"/"false" also accepted. */
   TRUST_PROXY: z.string().optional(),
 });
 

@@ -50,6 +50,8 @@ model School {
   notices                  notices[]
   admins                   admin[]
   holidays                 holidays[]
+  certificates             certificates[]
+  certificate_revisions    certificate_revisions[]
   staffs                   staffs[]
   subjects                 subjects[]
   categories               categories[]
@@ -468,6 +470,80 @@ model attendance_sheets {
   @@unique([school_id, year, month, class, section], name: "attendance_sheet_scope")
   @@index([school_id, status])
   @@index([status])
+}
+
+/// Public certificate (প্রত্যয়নপত্র) requests: one real column per form field so they can be searched and reported on.
+model certificates {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  school_id       Int                     @default(dbgenerated("app.current_school_id()"))
+  exam            String                  @db.VarChar(10)
+  passing_year    Int
+  student_name_bn String                  @db.VarChar(150)
+  student_name_en String                  @db.VarChar(100)
+  father_name_bn  String                  @db.VarChar(150)
+  father_name_en  String                  @db.VarChar(100)
+  mother_name_bn  String                  @db.VarChar(150)
+  mother_name_en  String                  @db.VarChar(100)
+  address_district        String          @default("") @db.VarChar(50)
+  address_upazila         String          @default("") @db.VarChar(50)
+  address_post_office     String          @default("") @db.VarChar(100)
+  address_post_office_bn  String          @default("") @db.VarChar(100)
+  address_post_code       String          @default("") @db.VarChar(4)
+  address_village_road    String          @default("") @db.VarChar(200)
+  address_village_road_bn String          @default("") @db.VarChar(200)
+  mobile          String                  @db.VarChar(11)
+  dob             DateTime                @db.Date
+  gender          String?                 @db.VarChar(6)
+  roll            String?                 @db.VarChar(6)
+  registration_no String?                 @db.VarChar(10)
+  gpa             Decimal?                @db.Decimal(3, 2)
+  /// Birth registration or NID; NULL only on rows created before it was collected.
+  birth_reg_no    String?                 @db.VarChar(17)
+  /// pending = editable; approved = locked for public (admin can set back to pending).
+  status          String                  @default("pending")
+  created_at      DateTime                @default(now())
+  updated_at      DateTime                @updatedAt
+  school          School                  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  revisions       certificate_revisions[]
+
+  @@unique([school_id, passing_year, mobile, exam, birth_reg_no])
+  @@index([school_id, updated_at])
+  @@index([school_id, status])
+}
+
+/// Copy of a `certificates` row taken before each edit.
+model certificate_revisions {
+  id              Int          @id @default(autoincrement())
+  certificate_id  String       @db.Uuid
+  school_id       Int          @default(dbgenerated("app.current_school_id()"))
+  exam            String       @db.VarChar(10)
+  passing_year    Int
+  student_name_bn String       @db.VarChar(150)
+  student_name_en String       @db.VarChar(100)
+  father_name_bn  String       @db.VarChar(150)
+  father_name_en  String       @db.VarChar(100)
+  mother_name_bn  String       @db.VarChar(150)
+  mother_name_en  String       @db.VarChar(100)
+  address_district        String @default("") @db.VarChar(50)
+  address_upazila         String @default("") @db.VarChar(50)
+  address_post_office     String @default("") @db.VarChar(100)
+  address_post_office_bn  String @default("") @db.VarChar(100)
+  address_post_code       String @default("") @db.VarChar(4)
+  address_village_road    String @default("") @db.VarChar(200)
+  address_village_road_bn String @default("") @db.VarChar(200)
+  mobile          String       @db.VarChar(11)
+  dob             DateTime     @db.Date
+  gender          String?      @db.VarChar(6)
+  roll            String?      @db.VarChar(6)
+  registration_no String?      @db.VarChar(10)
+  gpa             Decimal?     @db.Decimal(3, 2)
+  birth_reg_no    String?      @db.VarChar(17)
+  created_at      DateTime     @default(now())
+  certificate     certificates @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+  school          School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@index([certificate_id])
+  @@index([school_id])
 }
 
 model holidays {

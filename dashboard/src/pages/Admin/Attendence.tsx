@@ -15,7 +15,7 @@ import { SectionCard, StatusBadge, filterSelectClassName } from '@/components';
 import { AlertTriangle, Check, FileDown, Loader2, Send, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { smsCredits, smsDate } from '@/lib/sms';
-import { openBlobInNewTab } from '@school/common-ui/blob';
+import { openBlobInNewTab, openPdfLoadingTab } from '@school/common-ui/blob';
 import { cn } from '@/lib/utils';
 import {
   ATTENDANCE_CLASSES,
@@ -396,12 +396,7 @@ function Attendance() {
 
     const loadingToast = toast.loading('Generating attendance sheet…');
     setExportingPdf(true);
-    const preview = window.open('', '_blank');
-    if (preview) {
-      preview.document.write(
-        'Preparing attendance sheet… If this takes too long, check for errors.',
-      );
-    }
+    const preview = openPdfLoadingTab('Generating attendance sheet…');
 
     try {
       const blob = await downloadAttendanceSheet({
