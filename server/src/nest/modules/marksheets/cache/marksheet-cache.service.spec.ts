@@ -193,11 +193,28 @@ describe('serveSession*', () => {
 
 describe('invalidate', () => {
   it('no-op when no student has marks', async () => {
-    db.exams.findUnique.mockResolvedValue({ exam_name: 'HY', exam_year: 2026, result_date: null });
+    db.exams.findUnique.mockResolvedValue({
+      exam_name: 'HY',
+      exam_year: 2026,
+      result_date: null,
+      visible: true,
+    });
     await service.invalidate(S, [100], 9);
     expect(db.marks.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ school_id: S, exam_id: 9 }) }),
     );
+    expect(queue.addBulk).not.toHaveBeenCalled();
+  });
+
+  it('no-op for an unpublished exam', async () => {
+    db.exams.findUnique.mockResolvedValue({
+      exam_name: 'HY',
+      exam_year: 2026,
+      result_date: null,
+      visible: false,
+    });
+    await service.invalidate(S, [100], 9);
+    expect(db.marks.findMany).not.toHaveBeenCalled();
     expect(queue.addBulk).not.toHaveBeenCalled();
   });
 
@@ -206,6 +223,7 @@ describe('invalidate', () => {
       exam_name: 'HY',
       exam_year: 2026,
       result_date: '2999-01-01',
+      visible: true,
     });
     db.marks.findMany.mockResolvedValue([{ enrollment: { student_id: 100 } }]);
     db.student_enrollments.findMany.mockResolvedValue([{ class: 6, section: 'A' }]);

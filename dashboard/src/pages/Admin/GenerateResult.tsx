@@ -9,6 +9,8 @@ import {
   FileText,
   GraduationCap,
   MoreHorizontal,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   SlidersHorizontal,
   Trophy,
@@ -46,6 +48,7 @@ import {
   useGraduationPreview,
   useGraduateClass10,
   useOverrideEnrollmentStatus,
+  useResultHold,
   usePromotionYearStats,
   usePromotionPassRules,
   useSavePromotionPassRules,
@@ -270,6 +273,8 @@ const GenerateResult = () => {
   const { mutate: assignRetained, isPending: isAssigningRetained } = useAssignRetained();
   const { mutate: graduateClass10, isPending: isGraduating } = useGraduateClass10();
   const { mutate: overrideStatus } = useOverrideEnrollmentStatus();
+  const { mutate: holdResult } = useResultHold('hold');
+  const { mutate: releaseResult } = useResultHold('release');
 
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
   const meta = studentsResponse?.meta;
@@ -295,6 +300,7 @@ const GenerateResult = () => {
   const promo = yearStats?.promotion;
   const class10 = yearStats?.class10;
   const promoted = yearStats?.promoted ?? false;
+  const passFailGenerated = (promo?.passed ?? 0) + (promo?.failed ?? 0) > 0;
   const nextYearTotal = yearStats?.next_year_enrollments ?? 0;
   const awaitingRoll = yearStats?.awaiting_roll ?? 0;
   const class10Graduated = (class10?.graduated ?? 0) > 0;
@@ -401,6 +407,26 @@ const GenerateResult = () => {
     );
   };
 
+  const handleHoldToggle = async (student: Student) => {
+    if (!student.enrollment_id) return;
+    const enrollmentIds = [student.enrollment_id];
+    if (student.result_held) {
+      const ok = await confirm({
+        title: 'Release result?',
+        msg: `${student.name}'s result is generated now and ranked after everyone already released, so no earlier merit position moves.`,
+        confirmLabel: 'Release',
+      });
+      if (ok) releaseResult({ year, enrollmentIds });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Hold result?',
+      msg: `${student.name}'s status goes back to Pending and they are not ranked, promoted or graduated until released.`,
+      confirmLabel: 'Hold',
+    });
+    if (ok) holdResult({ year, enrollmentIds });
+  };
+
   const handleSaveRules = () => {
     if (!rulesDraft) return;
     savePassRules({ year, rules: rulesDraft }, { onSuccess: () => setRulesDraft(null) });
@@ -503,7 +529,7 @@ const GenerateResult = () => {
           n={1}
           title="Pass / fail"
           icon={<RefreshCw className="h-5 w-5 text-blue-600" />}
-          done={(promo?.passed ?? 0) + (promo?.failed ?? 0) > 0}
+          done={passFailGenerated}
           detail={
             <>
               Allowed failed subjects by class — {passRulesSummary}. Override single students in the
@@ -552,7 +578,7 @@ const GenerateResult = () => {
             size="sm"
             variant="outline"
             onClick={handleOpenPreview}
-            disabled={promoteBusy || !yearEndReady}
+            disabled={promoteBusy || !yearEndReady || !passFailGenerated}
           >
             {promoteBusy ? <RefreshCw className="animate-spin" /> : <Trophy />}
             Review & promote
@@ -590,7 +616,7 @@ const GenerateResult = () => {
             size="sm"
             variant="outline"
             onClick={handleOpenGraduationPreview}
-            disabled={graduationBusy || !yearEndReady}
+            disabled={graduationBusy || !yearEndReady || !passFailGenerated}
           >
             {graduationBusy ? <RefreshCw className="animate-spin" /> : <GraduationCap />}
             Review & graduate
@@ -711,11 +737,20 @@ const GenerateResult = () => {
                     </td>
                     <td className="px-4 py-2 tabular-nums">{student.roll || '—'}</td>
                     <td className="px-4 py-2">
-                      <StatusOverrideSelect
-                        student={student}
-                        disabled={overridingId === student.enrollment_id}
-                        onChange={handleStatusOverride}
-                      />
+                      {student.result_held ? (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                        >
+                          Held
+                        </Badge>
+                      ) : (
+                        <StatusOverrideSelect
+                          student={student}
+                          disabled={overridingId === student.enrollment_id}
+                          onChange={handleStatusOverride}
+                        />
+                      )}
                     </td>
                     <td className="text-muted-foreground px-4 py-2 text-center text-xs tabular-nums">
                       {student.fail_count != null
@@ -745,6 +780,12 @@ const GenerateResult = () => {
                           >
                             <FileText /> Session marksheet PDF
                           </DropdownMenuItem>
+                          {student.status !== 'Graduated' && (
+                            <DropdownMenuItem onSelect={() => void handleHoldToggle(student)}>
+                              {student.result_held ? <PlayCircle /> : <PauseCircle />}
+                              {student.result_held ? 'Release result' : 'Hold result'}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

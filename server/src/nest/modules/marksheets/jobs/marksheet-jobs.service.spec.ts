@@ -62,6 +62,7 @@ const fileWhere = { student_id_exam_id_school: { school_id: S, student_id: 100, 
 beforeEach(() => {
   jest.clearAllMocks();
   db = Object.fromEntries(MODELS.map((m) => [m, model()])) as typeof db;
+  db.exams.findUnique.mockResolvedValue({ visible: true, result_date: null });
   queue = { addBulk: jest.fn<Fn>().mockResolvedValue([]), getJob: jest.fn<Fn>() };
   hash = {
     computeInputHash: jest.fn<Fn>().mockResolvedValue('h1'),

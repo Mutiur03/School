@@ -234,9 +234,10 @@ export class MarksheetCacheService {
     if (studentIds.length === 0) return;
     const exam = await this.prisma.exams.findUnique({
       where: { id: examId, school_id: schoolId },
-      select: { exam_name: true, exam_year: true, result_date: true },
+      select: { exam_name: true, exam_year: true, result_date: true, visible: true },
     });
-    if (!exam) return;
+    // Unpublished: nothing to pre-generate; publish queues everything (enqueueForExam).
+    if (!exam?.visible) return;
 
     const eligible = await this.studentIdsWithMarksForExam(schoolId, examId, studentIds);
     if (eligible.length === 0) return;

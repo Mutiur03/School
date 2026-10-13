@@ -251,6 +251,7 @@ export class MarksheetJobsService {
    * job cannot sit pending for the full cooldown with generating=0.
    */
   async ensureQueuedForExamIfDue(schoolId: number, examId: number): Promise<number> {
+    if (!(await this.isPublished(schoolId, examId))) return 0;
     const now = Date.now();
     const last = this.ensureQueuedLastRun.get(examId) ?? 0;
     if (now - last < ENSURE_QUEUED_COOLDOWN_MS) {
@@ -260,9 +261,23 @@ export class MarksheetJobsService {
     return this.ensureQueuedForExam(schoolId, examId);
   }
 
+  /** Marksheets are only pre-generated for published exams; publish queues everything. */
+  private async isPublished(schoolId: number, examId: number): Promise<boolean> {
+    const exam = await this.prisma.exams.findUnique({
+      where: { id: examId, school_id: schoolId },
+      select: { visible: true },
+    });
+    return !!exam?.visible;
+  }
+
   /** Status breakdown for an exam, for admin progress UI. */
   async statusCounts(schoolId: number, examId: number) {
     const where = { school_id: schoolId, exam_id: examId };
+    // Unpublished: nothing generates, so leftover pending rows must not show as progress.
+    if (!(await this.isPublished(schoolId, examId))) {
+      const empty = { pending: 0, generating: 0, ready: 0, failed: 0, skipped: 0, total: 0, done: 0 };
+      return { ...empty, bundles: { ...empty, stale: 0, staleItems: [], failedItems: [] } };
+    }
     // Remove orphan skipped rows (students without marks for this exam).
     await this.prisma.marksheet_files.deleteMany({ where: { ...where, status: 'skipped' } });
 
@@ -423,13 +438,23 @@ export class MarksheetJobsService {
       }),
     ]);
 
+    const published = {
+      exam_id: {
+        in: (
+          await this.prisma.exams.findMany({
+            where: { school_id: schoolId, visible: true },
+            select: { id: true },
+          })
+        ).map((e) => e.id),
+      },
+    };
     const [pending, pendingBundles] = await Promise.all([
       this.prisma.marksheet_files.findMany({
-        where: { school_id: schoolId, status: 'pending' },
+        where: { school_id: schoolId, status: 'pending', ...published },
         select: { student_id: true, exam_id: true, exam_name: true, year: true },
       }),
       this.prisma.marksheet_bundles.findMany({
-        where: { school_id: schoolId, status: 'pending' },
+        where: { school_id: schoolId, status: 'pending', ...published },
         select: { exam_id: true, exam_name: true, year: true, class: true, section: true },
       }),
     ]);
@@ -496,10 +521,10 @@ export class MarksheetJobsService {
   private async ensureQueuedForExam(schoolId: number, examId: number): Promise<number> {
     const exam = await this.prisma.exams.findUnique({
       where: { id: examId, school_id: schoolId },
-      select: { id: true },
+      select: { visible: true },
     });
-    // Visible does not gate generation — only result_date freeze does.
-    if (!exam) return 0;
+    // Unpublished: nothing to pre-generate; publish queues everything (enqueueForExam).
+    if (!exam?.visible) return 0;
 
     const marks = await this.prisma.marks.findMany({
       where: { school_id: schoolId, exam_id: examId, marks: { not: null } },

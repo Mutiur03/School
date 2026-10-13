@@ -213,7 +213,7 @@ const ViewMarks = () => {
   };
 
   const downloadMarksheet = async (id: number) => {
-    const loadingToast = toast.loading('Generating transcript...');
+    const loadingToast = toast.loading('Generating marksheet…');
     downloadProgressToastRef.current = loadingToast;
 
     const newWindow = openPdfLoadingTab('Generating marksheet…');
@@ -239,7 +239,7 @@ const ViewMarks = () => {
       toast.error('Please select Class, Year and Exam');
       return;
     }
-    const loadingToast = toast.loading('Generating transcript...');
+    const loadingToast = toast.loading('Generating marksheets…');
     downloadProgressToastRef.current = loadingToast;
 
     const newWindow = openPdfLoadingTab('Generating marksheets…');

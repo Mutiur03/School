@@ -120,7 +120,8 @@ function drawStudentInfo(doc: any, data: SessionMarksheetData) {
     10: 'Ten',
   };
   const s = data.student;
-  pair("Student's Name:", s.name, 50, 100, 395, 0);
+  pair("Student's Name:", s.name, 50, 100, 270, 0);
+  pair('Result:', data.result.isFailed ? 'Failed' : 'Passed', 420, 50, 75, 0);
   pair('Class:', classText[s.class] ?? String(s.class), 50, 45, 90, 1);
   pair('Section:', s.section || '-', 175, 55, 70, 1);
   pair('Roll No:', String(s.roll ?? '-'), 300, 55, 60, 1);
@@ -201,9 +202,9 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
     table.continuousRows.forEach((r) => drawRow(rowCells(r)));
   }
 
-  // Summary: Grand Total | GPA, then Result | Failed subjects | Position.
+  // Summary: Grand Total | GPA.
   const r = data.result;
-  ensure(ROW_H * 2);
+  ensure(ROW_H);
   doc.lineWidth(0.5).rect(X0, y, WIDTH, ROW_H).stroke('#000000');
   const totalCol = markEnd - 1;
   cell(doc, 'Grand Total Marks', X0, y, xs[totalCol] - X0 - 4, ROW_H, {
@@ -214,18 +215,6 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
   cell(doc, String(r.grandTotal), xs[totalCol], y, widths[totalCol], ROW_H, { bold: true });
   cell(doc, 'GPA', xs[markEnd], y, widths[markEnd] * 2, ROW_H, { bold: true });
   cell(doc, r.gpa.toFixed(2), xs[markEnd + 2], y, widths[markEnd + 2] * 2, ROW_H, { bold: true });
-  y += ROW_H;
-
-  doc.lineWidth(0.5).rect(X0, y, WIDTH, ROW_H).stroke('#000000');
-  const third = WIDTH / 3;
-  [
-    `Result: ${r.isFailed ? 'Failed' : 'Passed'}`,
-    `Failed Subjects: ${r.failCount}`,
-    `Position: ${r.position || '-'}`,
-  ].forEach((t, i) => {
-    if (i > 0) vline(doc, X0 + third * i, y, ROW_H);
-    cell(doc, t, X0 + third * i, y, third, ROW_H, { bold: true });
-  });
   y += ROW_H;
 
   for (const note of data.notes ?? []) {

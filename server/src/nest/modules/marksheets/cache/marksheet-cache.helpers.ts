@@ -4,7 +4,7 @@
  * Frozen exams pin `snapshot_design_version` at generation — same rule as
  * head/class-teacher: finalized PDFs keep the design that signed them.
  */
-export const MARKSHEET_DESIGN_VERSION = '15';
+export const MARKSHEET_DESIGN_VERSION = '16';
 
 /** marksheet_sessions.student_id = 0 means the school-year "all" session PDF. */
 export const SESSION_YEAR_STUDENT_ID = 0;
