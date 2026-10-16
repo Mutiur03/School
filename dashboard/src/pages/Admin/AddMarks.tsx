@@ -132,14 +132,17 @@ const AddMarks = () => {
     )?.levels ?? [];
 
   const subjectsForClass = useMemo(() => {
-    return subjects
-      .filter((s) => s.class.toString() === level)
-      .filter((s) => s.subject_type !== 'main')
-      .filter((s) => {
-        if (!group) return true;
-        return !s.group || s.group === '' || s.group === group;
-      });
-  }, [subjects, level, group]);
+    return (
+      subjects
+        // Promotion clones subjects into next year; only this session's subjects belong here.
+        .filter((s) => s.class.toString() === level && s.year === Number(year))
+        .filter((s) => s.subject_type !== 'main')
+        .filter((s) => {
+          if (!group) return true;
+          return !s.group || s.group === '' || s.group === group;
+        })
+    );
+  }, [subjects, level, group, year]);
 
   const selectedSubject = useMemo(() => {
     return subjectsForClass.find((s) => s.id === Number(specific));

@@ -4,7 +4,8 @@ import fs from 'fs';
 import { env } from './config/env.js';
 import logger from './utils/logger.js';
 import { check } from './config/redis.js';
-import { startMarksheetWorker, drainMarksheetQueue } from './modules/marks/marksheet.worker.js';
+import { nestApp } from './nest/common/nest-app.js';
+import { MarksheetWorker } from './nest/modules/marksheets/jobs/marksheet.worker.js';
 import {
   startAttendanceSheetWorker,
   drainAttendanceSheetQueue,
@@ -34,7 +35,7 @@ const httpServer = app.listen(PORT, () => {
     health: `http://localhost:${PORT}/api/health`,
   });
   check();
-  startMarksheetWorker();
+  nestApp().get(MarksheetWorker).start();
   startAttendanceSheetWorker();
 });
 
@@ -56,7 +57,7 @@ const gracefulShutdown = async (signal: string) => {
   logger.info(`Received ${signal}, draining marksheet + attendance-sheet workers…`);
 
   try {
-    await Promise.all([drainMarksheetQueue(), drainAttendanceSheetQueue()]);
+    await Promise.all([nestApp().get(MarksheetWorker).drain(), drainAttendanceSheetQueue()]);
   } catch (e) {
     logger.warn('Queue drain error during shutdown', {
       error: e instanceof Error ? e.message : String(e),

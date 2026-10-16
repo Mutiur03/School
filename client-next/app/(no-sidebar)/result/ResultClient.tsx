@@ -162,7 +162,7 @@ export default function ResultClient({
     let cancelled = false;
     setLoadingExams(true);
     axios
-      .get('/api/marks/public/exams', {
+      .get('/api/public-results/exams', {
         params: { year: yearNum, class: classNum },
       })
       .then(({ data }) => {
@@ -191,7 +191,7 @@ export default function ResultClient({
       return;
     }
     try {
-      const { data } = await axios.post('/api/marks/public/verify', body);
+      const { data } = await axios.post('/api/public-results/verification', body);
       const payload = data.data as VerifyResponse;
       setVerified(body);
       setSession(payload);
@@ -223,7 +223,7 @@ export default function ResultClient({
     setLoadingResult(true);
     setUnpublished(false);
     try {
-      const { data } = await axios.get('/api/marks/public/result', {
+      const { data } = await axios.get('/api/public-results', {
         params: { year: yearNum, exam },
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -258,7 +258,7 @@ export default function ResultClient({
 
   async function getPdf(): Promise<{ blob: Blob; filename: string } | null> {
     if (!session || selectedYear == null || !selectedExam) return null;
-    const res = await axios.get('/api/marks/public/download', {
+    const res = await axios.get('/api/public-results/marksheet', {
       params: { year: selectedYear, exam: selectedExam },
       headers: authHeader,
       responseType: 'blob',

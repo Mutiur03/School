@@ -2,7 +2,7 @@ import { CallHandler, ExecutionContext, Injectable, StreamableFile } from '@nest
 import type { NestInterceptor } from '@nestjs/common';
 import { map } from 'rxjs';
 
-/** Wraps every success response as `{ success: true, data }`. Errors are handled by the filter. */
+/** Wraps every success response as `{ success: true, data }` (files stream as-is). Errors are handled by the filter. */
 @Injectable()
 export class ResponseInterceptor implements NestInterceptor {
   intercept(_ctx: ExecutionContext, next: CallHandler) {

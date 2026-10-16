@@ -20,10 +20,17 @@ export const sanitizeTeacher = (teacher: any) => {
   return rest;
 };
 
+/** Bridge to Nest (see nest/common/nest-app.ts); remove when teachers move to Nest. */
+async function marksheetCache() {
+  const { nestApp } = await import('../../nest/common/nest-app.js');
+  const { MarksheetCacheService } =
+    await import('../../nest/modules/marksheets/cache/marksheet-cache.service.js');
+  return nestApp().get(MarksheetCacheService);
+}
+
 async function invalidateMarksheetsForTeacher(teacherId: number): Promise<void> {
   try {
-    const { MarksheetService } = await import('../marks/marksheet.service.js');
-    await MarksheetService.invalidateForTeacherProfile(teacherId);
+    await (await marksheetCache()).invalidateForTeacherProfile(requireSchoolId(), teacherId);
   } catch (err) {
     console.warn(
       'Marksheet invalidation failed after teacher profile change:',
@@ -35,8 +42,7 @@ async function invalidateMarksheetsForTeacher(teacherId: number): Promise<void> 
 async function invalidateMarksheetsForSchoolHead(schoolId: number | undefined): Promise<void> {
   if (!schoolId) return;
   try {
-    const { MarksheetService } = await import('../marks/marksheet.service.js');
-    await MarksheetService.invalidateForSchoolSignatureChange(schoolId);
+    await (await marksheetCache()).invalidateForSchoolSignatureChange(schoolId);
   } catch (err) {
     console.warn(
       'Marksheet invalidation failed after head message change:',

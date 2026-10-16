@@ -13,8 +13,6 @@ import logger from './utils/logger.js';
 import { createNest } from './nest/bootstrap.js';
 import examRouter from './modules/exam/exam.route.js';
 import { superAdminExamTypeRouter, tenantExamTypeRouter } from './modules/exam/exam-type.route.js';
-import marksRouter from './modules/marks/marks.route.js';
-import promotionRouter from './modules/promotion/promotion.route.js';
 import {
   sharedAuthSessionRouter,
   superAdminAuthRouter,
@@ -169,7 +167,7 @@ const LimitReq = rateLimit({
     return (
       url.includes('/api/sms-settings/public') ||
       url.includes('/api/health') ||
-      url.includes('/api/marks/generation-status')
+      url.includes('/api/marksheets/exams/')
     );
   },
 });
@@ -196,8 +194,6 @@ app.use(tenantSchoolRouter);
 app.use(examRouter);
 app.use(tenantExamTypeRouter);
 app.use(subjectRouter);
-app.use(marksRouter);
-app.use(promotionRouter);
 app.use(routerTeacher);
 app.use(staffRouter);
 app.use(tenantAuthRouter);

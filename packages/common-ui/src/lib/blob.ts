@@ -26,6 +26,16 @@ export function openBlobInNewTab(blob: Blob, targetWindow?: Window | null): Wind
   return window.open(url, '_blank');
 }
 
+/** Server `message` from a failed `responseType: 'blob'` request (JSON error body), else fallback. */
+export async function blobErrorMessage(error: unknown, fallback: string): Promise<string> {
+  const data = (error as { response?: { data?: unknown } })?.response?.data;
+  if (!(data instanceof Blob)) return fallback;
+  try {
+    return JSON.parse(await data.text()).message || fallback;
+  } catch {
+    return fallback;
+  }
+}
 const LOADING_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body{display:flex;align-items:center;justify-content:center;padding:24px;background:#f8fafc;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center}

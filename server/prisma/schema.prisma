@@ -41,6 +41,7 @@ model School {
   descriptions             Json?
   academicProfile          Json?                                     @map("academic_profile")
   seo                      Json?
+  promotionVersion         String                                    @default("v1") @map("promotion_version") @db.VarChar(10)
   createdAt                DateTime                                  @default(now())
   updatedAt                DateTime                                  @updatedAt
   students                 students[]
@@ -221,25 +222,30 @@ model promotion_pass_rules {
 }
 
 model student_enrollments {
-  id                Int       @id @default(autoincrement())
-  student_id        Int
-  class             Int
-  roll              Int
-  section           String    @db.Char(1)
-  year              Int
-  group             String?   @db.VarChar(100)
-  fail_count        Int       @default(0)
-  status            String    @default("Passed") @db.VarChar(100)
-  final_merit       Int       @default(0)
-  next_year_roll    Int       @default(0)
-  next_year_section String?   @db.Char(1)
-  created_at        DateTime  @default(now())
-  fourth_subject_id Int?
-  marks             marks[]
-  student           students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  school_id         Int       @default(dbgenerated("app.current_school_id()"))
-  school            School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  fourth_subject    subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
+  id                 Int       @id @default(autoincrement())
+  student_id         Int
+  class              Int
+  roll               Int
+  section            String    @db.Char(1)
+  year               Int
+  group              String?   @db.VarChar(100)
+  fail_count         Int       @default(0)
+  status             String    @default("Passed") @db.VarChar(100)
+  final_merit        Int       @default(0)
+  /// Result withheld: excluded from ranking, generation and promotion until released.
+  result_held        Boolean   @default(false)
+  /// 0 = on-time; each late release gets the next number and ranks after all earlier batches.
+  release_batch      Int       @default(0)
+  result_released_at DateTime?
+  next_year_roll     Int       @default(0)
+  next_year_section  String?   @db.Char(1)
+  created_at         DateTime  @default(now())
+  fourth_subject_id  Int?
+  marks              marks[]
+  student            students  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  school_id          Int       @default(dbgenerated("app.current_school_id()"))
+  school             School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  fourth_subject     subjects? @relation("FourthSubject", fields: [fourth_subject_id], references: [id])
 
   @@unique([student_id, class, year])
   @@unique([school_id, year, class, section, roll], name: "enrollment_school_year_class_section_roll")

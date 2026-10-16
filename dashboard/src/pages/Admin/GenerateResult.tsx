@@ -9,6 +9,8 @@ import {
   FileText,
   GraduationCap,
   MoreHorizontal,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   SlidersHorizontal,
   Trophy,
@@ -40,11 +42,13 @@ import { useStudents, type StudentSortKey } from '@/queries/students.queries';
 import { useExams } from '@/queries/exam.queries';
 import {
   useUpdatePromotionStatus,
+  useAssignRetained,
   useGeneratePromotionRoll,
   usePromotionPreview,
   useGraduationPreview,
   useGraduateClass10,
   useOverrideEnrollmentStatus,
+  useResultHold,
   usePromotionYearStats,
   usePromotionPassRules,
   useSavePromotionPassRules,
@@ -63,7 +67,7 @@ import {
 } from '@/pages/Admin/PromotionPreviewDialog';
 import { GraduationPreviewDialog } from '@/pages/Admin/GraduationPreviewDialog';
 import { yearEndGaps } from '@/pages/Admin/exam-session-rail';
-import { openBlobInNewTab } from '@school/common-ui/blob';
+import { blobErrorMessage, openBlobInNewTab } from '@school/common-ui/blob';
 import type { Student } from '@/types/students';
 
 const PAGE_SIZE_KEY = 'promotionReviewPageSize';
@@ -266,8 +270,11 @@ const GenerateResult = () => {
   const { mutate: fetchGraduationPreview, isPending: isGraduationPreviewLoading } =
     useGraduationPreview();
   const { mutate: generateRoll, isPending: isGeneratingRoll } = useGeneratePromotionRoll();
+  const { mutate: assignRetained, isPending: isAssigningRetained } = useAssignRetained();
   const { mutate: graduateClass10, isPending: isGraduating } = useGraduateClass10();
   const { mutate: overrideStatus } = useOverrideEnrollmentStatus();
+  const { mutate: holdResult } = useResultHold('hold');
+  const { mutate: releaseResult } = useResultHold('release');
 
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
   const meta = studentsResponse?.meta;
@@ -292,8 +299,10 @@ const GenerateResult = () => {
 
   const promo = yearStats?.promotion;
   const class10 = yearStats?.class10;
-  const meritAssigned = yearStats?.merit_assigned ?? false;
+  const promoted = yearStats?.promoted ?? false;
+  const passFailGenerated = (promo?.passed ?? 0) + (promo?.failed ?? 0) > 0;
   const nextYearTotal = yearStats?.next_year_enrollments ?? 0;
+  const awaitingRoll = yearStats?.awaiting_roll ?? 0;
   const class10Graduated = (class10?.graduated ?? 0) > 0;
 
   const handleYearChange = (value: string) => {
@@ -390,12 +399,32 @@ const GenerateResult = () => {
     if (!student.enrollment_id || student.status === status) return;
     setOverridingId(student.enrollment_id);
     overrideStatus(
-      { enrollmentId: student.enrollment_id, status },
+      { year, enrollmentId: student.enrollment_id, status },
       {
         onSuccess: () => toast.success(`${student.name}: ${status}`),
         onSettled: () => setOverridingId(null),
       },
     );
+  };
+
+  const handleHoldToggle = async (student: Student) => {
+    if (!student.enrollment_id) return;
+    const enrollmentIds = [student.enrollment_id];
+    if (student.result_held) {
+      const ok = await confirm({
+        title: 'Release result?',
+        msg: `${student.name}'s result is generated now and ranked after everyone already released, so no earlier merit position moves.`,
+        confirmLabel: 'Release',
+      });
+      if (ok) releaseResult({ year, enrollmentIds });
+      return;
+    }
+    const ok = await confirm({
+      title: 'Hold result?',
+      msg: `${student.name}'s status goes back to Pending and they are not ranked, promoted or graduated until released.`,
+      confirmLabel: 'Hold',
+    });
+    if (ok) holdResult({ year, enrollmentIds });
   };
 
   const handleSaveRules = () => {
@@ -405,16 +434,19 @@ const GenerateResult = () => {
 
   const downloadPdf = async (url: string, error: string) => {
     try {
-      const response = await axios.get(url, { responseType: 'blob' });
+      const response = await axios.get(url, { params: { year }, responseType: 'blob' });
       openBlobInNewTab(new Blob([response.data], { type: 'application/pdf' }));
-    } catch {
-      toast.error(error);
+    } catch (err) {
+      toast.error(await blobErrorMessage(err, error));
     }
   };
   const downloadSessionMarksheet = (studentId: number) =>
-    downloadPdf(`/api/marks/${studentId}/${year}/download`, 'Failed to download session marksheet');
+    downloadPdf(
+      `/api/marksheets/students/${studentId}/session`,
+      'Failed to download session marksheet',
+    );
   const downloadAllMarksheetPDF = () =>
-    downloadPdf(`/api/marks/all/${year}`, 'Failed to download all marksheets');
+    downloadPdf('/api/marksheets/session', 'Failed to download all marksheets');
 
   const summary = promo
     ? `${promo.total.toLocaleString()} in classes 6–9 · ${promo.passed} passed · ${promo.failed} failed · ${promo.pending} pending · promotes into ${year + 1}`
@@ -497,7 +529,7 @@ const GenerateResult = () => {
           n={1}
           title="Pass / fail"
           icon={<RefreshCw className="h-5 w-5 text-blue-600" />}
-          done={(promo?.passed ?? 0) + (promo?.failed ?? 0) > 0}
+          done={passFailGenerated}
           detail={
             <>
               Allowed failed subjects by class — {passRulesSummary}. Override single students in the
@@ -528,13 +560,16 @@ const GenerateResult = () => {
           n={2}
           title="Merit & promotion"
           icon={<Users className="h-5 w-5 text-indigo-500" />}
-          done={meritAssigned}
+          done={promoted}
           detail={
             <>
               Classes 6–9 → {year + 1}.{' '}
+              {awaitingRoll > 0
+                ? `${awaitingRoll} failed class-6 student${awaitingRoll === 1 ? '' : 's'} have no roll yet — import admissions, then assign. `
+                : ''}
               {nextYearTotal === 0
                 ? 'No enrollments there yet — safe to promote.'
-                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces them.`}
+                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces the promoted students’ rows.`}
             </>
           }
         >
@@ -543,11 +578,22 @@ const GenerateResult = () => {
             size="sm"
             variant="outline"
             onClick={handleOpenPreview}
-            disabled={promoteBusy || !yearEndReady}
+            disabled={promoteBusy || !yearEndReady || !passFailGenerated}
           >
             {promoteBusy ? <RefreshCw className="animate-spin" /> : <Trophy />}
             Review & promote
           </Button>
+          {awaitingRoll > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => assignRetained(year)}
+              disabled={isAssigningRetained}
+            >
+              {isAssigningRetained ? <RefreshCw className="animate-spin" /> : <Users />}
+              Assign retained ({awaitingRoll})
+            </Button>
+          ) : null}
         </Step>
 
         <Step
@@ -570,7 +616,7 @@ const GenerateResult = () => {
             size="sm"
             variant="outline"
             onClick={handleOpenGraduationPreview}
-            disabled={graduationBusy || !yearEndReady}
+            disabled={graduationBusy || !yearEndReady || !passFailGenerated}
           >
             {graduationBusy ? <RefreshCw className="animate-spin" /> : <GraduationCap />}
             Review & graduate
@@ -588,7 +634,9 @@ const GenerateResult = () => {
           <table className="w-full min-w-[56rem] border-collapse text-left">
             <thead>
               <tr className={theadRowClass}>
-                <th className={cn(thClass, stickyCell, 'left-0 w-14 px-3 text-center')}>Merit</th>
+                <th className={cn(thClass, stickyCell, 'left-0 w-14 px-3 text-center')}>
+                  Position
+                </th>
                 <th className={cn(thClass, stickyCell, stickyEdge, 'left-14 px-4')}>
                   <ColumnHeaderMenu label="Student" {...sortProps('name')} />
                 </th>
@@ -689,11 +737,20 @@ const GenerateResult = () => {
                     </td>
                     <td className="px-4 py-2 tabular-nums">{student.roll || '—'}</td>
                     <td className="px-4 py-2">
-                      <StatusOverrideSelect
-                        student={student}
-                        disabled={overridingId === student.enrollment_id}
-                        onChange={handleStatusOverride}
-                      />
+                      {student.result_held ? (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                        >
+                          Held
+                        </Badge>
+                      ) : (
+                        <StatusOverrideSelect
+                          student={student}
+                          disabled={overridingId === student.enrollment_id}
+                          onChange={handleStatusOverride}
+                        />
+                      )}
                     </td>
                     <td className="text-muted-foreground px-4 py-2 text-center text-xs tabular-nums">
                       {student.fail_count != null
@@ -723,6 +780,12 @@ const GenerateResult = () => {
                           >
                             <FileText /> Session marksheet PDF
                           </DropdownMenuItem>
+                          {student.status !== 'Graduated' && (
+                            <DropdownMenuItem onSelect={() => void handleHoldToggle(student)}>
+                              {student.result_held ? <PlayCircle /> : <PauseCircle />}
+                              {student.result_held ? 'Release result' : 'Hold result'}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

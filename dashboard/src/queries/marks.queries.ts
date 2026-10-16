@@ -57,7 +57,7 @@ export const useMarksStudents = (year: number, level: string) => {
     queryKey: ['marks-students', year, level],
     queryFn: async () => {
       if (!level) return [];
-      const response = await axios.get('/api/marks/students', {
+      const response = await axios.get('/api/marks/roster', {
         params: { year, class: level },
       });
       return response.data?.data || [];
@@ -71,7 +71,9 @@ export const useClassMarks = (level: string, year: number, examName: string) => 
     queryKey: ['class-marks', level, year, examName],
     queryFn: async () => {
       if (!level || !year || !examName) return [];
-      const response = await axios.get(`/api/marks/getClassMarks/${level}/${year}/${examName}`);
+      const response = await axios.get('/api/marks', {
+        params: { class: level, year, exam: examName },
+      });
       return response.data?.data || [];
     },
     enabled: !!level && !!year && !!examName,
@@ -88,7 +90,9 @@ export const useStudentMarks = (
     queryKey: ['student-marks', studentId, year, examName],
     queryFn: async () => {
       if (!studentId || !year || !examName) return null;
-      const response = await axios.get(`/api/marks/getMarks/${studentId}/${year}/${examName}`);
+      const response = await axios.get(`/api/marks/students/${studentId}`, {
+        params: { year, exam: examName },
+      });
       return response.data?.data || [];
     },
     enabled: enabled && !!studentId && !!year && !!examName,
@@ -100,7 +104,9 @@ export const useStudentPreview = (studentId: number | undefined, year: number) =
     queryKey: ['student-preview', studentId, year],
     queryFn: async () => {
       if (!studentId || !year) return null;
-      const response = await axios.get(`/api/marks/${studentId}/${year}/preview`);
+      const response = await axios.get(`/api/marks/students/${studentId}/session`, {
+        params: { year },
+      });
       return response.data?.data || [];
     },
     enabled: !!studentId && !!year,
@@ -111,13 +117,13 @@ export const useAddMarksMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { students: any[]; examName: string; year: number }) => {
-      const response = await axios.post('/api/marks/addMarks', data);
+      const response = await axios.put('/api/marks', data);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-marks'] });
       queryClient.invalidateQueries({ queryKey: ['marksheet-gen-status'] });
-      toast.success(data.message || 'Marks saved successfully');
+      toast.success('Marks saved successfully');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to save marks');
@@ -213,7 +219,7 @@ export const useMarksheetGenerationStatus = (examId: number | undefined) => {
     queryKey: ['marksheet-gen-status', examId],
     queryFn: async () => {
       const { data } = await axios.get<{ data: MarksheetGenStatus }>(
-        `/api/marks/generation-status/${examId}`,
+        `/api/marksheets/exams/${examId}/status`,
       );
       return data.data;
     },
@@ -230,16 +236,23 @@ export const useMarksheetGenerationStatus = (examId: number | undefined) => {
 export const useUpdateFourthSubjectMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { studentId: number; year: number; subjectId: number | null }) => {
-      const response = await axios.post('/api/marks/update-fourth-subject', data);
+    mutationFn: async ({
+      studentId,
+      ...body
+    }: {
+      studentId: number;
+      year: number;
+      subjectId: number | null;
+    }) => {
+      const response = await axios.patch(`/api/marks/students/${studentId}/fourth-subject`, body);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-marks'] });
       queryClient.invalidateQueries({ queryKey: ['marks-students'] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['student-preview'] });
-      toast.success(data.message || '4th subject updated successfully');
+      toast.success('4th subject updated successfully');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to update 4th subject');
@@ -254,9 +267,9 @@ export const useBulkUpdateFourthSubjectMutation = () => {
       class: number;
       year: number;
       subjectId: number | null;
-      group?: string | null;
+      group: string;
     }) => {
-      const response = await axios.post('/api/marks/bulk-update-fourth-subject', data);
+      const response = await axios.patch('/api/marks/fourth-subjects', data);
       return response.data;
     },
     onSuccess: (data) => {
@@ -264,9 +277,7 @@ export const useBulkUpdateFourthSubjectMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['marks-students'] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['student-preview'] });
-      toast.success(
-        data.message || `4th subject updated for ${data.data?.updatedCount ?? 0} student(s)`,
-      );
+      toast.success(`4th subject updated for ${data.data?.updatedCount ?? 0} student(s)`);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to bulk-update 4th subject');
