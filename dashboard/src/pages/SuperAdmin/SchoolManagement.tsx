@@ -42,6 +42,7 @@ import {
   SCHOOL_GENDERS,
   SCHOOL_MEDIUMS,
   SCHOOL_OWNERSHIPS,
+  PROMOTION_VERSIONS,
   VALID_GROUPS,
   formatSubjectGroups,
   type District,
@@ -77,6 +78,7 @@ interface SchoolData {
   board?: string | null;
   ownership?: string | null;
   gender?: string | null;
+  promotionVersion?: string | null;
   logo: string;
   headerLogo?: string | null;
   bannerUrls?: string[] | null;
@@ -336,6 +338,7 @@ const FIELD_TAB: Record<string, EditorTab> = {
   board: 'academic',
   ownership: 'academic',
   gender: 'academic',
+  promotionVersion: 'academic',
   academicProfile: 'academic',
   descriptions: 'about',
 };
@@ -369,6 +372,7 @@ const FIELD_LABELS: Record<string, string> = {
   board: 'Board',
   ownership: 'Ownership',
   gender: 'School For',
+  promotionVersion: 'Promotion system version',
   'academicProfile.grades': 'Grades',
   'academicProfile.ageRange': 'Age Range',
   'academicProfile.enrollment': 'Enrollment',
@@ -456,6 +460,10 @@ const emptyAcademic = (): NonNullable<SchoolFormValues['academicProfile']> => ({
 
 const emptyDescriptions = () => ({ main: '', sub: '' });
 
+const PROMOTION_VERSION_LABELS: Record<(typeof PROMOTION_VERSIONS)[number], string> = {
+  v1: 'v1 — Total marks (two-exam)',
+};
+
 const createEmptySchool = (): SchoolFormValues => ({
   name: '',
   shortName: '',
@@ -485,6 +493,7 @@ const createEmptySchool = (): SchoolFormValues => ({
   board: '' as '' | (typeof SCHOOL_BOARDS)[number],
   ownership: '' as '' | (typeof SCHOOL_OWNERSHIPS)[number],
   gender: '' as '' | (typeof SCHOOL_GENDERS)[number],
+  promotionVersion: 'v1',
   descriptions: emptyDescriptions(),
   academicProfile: emptyAcademic(),
 });
@@ -534,6 +543,7 @@ const toFormValues = (school?: SchoolData | null): SchoolFormValues => ({
   board: pickEnum(school?.board, SCHOOL_BOARDS),
   ownership: pickEnum(school?.ownership, SCHOOL_OWNERSHIPS),
   gender: pickEnum(school?.gender, SCHOOL_GENDERS),
+  promotionVersion: pickEnum(school?.promotionVersion, PROMOTION_VERSIONS) || 'v1',
   descriptions: {
     main: asString(school?.descriptions?.main),
     sub: asString(school?.descriptions?.sub),
@@ -2618,6 +2628,24 @@ function SchoolManagement() {
                             {SCHOOL_GENDERS.map((gender) => (
                               <option key={gender} value={gender}>
                                 {gender}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+
+                        <Field
+                          id="academic-promotion-version"
+                          label="Promotion system version"
+                          error={errors.promotionVersion?.message}
+                        >
+                          <select
+                            id="academic-promotion-version"
+                            {...register('promotionVersion')}
+                            className={selectClassName}
+                          >
+                            {PROMOTION_VERSIONS.map((version) => (
+                              <option key={version} value={version}>
+                                {PROMOTION_VERSION_LABELS[version]}
                               </option>
                             ))}
                           </select>

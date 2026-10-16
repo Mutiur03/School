@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getFileUrl } from '@/lib/backend';
-import { downloadBlob } from '@school/common-ui/blob';
+import { downloadBlob, openPdfLoadingTab } from '@school/common-ui/blob';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   StatusBadge,
@@ -387,8 +387,7 @@ function Admission() {
     statusMutation.mutate({ id: a.id, status });
 
   const previewPdf = async (a: AdmissionData) => {
-    // Open the tab now, inside the click, so popup blockers allow it.
-    const tab = window.open('', '_blank');
+    const tab = openPdfLoadingTab('Generating admission form…');
     try {
       const url = URL.createObjectURL(await fetchPdf(a.id));
       if (tab) tab.location.href = url;

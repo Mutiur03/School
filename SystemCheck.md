@@ -1,5 +1,4 @@
 ---
-
 ## 1️⃣ The basics: NGINX access log (THIS IS THE SOURCE OF TRUTH)
 
 ### Default log location
@@ -9,7 +8,6 @@
 ```
 
 Each line = **1 HTTP request**
-
 ---
 
 ## 2️⃣ How many requests total?
@@ -324,7 +322,6 @@ rclone delete "${GDRIVE_REMOTE}:PostgresBackups" --min-age 7d --rmdirs --quiet
 echo "=== Docker DB Backup Completed Successfully at $(date) ==="
 
 -- Restore
-docker exec -i prod-postgres_school-1 pg_restore -U mutiur -d school --clean --no-owner < ./school_2026-08-07_10-51.dump
 
 -- As superuser/owner
 GRANT USAGE ON SCHEMA app TO school_app;

@@ -1,6 +1,7 @@
 import { prisma } from '@/config/prisma.js';
 import { type LevelFormSchemaData } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
 
 async function invalidateMarksheetsForLevel(
   className: number,
@@ -8,8 +9,13 @@ async function invalidateMarksheetsForLevel(
   year: number,
 ): Promise<void> {
   try {
-    const { MarksheetService } = await import('../marks/marksheet.service.js');
-    await MarksheetService.invalidateForClassSection(className, section, year);
+    // Bridge to Nest (see nest/common/nest-app.ts); remove when levels move to Nest.
+    const { nestApp } = await import('../../nest/common/nest-app.js');
+    const { MarksheetCacheService } =
+      await import('../../nest/modules/marksheets/cache/marksheet-cache.service.js');
+    await nestApp()
+      .get(MarksheetCacheService)
+      .invalidateForClassSection(requireSchoolId(), className, section, year);
   } catch (err) {
     console.warn(
       'Marksheet invalidation failed after level change:',

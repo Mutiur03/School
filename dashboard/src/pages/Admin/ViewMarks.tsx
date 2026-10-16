@@ -18,7 +18,7 @@ import {
 } from '@/queries/marks.queries';
 import { MarksheetGenProgress } from '@/components/MarksheetGenProgress';
 import { BundleStalePreview } from '@/components/BundleStalePreview';
-import { downloadBlob, openBlobInNewTab } from '@school/common-ui/blob';
+import { downloadBlob, openBlobInNewTab, openPdfLoadingTab } from '@school/common-ui/blob';
 
 interface TeacherLevel {
   id: number;
@@ -213,19 +213,14 @@ const ViewMarks = () => {
   };
 
   const downloadMarksheet = async (id: number) => {
-    const loadingToast = toast.loading('Generating transcript...');
+    const loadingToast = toast.loading('Generating marksheet…');
     downloadProgressToastRef.current = loadingToast;
 
-    // Create new window immediately to bypass popup blockers
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(
-        'Loading marksheet... If this takes too long, please check for errors.',
-      );
-    }
+    const newWindow = openPdfLoadingTab('Generating marksheet…');
 
     try {
-      const response = await axios.get(`/api/marks/${id}/${year}/${exam}/download`, {
+      const response = await axios.get(`/api/marksheets/students/${id}`, {
+        params: { year, exam },
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -244,26 +239,18 @@ const ViewMarks = () => {
       toast.error('Please select Class, Year and Exam');
       return;
     }
-    const loadingToast = toast.loading('Generating transcript...');
+    const loadingToast = toast.loading('Generating marksheets…');
     downloadProgressToastRef.current = loadingToast;
 
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(
-        'Loading marksheet... If this takes too long, please check for errors.',
-      );
-    }
+    const newWindow = openPdfLoadingTab('Generating marksheets…');
 
     try {
-      const response = await axios.get(
-        `/api/marks/class-exam/${className}/${year}/${exam}/download`,
-        {
-          responseType: 'blob',
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          params: section ? { section } : undefined,
-        },
-      );
+      const response = await axios.get(`/api/marksheets/classes/${className}/bundle`, {
+        responseType: 'blob',
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        params: { year, exam, section: section || undefined },
+      });
       const blob = response.data as Blob;
       if (blob.type.includes('json')) {
         const { data } = JSON.parse(await blob.text()) as {
@@ -292,15 +279,12 @@ const ViewMarks = () => {
     }
     const loadingToast = toast.loading('Generating summary PDF...');
     try {
-      const response = await axios.get(
-        `/api/marks/class-exam/${className}/${year}/${exam}/summary.pdf`,
-        {
-          responseType: 'blob',
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          params: section ? { section } : undefined,
-        },
-      );
+      const response = await axios.get(`/api/marksheets/classes/${className}/summary`, {
+        responseType: 'blob',
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        params: { year, exam, section: section || undefined },
+      });
       const disposition = response.headers['content-disposition'] as string | undefined;
       const match = disposition?.match(/filename="([^"]+)"/);
       const filename = match?.[1] ?? `${className}${section || 'All'}_Summary_${exam}_${year}.pdf`;

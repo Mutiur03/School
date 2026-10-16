@@ -48,7 +48,6 @@ const ExamPDFRoutine = lazy(() => import('./pages/Admin/ExamPDFRoutine'));
 const AddMarks = lazy(() => import('./pages/Admin/AddMarks'));
 const NewSubject = lazy(() => import('./pages/Admin/NewSubject'));
 const AddLevel = lazy(() => import('./pages/Admin/AddLevel'));
-const UpdateStatus = lazy(() => import('./pages/Admin/UpdateStatus'));
 const Attendence = lazy(() => import('./pages/Admin/Attendence'));
 const StayCheck = lazy(() => import('./pages/Admin/StayCheck'));
 const SmsManagement = lazy(() => import('./pages/Admin/SmsManagement'));
@@ -63,6 +62,7 @@ const TrialBalance = lazy(() => import('./pages/Admin/Accounts/Reports/TrialBala
 const IncomeExpense = lazy(() => import('./pages/Admin/Accounts/Reports/IncomeExpense'));
 const BalanceSheet = lazy(() => import('./pages/Admin/Accounts/Reports/BalanceSheet'));
 const CostCenterReport = lazy(() => import('./pages/Admin/Accounts/Reports/CostCenterReport'));
+const Certificates = lazy(() => import('./pages/Admin/Certificates'));
 const Admission = lazy(() => import('./pages/Admin/Admission'));
 const AdmissionSettings = lazy(() => import('./pages/Admin/AdmissionSettings'));
 const AdmissionResult = lazy(() => import('./pages/Admin/AdmissionResult'));
@@ -90,7 +90,6 @@ registerRoutePrefetchers({
   '/admin/result/add-marks': AddMarks,
   '/admin/result/view-marks': ViewMarks,
   '/admin/result/generate-result': GenerateResult,
-  '/admin/result/customize-result': UpdateStatus,
   '/admin/registration/class-6': ClassRegForm,
   '/admin/registration/class-8': ClassRegForm,
   '/admin/registration/junior-scholarship': ClassRegForm,
@@ -110,15 +109,13 @@ registerRoutePrefetchers({
   '/admin/holiday': Holidays,
   '/admin/accounts/heads': AccountHeads,
   '/admin/accounts/cost-centers': CostCenters,
-  '/admin/accounts/vouchers': Vouchers,
   '/admin/accounts/reports/ledger': LedgerReport,
   '/admin/accounts/reports/trial-balance': TrialBalance,
   '/admin/accounts/reports/income-expense': IncomeExpense,
   '/admin/accounts/reports/balance-sheet': BalanceSheet,
   '/admin/accounts/reports/cost-center': CostCenterReport,
-  '/admin/events': Events,
+  '/admin/certificates': Certificates,
   '/admin/gallery/upload': Gallery,
-  '/admin/gallery/pending': GalleryModeration,
   '/admin/gallery/rejected': GalleryModeration,
   '/teacher/dashboard': TeacherDashboard,
   '/teacher/settings': TeacherSettings,
@@ -462,7 +459,6 @@ function App() {
                               <Route path="/result/add-marks" element={<AddMarks />} />
                               <Route path="/result/add-subject" element={<NewSubject />} />
                               <Route path="/result/assigned-teachers" element={<AddLevel />} />
-                              <Route path="/result/customize-result" element={<UpdateStatus />} />
                               <Route path="/attendance" element={<Attendence />} />
                               <Route path="/attendance-double" element={<StayCheck />} />
                               <Route path="/sms-management" element={<SmsManagement />} />
@@ -489,6 +485,7 @@ function App() {
                                 path="/accounts/reports/cost-center"
                                 element={<CostCenterReport />}
                               />
+                              <Route path="/certificates" element={<Certificates />} />
                               <Route path="/admission/form" element={<Admission />} />
                               <Route path="/admission/settings" element={<AdmissionSettings />} />
                               <Route path="/admission/result" element={<AdmissionResult />} />

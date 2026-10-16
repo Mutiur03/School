@@ -146,6 +146,8 @@ jobs:
         working-directory: server
         env:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+          JWT_SECRET: ci-test-secret
+          ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
         run: |
           pnpm test
           pnpm test:nest --testPathIgnorePatterns http.spec

@@ -13,7 +13,7 @@ export const usePromotionPassRules = (year: number) => {
   return useQuery({
     queryKey: ['promotion-pass-rules', year],
     queryFn: async () => {
-      const response = await axios.get(`/api/promotion/pass-rules/${year}`);
+      const response = await axios.get(`/api/promotions/${year}/pass-rules`);
       return (response.data?.data ?? []) as PromotionPassRule[];
     },
   });
@@ -30,7 +30,7 @@ export const useSavePromotionPassRules = () => {
       rules: PromotionPassRule[];
       silent?: boolean;
     }) => {
-      const response = await axios.put(`/api/promotion/pass-rules/${year}`, { rules });
+      const response = await axios.put(`/api/promotions/${year}/pass-rules`, { rules });
       return response.data?.data as PromotionPassRule[];
     },
     onSuccess: (_data, { year, silent }) => {
@@ -60,15 +60,17 @@ export type PromotionYearStats = {
     graduated: number;
     total: number;
   };
-  merit_assigned: boolean;
+  promoted: boolean;
   next_year_enrollments: number;
+  /** Failed class-6 students promoted without a roll, waiting for the assign button. */
+  awaiting_roll: number;
 };
 
 export const usePromotionYearStats = (year: number) => {
   return useQuery({
     queryKey: ['promotion-stats', year],
     queryFn: async () => {
-      const response = await axios.get(`/api/promotion/stats/${year}`);
+      const response = await axios.get(`/api/promotions/${year}/stats`);
       return response.data?.data as PromotionYearStats;
     },
   });
@@ -87,7 +89,8 @@ export type PromotionPreviewRow = {
   final_merit: number;
   new_class: number;
   new_section: string;
-  new_roll: number;
+  /** null = failed class-6 student; numbered later by "Assign retained". */
+  new_roll: number | null;
 };
 
 export type PromotionPreview = {
@@ -98,6 +101,10 @@ export type PromotionPreview = {
     total: number;
     passed_promoted: number;
     failed_retained: number;
+    awaiting_roll: number;
+    /** New class-6 admissions already exist next year, so retained students are numbered immediately. */
+    class6_admissions: boolean;
+    skipped: number;
     section_a: number;
     section_b: number;
     existing_next_year_enrollments: number;
@@ -130,6 +137,7 @@ export type GraduationPreview = {
     total: number;
     graduates: number;
     retained: number;
+    skipped: number;
     existing_class10_next_year: number;
   };
 };
@@ -142,13 +150,15 @@ export const useOverrideEnrollmentStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
+      year,
       enrollmentId,
       status,
     }: {
+      year: number;
       enrollmentId: number;
       status: EnrollmentStatus;
     }) => {
-      await axios.put('/api/promotion/updateStatus', { id: enrollmentId, status });
+      await axios.patch(`/api/promotions/${year}/results/${enrollmentId}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -160,13 +170,42 @@ export const useOverrideEnrollmentStatus = () => {
   });
 };
 
+/** Withhold (`hold`) or release (`release`) results for the given enrollments. */
+export const useResultHold = (action: 'hold' | 'release') => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ year, enrollmentIds }: { year: number; enrollmentIds: number[] }) => {
+      const path = action === 'hold' ? 'holds' : 'releases';
+      const response = await axios.post(`/api/promotions/${year}/results/${path}`, {
+        enrollment_ids: enrollmentIds,
+      });
+      return response.data?.data as { held?: number; batch?: number; updated?: number };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['promotion-stats'] });
+      toast.success(action === 'hold' ? 'Results held' : 'Results released');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || `Could not ${action} results`);
+    },
+  });
+};
+
 export const useUpdatePromotionStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/updateStatus/${year}`);
+      const response = await axios.post(`/api/promotions/${year}/results`);
       return response.data?.data as
-        { updated?: number; passed?: number; failed?: number } | undefined;
+        | {
+            updated?: number;
+            passed?: number;
+            failed?: number;
+            missingYearEnd?: number[];
+            missingPrevious?: number[];
+          }
+        | undefined;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -175,6 +214,14 @@ export const useUpdatePromotionStatus = () => {
         toast.success(`Pass/fail updated: ${data.passed} passed, ${data.failed} failed`);
       } else {
         toast.success('Pass/fail status generated');
+      }
+      if (data?.missingYearEnd?.length) {
+        toast.error(`Skipped class ${data.missingYearEnd.join(', ')}: no year-end exam`);
+      }
+      if (data?.missingPrevious?.length) {
+        toast.error(
+          `Skipped class ${data.missingPrevious.join(', ')}: no exam before the year-end exam`,
+        );
       }
     },
     onError: (error: any) => {
@@ -186,7 +233,7 @@ export const useUpdatePromotionStatus = () => {
 export const usePromotionPreview = () => {
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.get(`/api/promotion/preview/${year}`);
+      const response = await axios.get(`/api/promotions/${year}/plan`);
       return response.data?.data as PromotionPreview;
     },
     onError: (error: any) => {
@@ -198,7 +245,7 @@ export const usePromotionPreview = () => {
 export const useGraduationPreview = () => {
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.get(`/api/promotion/graduation/preview/${year}`);
+      const response = await axios.get(`/api/graduations/${year}/plan`);
       return response.data?.data as GraduationPreview;
     },
     onError: (error: any) => {
@@ -211,7 +258,7 @@ export const useGraduateClass10 = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/graduation/${year}`);
+      const response = await axios.post(`/api/graduations/${year}`);
       return response.data;
     },
     onSuccess: (data) => {
@@ -223,7 +270,7 @@ export const useGraduateClass10 = () => {
           `Graduation complete: ${payload.graduated} alumni, ${payload.retained ?? 0} retained`,
         );
       } else {
-        toast.success(data?.message || 'Graduation complete');
+        toast.success('Graduation complete');
       }
     },
     onError: (error: any) => {
@@ -236,16 +283,45 @@ export const useGeneratePromotionRoll = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (year: number) => {
-      const response = await axios.post(`/api/promotion/addPromotion/${year}`);
+      const response = await axios.post(`/api/promotions/${year}`);
       return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['promotion-stats'] });
-      toast.success(data.message || 'Promotion completed');
+      const payload = data?.data as
+        | { promoted?: number; awaitingRoll?: number; skipped?: number; newYear?: number }
+        | undefined;
+      toast.success(
+        payload?.promoted != null
+          ? `Promotion complete: ${payload.promoted} students → ${payload.newYear}`
+          : 'Promotion completed',
+      );
+      if (payload?.awaitingRoll) {
+        toast(`${payload.awaitingRoll} failed class-6 students wait for "Assign retained"`);
+      }
+      if (payload?.skipped) toast.error(`${payload.skipped} skipped (status not Passed/Failed)`);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to promote students');
+    },
+  });
+};
+
+export const useAssignRetained = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (year: number) => {
+      const response = await axios.post(`/api/promotions/${year}/retained`);
+      return response.data?.data as { assigned: number; newYear: number };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['promotion-stats'] });
+      toast.success(`${data.assigned} retained class-6 students numbered in ${data.newYear}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to assign retained students');
     },
   });
 };

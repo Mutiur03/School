@@ -114,7 +114,7 @@ All exam marksheets are rendered **only in a background worker** (PDFKit). HTTP 
 | **Hidden** (`visible = false`) | Saves to DB only                   | **On download** (any authorized role) |
 | **Published**                  | Auto-invalidates per-student cache | Normal background + on download       |
 
-**Progress UI** — View Marks and Exam PDF Routine poll `GET /api/marks/generation-status/:examId`, show generation progress, and list **outdated bundles** (`bundles.staleItems`) before download.
+**Progress UI** — View Marks and Exam PDF Routine poll `GET /api/marksheets/exams/:examId/status`, show generation progress, and list **outdated bundles** (`bundles.staleItems`) before download.
 
 Full specification: [`server/docs/marksheet-regeneration.md`](server/docs/marksheet-regeneration.md)
 
@@ -276,17 +276,25 @@ pnpm run build:client:core
 
 ## API overview (marks)
 
-| Method | Path                                                | Auth                    | Description              |
-| ------ | --------------------------------------------------- | ----------------------- | ------------------------ |
-| `POST` | `/api/marks/addMarks`                               | admin, teacher          | Save marks               |
-| `GET`  | `/api/marks/getClassMarks/:class/:year/:exam`       | admin, teacher          | Class mark grid          |
-| `GET`  | `/api/marks/:id/:year/:exam/download`               | admin, teacher, student | Per-student exam PDF     |
-| `GET`  | `/api/marks/class-exam/:class/:year/:exam/download` | admin, teacher          | Class bundle PDF         |
-| `GET`  | `/api/marks/:id/:year/download`                     | admin, teacher, student | Session student PDF      |
-| `GET`  | `/api/marks/all/:year`                              | admin                   | Session year PDF         |
-| `GET`  | `/api/marks/generation-status/:examId`              | admin, teacher          | Progress + stale bundles |
-| `POST` | `/api/marks/public/verify`                          | public                  | Public result login      |
-| `GET`  | `/api/marks/public/download`                        | public token            | Published exam PDF       |
+| Method  | Path                                                         | Auth                    | Description                 |
+| ------- | ------------------------------------------------------------ | ----------------------- | --------------------------- |
+| `PUT`   | `/api/marks`                                                 | admin, teacher          | Save marks (bulk upsert)    |
+| `GET`   | `/api/marks/roster?class&year[&section]`                     | admin, teacher          | Students for marks entry    |
+| `GET`   | `/api/marks?class&year&exam`                                 | admin, teacher          | Class mark grid             |
+| `GET`   | `/api/marks/students/:studentId?year&exam`                   | admin, teacher, student | One student's exam marks    |
+| `GET`   | `/api/marks/students/:studentId/session?year`                | admin, teacher, student | Session marksheet preview   |
+| `PATCH` | `/api/marks/students/:studentId/fourth-subject`              | admin, teacher          | Set/clear 4th subject       |
+| `PATCH` | `/api/marks/fourth-subjects`                                 | admin                   | Bulk 4th subject (9/10)     |
+| `GET`   | `/api/marksheets/students/:studentId?year&exam`              | admin, teacher, student | Per-student exam PDF        |
+| `GET`   | `/api/marksheets/students/:studentId/session?year`           | admin, teacher, student | Session student PDF         |
+| `GET`   | `/api/marksheets/session?year`                               | admin                   | Session year PDF            |
+| `GET`   | `/api/marksheets/classes/:class/bundle?year&exam[&section]`  | admin, teacher          | Class bundle (`{ url }`)    |
+| `GET`   | `/api/marksheets/classes/:class/summary?year&exam[&section]` | admin, teacher          | Class tabulation PDF        |
+| `GET`   | `/api/marksheets/exams/:examId/status`                       | admin, teacher          | Progress + stale bundles    |
+| `GET`   | `/api/public-results/exams?year&class`                       | public                  | Published exams             |
+| `POST`  | `/api/public-results/verification`                           | public                  | Public result login (token) |
+| `GET`   | `/api/public-results?year&exam`                              | public token            | Published exam result       |
+| `GET`   | `/api/public-results/marksheet?year&exam`                    | public token            | Published exam PDF          |
 
 ---
 
@@ -304,7 +312,10 @@ pnpm run build:client:core
 
 ```
 server/src/
-├── modules/marks/          # Marks CRUD, marksheet service, worker, queue
+├── nest/modules/marks/       # Marks CRUD (Nest)
+├── nest/modules/marksheets/  # Marksheet PDFs: pdf/ (renderer, draw), cache/ (serve, hash), jobs/ (queue, worker)
+├── nest/modules/public-results/ # No-login public result lookup
+├── nest/modules/promotion/   # Promotions + graduations
 ├── modules/level/            # Class–teacher assignments
 ├── modules/teacher/          # Teacher + head signatures
 ├── controllers/examController.js

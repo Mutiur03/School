@@ -12,7 +12,7 @@ export async function fetchPublicExams(
   classInt: number,
 ): Promise<PublicExamOption[]> {
   try {
-    const response = await api.get<PublicExamOption[]>('/api/marks/public/exams', {
+    const response = await api.get<PublicExamOption[]>('/api/public-results/exams', {
       params: { year: String(year), class: String(classInt) },
       revalidate: 30,
     });

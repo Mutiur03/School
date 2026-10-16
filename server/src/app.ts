@@ -13,8 +13,6 @@ import logger from './utils/logger.js';
 import { createNest } from './nest/bootstrap.js';
 import examRouter from './modules/exam/exam.route.js';
 import { superAdminExamTypeRouter, tenantExamTypeRouter } from './modules/exam/exam-type.route.js';
-import marksRouter from './modules/marks/marks.route.js';
-import promotionRouter from './modules/promotion/promotion.route.js';
 import {
   sharedAuthSessionRouter,
   superAdminAuthRouter,
@@ -35,7 +33,6 @@ import staffRouter from './modules/staff/staff.route.js';
 import admissionRouter from './modules/admission/admission.route.js';
 import admissionFormRouter from './modules/admission/form/admission-form.route.js';
 import admissionResultRouter from './modules/admission/result/admission-result.route.js';
-import testimonialRouter from './modules/testimonial/testimonial.route.js';
 import smsRouter from './modules/sms-logs/sms-logs.route.js';
 import registrationFormClass6Router from './modules/registration/class-6/Form/registrationFormClass6.route.js';
 import registrationFormClass8Router from './modules/registration/class-8/Form/registrationFormClass8.route.js';
@@ -170,7 +167,7 @@ const LimitReq = rateLimit({
     return (
       url.includes('/api/sms-settings/public') ||
       url.includes('/api/health') ||
-      url.includes('/api/marks/generation-status')
+      url.includes('/api/marksheets/exams/')
     );
   },
 });
@@ -197,8 +194,6 @@ app.use(tenantSchoolRouter);
 app.use(examRouter);
 app.use(tenantExamTypeRouter);
 app.use(subjectRouter);
-app.use(marksRouter);
-app.use(promotionRouter);
 app.use(routerTeacher);
 app.use(staffRouter);
 app.use(tenantAuthRouter);
@@ -223,7 +218,6 @@ app.use(registrationFormJuniorScholarshipRouter);
 app.use(admissionRouter);
 app.use(admissionFormRouter);
 app.use(admissionResultRouter);
-app.use(testimonialRouter);
 
 app.use(smsRouter);
 

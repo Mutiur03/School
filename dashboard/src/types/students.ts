@@ -26,4 +26,5 @@ export interface Student {
   next_year_section?: string;
   status?: 'Passed' | 'Failed' | 'Pending' | string;
   fail_count?: number;
+  result_held?: boolean;
 }

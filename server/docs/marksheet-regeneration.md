@@ -17,7 +17,7 @@ This document describes **all marksheet PDF types**, **when** they are generated
 
 Signatories (head + class teacher) appear on every marksheet, but staff change routinely — a new headmaster, a class teacher reassigned mid-session (different teacher for half-yearly vs annual). A finalized marksheet must keep the people who signed it, not silently adopt whoever is currently assigned.
 
-`isExamFrozen(result_date)` (in `marksheet.service.ts`) is true once `result_date` is strictly before **today's local calendar date** (a missing/unparseable date is treated as **open**). `result_date` is a plain `YYYY-MM-DD` string and is compared as a **date string** — never parsed to a `Date` — so the frozen boundary is timezone-agnostic and does not shift by a day on non-UTC servers. For a frozen exam:
+`isExamFrozen(result_date)` (in `server/src/modules/exam/exam-year-end.ts`) is true once `result_date` is strictly before **today's local calendar date** (a missing/unparseable date is treated as **open**). `result_date` is a plain `YYYY-MM-DD` string and is compared as a **date string** — never parsed to a `Date` — so the frozen boundary is timezone-agnostic and does not shift by a day on non-UTC servers. For a frozen exam:
 
 - **What is captured:** at generation the worker stores the signatory **ids** on the cache row — `marksheet_files.snapshot_{head_id,head_role,teacher_id}` and `marksheet_bundles.snapshot_{head_id,head_role,teachers}` (`teachers` = `{ "<section>": <teacher_id> }`). Every render (open or frozen) rewrites these, so the last open render becomes the frozen snapshot.
 - **Eager seed while open:** to cover a sheet that freezes _before_ it was ever rendered (a backdated `result_date`, or a reassignment right after publish), `invalidate` seeds the snapshot on open-exam rows with the **current** head + section teacher (`seedOpenSnapshot`, only fills rows whose `snapshot_head_id` is null). So the frozen sheet pins the staff assigned during the open window rather than whoever is current at first render.
@@ -156,18 +156,18 @@ These **queue Bull jobs** without anyone downloading.
 
 |           |                                                                                         |
 | --------- | --------------------------------------------------------------------------------------- |
-| **Where** | View Marks or Exam PDF Routine polls `GET /api/marks/generation-status/:examId`         |
+| **Where** | View Marks or Exam PDF Routine polls `GET /api/marksheets/exams/:examId/status`         |
 | **Code**  | `ensureQueuedForExam()` before returning counts                                         |
 | **When**  | Marks exist, exam is **published**, and `marksheet_files` is empty or rows are `failed` |
 | **PDFs**  | Per-student only                                                                        |
 
 #### 8. Server restart
 
-|               |                                                                   |
-| ------------- | ----------------------------------------------------------------- |
-| **Code**      | `recover()` in `marksheet.worker.ts` on startup                   |
-| **Re-queues** | Rows still `pending`, or stuck `generating` → reset to `pending`  |
-| **Does not**  | Gap-fill missing rows (needs publish, progress poll, or download) |
+|               |                                                                               |
+| ------------- | ----------------------------------------------------------------------------- |
+| **Code**      | `MarksheetJobsService.recover()`, run by `MarksheetWorker.start()` on startup |
+| **Re-queues** | Rows still `pending`, or stuck `generating` → reset to `pending`              |
+| **Does not**  | Gap-fill missing rows (needs publish, progress poll, or download)             |
 
 ---
 
@@ -177,10 +177,10 @@ These run **only when someone hits a download endpoint** and the stored hash say
 
 | PDF              | Endpoint                                                | Who                              |
 | ---------------- | ------------------------------------------------------- | -------------------------------- |
-| Per-student exam | `GET /api/marks/:id/:year/:exam/download`               | Student, teacher, admin, public  |
-| Class bundle     | `GET /api/marks/class-exam/:class/:year/:exam/download` | Admin (`ALL`), teacher (section) |
-| Session student  | `GET /api/marks/:id/:year/download`                     | Student, teacher, admin          |
-| Session year     | `GET /api/marks/all/:year`                              | Admin                            |
+| Per-student exam | `GET /api/marksheets/students/:id?year=&exam=`          | Student, teacher, admin, public  |
+| Class bundle     | `GET /api/marksheets/classes/:class/bundle?year=&exam=` | Admin (`ALL`), teacher (section) |
+| Session student  | `GET /api/marksheets/students/:id/session?year=`        | Student, teacher, admin          |
+| Session year     | `GET /api/marksheets/session?year=`                     | Admin                            |
 
 **Flow:** compute live hash → compare to cache → fresh? serve R2 → stale/missing? queue worker → poll (up to `MARKSHEET_SERVE_TIMEOUT_MS`) → serve R2.
 
@@ -216,7 +216,7 @@ These run **only when someone hits a download endpoint** and the stored hash say
 | **Server restart**                                        | Yes                       | `recover()` re-queues rows still `pending`                                                         |
 | **Download**                                              | If needed                 | `serve()` → hash check → wait for worker if stale                                                  |
 
-**Endpoint:** `GET /api/marks/:id/:year/:exam/download`
+**Endpoint:** `GET /api/marksheets/students/:id?year=&exam=`
 
 ---
 
@@ -237,7 +237,7 @@ Admin whole-class (`section: "ALL"`) and teacher section bundles (`A`, `A+B`, �
 | Teacher (one section filter)              | e.g. `A`            | That section only          |
 | Teacher (no filter, multiple assignments) | e.g. `A+B`          | All assigned sections      |
 
-**Endpoint:** `GET /api/marks/class-exam/:class/:year/:exam/download?section=A`
+**Endpoint:** `GET /api/marksheets/classes/:class/bundle?year=&exam=&section=A`
 
 **UI:** View Marks → “Download All Exam PDFs”
 
@@ -250,7 +250,7 @@ Admin whole-class (`section: "ALL"`) and teacher section bundles (`A`, `A+B`, �
 | Publish / mark edits | **No**                       |
 | **Download**         | Yes if hash stale or missing |
 
-**Endpoint:** `GET /api/marks/:id/:year/download`
+**Endpoint:** `GET /api/marksheets/students/:id/session?year=`
 
 ---
 
@@ -261,7 +261,7 @@ Admin whole-class (`section: "ALL"`) and teacher section bundles (`A`, `A+B`, �
 | Publish / mark edits | **No**                       |
 | **Download**         | Yes if hash stale or missing |
 
-**Endpoint:** `GET /api/marks/all/:year` (Generate Result page)
+**Endpoint:** `GET /api/marksheets/session?year=` (Generate Result page)
 
 ---
 
@@ -329,7 +329,7 @@ AUTOMATIC (background):
   Teacher-head-level change (bundles only)
        → class bundle PDF for section + ALL + matching A+B
 
-  Progress UI polls GET /api/marks/generation-status/:examId
+  Progress UI polls GET /api/marksheets/exams/:examId/status
        → ensureQueuedForExam() if marks exist but cache empty/failed
        → same per-student pipeline as publish
 
@@ -351,7 +351,7 @@ ON DOWNLOAD:
 sequenceDiagram
   participant UI as Dashboard / Public
   participant API as marks.controller
-  participant Svc as MarksheetService.serve
+  participant Svc as MarksheetCacheService.serve
   participant Q as Bull marksheetQueue
   participant W as Worker processStudentJob
   participant R2 as R2 storage
@@ -366,7 +366,7 @@ sequenceDiagram
   W->>DB: status ready + input_hash
 
   Note over UI,R2: Download path
-  UI->>API: GET /api/marks/:id/:year/:exam/download
+  UI->>API: GET /api/marksheets/students/:id?year=&exam=
   API->>Svc: serve()
   Svc->>DB: read row + computeInputHash
   alt hash matches and R2 exists
@@ -447,7 +447,7 @@ sequenceDiagram
   participant W as Worker
   participant R2 as R2 storage
 
-  UI->>API: GET /api/marks/:id/:year/download or /all/:year
+  UI->>API: GET /api/marksheets/students/:id/session?year= or /api/marksheets/session?year=
   API->>Svc: serve session
   alt R2 PDF + .hash sidecar match live hash
     Svc->>R2: getFileBuffer
@@ -520,7 +520,7 @@ Same head (`h`) and class-teacher data (`t` for student's section, or all `level
 
 ### After a design / layout code change
 
-1. Bump `MARKSHEET_DESIGN_VERSION` in `marksheet.service.ts` (e.g. `"1"` → `"2"`).
+1. Bump `MARKSHEET_DESIGN_VERSION` in `cache/marksheet-cache.helpers.ts` (e.g. `"1"` → `"2"`).
 2. Deploy. On worker start, `applyDesignVersionBumpIfNeeded` finds open-exam `marksheet_files` / `marksheet_bundles` where `snapshot_design_version` is null or ≠ the constant, marks them pending, and enqueues workers. Frozen exams are skipped.
 3. After regenerate, rows store the new `snapshot_design_version` — later boots find nothing outdated.
 
@@ -545,7 +545,7 @@ Serve timeout while waiting: `MARKSHEET_SERVE_TIMEOUT_MS` (default `180000`).
 
 **Teacher / head changes also auto-queue** (see below).
 
-**File:** `server/src/modules/marks/marks.service.ts` — `addMarks`
+**File:** `server/src/nest/modules/marks/marks.service.ts` — `saveMarks` (PUT /api/marks)
 
 ```
 1. Only upsert marks that actually changed (markRowChanged)
@@ -575,7 +575,7 @@ Serve timeout while waiting: `MARKSHEET_SERVE_TIMEOUT_MS` (default `180000`).
 | **Teacher signature change**    | Same                                                             |
 | **Head teacher or role change** | All marksheets + bundles for the school                          |
 
-**Files:** `level.service.ts`, `teacher.service.ts` → `MarksheetService.invalidateForClassSection` / `invalidateForTeacherProfile` / `invalidateForSchoolSignatureChange`
+**Files:** `level.service.ts`, `teacher.service.ts` → `nestApp().get(MarksheetCacheService)` (temporary bridge, `nest/common/nest-app.ts`) → `invalidateForClassSection` / `invalidateForTeacherProfile` / `invalidateForSchoolSignatureChange`
 
 `invalidate` and `invalidateForClassSection` only queue students who have **non-null marks** for the exam — avoids inflating progress with students who have no marks.
 
@@ -627,7 +627,7 @@ Prevents a finished worker from promoting a stale PDF when a second edit happens
 
 | What                           | Where                                                 |
 | ------------------------------ | ----------------------------------------------------- |
-| Per-student + bundle DB status | `GET /api/marks/generation-status/:examId`            |
+| Per-student + bundle DB status | `GET /api/marksheets/exams/:examId/status`            |
 | Dashboard bars                 | Exam PDF Routine, View Marks (`MarksheetGenProgress`) |
 | Session PDFs                   | No UI — server logs `[marksheet]` only                |
 
@@ -668,12 +668,12 @@ Bundle rows in `generation-status` only appear **after** at least one bundle dow
 sequenceDiagram
   participant UI as View Marks / Exam PDF Routine
   participant API as generationStatusController
-  participant Svc as MarksheetService
+  participant Svc as MarksheetCacheService
   participant Q as Bull marksheetQueue
   participant DB as marksheet_files
 
   loop every 3s until complete
-    UI->>API: GET /api/marks/generation-status/:examId
+    UI->>API: GET /api/marksheets/exams/:examId/status
     API->>Svc: ensureQueuedForExam(examId)
     alt marks exist, cache missing or failed
       Svc->>DB: invalidate → pending rows
@@ -692,29 +692,32 @@ sequenceDiagram
 
 | PDF              | Endpoint                                                | Response       |
 | ---------------- | ------------------------------------------------------- | -------------- |
-| Per-student exam | `GET /api/marks/:id/:year/:exam/download`               | PDF bytes      |
-| Class bundle     | `GET /api/marks/class-exam/:class/:year/:exam/download` | JSON `{ url }` |
-| Session student  | `GET /api/marks/:id/:year/download`                     | PDF bytes      |
-| Session year     | `GET /api/marks/all/:year`                              | PDF bytes      |
-| Public exam      | `GET /api/marks/public/download?year=&exam=`            | PDF bytes      |
+| Per-student exam | `GET /api/marksheets/students/:id?year=&exam=`          | PDF bytes      |
+| Class bundle     | `GET /api/marksheets/classes/:class/bundle?year=&exam=` | JSON `{ url }` |
+| Session student  | `GET /api/marksheets/students/:id/session?year=`        | PDF bytes      |
+| Session year     | `GET /api/marksheets/session?year=`                     | PDF bytes      |
+| Public exam      | `GET /api/public-results/marksheet?year=&exam=`         | PDF bytes      |
 
 ---
 
 ## Key files
 
-| File                                                | Role                                                        |
-| --------------------------------------------------- | ----------------------------------------------------------- |
-| `server/src/modules/marks/marksheet.service.ts`     | Serve, hash, invalidate, `ensureQueuedForExam`, worker jobs |
-| `server/src/modules/marks/marksheet.queue.ts`       | Bull queue, job IDs                                         |
-| `server/src/modules/marks/marksheet.worker.ts`      | In-process worker + recovery                                |
-| `server/src/modules/marks/marks.service.ts`         | PDF render + `addMarks` invalidation                        |
-| `server/src/controllers/examController.js`          | Publish → `enqueueForExam` (students only)                  |
-| `server/src/modules/marks/marks.controller.ts`      | Download + generation-status                                |
-| `dashboard/src/components/MarksheetGenProgress.tsx` | Progress UI + bundle stale list                             |
-| `dashboard/src/components/BundleStalePreview.tsx`   | Stale bundle preview (View Marks, Exam PDF Routine)         |
-| `dashboard/src/pages/Admin/ViewMarks.tsx`           | Download all + progress                                     |
-| `dashboard/src/pages/Admin/ExamPDFRoutine.tsx`      | Publish + per-exam progress                                 |
-| `dashboard/src/queries/marks.queries.ts`            | `useMarksheetGenerationStatus`, `isMarksheetGenComplete`    |
+| File                                                                     | Role                                                            |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `server/src/nest/modules/marksheets/cache/marksheet-cache.service.ts`    | Serve (wait for worker) + invalidate (`MarksheetCacheService`)  |
+| `server/src/nest/modules/marksheets/cache/marksheet-hash.service.ts`     | Input fingerprints + freshness checks (`MarksheetHashService`)  |
+| `server/src/nest/modules/marksheets/jobs/marksheet-jobs.service.ts`      | Enqueue, job processors, recover, design bump, status           |
+| `server/src/nest/modules/marksheets/jobs/marksheet.queue.ts`             | Bull queue provider (`MARKSHEET_QUEUE`), job IDs                |
+| `server/src/nest/modules/marksheets/jobs/marksheet.worker.ts`            | `MarksheetWorker` (started by server.ts after listen)           |
+| `server/src/nest/modules/marksheets/pdf/marksheet-renderer.ts`           | Loads data + renders PDFs (`MarksheetRenderer`)                 |
+| `server/src/nest/modules/marksheets/pdf/marksheet-draw.ts`, `grading.ts` | Pure pdfkit drawing / GPA + grades                              |
+| `server/src/modules/exam/exam.service.ts`                                | Publish → `enqueueForExam` (students only, via the Nest bridge) |
+| `server/src/nest/modules/marksheets/marksheets.controller.ts`            | Download + generation-status                                    |
+| `dashboard/src/components/MarksheetGenProgress.tsx`                      | Progress UI + bundle stale list                                 |
+| `dashboard/src/components/BundleStalePreview.tsx`                        | Stale bundle preview (View Marks, Exam PDF Routine)             |
+| `dashboard/src/pages/Admin/ViewMarks.tsx`                                | Download all + progress                                         |
+| `dashboard/src/pages/Admin/ExamPDFRoutine.tsx`                           | Publish + per-exam progress                                     |
+| `dashboard/src/queries/marks.queries.ts`                                 | `useMarksheetGenerationStatus`, `isMarksheetGenComplete`        |
 
 ---
 
