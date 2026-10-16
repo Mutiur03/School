@@ -36,10 +36,10 @@ The script computes up to 12 fixed categories (`0-10` normalized each). The firs
 6. Security Guardrails
 7. Cost Efficiency
 8. GitHub Integration
-9. Vercel Integration *(when `vercel.json` or `.vercel/` is present)*
-10. Netlify Integration *(when `netlify.toml` or `.netlify/` is present)*
-11. Cloudflare Integration *(when `wrangler.toml` or `wrangler.jsonc` is present)*
-12. Fly Integration *(when `fly.toml` is present)*
+9. Vercel Integration _(when `vercel.json` or `.vercel/` is present)_
+10. Netlify Integration _(when `netlify.toml` or `.netlify/` is present)_
+11. Cloudflare Integration _(when `wrangler.toml` or `wrangler.jsonc` is present)_
+12. Fly Integration _(when `fly.toml` is present)_
 
 Scores are derived from explicit file/rule checks and are reproducible for the same commit.
 The script audits the current working directory by default and auto-detects whether the target is the ECC repo itself or a consumer project using ECC.
@@ -80,5 +80,6 @@ Top 3 Actions:
 ## Arguments
 
 $ARGUMENTS:
+
 - `repo|hooks|skills|commands|agents` (optional scope)
 - `--format text|json` (optional output format)

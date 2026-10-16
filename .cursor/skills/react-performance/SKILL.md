@@ -21,16 +21,16 @@ Performance optimization patterns for React 18/19 and Next.js, adapted from [Ver
 
 ## Priority Index
 
-| Priority | Category | Prefix | When it matters |
-|---|---|---|---|
-| 1 — CRITICAL | Eliminating Waterfalls | `async-` | Anytime `await` is followed by independent `await` |
-| 2 — CRITICAL | Bundle Size Optimization | `bundle-` | First-load JS, route-level imports, third-party libs |
-| 3 — HIGH | Server-Side Performance | `server-` | RSC, Server Actions, API routes, SSR |
-| 4 — MEDIUM-HIGH | Client-Side Data Fetching | `client-` | SWR / TanStack Query / raw `fetch` in hooks |
-| 5 — MEDIUM | Re-render Optimization | `rerender-` | High-frequency state updates, parent-child fan-out |
-| 6 — MEDIUM | Rendering Performance | `rendering-` | Long lists, animations, hydration |
-| 7 — LOW-MEDIUM | JavaScript Performance | `js-` | Hot loops, frequent allocations |
-| 8 — LOW | Advanced Patterns | `advanced-` | Effect-event integration, stable refs |
+| Priority        | Category                  | Prefix       | When it matters                                      |
+| --------------- | ------------------------- | ------------ | ---------------------------------------------------- |
+| 1 — CRITICAL    | Eliminating Waterfalls    | `async-`     | Anytime `await` is followed by independent `await`   |
+| 2 — CRITICAL    | Bundle Size Optimization  | `bundle-`    | First-load JS, route-level imports, third-party libs |
+| 3 — HIGH        | Server-Side Performance   | `server-`    | RSC, Server Actions, API routes, SSR                 |
+| 4 — MEDIUM-HIGH | Client-Side Data Fetching | `client-`    | SWR / TanStack Query / raw `fetch` in hooks          |
+| 5 — MEDIUM      | Re-render Optimization    | `rerender-`  | High-frequency state updates, parent-child fan-out   |
+| 6 — MEDIUM      | Rendering Performance     | `rendering-` | Long lists, animations, hydration                    |
+| 7 — LOW-MEDIUM  | JavaScript Performance    | `js-`        | Hot loops, frequent allocations                      |
+| 8 — LOW         | Advanced Patterns         | `advanced-`  | Effect-event integration, stable refs                |
 
 ## 1. Eliminating Waterfalls (CRITICAL)
 
@@ -43,7 +43,7 @@ Check sync conditions (props, env, hardcoded flags) before awaiting remote data.
 ```ts
 // INCORRECT
 async function Page({ id }: { id: string }) {
-  const flag = await getFlag("show-page");
+  const flag = await getFlag('show-page');
   if (!flag || !id) return null;
   const data = await getData(id);
   // ...
@@ -52,7 +52,7 @@ async function Page({ id }: { id: string }) {
 // CORRECT — short-circuit on cheap sync condition first
 async function Page({ id }: { id: string }) {
   if (!id) return null;
-  const flag = await getFlag("show-page");
+  const flag = await getFlag('show-page');
   if (!flag) return null;
   const data = await getData(id);
 }
@@ -65,11 +65,11 @@ Move `await` into the branch that uses it.
 ```ts
 // INCORRECT — awaits before deciding it needs the data
 const user = await getUser(id);
-if (mode === "guest") return renderGuest();
+if (mode === 'guest') return renderGuest();
 return renderUser(user);
 
 // CORRECT
-if (mode === "guest") return renderGuest();
+if (mode === 'guest') return renderGuest();
 const user = await getUser(id);
 return renderUser(user);
 ```
@@ -83,11 +83,7 @@ const posts = await getPosts(id);
 const followers = await getFollowers(id);
 
 // CORRECT — parallel
-const [user, posts, followers] = await Promise.all([
-  getUser(id),
-  getPosts(id),
-  getFollowers(id),
-]);
+const [user, posts, followers] = await Promise.all([getUser(id), getPosts(id), getFollowers(id)]);
 ```
 
 ### Partial dependencies — start early, await late
@@ -134,12 +130,12 @@ Barrel `index.ts` files force the bundler to walk the entire module graph even w
 
 ```ts
 // INCORRECT
-import { Button, Card, Modal } from "@/components";
+import { Button, Card, Modal } from '@/components';
 
 // CORRECT
-import { Button } from "@/components/Button";
-import { Card } from "@/components/Card";
-import { Modal } from "@/components/Modal";
+import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
+import { Modal } from '@/components/Modal';
 ```
 
 Next.js 13.5+ has [Optimize Package Imports](https://nextjs.org/docs/app/api-reference/next-config-js/optimizePackageImports) that automates this for listed packages — use it; manual direct imports still required for non-listed libs.
@@ -151,15 +147,15 @@ Next.js 13.5+ has [Optimize Package Imports](https://nextjs.org/docs/app/api-ref
 const mod = await import(`./pages/${name}`);
 
 // CORRECT — explicit per branch
-const mod = name === "home" ? await import("./pages/home") : await import("./pages/about");
+const mod = name === 'home' ? await import('./pages/home') : await import('./pages/about');
 ```
 
 ### Dynamic imports for heavy components
 
 ```tsx
-import dynamic from "next/dynamic";
+import dynamic from 'next/dynamic';
 
-const HeavyChart = dynamic(() => import("./HeavyChart"), {
+const HeavyChart = dynamic(() => import('./HeavyChart'), {
   loading: () => <Skeleton />,
   ssr: false, // when client-only
 });
@@ -172,8 +168,8 @@ Load analytics, logging, support widgets AFTER hydration. Use `next/script` with
 ### Conditional module loading
 
 ```tsx
-if (user.role === "admin") {
-  const { AdminPanel } = await import("./admin/AdminPanel");
+if (user.role === 'admin') {
+  const { AdminPanel } = await import('./admin/AdminPanel');
   // ...
 }
 ```
@@ -189,13 +185,13 @@ Trigger `<link rel="preload">` or `import()` on hover so the bundle is in cache 
 Every `"use server"` function is a public endpoint. Authenticate AND authorize inside the action — never rely on the calling Client Component's gating.
 
 ```ts
-"use server";
+'use server';
 export async function deleteUser(formData: FormData) {
   const session = await getSession();
-  if (!session?.user) throw new Error("Unauthorized");
-  const targetId = String(formData.get("id"));
-  if (session.user.role !== "admin" && session.user.id !== targetId) {
-    throw new Error("Forbidden");
+  if (!session?.user) throw new Error('Unauthorized');
+  const targetId = String(formData.get('id'));
+  if (session.user.role !== 'admin' && session.user.id !== targetId) {
+    throw new Error('Forbidden');
   }
   await db.user.delete({ where: { id: targetId } });
 }
@@ -204,7 +200,7 @@ export async function deleteUser(formData: FormData) {
 ### `React.cache()` for per-request deduplication
 
 ```ts
-import { cache } from "react";
+import { cache } from 'react';
 
 export const getUser = cache(async (id: string) => {
   return db.user.findUnique({ where: { id } });
@@ -254,7 +250,7 @@ const enriched = await Promise.all(
 Next.js 15 `after()` runs work after the response is sent — logging, cache warming, analytics.
 
 ```ts
-import { after } from "next/server";
+import { after } from 'next/server';
 export async function GET() {
   const data = await getData();
   after(() => logAnalytics(data));
@@ -273,8 +269,8 @@ Multiple components calling `useUser(id)` should share one network request and o
 ```tsx
 // INCORRECT — every component adds its own
 useEffect(() => {
-  window.addEventListener("scroll", handler);
-  return () => window.removeEventListener("scroll", handler);
+  window.addEventListener('scroll', handler);
+  return () => window.removeEventListener('scroll', handler);
 }, []);
 
 // CORRECT — single shared listener via a hook + global subject
@@ -284,7 +280,7 @@ const useScroll = createScrollHook(); // singleton subject under the hood
 ### Passive listeners for scroll
 
 ```ts
-window.addEventListener("scroll", handler, { passive: true });
+window.addEventListener('scroll', handler, { passive: true });
 ```
 
 Improves scrolling smoothness; the listener cannot `preventDefault()`.
@@ -323,11 +319,11 @@ const Heavy = memo(function Heavy({ items }: { items: Item[] }) {
 
 ```tsx
 // INCORRECT — new array each render breaks memo
-<List items={items ?? []} />
+<List items={items ?? []} />;
 
 // CORRECT
 const EMPTY: Item[] = [];
-<List items={items ?? EMPTY} />
+<List items={items ?? EMPTY} />;
 ```
 
 ### Primitive dependencies in effects
@@ -355,7 +351,7 @@ const hasItems = useStore((s) => s.cart.length > 0);
 
 ```tsx
 // INCORRECT
-const [full, setFull] = useState("");
+const [full, setFull] = useState('');
 useEffect(() => setFull(`${first} ${last}`), [first, last]);
 
 // CORRECT
@@ -433,7 +429,10 @@ Transforming a `<div>` wrapper around an SVG is GPU-accelerated; transforming th
 ### `content-visibility: auto` for long lists
 
 ```css
-.row { content-visibility: auto; contain-intrinsic-size: auto 80px; }
+.row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+}
 ```
 
 Browser skips offscreen rendering — major win for lists with hundreds of rows.
@@ -443,7 +442,12 @@ Browser skips offscreen rendering — major win for lists with hundreds of rows.
 ```tsx
 const STATIC_HEADER = <h1>Title</h1>;
 function Page() {
-  return <>{STATIC_HEADER}<Body /></>;
+  return (
+    <>
+      {STATIC_HEADER}
+      <Body />
+    </>
+  );
 }
 ```
 
@@ -471,10 +475,14 @@ React 19 `<Activity mode="visible|hidden">` keeps tree state and effects mounted
 
 ```tsx
 // INCORRECT — `0` renders as text node
-{count && <Badge>{count}</Badge>}
+{
+  count && <Badge>{count}</Badge>;
+}
 
 // CORRECT
-{count > 0 ? <Badge>{count}</Badge> : null}
+{
+  count > 0 ? <Badge>{count}</Badge> : null;
+}
 ```
 
 ### `useTransition` for loading states
@@ -484,9 +492,9 @@ Pair `startTransition` with the action; React shows the previous UI as `isPendin
 ### React DOM resource hints
 
 ```tsx
-import { preload, preconnect } from "react-dom";
-preload("/api/critical", { as: "fetch" });
-preconnect("https://api.example.com");
+import { preload, preconnect } from 'react-dom';
+preload('/api/critical', { as: 'fetch' });
+preconnect('https://api.example.com');
 ```
 
 ### `defer` / `async` on `<script>` tags
@@ -522,7 +530,9 @@ For stable callbacks passed to memoized children:
 
 ```tsx
 const handlerRef = useRef(handler);
-useEffect(() => { handlerRef.current = handler; });
+useEffect(() => {
+  handlerRef.current = handler;
+});
 const stable = useCallback((arg) => handlerRef.current(arg), []);
 ```
 
@@ -553,13 +563,13 @@ When the project ships React Compiler, demote `rerender-*` manual memoization ru
 
 ## Lighthouse / Web Vitals Mapping
 
-| Metric | Most relevant categories |
-|---|---|
-| **LCP** (Largest Contentful Paint) | Waterfalls, Bundle Size, Resource Hints |
-| **INP** (Interaction to Next Paint) | Re-render, Rendering, JavaScript |
-| **CLS** (Cumulative Layout Shift) | Rendering (Suspense placement, image dimensions) |
-| **TBT** (Total Blocking Time) | Bundle Size, JavaScript, Defer Third-Party |
-| **FID** (legacy) | Bundle Size, Hydration |
+| Metric                              | Most relevant categories                         |
+| ----------------------------------- | ------------------------------------------------ |
+| **LCP** (Largest Contentful Paint)  | Waterfalls, Bundle Size, Resource Hints          |
+| **INP** (Interaction to Next Paint) | Re-render, Rendering, JavaScript                 |
+| **CLS** (Cumulative Layout Shift)   | Rendering (Suspense placement, image dimensions) |
+| **TBT** (Total Blocking Time)       | Bundle Size, JavaScript, Defer Third-Party       |
+| **FID** (legacy)                    | Bundle Size, Hydration                           |
 
 ## Related
 

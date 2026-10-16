@@ -5,7 +5,7 @@ argument-hint: <workflow description | empty=list all>
 origin: community
 author: KyawZinLatt
 metadata:
-  version: "1.0.0"
+  version: '1.0.0'
 ---
 
 # ECC Recipes
@@ -64,20 +64,20 @@ the smallest set of reads needed.
 ## Family Classification (by prefix)
 
 Group command names by leading prefix; map known singletons by hand. Families are
-derived live — the table below is the *classification rule*, not a frozen list.
+derived live — the table below is the _classification rule_, not a frozen list.
 
-| Family prefix | Recipe meaning | Typical run-order |
-|---|---|---|
-| `orch-*` | gated Research, Plan, TDD, Review, Commit per task type | pick one orch-* by task kind; it runs its own internal phases |
-| `multi-*` | multi-model workflow | `multi-plan` then `multi-execute` then review (or `multi-workflow` end-to-end) |
-| `prp-*` | PRD to plan to implement to PR pipeline | `prp-prd` then `prp-plan` then `prp-implement` then `prp-commit` then `prp-pr` |
-| `epic-*` | large multi-unit epic, parallel | `epic-decompose` then `epic-claim` then `epic-validate` then `epic-review` then `epic-unblock` then `epic-sync` then `epic-publish` |
-| `loop-*` | managed autonomous loop and monitor | `loop-start <pattern>` then watch with `loop-status` |
-| `gan-*` | generator and evaluator loop | `gan-build` (code) or `gan-design` (UI); self-looping |
-| `*-build` / `*-review` / `*-test` | per-language CI triad | `<lang>-test` (TDD) then `<lang>-build` (fix) then `<lang>-review` |
-| `hookify-*` | behavior-hook management | `hookify` then `hookify-list` then `hookify-configure` |
-| `learn` / `instinct-*` / `evolve` / `promote` / `prune` | continuous-learning | `learn` then `instinct-status` then `evolve` then `promote` |
-| singletons | `santa-loop`, `plan`, `plan-prd`, `pr`, `code-review`, `checkpoint`, etc. | standalone or glue between groups |
+| Family prefix                                           | Recipe meaning                                                            | Typical run-order                                                                                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `orch-*`                                                | gated Research, Plan, TDD, Review, Commit per task type                   | pick one orch-* by task kind; it runs its own internal phases                                                                       |
+| `multi-*`                                               | multi-model workflow                                                      | `multi-plan` then `multi-execute` then review (or `multi-workflow` end-to-end)                                                      |
+| `prp-*`                                                 | PRD to plan to implement to PR pipeline                                   | `prp-prd` then `prp-plan` then `prp-implement` then `prp-commit` then `prp-pr`                                                      |
+| `epic-*`                                                | large multi-unit epic, parallel                                           | `epic-decompose` then `epic-claim` then `epic-validate` then `epic-review` then `epic-unblock` then `epic-sync` then `epic-publish` |
+| `loop-*`                                                | managed autonomous loop and monitor                                       | `loop-start <pattern>` then watch with `loop-status`                                                                                |
+| `gan-*`                                                 | generator and evaluator loop                                              | `gan-build` (code) or `gan-design` (UI); self-looping                                                                               |
+| `*-build` / `*-review` / `*-test`                       | per-language CI triad                                                     | `<lang>-test` (TDD) then `<lang>-build` (fix) then `<lang>-review`                                                                  |
+| `hookify-*`                                             | behavior-hook management                                                  | `hookify` then `hookify-list` then `hookify-configure`                                                                              |
+| `learn` / `instinct-*` / `evolve` / `promote` / `prune` | continuous-learning                                                       | `learn` then `instinct-status` then `evolve` then `promote`                                                                         |
+| singletons                                              | `santa-loop`, `plan`, `plan-prd`, `pr`, `code-review`, `checkpoint`, etc. | standalone or glue between groups                                                                                                   |
 
 Any command not matching a prefix rule → list it under **singletons** with its
 one-line description.

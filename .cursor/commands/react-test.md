@@ -185,17 +185,17 @@ Use `getByRole`, `getByLabelText`, `getByText`. Avoid `container.querySelector` 
 
 ```tsx
 const user = userEvent.setup();
-await user.click(screen.getByRole("button", { name: /save/i }));
+await user.click(screen.getByRole('button', { name: /save/i }));
 ```
 
 ### MSW for network
 
 ```tsx
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-server.use(http.post("/api/users", () => HttpResponse.json({ id: "1" }, { status: 201 })));
+server.use(http.post('/api/users', () => HttpResponse.json({ id: '1' }, { status: 201 })));
 ```
 
 ### Custom hooks
@@ -209,19 +209,19 @@ expect(result.current.count).toBe(1);
 ### Accessibility
 
 ```tsx
-import { axe } from "vitest-axe";
+import { axe } from 'vitest-axe';
 expect(await axe(container)).toHaveNoViolations();
 ```
 
 ## Coverage Targets
 
-| Layer | Target |
-|---|---|
-| Pure utilities | >=90% |
-| Custom hooks | >=85% |
-| Presentational components | >=80% |
-| Container components | >=70% |
-| Pages | E2E covered separately |
+| Layer                     | Target                 |
+| ------------------------- | ---------------------- |
+| Pure utilities            | >=90%                  |
+| Custom hooks              | >=85%                  |
+| Presentational components | >=80%                  |
+| Container components      | >=70%                  |
+| Pages                     | E2E covered separately |
 
 Configure in `vitest.config.ts` / `jest.config.js` to enforce thresholds in CI.
 

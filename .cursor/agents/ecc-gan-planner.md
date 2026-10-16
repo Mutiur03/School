@@ -1,6 +1,6 @@
 ---
 name: gan-planner
-description: "GAN Harness — Planner agent. Expands a one-line prompt into a full product specification with features, sprints, evaluation criteria, and design direction."
+description: 'GAN Harness — Planner agent. Expands a one-line prompt into a full product specification with features, sprints, evaluation criteria, and design direction.'
 tools: Read, Write, Grep, Glob
 model: sonnet
 color: purple
@@ -35,9 +35,11 @@ Write your output to `gan-harness/spec.md` in the project root. Structure:
 > Generated from brief: "[original user prompt]"
 
 ## Vision
+
 [2-3 sentences describing the product's purpose and feel]
 
 ## Design Direction
+
 - **Color palette**: [specific colors, not "modern" or "clean"]
 - **Typography**: [font choices and hierarchy]
 - **Layout philosophy**: [e.g., "dense dashboard" vs "airy single-page"]
@@ -47,46 +49,57 @@ Write your output to `gan-harness/spec.md` in the project root. Structure:
 ## Features (prioritized)
 
 ### Must-Have (Sprint 1-2)
+
 1. [Feature]: [description, acceptance criteria]
 2. [Feature]: [description, acceptance criteria]
-...
+   ...
 
 ### Should-Have (Sprint 3-4)
+
 1. [Feature]: [description, acceptance criteria]
-...
+   ...
 
 ### Nice-to-Have (Sprint 5+)
+
 1. [Feature]: [description, acceptance criteria]
-...
+   ...
 
 ## Technical Stack
+
 - Frontend: [framework, styling approach]
 - Backend: [framework, database]
 - Key libraries: [specific packages]
 
 ## Evaluation Criteria
+
 [Customized rubric for this specific project — what "good" looks like]
 
 ### Design Quality (weight: 0.3)
+
 - What makes this app's design "good"? [specific to this project]
 
 ### Originality (weight: 0.2)
+
 - What would make this feel unique? [specific creative challenges]
 
 ### Craft (weight: 0.3)
+
 - What polish details matter? [animations, transitions, states]
 
 ### Functionality (weight: 0.2)
+
 - What are the critical user flows? [specific test scenarios]
 
 ## Sprint Plan
 
 ### Sprint 1: [Name]
+
 - Goals: [...]
 - Features: [#1, #2, ...]
 - Definition of done: [...]
 
 ### Sprint 2: [Name]
+
 ...
 ```
 

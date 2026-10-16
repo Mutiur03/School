@@ -115,7 +115,7 @@ components:
           format: double
           minimum: 0
         cancellationReason:
-          type: [string, "null"]
+          type: [string, 'null']
 ```
 
 Define semantic constraints, not only syntax. For example, document whether
@@ -132,13 +132,13 @@ npm run generate:api-types
 Back that script with the repository's existing, pinned OpenAPI generator.
 
 ```typescript
-import type { components } from "./generated/api";
+import type { components } from './generated/api';
 
-type OrderSummary = components["schemas"]["OrderSummary"];
+type OrderSummary = components['schemas']['OrderSummary'];
 
 export const paidOrderMock = {
-  id: "9007199254740993123",
-  status: "paid",
+  id: '9007199254740993123',
+  status: 'paid',
   total: 49.9,
   cancellationReason: null,
 } satisfies OrderSummary;
@@ -152,9 +152,9 @@ in progress.
 The provider must prove that real responses satisfy the same artifact:
 
 ```typescript
-import type { components } from "./generated/api";
+import type { components } from './generated/api';
 
-type OrderSummary = components["schemas"]["OrderSummary"];
+type OrderSummary = components['schemas']['OrderSummary'];
 
 export function toOrderSummary(row: OrderRow): OrderSummary {
   return {
@@ -218,7 +218,7 @@ than silently repurposing an existing field.
 
 ```typescript
 // Database shape leaks directly to consumers.
-return database.query("select * from orders");
+return database.query('select * from orders');
 ```
 
 The storage model now controls the public interface, including accidental

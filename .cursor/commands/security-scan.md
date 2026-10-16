@@ -74,8 +74,8 @@ Use AgentShield in GitHub Actions for enforced gates:
 ```yaml
 - uses: affaan-m/agentshield@v1
   with:
-    path: "."
-    min-severity: "medium"
+    path: '.'
+    min-severity: 'medium'
     fail-on-findings: true
 ```
 
@@ -88,5 +88,6 @@ Use AgentShield in GitHub Actions for enforced gates:
 ## Arguments
 
 $ARGUMENTS:
+
 - optional target path
 - optional AgentShield flags

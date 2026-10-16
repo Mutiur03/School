@@ -34,6 +34,7 @@ Get an API key at [exa.ai](https://exa.ai).
 ## Core Tools
 
 ### web_search_exa
+
 General web search for current information, news, or facts.
 
 ```
@@ -42,12 +43,13 @@ web_search_exa(query: "latest AI developments 2026", numResults: 5)
 
 **Parameters:**
 
-| Param | Type | Default | Notes |
-|-------|------|---------|-------|
-| `query` | string | required | Search query |
-| `numResults` | number | 8 | Number of results |
+| Param        | Type   | Default  | Notes             |
+| ------------ | ------ | -------- | ----------------- |
+| `query`      | string | required | Search query      |
+| `numResults` | number | 8        | Number of results |
 
 ### web_search_advanced_exa
+
 Filtered search with domain and date constraints.
 
 ```
@@ -61,16 +63,17 @@ web_search_advanced_exa(
 
 **Parameters:**
 
-| Param | Type | Default | Notes |
-|-------|------|---------|-------|
-| `query` | string | required | Search query |
-| `numResults` | number | 8 | Number of results |
-| `includeDomains` | string[] | none | Limit to specific domains |
-| `excludeDomains` | string[] | none | Exclude specific domains |
-| `startPublishedDate` | string | none | ISO date filter (start) |
-| `endPublishedDate` | string | none | ISO date filter (end) |
+| Param                | Type     | Default  | Notes                     |
+| -------------------- | -------- | -------- | ------------------------- |
+| `query`              | string   | required | Search query              |
+| `numResults`         | number   | 8        | Number of results         |
+| `includeDomains`     | string[] | none     | Limit to specific domains |
+| `excludeDomains`     | string[] | none     | Exclude specific domains  |
+| `startPublishedDate` | string   | none     | ISO date filter (start)   |
+| `endPublishedDate`   | string   | none     | ISO date filter (end)     |
 
 ### get_code_context_exa
+
 Find code examples and documentation from GitHub, Stack Overflow, and docs sites.
 
 ```
@@ -79,12 +82,13 @@ get_code_context_exa(query: "Python asyncio patterns", tokensNum: 3000)
 
 **Parameters:**
 
-| Param | Type | Default | Notes |
-|-------|------|---------|-------|
-| `query` | string | required | Code or API search query |
-| `tokensNum` | number | 5000 | Content tokens (1000-50000) |
+| Param       | Type   | Default  | Notes                       |
+| ----------- | ------ | -------- | --------------------------- |
+| `query`     | string | required | Code or API search query    |
+| `tokensNum` | number | 5000     | Content tokens (1000-50000) |
 
 ### company_research_exa
+
 Research companies for business intelligence and news.
 
 ```
@@ -93,12 +97,13 @@ company_research_exa(companyName: "Anthropic", numResults: 5)
 
 **Parameters:**
 
-| Param | Type | Default | Notes |
-|-------|------|---------|-------|
-| `companyName` | string | required | Company name |
-| `numResults` | number | 5 | Number of results |
+| Param         | Type   | Default  | Notes             |
+| ------------- | ------ | -------- | ----------------- |
+| `companyName` | string | required | Company name      |
+| `numResults`  | number | 5        | Number of results |
 
 ### people_search_exa
+
 Find professional profiles and bios.
 
 ```
@@ -106,6 +111,7 @@ people_search_exa(query: "AI safety researchers at Anthropic", numResults: 5)
 ```
 
 ### crawling_exa
+
 Extract full page content from a URL.
 
 ```
@@ -114,12 +120,13 @@ crawling_exa(url: "https://example.com/article", tokensNum: 5000)
 
 **Parameters:**
 
-| Param | Type | Default | Notes |
-|-------|------|---------|-------|
-| `url` | string | required | URL to extract |
-| `tokensNum` | number | 5000 | Content tokens |
+| Param       | Type   | Default  | Notes          |
+| ----------- | ------ | -------- | -------------- |
+| `url`       | string | required | URL to extract |
+| `tokensNum` | number | 5000     | Content tokens |
 
 ### deep_researcher_start / deep_researcher_check
+
 Start an AI research agent that runs asynchronously.
 
 ```
@@ -133,22 +140,26 @@ deep_researcher_check(researchId: "<id from start>")
 ## Usage Patterns
 
 ### Quick Lookup
+
 ```
 web_search_exa(query: "Node.js 22 new features", numResults: 3)
 ```
 
 ### Code Research
+
 ```
 get_code_context_exa(query: "Rust error handling patterns Result type", tokensNum: 3000)
 ```
 
 ### Company Due Diligence
+
 ```
 company_research_exa(companyName: "Vercel", numResults: 5)
 web_search_advanced_exa(query: "Vercel funding valuation 2026", numResults: 3)
 ```
 
 ### Technical Deep Dive
+
 ```
 # Start async research
 deep_researcher_start(query: "WebAssembly component model status and adoption")

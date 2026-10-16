@@ -1,6 +1,6 @@
 ---
 name: database-migrations
-description: "Safe, reversible database migration patterns: forward-only production changes, expand-contract zero-downtime renames, concurrent indexes, batched backfills, and per-tool workflows for PostgreSQL, Prisma, Drizzle, Kysely, Django, and golang-migrate. Use when writing a schema or data migration, adding a column or index to a large table, planning a rollback, or preparing a zero-downtime deploy."
+description: 'Safe, reversible database migration patterns: forward-only production changes, expand-contract zero-downtime renames, concurrent indexes, batched backfills, and per-tool workflows for PostgreSQL, Prisma, Drizzle, Kysely, Django, and golang-migrate. Use when writing a schema or data migration, adding a column or index to a large table, planning a rollback, or preparing a zero-downtime deploy.'
 metadata:
   origin: ECC
 ---
@@ -193,15 +193,15 @@ npx drizzle-kit push
 ### Schema Example
 
 ```typescript
-import { pgTable, text, timestamp, uuid, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean } from 'drizzle-orm/pg-core';
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  name: text("name"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  name: text('name'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 ```
 
@@ -230,7 +230,7 @@ kysely migrate list
 
 ```typescript
 // migrations/2024_01_15_001_create_user_profile.ts
-import { type Kysely, sql } from 'kysely'
+import { type Kysely, sql } from 'kysely';
 
 // IMPORTANT: Always use Kysely<any>, not your typed DB interface.
 // Migrations are frozen in time and must not depend on current schema types.
@@ -240,35 +240,30 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('id', 'serial', (col) => col.primaryKey())
     .addColumn('email', 'varchar(255)', (col) => col.notNull().unique())
     .addColumn('avatar_url', 'text')
-    .addColumn('created_at', 'timestamp', (col) =>
-      col.defaultTo(sql`now()`).notNull()
-    )
-    .execute()
+    .addColumn('created_at', 'timestamp', (col) => col.defaultTo(sql`now()`).notNull())
+    .execute();
 
   await db.schema
     .createIndex('idx_user_profile_avatar')
     .on('user_profile')
     .column('avatar_url')
-    .execute()
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable('user_profile').execute()
+  await db.schema.dropTable('user_profile').execute();
 }
 ```
 
 ### Programmatic Migrator
 
 ```typescript
-import { Migrator, FileMigrationProvider } from 'kysely'
-import { promises as fs } from 'fs'
-import * as path from 'path'
+import { Migrator, FileMigrationProvider } from 'kysely';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 // ESM only — CJS can use __dirname directly
-import { fileURLToPath } from 'url'
-const migrationFolder = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  './migrations',
-)
+import { fileURLToPath } from 'url';
+const migrationFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), './migrations');
 
 // `db` is your Kysely<any> database instance
 const migrator = new Migrator({
@@ -281,21 +276,21 @@ const migrator = new Migrator({
   // WARNING: Only enable in development. Disables timestamp-ordering
   // validation, which can cause schema drift between environments.
   // allowUnorderedMigrations: true,
-})
+});
 
-const { error, results } = await migrator.migrateToLatest()
+const { error, results } = await migrator.migrateToLatest();
 
 results?.forEach((it) => {
   if (it.status === 'Success') {
-    console.log(`migration "${it.migrationName}" executed successfully`)
+    console.log(`migration "${it.migrationName}" executed successfully`);
   } else if (it.status === 'Error') {
-    console.error(`failed to execute migration "${it.migrationName}"`)
+    console.error(`failed to execute migration "${it.migrationName}"`);
   }
-})
+});
 
 if (error) {
-  console.error('migration failed', error)
-  process.exit(1)
+  console.error('migration failed', error);
+  process.exit(1);
 }
 ```
 
@@ -420,11 +415,11 @@ Day 7: Migration drops old status column
 
 ## Anti-Patterns
 
-| Anti-Pattern | Why It Fails | Better Approach |
-|-------------|-------------|-----------------|
-| Manual SQL in production | No audit trail, unrepeatable | Always use migration files |
-| Editing deployed migrations | Causes drift between environments | Create new migration instead |
-| NOT NULL without default | Locks table, rewrites all rows | Add nullable, backfill, then add constraint |
-| Inline index on large table | Blocks writes during build | CREATE INDEX CONCURRENTLY |
-| Schema + data in one migration | Hard to rollback, long transactions | Separate migrations |
-| Dropping column before removing code | Application errors on missing column | Remove code first, drop column next deploy |
+| Anti-Pattern                         | Why It Fails                         | Better Approach                             |
+| ------------------------------------ | ------------------------------------ | ------------------------------------------- |
+| Manual SQL in production             | No audit trail, unrepeatable         | Always use migration files                  |
+| Editing deployed migrations          | Causes drift between environments    | Create new migration instead                |
+| NOT NULL without default             | Locks table, rewrites all rows       | Add nullable, backfill, then add constraint |
+| Inline index on large table          | Blocks writes during build           | CREATE INDEX CONCURRENTLY                   |
+| Schema + data in one migration       | Hard to rollback, long transactions  | Separate migrations                         |
+| Dropping column before removing code | Application errors on missing column | Remove code first, drop column next deploy  |

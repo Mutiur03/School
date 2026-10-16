@@ -1,6 +1,6 @@
 ---
 name: generating-python-installer
-description: "Commercial-grade Python installer expert for Windows: Nuitka extreme compilation, dist slimming, DLL footprint analysis, and Inno Setup packaging to ship the smallest, fastest installers. Use when a Python app must ship as a minimal, fast-starting Windows installer; not for basic script-to-exe conversion. 中文触发：Nuitka 极限优化、Python 商业打包、极限编译 Python、dist 瘦身、DLL 分析、最小安装包、最快启动、商业级打包风格"
+description: 'Commercial-grade Python installer expert for Windows: Nuitka extreme compilation, dist slimming, DLL footprint analysis, and Inno Setup packaging to ship the smallest, fastest installers. Use when a Python app must ship as a minimal, fast-starting Windows installer; not for basic script-to-exe conversion. 中文触发：Nuitka 极限优化、Python 商业打包、极限编译 Python、dist 瘦身、DLL 分析、最小安装包、最快启动、商业级打包风格'
 ---
 
 # Generating Python Installer (Commercial-Grade)
@@ -43,6 +43,7 @@ This skill targets advanced size/startup optimization — not basic one-file "sc
 ## 实战参考案例（生产级 PySide2 桌面应用，323 MB，含 OpenCV / Playwright）
 
 ### 项目概况
+
 - **总体积**: 323 MB
 - **打包工具**: PyInstaller 4.7 (32位)
 - **主要依赖**: PySide2 (22.52 MB), OpenCV (62.38 MB), Playwright (76.74 MB)
@@ -50,6 +51,7 @@ This skill targets advanced size/startup optimization — not basic one-file "sc
 - **DLL 数量**: 71 个，总计 93.23 MB
 
 ### 关键优化策略
+
 1. PASS: **使用 32 位 Python** → 体积减少 20-30%
 2. PASS: **base_library.zip 压缩标准库** → 0.74 MB
 3. PASS: **精简模块排除** → 无 pytest/unittest/setuptools
@@ -57,20 +59,20 @@ This skill targets advanced size/startup optimization — not basic one-file "sc
 
 ### 体积分布
 
-| 组件 | 体积 | 占比 | 优化建议 |
-|------|------|------|---------|
-| playwright | 76.74 MB | 23.8% | 非必要可移除 |
-| OpenCV | 62.38 MB | 19.3% | 用 opencv-python-headless |
-| PySide2 | 22.52 MB | 7.0% | 排除 WebEngine/3D/Charts |
-| 其他依赖 | 161.36 MB | 49.9% | - |
+| 组件       | 体积      | 占比  | 优化建议                  |
+| ---------- | --------- | ----- | ------------------------- |
+| playwright | 76.74 MB  | 23.8% | 非必要可移除              |
+| OpenCV     | 62.38 MB  | 19.3% | 用 opencv-python-headless |
+| PySide2    | 22.52 MB  | 7.0%  | 排除 WebEngine/3D/Charts  |
+| 其他依赖   | 161.36 MB | 49.9% | -                         |
 
 ### 预期效果对比
 
-| 项目类型 | Nuitka 原始 | 优化后 | 参考项目实测 |
-|---------|------------|--------|----------------|
-| Tkinter + 标准库 | 150-250 MB | **80-120 MB** | - |
-| PyQt/PySide | 200-400 MB | **120-250 MB** | 323 MB (含 OpenCV 等) |
-| 含 numpy/pandas | 300-600 MB | **180-350 MB** | - |
+| 项目类型         | Nuitka 原始 | 优化后         | 参考项目实测          |
+| ---------------- | ----------- | -------------- | --------------------- |
+| Tkinter + 标准库 | 150-250 MB  | **80-120 MB**  | -                     |
+| PyQt/PySide      | 200-400 MB  | **120-250 MB** | 323 MB (含 OpenCV 等) |
+| 含 numpy/pandas  | 300-600 MB  | **180-350 MB** | -                     |
 
 ---
 
@@ -82,21 +84,23 @@ This skill targets advanced size/startup optimization — not basic one-file "sc
 
 > **WARNING: 重要规则：以下所有参数必须逐一向用户确认，禁止自动填充或使用默认值！**
 
-必须向用户询问并确认以下信息（*等待用户明确回复后才能继续*）：
+必须向用户询问并确认以下信息（_等待用户明确回复后才能继续_）：
 
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| **软件名称** (App Name) | 软件显示名称 | `红墨批注` |
-| **版本号** (Version) | 语义化版本号 | `1.0.0` |
-| **发布者/公司名** (Publisher) | 控制面板显示的发布者 | `YourCompany` |
-| **主程序** (Exe Name) | 主可执行文件名 | `RedInk.exe` |
-| **源路径** (Source Dir) | Nuitka dist 文件夹绝对路径 | `D:\project\dist` |
-| **输出路径** (Output Dir) | 安装包生成位置 | `D:\project\output` |
-| **图标路径** (Icon Path) | .ico 文件绝对路径（可选但推荐） | `D:\project\icon.ico` |
-| **官网地址** (URL) | 可选，用于控制面板链接 | `https://example.com` |
+| 参数                          | 说明                            | 示例                  |
+| ----------------------------- | ------------------------------- | --------------------- |
+| **软件名称** (App Name)       | 软件显示名称                    | `红墨批注`            |
+| **版本号** (Version)          | 语义化版本号                    | `1.0.0`               |
+| **发布者/公司名** (Publisher) | 控制面板显示的发布者            | `YourCompany`         |
+| **主程序** (Exe Name)         | 主可执行文件名                  | `RedInk.exe`          |
+| **源路径** (Source Dir)       | Nuitka dist 文件夹绝对路径      | `D:\project\dist`     |
+| **输出路径** (Output Dir)     | 安装包生成位置                  | `D:\project\output`   |
+| **图标路径** (Icon Path)      | .ico 文件绝对路径（可选但推荐） | `D:\project\icon.ico` |
+| **官网地址** (URL)            | 可选，用于控制面板链接          | `https://example.com` |
 
 **询问模板：**
+
 > "请提供以下打包参数，我需要您逐一确认：
+>
 > 1. 软件名称：
 > 2. 版本号：
 > 3. 发布者/公司名：
@@ -112,6 +116,7 @@ This skill targets advanced size/startup optimization — not basic one-file "sc
 在生成代码之前，必须向用户发出以下**关键确认**（因为 Inno Setup 只是打包工具，无法改变程序本身的运行属性）：
 
 > "WARNING: **编译参数检查**：
+>
 > 1. **去黑窗**：请确认您的 dist 文件夹是使用 `nuitka --windows-console-mode=disable` 编译的。（否则安装后依然会有黑框）
 > 2. **高性能**：请确认是否使用了 `--lto=yes`。（否则启动速度可能不理想）
 > 3. **运行库**：请确保 dist 文件夹内已包含必要的 VC++ 运行库，防止在纯净系统上无法运行。
@@ -129,19 +134,21 @@ This skill targets advanced size/startup optimization — not basic one-file "sc
 
 **参考项目使用 32 位 Python 的原因**：
 
-| 组件 | 64位体积 | 32位体积 | 节省 |
-|------|---------|---------|------|
-| python3x.dll | ~4.5 MB | ~3.8 MB | 15% |
-| Qt5Core.dll | ~8 MB | ~5 MB | 37% |
-| numpy | ~30 MB | ~20 MB | 33% |
-| **总体** | 基准 | **-20~30%** | - |
+| 组件         | 64位体积 | 32位体积    | 节省 |
+| ------------ | -------- | ----------- | ---- |
+| python3x.dll | ~4.5 MB  | ~3.8 MB     | 15%  |
+| Qt5Core.dll  | ~8 MB    | ~5 MB       | 37%  |
+| numpy        | ~30 MB   | ~20 MB      | 33%  |
+| **总体**     | 基准     | **-20~30%** | -    |
 
 **推荐使用 32 位条件**：
+
 - PASS: 程序内存占用 < 2GB
 - PASS: 不处理超大文件（< 2GB）
 - PASS: 目标用户是普通办公电脑
 
 **32 位编译方法**：
+
 ```bash
 # 1. 安装 32 位 Python（和 64 位可以共存）
 # 下载地址：https://www.python.org/downloads/windows/
@@ -156,6 +163,7 @@ py -3.12-32 -m nuitka --standalone ...你的参数
 ### 二、模块排除清单（参考项目验证过的）
 
 **安全排除列表**（运行时不需要）：
+
 ```
 unittest,test,pytest,_pytest,doctest,pdb,pdbpp,
 setuptools,pip,distutils,pkg_resources,
@@ -167,6 +175,7 @@ email.mime,http.server,xmlrpc,pydoc
 ### 三、GUI 框架专用优化
 
 #### Tkinter 极限优化（推荐，最轻量）
+
 ```bash
 nuitka --standalone --windows-console-mode=disable ^
     --lto=yes ^
@@ -188,6 +197,7 @@ nuitka --standalone --windows-console-mode=disable ^
 **预期体积**：80-120 MB（优化后）
 
 #### PyQt5 / PySide2 优化
+
 ```bash
 nuitka --standalone --windows-console-mode=disable ^
     --lto=yes ^
@@ -588,6 +598,7 @@ if __name__ == "__main__":
 ```
 
 **使用方法**：
+
 ```bash
 python analyze_dlls.py dist/你的软件名.dist
 ```
@@ -622,18 +633,21 @@ python analyze_dlls.py dist/你的软件名.dist
 ### 步骤 4：根据分析结果优化
 
 **如果用了 OpenCV** → 改用无头版
+
 ```bash
 pip uninstall opencv-python
 pip install opencv-python-headless
 ```
 
 **如果用了 Qt** → 排除不需要的模块
+
 ```batch
 # 在编译命令中添加
 --nofollow-import-to=PyQt5.QtWebEngine,PyQt5.Qt3D,PyQt5.QtCharts
 ```
 
 **删除软件渲染器**（如果不需要）
+
 ```powershell
 # 在 dist 目录执行
 Remove-Item "opengl32sw.dll" -Force
@@ -644,11 +658,13 @@ Remove-Item "opengl32sw.dll" -Force
 ## VC++ 运行库处理方案
 
 ### 方案一：静态链接（推荐）
+
 ```bash
 nuitka --static-libpython=yes ...
 ```
 
 ### 方案二：捆绑运行库安装（商业发布推荐）
+
 在 Inno Setup 脚本中添加：
 
 ```iss
@@ -749,29 +765,32 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 ## 占位符说明
 
-| 占位符 | 说明 | 示例值 |
-|--------|------|--------|
-| `{{APP_NAME}}` | 软件显示名称 | `红墨批注` |
-| `{{APP_VERSION}}` | 版本号 | `1.0.0` |
-| `{{PUBLISHER}}` | 发布者/公司名 | `MyCompany` |
-| `{{APP_URL}}` | 官网地址 | `https://example.com` |
-| `{{EXE_NAME}}` | 主程序文件名 | `RedInk.exe` |
-| `{{SOURCE_DIR}}` | Nuitka dist 文件夹路径 | `D:\project\dist\RedInk.dist` |
-| `{{OUTPUT_DIR}}` | 安装包输出路径 | `D:\project\output` |
-| `{{ICON_PATH}}` | 图标文件路径 | `D:\project\icon.ico` |
-| `{{GENERATE_RANDOM_GUID}}` | **需生成唯一GUID** | 使用 Inno Setup "Tools > Generate GUID" |
+| 占位符                     | 说明                   | 示例值                                  |
+| -------------------------- | ---------------------- | --------------------------------------- |
+| `{{APP_NAME}}`             | 软件显示名称           | `红墨批注`                              |
+| `{{APP_VERSION}}`          | 版本号                 | `1.0.0`                                 |
+| `{{PUBLISHER}}`            | 发布者/公司名          | `MyCompany`                             |
+| `{{APP_URL}}`              | 官网地址               | `https://example.com`                   |
+| `{{EXE_NAME}}`             | 主程序文件名           | `RedInk.exe`                            |
+| `{{SOURCE_DIR}}`           | Nuitka dist 文件夹路径 | `D:\project\dist\RedInk.dist`           |
+| `{{OUTPUT_DIR}}`           | 安装包输出路径         | `D:\project\output`                     |
+| `{{ICON_PATH}}`            | 图标文件路径           | `D:\project\icon.ico`                   |
+| `{{GENERATE_RANDOM_GUID}}` | **需生成唯一GUID**     | 使用 Inno Setup "Tools > Generate GUID" |
 
 ---
 
 ## 常见问题 (FAQ)
 
 ### Q1: 安装后双击程序无反应？
+
 1. 打开 CMD，手动运行 exe 查看错误信息
 2. 检查是否缺少 VC++ 运行库
 3. 检查 Nuitka 编译是否成功
 
 ### Q2: 安装包体积过大？
+
 **优化方法**：
+
 1. 使用 32 位 Python 编译（节省 20-30%）
 2. 应用 参考项目的模块排除清单
 3. 启用 Anti-Bloat 插件
@@ -779,12 +798,15 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 5. 分析 DLL，移除不必要的大文件
 
 ### Q3: 杀毒软件误报？
+
 **解决方案**：
+
 - 提交到主流杀毒厂商进行白名单申请
 - 购买代码签名证书（推荐：Sectigo, DigiCert）
 - 避免使用 UPX 压缩
 
 ### Q4: 安装时提示 Windows 已保护你的电脑？
+
 - 购买 EV 代码签名证书（可立即获得信任）
 - 普通代码签名证书需要积累安装量后逐渐获得信任
 
@@ -803,15 +825,15 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 ## 优化效果预期
 
-| 优化组合 | 体积减少 | 启动提升 | 风险等级 |
-|----------|----------|----------|----------|
-| 基础编译 | 基准 | 基准 | 无 |
-| + `--lto=yes` | 5-10% | 10-20% | PASS: 无 |
-| + anti-bloat | 15-25% | - | PASS: 无 |
-| + 模块排除 | 20-35% | 5% | PASS: 无 |
-| + dist 瘦身 | 25-40% | - | PASS: 无 |
-| + 32 位编译 | 40-60% | - | PASS: 无 |
-| **全部组合** | **45-65%** | **15-25%** | PASS: **无风险** |
+| 优化组合      | 体积减少   | 启动提升   | 风险等级         |
+| ------------- | ---------- | ---------- | ---------------- |
+| 基础编译      | 基准       | 基准       | 无               |
+| + `--lto=yes` | 5-10%      | 10-20%     | PASS: 无         |
+| + anti-bloat  | 15-25%     | -          | PASS: 无         |
+| + 模块排除    | 20-35%     | 5%         | PASS: 无         |
+| + dist 瘦身   | 25-40%     | -          | PASS: 无         |
+| + 32 位编译   | 40-60%     | -          | PASS: 无         |
+| **全部组合**  | **45-65%** | **15-25%** | PASS: **无风险** |
 
 > WARNING: **不建议使用 UPX 压缩**，虽然能进一步减小体积，但极易触发杀毒软件误报。
 

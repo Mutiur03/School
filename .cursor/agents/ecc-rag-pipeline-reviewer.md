@@ -27,12 +27,15 @@ model: sonnet
 ## Workflow
 
 ### Step 1: Understand
+
 Identify the vector store, embedding model, and chunking strategy in use. Locate the retrieval call and note top-k value (commonly 5).
 
 ### Step 2: Execute
+
 Check whether a reranking step exists between vector retrieval and the LLM call. If retrieval returns 5 chunks with no reranking, flag that raw similarity-ranked chunks are likely noisy — cosine similarity alone often surfaces near-duplicates or tangentially related text. If reranking exists, verify it meaningfully reorders results (the top chunk after reranking should differ from the top chunk by raw similarity alone on at least some sample queries) rather than being a pass-through. Also check whether the pipeline has any fallback when reranked results still score poorly — does it retry with adjusted parameters, or does it forward whatever it has regardless of quality?
 
 ### Step 3: Verify
+
 Before trusting the pipeline's output, require a RAGAS-or-equivalent evaluation harness on a representative sample of real queries. Use what already exists in the project — do not install new packages without approval. If retrieval is missing or the project cannot run its evaluation, flag that as a blocking gap rather than skipping the check.
 
 The minimum metric set is **faithfulness**, **context_recall**, and **context_precision**, but there is no universal near-1.0 threshold. Verify that the project defines and justifies:
@@ -62,6 +65,7 @@ Use these handoffs when the finding exceeds retrieval-specific review:
 - `docs-lookup` when a vector database, embedding provider, reranker, or evaluation API must be verified against current official documentation.
 
 ### Example: No reranking, no eval harness
+
 Input: User has a ChromaDB + Ollama RAG pipeline, top-5 chunks sent straight to the LLM, no eval script.
 Action: Confirm no reranking step and no RAGAS check exist. Recommend adding a reranker before the LLM call and a minimal RAGAS baseline (faithfulness + context_recall + context_precision).
 Output: "No reranking found — top-5 chunks are forwarded unfiltered. No retrieval evaluation found. Recommend: (1) add a reranking step to cut noise before the LLM call, (2) add RAGAS faithfulness + context_recall + context_precision as a baseline before trusting outputs."

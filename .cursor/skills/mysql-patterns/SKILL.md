@@ -59,15 +59,15 @@ CREATE TABLE orders (
 
 Default choices:
 
-| Use Case | Prefer | Avoid |
-| --- | --- | --- |
-| Surrogate primary keys | `BIGINT UNSIGNED AUTO_INCREMENT` | `INT` for tables that can grow beyond 2B rows |
-| UUID lookup keys | `BINARY(16)` with conversion helpers | `VARCHAR(36)` primary keys on hot tables |
-| Money and exact quantities | `DECIMAL(p, s)` | `FLOAT` or `DOUBLE` |
-| User-facing text | `utf8mb4` tables and indexes | MySQL `utf8` / `utf8mb3` defaults |
-| Application timestamps | `DATETIME` with UTC managed by the app | Assuming `DATETIME` stores time zone metadata |
-| Soft deletes | `deleted_at DATETIME NULL` plus scoped indexes | Filtering soft-deleted rows without an index |
-| Extensible status values | lookup table or constrained `VARCHAR` | `ENUM` when values change often |
+| Use Case                   | Prefer                                         | Avoid                                         |
+| -------------------------- | ---------------------------------------------- | --------------------------------------------- |
+| Surrogate primary keys     | `BIGINT UNSIGNED AUTO_INCREMENT`               | `INT` for tables that can grow beyond 2B rows |
+| UUID lookup keys           | `BINARY(16)` with conversion helpers           | `VARCHAR(36)` primary keys on hot tables      |
+| Money and exact quantities | `DECIMAL(p, s)`                                | `FLOAT` or `DOUBLE`                           |
+| User-facing text           | `utf8mb4` tables and indexes                   | MySQL `utf8` / `utf8mb3` defaults             |
+| Application timestamps     | `DATETIME` with UTC managed by the app         | Assuming `DATETIME` stores time zone metadata |
+| Soft deletes               | `deleted_at DATETIME NULL` plus scoped indexes | Filtering soft-deleted rows without an index  |
+| Extensible status values   | lookup table or constrained `VARCHAR`          | `ENUM` when values change often               |
 
 ## Indexing
 
@@ -100,11 +100,11 @@ LIMIT 50;
 
 Signals to investigate:
 
-| Field | Risk Signal |
-| --- | --- |
-| `type` | `ALL` on a large table |
-| `key` | `NULL` when a selective predicate exists |
-| `rows` | Very high row estimate for an interactive path |
+| Field   | Risk Signal                                                 |
+| ------- | ----------------------------------------------------------- |
+| `type`  | `ALL` on a large table                                      |
+| `key`   | `NULL` when a selective predicate exists                    |
+| `rows`  | Very high row estimate for an interactive path              |
 | `Extra` | `Using temporary`, `Using filesort`, or broad `Using where` |
 
 Avoid adding indexes blindly. Each index increases write cost, migration time,
@@ -275,10 +275,9 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 30000,
 });
 
-const [rows] = await pool.execute(
-  'SELECT id, total FROM orders WHERE account_id = ? LIMIT 50',
-  [accountId],
-);
+const [rows] = await pool.execute('SELECT id, total FROM orders WHERE account_id = ? LIMIT 50', [
+  accountId,
+]);
 ```
 
 Keep application pool recycling below the server `wait_timeout`. If the server
@@ -382,16 +381,16 @@ hardware, backup policy, and recovery objectives.
 
 ## Anti-Patterns
 
-| Anti-Pattern | Risk | Better Pattern |
-| --- | --- | --- |
-| `SELECT *` in hot paths | Over-fetching and brittle clients | Select explicit columns |
-| Deep `OFFSET` pagination | Linear scans and slow pages | Keyset pagination |
-| No index on foreign-key joins | Slow joins and lock-heavy deletes | Index FK columns intentionally |
-| Long transactions | Lock waits and large undo history | Commit small units of work |
-| Direct DML against `mysql.user` | Grant-table corruption risk | Use `CREATE USER`, `ALTER USER`, `DROP USER` |
-| Application user with admin grants | High blast radius | Least-privilege runtime user |
-| Pool recycle above `wait_timeout` | Stale pooled connections | Recycle below timeout and pre-ping |
-| Replica reads after writes | Stale user-facing state | Pin read-after-write flows to primary |
+| Anti-Pattern                       | Risk                              | Better Pattern                               |
+| ---------------------------------- | --------------------------------- | -------------------------------------------- |
+| `SELECT *` in hot paths            | Over-fetching and brittle clients | Select explicit columns                      |
+| Deep `OFFSET` pagination           | Linear scans and slow pages       | Keyset pagination                            |
+| No index on foreign-key joins      | Slow joins and lock-heavy deletes | Index FK columns intentionally               |
+| Long transactions                  | Lock waits and large undo history | Commit small units of work                   |
+| Direct DML against `mysql.user`    | Grant-table corruption risk       | Use `CREATE USER`, `ALTER USER`, `DROP USER` |
+| Application user with admin grants | High blast radius                 | Least-privilege runtime user                 |
+| Pool recycle above `wait_timeout`  | Stale pooled connections          | Recycle below timeout and pre-ping           |
+| Replica reads after writes         | Stale user-facing state           | Pin read-after-write flows to primary        |
 
 ## Output Expectations
 

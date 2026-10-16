@@ -42,7 +42,7 @@ invent one and do **not** scope the set blind. The brief supplies:
 
 **Do not proceed without the positioning brief.** A competitor list scoped
 without the client's lens is noise, not intelligence. The scoping consequence in
-particular determines which competitors are *strong* rivals (those that contest
+particular determines which competitors are _strong_ rivals (those that contest
 the client's moat) vs. merely overlapping on service menu.
 
 ## Selection criteria
@@ -74,30 +74,30 @@ apply to any creative-service market (design, motion, copywriting, branding,
 content, film, etc.). Aim for breadth across each axis first, then prune to the
 most instructive.
 
-1. **Positioning stance** — *brand-led / editorial* (competes on identity,
-   voice, POV) vs *capability-led* (competes on craft, throughput, outcomes).
+1. **Positioning stance** — _brand-led / editorial_ (competes on identity,
+   voice, POV) vs _capability-led_ (competes on craft, throughput, outcomes).
    Populate both poles; the client's closest mirror sits at its own end.
-2. **Specialization** — *specialist* (one tight discipline or vertical) vs
-   *generalist* (broad service menu). Tighter overlap with the client's focus =
+2. **Specialization** — _specialist_ (one tight discipline or vertical) vs
+   _generalist_ (broad service menu). Tighter overlap with the client's focus =
    more direct.
-3. **Size / model** — *solo / micro* vs *boutique* vs *mid-size* vs
-   *enterprise-scale*. Same-band players are the realistic head-to-head; larger
+3. **Size / model** — _solo / micro_ vs _boutique_ vs _mid-size_ vs
+   _enterprise-scale_. Same-band players are the realistic head-to-head; larger
    bands are the aspirational/commercial-maturity reference.
-4. **Engagement format** — *productized* (named sprints, audits, fixed packages)
-   vs *bespoke* (custom project / retainer). Signals positioning maturity.
-5. **Distinctiveness posture** — *conventional / safe* vs *contrarian /
-   manifesto-driven*. The opinionated end is key for distinctiveness
+4. **Engagement format** — _productized_ (named sprints, audits, fixed packages)
+   vs _bespoke_ (custom project / retainer). Signals positioning maturity.
+5. **Distinctiveness posture** — _conventional / safe_ vs _contrarian /
+   manifesto-driven_. The opinionated end is key for distinctiveness
    benchmarking in any niche.
-6. **Evidence / credibility model** — *outcome-led* (metrics, named clients,
-   case depth) vs *aesthetic-led* (portfolio, awards). Tells you how each player
+6. **Evidence / credibility model** — _outcome-led_ (metrics, named clients,
+   case depth) vs _aesthetic-led_ (portfolio, awards). Tells you how each player
    earns trust.
-7. **Brand strength of the operator** — *interchangeable* vs *cult / ownable
-   identity* (including senior independents who prove the "memorable solo brand"
+7. **Brand strength of the operator** — _interchangeable_ vs _cult / ownable
+   identity_ (including senior independents who prove the "memorable solo brand"
    model).
-8. **Market / reach** — *local / regional* vs *global-remote*; note whether they
+8. **Market / reach** — _local / regional_ vs _global-remote_; note whether they
    win the same clients the client targets.
 
-Plot each candidate on the relevant axes; a competitor is *direct* when it sits
+Plot each candidate on the relevant axes; a competitor is _direct_ when it sits
 near the client on positioning, specialization, size, and market at once.
 
 ## Competitive tiers (how the set resolves)
@@ -111,13 +111,13 @@ report:
   that pressures at the edges.
 - **Aspirational** — players the client is not competing with today but whose
   brand or commercial maturity sets the bar to aim at.
-- *(Watch also for substitutes: no-code/AI tools, in-house teams, generalist
+- _(Watch also for substitutes: no-code/AI tools, in-house teams, generalist
   freelancers — note as a threat vector, not a profiled competitor unless
-  materially relevant.)*
+  materially relevant.)_
 
 ## Data sources (where to look)
 
-Match the source to the dimension you need. The platform *types* below are
+Match the source to the dimension you need. The platform _types_ below are
 generic; substitute the ones native to the client's niche (e.g. Dribbble/Behance
 for design, showreel/Vimeo for motion, writing samples/published work for copy):
 
@@ -149,7 +149,7 @@ A lightweight pre-filter to decide who graduates into full benchmarking. Score
 credibility — the client's strategic tension means both poles are instructive.
 
 | Candidate | Positioning stance | Specialization | Size band | Tier | Offer overlap (1–5) | Distinctiveness (1–5) | Commercial credibility (1–5) | Craft proximity (1–5) | Include? |
-|-----------|--------------------|----------------|-----------|------|---------------------|------------------------|------------------------------|------------------------|----------|
+| --------- | ------------------ | -------------- | --------- | ---- | ------------------- | --------------------- | ---------------------------- | --------------------- | -------- |
 
 Rules of thumb (apply per the client's scoping consequence in the positioning brief):
 
@@ -180,28 +180,28 @@ each tagged with its axis positions, tier, and source links, ready to hand to
 **Scenario:** A boutique brand-identity studio (2-person, EU-remote, productized
 sprints, contrarian/manifesto-driven aesthetic) wants to scope its competitive
 set before benchmarking. The strategic tension from the positioning brief is
-*memorability × hireability*.
+_memorability × hireability_.
 
 **Step 1 — eight-axis population (sample candidates):**
 
-| Candidate | Positioning stance | Specialization | Size band | Engagement | Distinctiveness | Evidence model | Brand strength | Market |
-|---|---|---|---|---|---|---|---|---|
-| Studio A | brand-led / editorial | identity only | micro | productized | contrarian | aesthetic-led | cult | global-remote |
-| Studio B | capability-led | broad DS+motion | boutique | bespoke | conventional | outcome-led | interchangeable | US |
-| Agency C | capability-led | brand+digital | mid-size | retainer | conventional | outcome-led | interchangeable | EU |
-| Freelancer D | brand-led | brand voice only | solo | day-rate | editorial | aesthetic-led | ownable | global |
-| Studio E | brand-led | brand strategy | micro | productized | manifesto-driven | outcome-led | cult | EU-remote |
+| Candidate    | Positioning stance    | Specialization   | Size band | Engagement  | Distinctiveness  | Evidence model | Brand strength  | Market        |
+| ------------ | --------------------- | ---------------- | --------- | ----------- | ---------------- | -------------- | --------------- | ------------- |
+| Studio A     | brand-led / editorial | identity only    | micro     | productized | contrarian       | aesthetic-led  | cult            | global-remote |
+| Studio B     | capability-led        | broad DS+motion  | boutique  | bespoke     | conventional     | outcome-led    | interchangeable | US            |
+| Agency C     | capability-led        | brand+digital    | mid-size  | retainer    | conventional     | outcome-led    | interchangeable | EU            |
+| Freelancer D | brand-led             | brand voice only | solo      | day-rate    | editorial        | aesthetic-led  | ownable         | global        |
+| Studio E     | brand-led             | brand strategy   | micro     | productized | manifesto-driven | outcome-led    | cult            | EU-remote     |
 
 **Step 2 — pre-filter scoring (client scoping consequence: weight distinctiveness
 because the client's moat is POV-first, not capability breadth):**
 
-| Candidate | Offer overlap (1–5) | Distinctiveness (1–5) | Commercial credibility (1–5) | Craft proximity (1–5) | Tier | Include? |
-|---|---|---|---|---|---|---|
-| Studio A | 5 | 5 | 3 | 5 | Direct | ✓ must-profile |
-| Studio B | 3 | 2 | 5 | 3 | Adjacent | ✓ credibility anchor |
-| Agency C | 2 | 1 | 5 | 2 | Aspirational | ✓ scale reference |
-| Freelancer D | 4 | 4 | 2 | 4 | Direct | ✓ cautionary case |
-| Studio E | 5 | 5 | 4 | 4 | Direct | ✓ must-profile |
+| Candidate    | Offer overlap (1–5) | Distinctiveness (1–5) | Commercial credibility (1–5) | Craft proximity (1–5) | Tier         | Include?             |
+| ------------ | ------------------- | --------------------- | ---------------------------- | --------------------- | ------------ | -------------------- |
+| Studio A     | 5                   | 5                     | 3                            | 5                     | Direct       | ✓ must-profile       |
+| Studio B     | 3                   | 2                     | 5                            | 3                     | Adjacent     | ✓ credibility anchor |
+| Agency C     | 2                   | 1                     | 5                            | 2                     | Aspirational | ✓ scale reference    |
+| Freelancer D | 4                   | 4                     | 2                            | 4                     | Direct       | ✓ cautionary case    |
+| Studio E     | 5                   | 5                     | 4                            | 4                     | Direct       | ✓ must-profile       |
 
 **Step 3 — output handed to `benchmark-methodology`:**
 Five candidates (3 Direct, 1 Adjacent, 1 Aspirational), each tagged with

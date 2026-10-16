@@ -128,11 +128,11 @@ is smaller, but do not let expanded hit areas overlap.
 
 When reviewing a UI polish pass, report concrete changes in before/after rows:
 
-| Principle | Before | After |
-| --- | --- | --- |
+| Principle         | Before                          | After                              |
+| ----------------- | ------------------------------- | ---------------------------------- |
 | Concentric radius | Same radius on parent and child | Parent radius accounts for padding |
-| Tabular numbers | Counter shifts as digits change | Counter uses `tabular-nums` |
-| Transition scope | `transition: all` | Explicit transition properties |
+| Tabular numbers   | Counter shifts as digits change | Counter uses `tabular-nums`        |
+| Transition scope  | `transition: all`               | Explicit transition properties     |
 
 Include file paths and properties when they are not obvious from the snippets.
 Omit principles that you checked but did not change.

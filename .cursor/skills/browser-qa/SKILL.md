@@ -1,6 +1,6 @@
 ---
 name: browser-qa
-description: "Run automated post-deploy UI verification with a browser automation MCP (claude-in-chrome, Playwright, or Puppeteer): console-error and Core Web Vitals smoke checks, form and auth-flow interaction tests, screenshot visual regression across three breakpoints, and axe-core accessibility audits ending in a SHIP / DO-NOT-SHIP verdict. Use when testing a deployed feature on staging or preview, before shipping frontend changes, reviewing a frontend PR, or checking responsive layout and accessibility."
+description: 'Run automated post-deploy UI verification with a browser automation MCP (claude-in-chrome, Playwright, or Puppeteer): console-error and Core Web Vitals smoke checks, form and auth-flow interaction tests, screenshot visual regression across three breakpoints, and axe-core accessibility audits ending in a SHIP / DO-NOT-SHIP verdict. Use when testing a deployed feature on staging or preview, before shipping frontend changes, reviewing a frontend PR, or checking responsive layout and accessibility.'
 metadata:
   origin: ECC
 ---
@@ -28,6 +28,7 @@ URL. Use seeded **test credentials**, never real production logins, and **redact
 credentials/tokens/PII before saving any screenshot.
 
 ### Phase 1: Smoke Test
+
 ```
 1. Navigate to target URL
 2. Check for console errors (filter noise: analytics, third-party)
@@ -38,6 +39,7 @@ credentials/tokens/PII before saving any screenshot.
 ```
 
 ### Phase 2: Interaction Test
+
 ```
 1. Click every nav link — verify no dead links
 2. Submit forms with valid data — verify success state
@@ -49,6 +51,7 @@ credentials/tokens/PII before saving any screenshot.
 ```
 
 ### Phase 3: Visual Regression
+
 ```
 1. Screenshot key pages at 3 breakpoints (375px, 768px, 1440px)
 2. Compare against committed baseline screenshots
@@ -58,6 +61,7 @@ credentials/tokens/PII before saving any screenshot.
 ```
 
 ### Phase 4: Accessibility
+
 ```
 1. Run axe-core or equivalent on each page
 2. Flag WCAG 2.2 AA violations (contrast, labels, focus order)
@@ -75,29 +79,35 @@ credentials/tokens/PII before saving any screenshot.
 ## QA Report — [URL] — [timestamp]
 
 ### Smoke Test
+
 - Console errors: 0 critical, 2 warnings (analytics noise)
 - Network: all 200/304, no failures
 - Core Web Vitals: LCP 1.2s ✓, CLS 0.02 ✓, INP 89ms ✓
 
 ### Interactions
+
 - [✓] Nav links: 12/12 working
 - [✗] Contact form: missing error state for invalid email
 - [✓] Auth flow: login/logout working
 
 ### Visual
+
 - [✗] Hero section overflows on 375px viewport
 - [✓] Dark mode: all pages consistent
 
 ### Accessibility
+
 - 2 AA violations: missing alt text on hero image, low contrast on footer links
 
 ### Verdict: SHIP WITH FIXES (2 issues, 0 blockers)
+
 # verdict ∈ SHIP / SHIP WITH FIXES / DO NOT SHIP; use INCONCLUSIVE if no visual baseline
 ```
 
 ## Integration
 
 Works with any browser MCP:
+
 - `mChild__claude-in-chrome__*` tools (preferred — uses your actual Chrome)
 - Playwright via `mcp__browserbase__*`
 - Direct Puppeteer scripts

@@ -30,12 +30,12 @@ For pure `.ts`/`.js` changes with no Vue imports, use `/code-review` (general) o
 
 ## Scope vs `/code-review` and TypeScript Review
 
-| Tool | Scope |
-|---|---|
+| Tool                          | Scope                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------- |
 | `vue-reviewer` (this command) | Reactivity, composables, template security, a11y, Vue performance, Pinia/Router |
-| `typescript-reviewer` | Generic TS/JS — `any` abuse, async correctness, Node security |
-| `security-reviewer` | Project-wide security audit |
-| `/code-review` | Generic uncommitted-changes or PR review |
+| `typescript-reviewer`         | Generic TS/JS — `any` abuse, async correctness, Node security                   |
+| `security-reviewer`           | Project-wide security audit                                                     |
+| `/code-review`                | Generic uncommitted-changes or PR review                                        |
 
 On a `.vue` / Vue-related PR, invoke both `vue-reviewer` and `typescript-reviewer`. Findings from each are non-overlapping by design.
 
@@ -153,11 +153,11 @@ Recommendation: FAIL: Block merge until CRITICAL issue is fixed
 
 ## Approval Criteria
 
-| Status | Condition |
-|---|---|
-| PASS: Approve | No CRITICAL or HIGH issues |
+| Status           | Condition                               |
+| ---------------- | --------------------------------------- |
+| PASS: Approve    | No CRITICAL or HIGH issues              |
 | WARNING: Warning | Only MEDIUM issues (merge with caution) |
-| FAIL: Block | CRITICAL or HIGH issues found |
+| FAIL: Block      | CRITICAL or HIGH issues found           |
 
 ## Integration with Other Commands
 

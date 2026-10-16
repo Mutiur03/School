@@ -1,6 +1,6 @@
 ---
 description: Restate requirements, assess risks, and create step-by-step implementation plan. WAIT for user CONFIRM before touching any code. Use for a single-model inline or PRD-driven implementation plan; for a dual-model (Codex/Antigravity) plan use /multi-plan, and for visual annotate-and-approve review of the resulting plan use /plan-canvas.
-argument-hint: "[feature description | path/to/*.prd.md]"
+argument-hint: '[feature description | path/to/*.prd.md]'
 ---
 
 # Plan Command
@@ -19,6 +19,7 @@ Run inline by default. Do not call the Task tool or any subagent by default. Thi
 ## When to Use
 
 Use `/plan` when:
+
 - Starting a new feature
 - Making significant architectural changes
 - Working on complex refactoring
@@ -39,12 +40,12 @@ The assistant will:
 
 ## Input Modes
 
-| Input | Mode | Behavior |
-|---|---|---|
-| `path/to/name.prd.md` | PRD artifact mode | Read the PRD, pick the next pending delivery milestone or implementation phase, and write `.claude/plans/{name}.plan.md` |
-| Any other markdown path | Reference mode | Read the file as context and produce an inline plan |
-| Free-form text | Conversational mode | Produce an inline plan |
-| Empty input | Clarification mode | Ask what should be planned |
+| Input                   | Mode                | Behavior                                                                                                                 |
+| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `path/to/name.prd.md`   | PRD artifact mode   | Read the PRD, pick the next pending delivery milestone or implementation phase, and write `.claude/plans/{name}.plan.md` |
+| Any other markdown path | Reference mode      | Read the file as context and produce an inline plan                                                                      |
+| Free-form text          | Conversational mode | Produce an inline plan                                                                                                   |
+| Empty input             | Clarification mode  | Ask what should be planned                                                                                               |
 
 In PRD artifact mode, create `.claude/plans/` if needed. If the PRD contains a `Delivery Milestones` table, update only the selected row from `pending` to `in-progress` and set its `Plan` cell to the generated plan path. If the PRD uses the legacy `.claude/PRPs/prds/` format with `Implementation Phases`, read it without migrating paths.
 
@@ -52,13 +53,13 @@ In PRD artifact mode, create `.claude/plans/` if needed. If the PRD contains a `
 
 Before writing the plan, search the codebase for conventions the implementation should mirror. Capture the top example for each relevant category with file references:
 
-| Category | What to capture |
-|---|---|
-| Naming | File, function, type, command, or script naming in the affected area |
-| Error handling | How failures are raised, returned, logged, or handled gracefully |
-| Logging | Levels, format, and what gets logged |
-| Data access | Repository, service, query, or filesystem patterns |
-| Tests | Test file location, framework, fixtures, and assertion style |
+| Category       | What to capture                                                      |
+| -------------- | -------------------------------------------------------------------- |
+| Naming         | File, function, type, command, or script naming in the affected area |
+| Error handling | How failures are raised, returned, logged, or handled gracefully     |
+| Logging        | Levels, format, and what gets logged                                 |
+| Data access    | Repository, service, query, or filesystem patterns                   |
+| Tests          | Test file location, framework, fixtures, and assertion style         |
 
 If no similar code exists, state that explicitly. Do not invent a pattern.
 
@@ -74,36 +75,44 @@ When called with a `.prd.md` file, write the plan to `.claude/plans/{kebab-case-
 **Complexity**: {Small | Medium | Large}
 
 ## Summary
+
 {2-3 sentences}
 
 ## Patterns to Mirror
-| Category | Source | Pattern |
-|---|---|---|
-| Naming | `path:line` | {short description} |
-| Errors | `path:line` | {short description} |
-| Tests | `path:line` | {short description} |
+
+| Category | Source      | Pattern             |
+| -------- | ----------- | ------------------- |
+| Naming   | `path:line` | {short description} |
+| Errors   | `path:line` | {short description} |
+| Tests    | `path:line` | {short description} |
 
 ## Files to Change
-| File | Action | Why |
-|---|---|---|
+
+| File   | Action                   | Why      |
+| ------ | ------------------------ | -------- |
 | `path` | CREATE / UPDATE / DELETE | {reason} |
 
 ## Tasks
+
 ### Task 1: {name}
+
 - **Action**: {what to do}
 - **Mirror**: {pattern to follow}
 - **Validate**: {command that proves correctness}
 
 ## Validation
+
 ```bash
 {project-specific validation commands}
 ```
 
 ## Risks
+
 | Risk | Likelihood | Mitigation |
-|---|---|---|
+| ---- | ---------- | ---------- |
 
 ## Acceptance
+
 - [ ] All tasks complete
 - [ ] Validation passes
 - [ ] Patterns mirrored, not reinvented
@@ -179,6 +188,7 @@ Assistant:
 **CRITICAL**: This command will **NOT** write any code until you explicitly confirm the plan with "yes" or "proceed" or similar affirmative response.
 
 If you want changes, respond with:
+
 - "modify: [your changes]"
 - "different approach: [alternative]"
 - "skip phase 2 and do phase 3 first"
@@ -186,6 +196,7 @@ If you want changes, respond with:
 ## Integration with Other Commands
 
 After planning:
+
 - Use `/plan-canvas` to run the confirmation gate visually in the browser (annotate + approve)
 - Use the `tdd-workflow` skill to implement with test-driven development
 - Use `/build-fix` if build errors occur

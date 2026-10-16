@@ -18,6 +18,7 @@ Orchestrate parallel AI agent sessions using dmux, a tmux pane manager for agent
 ## What is dmux
 
 dmux is a tmux-based orchestration tool that manages AI agent panes:
+
 - Press `n` to create a new pane with a prompt
 - Press `m` to merge pane output back to the main session
 - Supports: Claude Code, Codex, OpenCode, Cline, Gemini, Qwen
@@ -129,12 +130,12 @@ git merge feat/billing
 
 ## Complementary Tools
 
-| Tool | What It Does | When to Use |
-|------|-------------|-------------|
-| **dmux** | tmux pane management for agents | Parallel agent sessions |
-| **Superset** | Terminal IDE for 10+ parallel agents | Large-scale orchestration |
-| **Claude Code Task tool** | In-process subagent spawning | Programmatic parallelism within a session |
-| **Codex multi-agent** | Built-in agent roles | Codex-specific parallel work |
+| Tool                      | What It Does                         | When to Use                               |
+| ------------------------- | ------------------------------------ | ----------------------------------------- |
+| **dmux**                  | tmux pane management for agents      | Parallel agent sessions                   |
+| **Superset**              | Terminal IDE for 10+ parallel agents | Large-scale orchestration                 |
+| **Claude Code Task tool** | In-process subagent spawning         | Programmatic parallelism within a session |
+| **Codex multi-agent**     | Built-in agent roles                 | Codex-specific parallel work              |
 
 ## Troubleshooting
 

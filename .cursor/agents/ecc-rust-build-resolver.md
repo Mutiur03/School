@@ -51,22 +51,22 @@ if command -v cargo-audit >/dev/null; then cargo audit; else echo "cargo-audit n
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `cannot borrow as mutable` | Immutable borrow active | Restructure to end immutable borrow first, or use `Cell`/`RefCell` |
-| `does not live long enough` | Value dropped while still borrowed | Extend lifetime scope, use owned type, or add lifetime annotation |
-| `cannot move out of` | Moving from behind a reference | Use `.clone()`, `.to_owned()`, or restructure to take ownership |
-| `mismatched types` | Wrong type or missing conversion | Add `.into()`, `as`, or explicit type conversion |
-| `trait X is not implemented for Y` | Missing impl or derive | Add `#[derive(Trait)]` or implement trait manually |
-| `unresolved import` | Missing dependency or wrong path | Add to Cargo.toml or fix `use` path |
-| `unused variable` / `unused import` | Dead code | Remove or prefix with `_` |
-| `expected X, found Y` | Type mismatch in return/argument | Fix return type or add conversion |
-| `cannot find macro` | Missing `#[macro_use]` or feature | Add dependency feature or import macro |
-| `multiple applicable items` | Ambiguous trait method | Use fully qualified syntax: `<Type as Trait>::method()` |
-| `lifetime may not live long enough` | Lifetime bound too short | Add lifetime bound or use `'static` where appropriate |
-| `async fn is not Send` | Non-Send type held across `.await` | Restructure to drop non-Send values before `.await` |
-| `the trait bound is not satisfied` | Missing generic constraint | Add trait bound to generic parameter |
-| `no method named X` | Missing trait import | Add `use Trait;` import |
+| Error                               | Cause                              | Fix                                                                |
+| ----------------------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `cannot borrow as mutable`          | Immutable borrow active            | Restructure to end immutable borrow first, or use `Cell`/`RefCell` |
+| `does not live long enough`         | Value dropped while still borrowed | Extend lifetime scope, use owned type, or add lifetime annotation  |
+| `cannot move out of`                | Moving from behind a reference     | Use `.clone()`, `.to_owned()`, or restructure to take ownership    |
+| `mismatched types`                  | Wrong type or missing conversion   | Add `.into()`, `as`, or explicit type conversion                   |
+| `trait X is not implemented for Y`  | Missing impl or derive             | Add `#[derive(Trait)]` or implement trait manually                 |
+| `unresolved import`                 | Missing dependency or wrong path   | Add to Cargo.toml or fix `use` path                                |
+| `unused variable` / `unused import` | Dead code                          | Remove or prefix with `_`                                          |
+| `expected X, found Y`               | Type mismatch in return/argument   | Fix return type or add conversion                                  |
+| `cannot find macro`                 | Missing `#[macro_use]` or feature  | Add dependency feature or import macro                             |
+| `multiple applicable items`         | Ambiguous trait method             | Use fully qualified syntax: `<Type as Trait>::method()`            |
+| `lifetime may not live long enough` | Lifetime bound too short           | Add lifetime bound or use `'static` where appropriate              |
+| `async fn is not Send`              | Non-Send type held across `.await` | Restructure to drop non-Send values before `.await`                |
+| `the trait bound is not satisfied`  | Missing generic constraint         | Add trait bound to generic parameter                               |
+| `no method named X`                 | Missing trait import               | Add `use Trait;` import                                            |
 
 ## Borrow Checker Troubleshooting
 
@@ -138,6 +138,7 @@ grep "rust-version" Cargo.toml
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope

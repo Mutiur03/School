@@ -160,7 +160,7 @@ function processUsers(users) {
     for (const user of users) {
       if (user.active) {
         if (user.email) {
-          user.verified = true;  // mutation!
+          user.verified = true; // mutation!
           results.push(user);
         }
       }
@@ -173,8 +173,8 @@ function processUsers(users) {
 function processUsers(users) {
   if (!users) return [];
   return users
-    .filter(user => user.active && user.email)
-    .map(user => ({ ...user, verified: true }));
+    .filter((user) => user.active && user.email)
+    .map((user) => ({ ...user, verified: true }));
 }
 ```
 
@@ -205,10 +205,14 @@ useEffect(() => {
 
 ```tsx
 // BAD: Using index as key with reorderable list
-{items.map((item, i) => <ListItem key={i} item={item} />)}
+{
+  items.map((item, i) => <ListItem key={i} item={item} />);
+}
 
 // GOOD: Stable unique key
-{items.map(item => <ListItem key={item.id} item={item} />)}
+{
+  items.map((item) => <ListItem key={item.id} item={item} />);
+}
 ```
 
 ### Node.js/Backend Patterns (HIGH)
@@ -319,5 +323,6 @@ When reviewing AI-generated changes, prioritize:
 4. Unnecessary model-cost-inducing complexity
 
 Cost-awareness check:
+
 - Flag workflows that escalate to higher-cost models without clear reasoning need.
 - Recommend defaulting to lower-cost tiers for deterministic refactors.

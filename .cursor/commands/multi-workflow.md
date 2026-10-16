@@ -28,6 +28,7 @@ Structured development workflow with quality gates, MCP services, and multi-mode
 You are the **Orchestrator**, coordinating a multi-model collaborative system (Research → Ideation → Plan → Execute → Optimize → Review). Communicate concisely and professionally for experienced developers.
 
 **Collaborative Models**:
+
 - **ace-tool MCP** (optional) – Code retrieval + Prompt enhancement
 - **Codex** – Backend logic, algorithms, debugging (**Backend authority, trustworthy**)
 - **Antigravity** – Frontend UI/UX, visual design (**Frontend expert, backend opinions for reference only**)
@@ -72,15 +73,16 @@ EOF",
 ```
 
 **Model Parameter Notes**:
+
 - No extra model flag is needed for `--backend antigravity` or `--backend codex`; `codeagent-wrapper` picks each backend's default model.
 
 **Role Prompts**:
 
-| Phase | Codex | Antigravity |
-|-------|-------|--------|
-| Analysis | `~/.claude/.ccg/prompts/codex/analyzer.md` | `~/.claude/.ccg/prompts/antigravity/analyzer.md` |
+| Phase    | Codex                                       | Antigravity                                       |
+| -------- | ------------------------------------------- | ------------------------------------------------- |
+| Analysis | `~/.claude/.ccg/prompts/codex/analyzer.md`  | `~/.claude/.ccg/prompts/antigravity/analyzer.md`  |
 | Planning | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/antigravity/architect.md` |
-| Review | `~/.claude/.ccg/prompts/codex/reviewer.md` | `~/.claude/.ccg/prompts/antigravity/reviewer.md` |
+| Review   | `~/.claude/.ccg/prompts/codex/reviewer.md`  | `~/.claude/.ccg/prompts/antigravity/reviewer.md`  |
 
 **Session Reuse**: Each call returns `SESSION_ID: xxx`, use `resume xxx` subcommand for subsequent phases (note: `resume`, not `--resume`).
 
@@ -93,6 +95,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 ```
 
 **IMPORTANT**:
+
 - Must specify `timeout: 600000`, otherwise default 30 seconds will cause premature timeout.
 - If still incomplete after 10 minutes, continue polling with `TaskOutput`, **NEVER kill the process**.
 - If waiting is skipped due to timeout, **MUST call `AskUserQuestion` to ask user whether to continue waiting or kill task. Never kill directly.**
@@ -136,6 +139,7 @@ node scripts/orchestrate-worktrees.js .claude/plan/workflow-e2e-test.json --exec
 `[Mode: Ideation]` - Multi-model parallel analysis:
 
 **Parallel Calls** (`run_in_background: true`):
+
 - Codex: Use analyzer prompt, output technical feasibility, solutions, risks
 - Antigravity: Use analyzer prompt, output UI feasibility, solutions, UX evaluation
 
@@ -150,6 +154,7 @@ Synthesize both analyses, output solution comparison (at least 2 options), wait 
 `[Mode: Plan]` - Multi-model collaborative planning:
 
 **Parallel Calls** (resume session with `resume <SESSION_ID>`):
+
 - Codex: Use architect prompt + `resume $CODEX_SESSION`, output backend architecture
 - Antigravity: Use architect prompt + `resume $ANTIGRAVITY_SESSION`, output frontend architecture
 
@@ -172,6 +177,7 @@ Wait for results with `TaskOutput`.
 `[Mode: Optimize]` - Multi-model parallel review:
 
 **Parallel Calls**:
+
 - Codex: Use reviewer prompt, focus on security, performance, error handling
 - Antigravity: Use reviewer prompt, focus on accessibility, design consistency
 

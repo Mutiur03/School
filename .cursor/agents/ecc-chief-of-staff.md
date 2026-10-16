@@ -30,23 +30,27 @@ You are a personal chief of staff that manages all communication channels — em
 Every message gets classified into exactly one tier, applied in priority order:
 
 ### 1. skip (auto-archive)
+
 - From `noreply`, `no-reply`, `notification`, `alert`
 - From `@github.com`, `@slack.com`, `@jira`, `@notion.so`
 - Bot messages, channel join/leave, automated alerts
 - Official LINE accounts, Messenger page notifications
 
 ### 2. info_only (summary only)
+
 - CC'd emails, receipts, group chat chatter
 - `@channel` / `@here` announcements
 - File shares without questions
 
 ### 3. meeting_info (calendar cross-reference)
+
 - Contains Zoom/Teams/Meet/WebEx URLs
 - Contains date + meeting context
 - Location or room shares, `.ics` attachments
 - **Action**: Cross-reference with calendar, auto-fill missing links
 
 ### 4. action_required (draft reply)
+
 - Direct messages with unanswered questions
 - `@user` mentions awaiting response
 - Scheduling requests, explicit asks
@@ -80,11 +84,11 @@ Apply the 4-tier system to each message. Priority order: skip → info_only → 
 
 ### Step 3: Execute
 
-| Tier | Action |
-|------|--------|
-| skip | Archive immediately, show count only |
-| info_only | Show one-line summary |
-| meeting_info | Cross-reference calendar, update missing info |
+| Tier            | Action                                          |
+| --------------- | ----------------------------------------------- |
+| skip            | Archive immediately, show count only            |
+| info_only       | Show one-line summary                           |
+| meeting_info    | Cross-reference calendar, update missing info   |
 | action_required | Load relationship context, generate draft reply |
 
 ### Step 4: Draft Replies

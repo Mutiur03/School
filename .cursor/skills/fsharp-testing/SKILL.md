@@ -18,15 +18,15 @@ Comprehensive testing patterns for F# applications using xUnit, FsUnit, Unquote,
 
 ## Test Framework Stack
 
-| Tool | Purpose |
-|---|---|
-| **xUnit** | Test framework (standard .NET ecosystem choice) |
-| **FsUnit.xUnit** | F#-friendly assertion syntax for xUnit |
-| **Unquote** | Assertion library using F# quotations for clear failure messages |
-| **FsCheck.xUnit** | Property-based testing integrated with xUnit |
-| **NSubstitute** | Mocking .NET dependencies |
-| **Testcontainers** | Real infrastructure in integration tests |
-| **WebApplicationFactory** | ASP.NET Core integration tests |
+| Tool                      | Purpose                                                          |
+| ------------------------- | ---------------------------------------------------------------- |
+| **xUnit**                 | Test framework (standard .NET ecosystem choice)                  |
+| **FsUnit.xUnit**          | F#-friendly assertion syntax for xUnit                           |
+| **Unquote**               | Assertion library using F# quotations for clear failure messages |
+| **FsCheck.xUnit**         | Property-based testing integrated with xUnit                     |
+| **NSubstitute**           | Mocking .NET dependencies                                        |
+| **Testcontainers**        | Real infrastructure in integration tests                         |
+| **WebApplicationFactory** | ASP.NET Core integration tests                                   |
 
 ## Unit Tests with xUnit + FsUnit
 
@@ -247,14 +247,14 @@ tests/
 
 ## Common Anti-Patterns
 
-| Anti-Pattern | Fix |
-|---|---|
-| Testing implementation details | Test behavior and outcomes |
-| Mutable shared test state | Fresh state per test |
-| `Thread.Sleep` in async tests | Use `Task.Delay` with timeout, or polling helpers |
-| Asserting on `sprintf` output | Assert on typed values and pattern matches |
-| Ignoring `CancellationToken` | Always pass and verify cancellation |
-| Skipping property-based tests | Use FsCheck for any function with clear invariants |
+| Anti-Pattern                   | Fix                                                |
+| ------------------------------ | -------------------------------------------------- |
+| Testing implementation details | Test behavior and outcomes                         |
+| Mutable shared test state      | Fresh state per test                               |
+| `Thread.Sleep` in async tests  | Use `Task.Delay` with timeout, or polling helpers  |
+| Asserting on `sprintf` output  | Assert on typed values and pattern matches         |
+| Ignoring `CancellationToken`   | Always pass and verify cancellation                |
+| Skipping property-based tests  | Use FsCheck for any function with clear invariants |
 
 ## Related Skills
 

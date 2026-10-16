@@ -32,14 +32,14 @@ Read all changed files to build the full review context. If `$ARGUMENTS` specifi
 
 Construct a rubric appropriate to the file types under review. Every criterion must have an objective PASS/FAIL condition. Include at minimum:
 
-| Criterion | Pass Condition |
-|-----------|---------------|
-| Correctness | Logic is sound, no bugs, handles edge cases |
-| Security | No secrets, injection, XSS, or OWASP Top 10 issues |
-| Error handling | Errors handled explicitly, no silent swallowing |
-| Completeness | All requirements addressed, no missing cases |
-| Internal consistency | No contradictions between files or sections |
-| No regressions | Changes don't break existing behavior |
+| Criterion            | Pass Condition                                     |
+| -------------------- | -------------------------------------------------- |
+| Correctness          | Logic is sound, no bugs, handles edge cases        |
+| Security             | No secrets, injection, XSS, or OWASP Top 10 issues |
+| Error handling       | Errors handled explicitly, no silent swallowing    |
+| Completeness         | All requirements addressed, no missing cases       |
+| Internal consistency | No contradictions between files or sections        |
+| No regressions       | Changes don't break existing behavior              |
 
 Add domain-specific criteria based on file types (e.g., type safety for TS, memory safety for Rust, migration safety for SQL).
 
@@ -65,6 +65,7 @@ The verdict gate (Step 4) maps these to NICE/NAUGHTY: both PASS → NICE, either
 #### Reviewer A: Claude Agent (always runs)
 
 Launch an Agent (subagent_type: `code-reviewer`, model: `opus`) with the full rubric + all files under review. The prompt must include:
+
 - The complete rubric
 - All file contents under review
 - "You are an independent quality reviewer. You have NOT seen any other review. Your job is to find problems, not to approve."

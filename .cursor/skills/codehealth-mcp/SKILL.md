@@ -58,22 +58,22 @@ Token setup is documented in the upstream repo (link above). Standalone mode doe
 
 ### 2. Call standalone tools only
 
-| Tool | When to use |
-|------|-------------|
-| `code_health_review` | Full structural analysis **before** modifying a file |
-| `code_health_score` | Quick numeric score after each change (delta check) |
+| Tool                               | When to use                                          |
+| ---------------------------------- | ---------------------------------------------------- |
+| `code_health_review`               | Full structural analysis **before** modifying a file |
+| `code_health_score`                | Quick numeric score after each change (delta check)  |
 | `pre_commit_code_health_safeguard` | Block commits that introduce Code Health regressions |
-| `analyze_change_set` | Branch-level check **before** opening a PR |
+| `analyze_change_set`               | Branch-level check **before** opening a PR           |
 
 Do **not** call platform-only tools (e.g. repository-wide technical debt hotspot lists). Do **not** reference `delta_analysis` — not available on standalone.
 
 ### 3. Interpret scores (1–10)
 
-| Range | Meaning | Agent behavior |
-|-------|---------|----------------|
-| **9.0–10.0** | Green — healthy | Safer to extend; still prefer vertical slices |
-| **4.0–8.9** | Yellow — debt | Tread carefully; no drive-by refactors |
-| **1.0–3.9** | Red — severe debt | Narrow scope only |
+| Range        | Meaning           | Agent behavior                                |
+| ------------ | ----------------- | --------------------------------------------- |
+| **9.0–10.0** | Green — healthy   | Safer to extend; still prefer vertical slices |
+| **4.0–8.9**  | Yellow — debt     | Tread carefully; no drive-by refactors        |
+| **1.0–3.9**  | Red — severe debt | Narrow scope only                             |
 
 ### 4. Run the feedback loop
 
@@ -134,12 +134,15 @@ Before PR: run `analyze_change_set`.
 
 ```markdown
 # BAD: Edit first, check later
+
 [large refactor without code_health_review]
 
 # BAD: Ignore score drop
+
 "Tests pass" → mark task done while Code Health decreased
 
 # BAD: Broad refactor on red-score file (below 5)
+
 Drive-by cleanup across the module
 
 # GOOD: review → small change → score → commit safeguard → analyze_change_set
@@ -147,13 +150,13 @@ Drive-by cleanup across the module
 
 ## Pairing with ECC
 
-| ECC skill / flow | Code Health MCP role |
-|------------------|----------------------|
-| `coding-standards` | Style/naming; Code Health = structure/complexity |
-| `plankton-code-quality` | Write-time lint/format; Code Health = pre/post edit structural gate |
-| `verification-loop` / `/quality-gate` | Add structural regression check before "done" |
-| `security-review` | Security vs maintainability — use both when relevant |
-| `tdd-workflow` | Tests pass ≠ healthy design — check score after refactors |
+| ECC skill / flow                      | Code Health MCP role                                                |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| `coding-standards`                    | Style/naming; Code Health = structure/complexity                    |
+| `plankton-code-quality`               | Write-time lint/format; Code Health = pre/post edit structural gate |
+| `verification-loop` / `/quality-gate` | Add structural regression check before "done"                       |
+| `security-review`                     | Security vs maintainability — use both when relevant                |
+| `tdd-workflow`                        | Tests pass ≠ healthy design — check score after refactors           |
 
 **Context tip:** ECC recommends keeping MCP count low. Enable `codescene` when doing substantive edits; disable when not needed.
 

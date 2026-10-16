@@ -10,16 +10,17 @@ Safely identify and remove dead code with test verification at every step.
 
 Run analysis tools based on project type:
 
-| Tool | What It Finds | Command |
-|------|--------------|---------|
-| knip | Unused exports, files, dependencies | `npx knip` |
-| depcheck | Unused npm dependencies | `npx depcheck` |
-| ts-prune | Unused TypeScript exports | `npx ts-prune` |
-| vulture | Unused Python code | `vulture src/` |
-| deadcode | Unused Go code | `deadcode ./...` |
-| cargo-udeps | Unused Rust dependencies | `cargo +nightly udeps` |
+| Tool        | What It Finds                       | Command                |
+| ----------- | ----------------------------------- | ---------------------- |
+| knip        | Unused exports, files, dependencies | `npx knip`             |
+| depcheck    | Unused npm dependencies             | `npx depcheck`         |
+| ts-prune    | Unused TypeScript exports           | `npx ts-prune`         |
+| vulture     | Unused Python code                  | `vulture src/`         |
+| deadcode    | Unused Go code                      | `deadcode ./...`       |
+| cargo-udeps | Unused Rust dependencies            | `cargo +nightly udeps` |
 
 If no tool is available, use Grep to find exports with zero imports:
+
 ```
 # Find exports, then check if they're imported anywhere
 ```
@@ -28,11 +29,11 @@ If no tool is available, use Grep to find exports with zero imports:
 
 Sort findings into safety tiers:
 
-| Tier | Examples | Action |
-|------|----------|--------|
-| **SAFE** | Unused utilities, test helpers, internal functions | Delete with confidence |
-| **CAUTION** | Components, API routes, middleware | Verify no dynamic imports or external consumers |
-| **DANGER** | Config files, entry points, type definitions | Investigate before touching |
+| Tier        | Examples                                           | Action                                          |
+| ----------- | -------------------------------------------------- | ----------------------------------------------- |
+| **SAFE**    | Unused utilities, test helpers, internal functions | Delete with confidence                          |
+| **CAUTION** | Components, API routes, middleware                 | Verify no dynamic imports or external consumers |
+| **DANGER**  | Config files, entry points, type definitions       | Investigate before touching                     |
 
 ## Step 3: Safe Deletion Loop
 
@@ -47,6 +48,7 @@ For each SAFE item:
 ## Step 4: Handle CAUTION Items
 
 Before deleting CAUTION items:
+
 - Search for dynamic imports: `import()`, `require()`, `__import__`
 - Search for string references: route names, component names in configs
 - Check if exported from a public package API
@@ -55,6 +57,7 @@ Before deleting CAUTION items:
 ## Step 5: Consolidate Duplicates
 
 After removing dead code, look for:
+
 - Near-duplicate functions (>80% similar) — merge into one
 - Redundant type definitions — consolidate
 - Wrapper functions that add no value — inline them

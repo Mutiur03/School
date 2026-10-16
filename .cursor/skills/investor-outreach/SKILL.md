@@ -35,6 +35,7 @@ Write investor communication that is short, personalized, and easy to act on.
 ## Personalization Sources
 
 Reference one or more of:
+
 - relevant portfolio companies
 - a public thesis, talk, post, or article
 - a mutual connection
@@ -45,6 +46,7 @@ If that context is missing, ask for it or state that the draft is a template awa
 ## Follow-Up Cadence
 
 Default:
+
 - day 0: initial outbound
 - day 4-5: short follow-up with one new data point
 - day 10-12: final follow-up with a clean close
@@ -54,6 +56,7 @@ Do not keep nudging after that unless the user wants a longer sequence.
 ## Warm Intro Requests
 
 Make life easy for the connector:
+
 - explain why the intro is a fit
 - include a forwardable blurb
 - keep the forwardable blurb under 100 words
@@ -61,6 +64,7 @@ Make life easy for the connector:
 ## Post-Meeting Updates
 
 Include:
+
 - the specific thing discussed
 - the answer or update promised
 - one new proof point if available
@@ -69,6 +73,7 @@ Include:
 ## Quality Gate
 
 Before delivering:
+
 - message is personalized
 - the ask is explicit
 - there is no fluff or begging language

@@ -17,6 +17,7 @@ This command runs the Flutter test suite and reports results. When failures occu
 ## When to Use
 
 Use `/flutter-test` when:
+
 - After implementing a feature to verify nothing broke
 - After running `/flutter-build` to ensure tests pass
 - To check test coverage on new code
@@ -120,15 +121,15 @@ Test Status: PASS ✓
 
 ## Common Test Failures
 
-| Failure | Typical Fix |
-|---------|-------------|
-| `Expected: <X> Actual: <Y>` | Update assertion or fix implementation |
-| `Widget not found` | Fix finder selector or update test after widget rename |
-| `Golden file not found` | Run `flutter test --update-goldens` to generate |
-| `Golden mismatch` | Inspect diff; run `--update-goldens` if change was intentional |
-| `MissingPluginException` | Mock platform channel in test setup |
-| `LateInitializationError` | Initialize `late` fields in `setUp()` |
-| `pumpAndSettle timed out` | Replace with explicit `pump(Duration)` calls |
+| Failure                     | Typical Fix                                                    |
+| --------------------------- | -------------------------------------------------------------- |
+| `Expected: <X> Actual: <Y>` | Update assertion or fix implementation                         |
+| `Widget not found`          | Fix finder selector or update test after widget rename         |
+| `Golden file not found`     | Run `flutter test --update-goldens` to generate                |
+| `Golden mismatch`           | Inspect diff; run `--update-goldens` if change was intentional |
+| `MissingPluginException`    | Mock platform channel in test setup                            |
+| `LateInitializationError`   | Initialize `late` fields in `setUp()`                          |
+| `pumpAndSettle timed out`   | Replace with explicit `pump(Duration)` calls                   |
 
 ## Related Commands
 

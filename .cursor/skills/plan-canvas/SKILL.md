@@ -2,7 +2,7 @@
 name: plan-canvas
 description: Open plans and HTML artifacts in a local browser canvas where the human annotates elements, chats, and approves or requests changes without leaving the page. Use when presenting a plan for review, or when feedback like "move this, change that" is easier pointed at than typed.
 metadata:
-  version: "1.0.0"
+  version: '1.0.0'
   origin: ECC
 ---
 
@@ -21,7 +21,7 @@ ECC-native around the `/plan` confirmation gate, with zero dependencies.
 - You just wrote a plan artifact (`.claude/plans/*.plan.md` from `/plan`) and
   need the CONFIRM/approve decision — the canvas verdict replaces a typed
   "yes/proceed".
-- The user should *point at* what to change: reviewing designs, comparisons,
+- The user should _point at_ what to change: reviewing designs, comparisons,
   reports, or any local `.md` / `.html` artifact.
 - The user asks for `/plan-canvas`, a visual review, or "open it in the browser".
 
@@ -78,8 +78,11 @@ Two backstops exist, and neither is an excuse to skip the above:
 {
   "status": "feedback",
   "items": [
-    { "kind": "annotation", "text": "Split this into two phases",
-      "anchor": { "selector": "h2:nth-of-type(3)", "tag": "h2", "snippet": "Phase 2: Migration" } },
+    {
+      "kind": "annotation",
+      "text": "Split this into two phases",
+      "anchor": { "selector": "h2:nth-of-type(3)", "tag": "h2", "snippet": "Phase 2: Migration" }
+    },
     { "kind": "verdict", "verdict": "request-changes" }
   ]
 }
@@ -190,7 +193,7 @@ ecc-plan-canvas await <file> --reply "Reworked the risk table."
 - Reading the feedback but answering only in the terminal. The human is looking
   at the canvas.
 - Reopening after a user-initiated end "just to show" something.
-- Pasting the whole plan into chat *and* opening a canvas — pick the canvas
+- Pasting the whole plan into chat _and_ opening a canvas — pick the canvas
   and keep the terminal summary to one line.
 - Parsing the canvas chat from state files — everything you need arrives via
   `await`.

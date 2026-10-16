@@ -38,12 +38,12 @@
 2.
 3. ### Brand story arc
 
-| Beat | Content |
-|---|---|
-| **Context** (the world before) | |
-| **Conflict** (what's broken / wrong) | |
-| **Resolution** (what the brand does about it) | |
-| **Invitation** (what the client is asked to do) | |
+| Beat                                            | Content |
+| ----------------------------------------------- | ------- |
+| **Context** (the world before)                  |         |
+| **Conflict** (what's broken / wrong)            |         |
+| **Resolution** (what the brand does about it)   |         |
+| **Invitation** (what the client is asked to do) |         |
 
 ### The brand as guide (not hero) — what the client achieves, not the brand
 

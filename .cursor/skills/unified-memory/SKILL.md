@@ -41,11 +41,11 @@ substitute for governed project documentation.
 
 ## Vault Scopes
 
-| Scope | Location | Use |
-|---|---|---|
-| `project` | `<repo>/.ecc/memory/project/` | Repo-local context protected by a fail-closed `.gitignore` |
-| `team` | `<repo>/.ecc/memory/team/` | Context intended for human review and version-controlled sharing |
-| `user` | `~/.ecc/memory/` | Operator context that follows the user across repositories |
+| Scope     | Location                      | Use                                                              |
+| --------- | ----------------------------- | ---------------------------------------------------------------- |
+| `project` | `<repo>/.ecc/memory/project/` | Repo-local context protected by a fail-closed `.gitignore`       |
+| `team`    | `<repo>/.ecc/memory/team/`    | Context intended for human review and version-controlled sharing |
+| `user`    | `~/.ecc/memory/`              | Operator context that follows the user across repositories       |
 
 All participating harnesses must use the same repository working directory or
 the same `ECC_MEMORY_PROJECT_ROOT` and `ECC_MEMORY_USER_ROOT` overrides.

@@ -96,11 +96,11 @@ Cap the final list at 10 results.
 
 Give the user a short table:
 
-| Option | Meaning |
-| --- | --- |
-| Use existing | Invoke or install a matching skill as-is. |
-| Fork or extend | Copy the closest skill and modify it. |
-| Create fresh | Build a new skill after confirming no close match exists. |
+| Option         | Meaning                                                   |
+| -------------- | --------------------------------------------------------- |
+| Use existing   | Invoke or install a matching skill as-is.                 |
+| Fork or extend | Copy the closest skill and modify it.                     |
+| Create fresh   | Build a new skill after confirming no close match exists. |
 
 Only create a new skill after the user chooses that path or after the search
 finds no close match.
@@ -110,11 +110,11 @@ finds no close match.
 ### Result Table
 
 ```markdown
-| # | Skill | Source | Why it matches | Gap |
-| --- | --- | --- | --- | --- |
-| 1 | article-writing | Local ECC | Drafts articles and guides | Not focused on release notes |
-| 2 | content-engine | Local ECC | Multi-format content workflow | Heavier than needed |
-| 3 | blog-writer | GitHub | Blog writing skill with recent commits | Needs security review |
+| #   | Skill           | Source    | Why it matches                         | Gap                          |
+| --- | --------------- | --------- | -------------------------------------- | ---------------------------- |
+| 1   | article-writing | Local ECC | Drafts articles and guides             | Not focused on release notes |
+| 2   | content-engine  | Local ECC | Multi-format content workflow          | Heavier than needed          |
+| 3   | blog-writer     | GitHub    | Blog writing skill with recent commits | Needs security review        |
 ```
 
 ### User-Facing Summary

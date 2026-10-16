@@ -26,7 +26,7 @@ name: descriptive-name
 enabled: true
 event: bash|file|stop|prompt|all
 action: block|warn
-pattern: "regex pattern to match"
+pattern: 'regex pattern to match'
 ---
 Message to display when rule triggers.
 Supports multiple lines.

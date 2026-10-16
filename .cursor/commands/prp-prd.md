@@ -1,6 +1,6 @@
 ---
-description: "Interactive PRD generator - problem-first, hypothesis-driven product spec with back-and-forth questioning"
-argument-hint: "[feature/product idea] (blank = start with questions)"
+description: 'Interactive PRD generator - problem-first, hypothesis-driven product spec with back-and-forth questioning'
+argument-hint: '[feature/product idea] (blank = start with questions)'
 ---
 
 # Product Requirements Document Generator
@@ -14,6 +14,7 @@ argument-hint: "[feature/product idea] (blank = start with questions)"
 ## Your Role
 
 You are a sharp product manager who:
+
 - Starts with PROBLEMS, not solutions
 - Demands evidence before building
 - Thinks in hypotheses, not specs
@@ -94,6 +95,7 @@ Record file locations, code patterns, and conventions observed.
 **Summarize findings to user:**
 
 > **What I found:**
+>
 > - {Market insight 1}
 > - {Competitor approach}
 > - {Relevant pattern from codebase, if applicable}
@@ -129,6 +131,7 @@ Based on foundation + research, ask:
 **If a codebase exists, perform two parallel investigations:**
 
 Investigation 1 — Explore feasibility:
+
 1. Identify existing infrastructure that can be leveraged
 2. Find similar patterns already implemented
 3. Map integration points and dependencies
@@ -137,6 +140,7 @@ Investigation 1 — Explore feasibility:
 Record file locations, code patterns, and conventions observed.
 
 Investigation 2 — Analyze constraints:
+
 1. Trace how existing related features are implemented end-to-end
 2. Map data flow through potential integration points
 3. Identify architectural patterns and boundaries
@@ -155,6 +159,7 @@ Compile findings with citations and gap analysis.
 **Summarize to user:**
 
 > **Technical Context:**
+>
 > - Feasibility: {HIGH/MEDIUM/LOW} because {reason}
 > - Can leverage: {existing patterns/infrastructure}
 > - Key technical risk: {main concern}
@@ -222,10 +227,10 @@ We'll know we're right when {measurable outcome}.
 
 ## Success Metrics
 
-| Metric | Target | How Measured |
-|--------|--------|--------------|
-| {Primary metric} | {Specific number} | {Method} |
-| {Secondary metric} | {Specific number} | {Method} |
+| Metric             | Target            | How Measured |
+| ------------------ | ----------------- | ------------ |
+| {Primary metric}   | {Specific number} | {Method}     |
+| {Secondary metric} | {Specific number} | {Method}     |
 
 ## Open Questions
 
@@ -237,6 +242,7 @@ We'll know we're right when {measurable outcome}.
 ## Users & Context
 
 **Primary User**
+
 - **Who**: {Specific description}
 - **Current behavior**: {What they do today}
 - **Trigger**: {What moment triggers the need}
@@ -254,13 +260,13 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 
 ### Core Capabilities (MoSCoW)
 
-| Priority | Capability | Rationale |
-|----------|------------|-----------|
-| Must | {Feature} | {Why essential} |
-| Must | {Feature} | {Why essential} |
-| Should | {Feature} | {Why important but not blocking} |
-| Could | {Feature} | {Nice to have} |
-| Won't | {Feature} | {Explicitly deferred and why} |
+| Priority | Capability | Rationale                        |
+| -------- | ---------- | -------------------------------- |
+| Must     | {Feature}  | {Why essential}                  |
+| Must     | {Feature}  | {Why essential}                  |
+| Should   | {Feature}  | {Why important but not blocking} |
+| Could    | {Feature}  | {Nice to have}                   |
+| Won't    | {Feature}  | {Explicitly deferred and why}    |
 
 ### MVP Scope
 
@@ -277,14 +283,15 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 **Feasibility**: {HIGH/MEDIUM/LOW}
 
 **Architecture Notes**
+
 - {Key technical decision and why}
 - {Dependency or integration point}
 
 **Technical Risks**
 
-| Risk | Likelihood | Mitigation |
-|------|------------|------------|
-| {Risk} | {H/M/L} | {How to handle} |
+| Risk   | Likelihood | Mitigation      |
+| ------ | ---------- | --------------- |
+| {Risk} | {H/M/L}    | {How to handle} |
 
 ---
 
@@ -297,22 +304,24 @@ When {situation}, I want to {motivation}, so I can {outcome}.
   PRP: link to generated plan file once created
 -->
 
-| # | Phase | Description | Status | Parallel | Depends | PRP Plan |
-|---|-------|-------------|--------|----------|---------|----------|
-| 1 | {Phase name} | {What this phase delivers} | pending | - | - | - |
-| 2 | {Phase name} | {What this phase delivers} | pending | - | 1 | - |
-| 3 | {Phase name} | {What this phase delivers} | pending | with 4 | 2 | - |
-| 4 | {Phase name} | {What this phase delivers} | pending | with 3 | 2 | - |
-| 5 | {Phase name} | {What this phase delivers} | pending | - | 3, 4 | - |
+| #   | Phase        | Description                | Status  | Parallel | Depends | PRP Plan |
+| --- | ------------ | -------------------------- | ------- | -------- | ------- | -------- |
+| 1   | {Phase name} | {What this phase delivers} | pending | -        | -       | -        |
+| 2   | {Phase name} | {What this phase delivers} | pending | -        | 1       | -        |
+| 3   | {Phase name} | {What this phase delivers} | pending | with 4   | 2       | -        |
+| 4   | {Phase name} | {What this phase delivers} | pending | with 3   | 2       | -        |
+| 5   | {Phase name} | {What this phase delivers} | pending | -        | 3, 4    | -        |
 
 ### Phase Details
 
 **Phase 1: {Name}**
+
 - **Goal**: {What we're trying to achieve}
 - **Scope**: {Bounded deliverables}
 - **Success signal**: {How we know it's done}
 
 **Phase 2: {Name}**
+
 - **Goal**: {What we're trying to achieve}
 - **Scope**: {Bounded deliverables}
 - **Success signal**: {How we know it's done}
@@ -327,8 +336,8 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 
 ## Decisions Log
 
-| Decision | Choice | Alternatives | Rationale |
-|----------|--------|--------------|-----------|
+| Decision   | Choice   | Alternatives         | Rationale      |
+| ---------- | -------- | -------------------- | -------------- |
 | {Decision} | {Choice} | {Options considered} | {Why this one} |
 
 ---
@@ -343,8 +352,8 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 
 ---
 
-*Generated: {timestamp}*
-*Status: DRAFT - needs validation*
+_Generated: {timestamp}_
+_Status: DRAFT - needs validation_
 ```
 
 ---
@@ -366,12 +375,12 @@ After generating, report:
 
 ### Validation Status
 
-| Section | Status |
-|---------|--------|
-| Problem Statement | {Validated/Assumption} |
-| User Research | {Done/Needed} |
-| Technical Feasibility | {Assessed/TBD} |
-| Success Metrics | {Defined/Needs refinement} |
+| Section               | Status                     |
+| --------------------- | -------------------------- |
+| Problem Statement     | {Validated/Assumption}     |
+| User Research         | {Done/Needed}              |
+| Technical Feasibility | {Assessed/TBD}             |
+| Success Metrics       | {Defined/Needs refinement} |
 
 ### Open Questions ({count})
 
@@ -383,9 +392,9 @@ After generating, report:
 
 ### Implementation Phases
 
-| # | Phase | Status | Can Parallel |
-|---|-------|--------|--------------|
-{Table of phases from PRD}
+| #                          | Phase | Status | Can Parallel |
+| -------------------------- | ----- | ------ | ------------ |
+| {Table of phases from PRD} |
 
 ### To Start Implementation
 
@@ -433,6 +442,7 @@ This will automatically select the next pending phase and create an implementati
 ## Integration with ECC
 
 After PRD generation:
+
 - Use `/prp-plan` to create implementation plans from PRD phases
 - Use `/plan` for simpler planning without PRD structure
 - Use `/save-session` to preserve PRD context across sessions

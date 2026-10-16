@@ -24,16 +24,16 @@ Redis is an in-memory data structure store that supports strings, hashes, lists,
 
 ## Data Structure Cheat Sheet
 
-| Use Case | Structure | Example Key |
-|----------|-----------|-------------|
-| Simple cache | String | `product:123` |
-| User session | Hash | `session:abc` |
-| Leaderboard | Sorted Set | `scores:weekly` |
-| Unique visitors | Set | `visitors:2024-01-01` |
-| Activity feed | List | `feed:user:456` |
-| Event stream | Stream | `events:orders` |
-| Counters / rate limits | String (INCR) | `ratelimit:user:123` |
-| Bloom filter / HLL | HyperLogLog | `hll:pageviews` |
+| Use Case               | Structure     | Example Key           |
+| ---------------------- | ------------- | --------------------- |
+| Simple cache           | String        | `product:123`         |
+| User session           | Hash          | `session:abc`         |
+| Leaderboard            | Sorted Set    | `scores:weekly`       |
+| Unique visitors        | Set           | `visitors:2024-01-01` |
+| Activity feed          | List          | `feed:user:456`       |
+| Event stream           | Stream        | `events:orders`       |
+| Counters / rate limits | String (INCR) | `ratelimit:user:123`  |
+| Bloom filter / HLL     | HyperLogLog   | `hll:pageviews`       |
 
 ## Core Patterns
 
@@ -260,14 +260,14 @@ stats:pageviews:2024-01-01
 
 ### TTL Strategy
 
-| Data Type | Suggested TTL |
-|-----------|--------------|
-| User session | 24h (`86400`) |
-| API response cache | 5–15 min |
-| Rate limit window | Match window size |
-| Short-lived tokens | 5–10 min |
-| Leaderboard | 1h–24h |
-| Static/reference data | 1h–1 week |
+| Data Type             | Suggested TTL     |
+| --------------------- | ----------------- |
+| User session          | 24h (`86400`)     |
+| API response cache    | 5–15 min          |
+| Rate limit window     | Match window size |
+| Short-lived tokens    | 5–10 min          |
+| Leaderboard           | 1h–24h            |
+| Static/reference data | 1h–1 week         |
 
 Always set a TTL. Keys without TTL accumulate indefinitely and cause memory pressure.
 
@@ -318,27 +318,27 @@ replica = sentinel.slave_for('mymaster', decode_responses=True)
 
 ## Eviction Policies
 
-| Policy | Behavior | Best For |
-|--------|----------|----------|
-| `noeviction` | Error on write when full | Queues / critical data |
-| `allkeys-lru` | Evict least recently used | General cache |
-| `volatile-lru` | LRU only among keys with TTL | Mixed data store |
-| `allkeys-lfu` | Evict least frequently used | Skewed access patterns |
-| `volatile-ttl` | Evict soonest-to-expire | Prioritize long-lived data |
+| Policy         | Behavior                     | Best For                   |
+| -------------- | ---------------------------- | -------------------------- |
+| `noeviction`   | Error on write when full     | Queues / critical data     |
+| `allkeys-lru`  | Evict least recently used    | General cache              |
+| `volatile-lru` | LRU only among keys with TTL | Mixed data store           |
+| `allkeys-lfu`  | Evict least frequently used  | Skewed access patterns     |
+| `volatile-ttl` | Evict soonest-to-expire      | Prioritize long-lived data |
 
 Set via `redis.conf`: `maxmemory-policy allkeys-lru`
 
 ## Anti-Patterns
 
-| Anti-Pattern | Problem | Fix |
-|---|---|---|
-| Keys with no TTL | Memory grows unbounded | Always set TTL |
-| `KEYS *` in production | Blocks the server (O(N)) | Use `SCAN` cursor |
-| Storing large blobs (>100KB) | Slow serialization, memory pressure | Store reference + fetch from object store |
-| Single Redis for everything | No isolation between cache & queue | Use separate DBs or instances |
-| Ignoring connection pool limits | Connection exhaustion under load | Size pool to workload |
-| Not handling cache miss stampede | Thundering herd on cold start | Use locks or probabilistic early expiry |
-| `FLUSHALL` without thought | Wipes entire instance | Scope deletes by key pattern |
+| Anti-Pattern                     | Problem                             | Fix                                       |
+| -------------------------------- | ----------------------------------- | ----------------------------------------- |
+| Keys with no TTL                 | Memory grows unbounded              | Always set TTL                            |
+| `KEYS *` in production           | Blocks the server (O(N))            | Use `SCAN` cursor                         |
+| Storing large blobs (>100KB)     | Slow serialization, memory pressure | Store reference + fetch from object store |
+| Single Redis for everything      | No isolation between cache & queue  | Use separate DBs or instances             |
+| Ignoring connection pool limits  | Connection exhaustion under load    | Size pool to workload                     |
+| Not handling cache miss stampede | Thundering herd on cold start       | Use locks or probabilistic early expiry   |
+| `FLUSHALL` without thought       | Wipes entire instance               | Scope deletes by key pattern              |
 
 ### Cache Miss Stampede Prevention
 
@@ -384,16 +384,16 @@ Use Pub/Sub for fire-and-forget. Switch to Streams if you need guaranteed delive
 
 ## Quick Reference
 
-| Pattern | When to Use |
-|---------|-------------|
-| Cache-aside | Read-heavy, tolerate slight staleness |
-| Write-through | Strong consistency required |
-| Distributed lock | Prevent concurrent access to a resource |
-| Sliding window rate limit | Accurate per-user throttling |
-| Redis Streams | Durable event queue with consumer groups |
-| Pub/Sub | Broadcast with no delivery guarantees needed |
-| Sorted Set leaderboard | Ranked scoring, pagination |
-| HyperLogLog | Approximate unique count at low memory |
+| Pattern                   | When to Use                                  |
+| ------------------------- | -------------------------------------------- |
+| Cache-aside               | Read-heavy, tolerate slight staleness        |
+| Write-through             | Strong consistency required                  |
+| Distributed lock          | Prevent concurrent access to a resource      |
+| Sliding window rate limit | Accurate per-user throttling                 |
+| Redis Streams             | Durable event queue with consumer groups     |
+| Pub/Sub                   | Broadcast with no delivery guarantees needed |
+| Sorted Set leaderboard    | Ranked scoring, pagination                   |
+| HyperLogLog               | Approximate unique count at low memory       |
 
 ## Related
 

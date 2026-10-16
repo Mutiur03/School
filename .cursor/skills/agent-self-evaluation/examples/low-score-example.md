@@ -1,6 +1,7 @@
 # Low-Score Example: Adding Retry Logic
 
 ## Task
+
 > Add retry logic with exponential backoff to all HTTP requests in the API client. Max 3 retries, initial delay 1s, max delay 30s.
 
 ## Agent Output

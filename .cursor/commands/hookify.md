@@ -40,7 +40,7 @@ name: rule-name
 enabled: true
 event: bash|file|stop|prompt|all
 action: block|warn
-pattern: "regex pattern"
+pattern: 'regex pattern'
 ---
 Message shown when rule triggers.
 ```

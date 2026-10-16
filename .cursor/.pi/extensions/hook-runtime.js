@@ -1,4 +1,4 @@
-const path = require("node:path")
+const path = require('node:path');
 
 /**
  * Select a real Node executable for hook scripts.
@@ -19,17 +19,17 @@ function resolveHookRuntime({
   override = process.env.ECC_HOOK_NODE,
 } = {}) {
   const isNodeRuntime =
-    releaseName === "node" &&
+    releaseName === 'node' &&
     !bunVersion &&
-    /^(?:node|nodejs)(?:\.exe)?$/i.test(path.basename(execPath))
-  const overridePath = override?.trim()
+    /^(?:node|nodejs)(?:\.exe)?$/i.test(path.basename(execPath));
+  const overridePath = override?.trim();
   if (overridePath) {
     if (!path.isAbsolute(overridePath)) {
-      throw new Error("ECC_HOOK_NODE must be an absolute path: " + overridePath)
+      throw new Error('ECC_HOOK_NODE must be an absolute path: ' + overridePath);
     }
-    return overridePath
+    return overridePath;
   }
-  return isNodeRuntime ? execPath : "node"
+  return isNodeRuntime ? execPath : 'node';
 }
 
-module.exports = { resolveHookRuntime }
+module.exports = { resolveHookRuntime };

@@ -1,21 +1,21 @@
 ---
-description: "Generate a lean, problem-first PRD and hand off to /plan for implementation planning."
-argument-hint: "[product/feature idea] (blank = start with questions)"
+description: 'Generate a lean, problem-first PRD and hand off to /plan for implementation planning.'
+argument-hint: '[product/feature idea] (blank = start with questions)'
 ---
 
 # PRD Command
 
-Produces a **Product Requirements Document** — the requirements-phase artifact of the SDLC. Captures *what* must be true for success and *why*, and stops before *how*. Implementation decomposition is delegated to `/plan`.
+Produces a **Product Requirements Document** — the requirements-phase artifact of the SDLC. Captures _what_ must be true for success and _why_, and stops before _how_. Implementation decomposition is delegated to `/plan`.
 
 **Input**: `$ARGUMENTS`
 
 ## Scope of this command
 
-| This command does | This command does NOT do |
-|---|---|
-| Frame the problem and users | Design the architecture |
-| Capture success criteria and scope | Pick files or write patterns |
-| List open questions and risks | Enumerate implementation tasks |
+| This command does                  | This command does NOT do                        |
+| ---------------------------------- | ----------------------------------------------- |
+| Frame the problem and users        | Design the architecture                         |
+| Capture success criteria and scope | Pick files or write patterns                    |
+| List open questions and risks      | Enumerate implementation tasks                  |
 | Write `.claude/prds/{name}.prd.md` | Produce an implementation plan — that's `/plan` |
 
 If you find yourself writing implementation detail, stop and cut it. It belongs in `/plan`.
@@ -34,7 +34,7 @@ If `$ARGUMENTS` is empty, ask:
 
 If provided, restate in one sentence and ask:
 
-> I understand: *{restated}*. Correct, or should I adjust?
+> I understand: _{restated}_. Correct, or should I adjust?
 
 Then ask the framing questions in a single set:
 
@@ -57,7 +57,7 @@ If the user has none, record the PRD's Evidence section as `Assumption — needs
 
 Scope and hypothesis in a single set:
 
-> 1. **Hypothesis** — Complete: *We believe **{capability}** will **{solve problem}** for **{users}**. We'll know we're right when **{measurable outcome}**.*
+> 1. **Hypothesis** — Complete: _We believe **{capability}** will **{solve problem}** for **{users}**. We'll know we're right when **{measurable outcome}**._
 > 2. **MVP** — The minimum needed to test the hypothesis?
 > 3. **Out of scope** — What are you explicitly **not** building (even if users ask)?
 > 4. **Open questions** — Uncertainties that could change the approach?
@@ -80,49 +80,60 @@ mkdir -p .claude/prds
 # {Product / Feature Name}
 
 ## Problem
+
 {2–3 sentences: who has what problem, and what's the cost of leaving it unsolved?}
 
 ## Evidence
+
 - {User quote, data point, or observation}
 - {OR: "Assumption — needs validation via {method}"}
 
 ## Users
+
 - **Primary**: {role, context, what triggers the need}
 - **Not for**: {who this explicitly excludes}
 
 ## Hypothesis
+
 We believe **{capability}** will **{solve problem}** for **{users}**.
 We'll know we're right when **{measurable outcome}**.
 
 ## Success Metrics
-| Metric | Target | How measured |
-|---|---|---|
-| {primary} | {number} | {method} |
+
+| Metric    | Target   | How measured |
+| --------- | -------- | ------------ |
+| {primary} | {number} | {method}     |
 
 ## Scope
+
 **MVP** — {the minimum to test the hypothesis}
 
 **Out of scope**
+
 - {item} — {why deferred}
 
 ## Delivery Milestones
+
 <!-- Business outcomes, not engineering tasks. /plan turns each into a plan. -->
 <!-- Status: pending | in-progress | complete -->
 
-| # | Milestone | Outcome | Status | Plan |
-|---|---|---|---|---|
-| 1 | {name} | {user-visible change} | pending | — |
-| 2 | {name} | {user-visible change} | pending | — |
+| #   | Milestone | Outcome               | Status  | Plan |
+| --- | --------- | --------------------- | ------- | ---- |
+| 1   | {name}    | {user-visible change} | pending | —    |
+| 2   | {name}    | {user-visible change} | pending | —    |
 
 ## Open Questions
+
 - [ ] {question that could change scope or approach}
 
 ## Risks
+
 | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
+| ---- | ---------- | ------ | ---------- |
 
 ---
-*Status: DRAFT — requirements only. Implementation planning pending via /plan.*
+
+_Status: DRAFT — requirements only. Implementation planning pending via /plan._
 ```
 
 #### Report to user

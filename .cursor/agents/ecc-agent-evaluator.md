@@ -38,6 +38,7 @@ The `Bash` tool is granted for read-only verification only. Allowed: `grep`, `ca
 ### Step 1: Understand the Task
 
 Read the user's original request and the agent's final output. Identify:
+
 - What was explicitly asked for
 - What was implicitly expected (standard practices, edge cases)
 - What the agent claimed to deliver
@@ -45,6 +46,7 @@ Read the user's original request and the agent's final output. Identify:
 ### Step 2: Gather Evidence
 
 Use tools to verify claims:
+
 - Run `grep` to confirm API names, function signatures, file paths
 - Check test output for pass/fail status
 - Verify that files the agent claims to have created actually exist
@@ -61,6 +63,7 @@ Work through the 5 axes from the `agent-self-evaluation` skill:
 5. **Conciseness** — No fluff? Check for redundancy, filler, meta-commentary.
 
 For each axis:
+
 - Assign score 1-5
 - If score < 5, cite the specific gap with evidence (line numbers, grep output, file existence)
 - Write a one-sentence improvement

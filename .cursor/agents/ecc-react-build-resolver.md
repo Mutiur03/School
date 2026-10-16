@@ -88,23 +88,23 @@ bun build ./src/index.tsx --outdir=dist
 
 ### JSX / TSX Compile
 
-| Error | Cause | Fix |
-|---|---|---|
-| `'React' is not defined` | Old JSX transform expected `import React from 'react'` | Set `"jsx": "react-jsx"` in `tsconfig.json` for new transform, or add `import React`. |
-| `Cannot find module 'react' or its corresponding type declarations` | Missing types | `npm i -D @types/react @types/react-dom` |
-| `JSX element type 'X' does not have any construct or call signatures` | Wrong type for a component prop | Confirm the import is the component, not a default-vs-named mismatch |
-| `Module '"react"' has no exported member 'X'` | Targeting wrong React version's types | Match `@types/react` major to installed `react` |
-| `Unexpected token '<'` | Loader/transformer missing | Add `@vitejs/plugin-react`, `babel-loader` with `@babel/preset-react`, or equivalent |
-| `JSX must have one parent element` | Adjacent JSX siblings | Wrap in fragment `<>...</>` |
+| Error                                                                 | Cause                                                  | Fix                                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `'React' is not defined`                                              | Old JSX transform expected `import React from 'react'` | Set `"jsx": "react-jsx"` in `tsconfig.json` for new transform, or add `import React`. |
+| `Cannot find module 'react' or its corresponding type declarations`   | Missing types                                          | `npm i -D @types/react @types/react-dom`                                              |
+| `JSX element type 'X' does not have any construct or call signatures` | Wrong type for a component prop                        | Confirm the import is the component, not a default-vs-named mismatch                  |
+| `Module '"react"' has no exported member 'X'`                         | Targeting wrong React version's types                  | Match `@types/react` major to installed `react`                                       |
+| `Unexpected token '<'`                                                | Loader/transformer missing                             | Add `@vitejs/plugin-react`, `babel-loader` with `@babel/preset-react`, or equivalent  |
+| `JSX must have one parent element`                                    | Adjacent JSX siblings                                  | Wrap in fragment `<>...</>`                                                           |
 
 ### tsconfig
 
-| Symptom | Fix |
-|---|---|
-| `"jsx"` not set | Set `"jsx": "react-jsx"` (React 17+) or `"react"` for legacy |
-| `"esModuleInterop"` missing | Add `"esModuleInterop": true` for `import React from 'react'` |
-| `"moduleResolution"` outdated | Set to `"bundler"` for Vite/Next 13+ |
-| Path aliases not resolving | Sync `paths` in `tsconfig.json` with bundler config (`vite-tsconfig-paths`, webpack `resolve.alias`, Next.js automatic) |
+| Symptom                       | Fix                                                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `"jsx"` not set               | Set `"jsx": "react-jsx"` (React 17+) or `"react"` for legacy                                                            |
+| `"esModuleInterop"` missing   | Add `"esModuleInterop": true` for `import React from 'react'`                                                           |
+| `"moduleResolution"` outdated | Set to `"bundler"` for Vite/Next 13+                                                                                    |
+| Path aliases not resolving    | Sync `paths` in `tsconfig.json` with bundler config (`vite-tsconfig-paths`, webpack `resolve.alias`, Next.js automatic) |
 
 ### Bundler-Specific
 
@@ -116,12 +116,12 @@ bun build ./src/index.tsx --outdir=dist
 
 #### Next.js (App Router)
 
-| Error | Fix |
-|---|---|
-| `You're importing a component that needs useState` | Add `"use client"` to the file's first line OR move the hook to a Client Component child |
-| `Module not found: Can't resolve 'fs'` in a client file | The file is being bundled for the client; `fs` is server-only — REMOVE the `fs` import or move the logic into a Server Component / API route |
-| `Error: Functions cannot be passed directly to Client Components` | Wrap the function in a Server Action (`"use server"`) and pass that |
-| `Hydration failed because the initial UI does not match` | Server render and client render diverge — usually `Date.now()`, `Math.random()`, `typeof window`, `localStorage` access during render. Move to `useEffect`. |
+| Error                                                             | Fix                                                                                                                                                         |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `You're importing a component that needs useState`                | Add `"use client"` to the file's first line OR move the hook to a Client Component child                                                                    |
+| `Module not found: Can't resolve 'fs'` in a client file           | The file is being bundled for the client; `fs` is server-only — REMOVE the `fs` import or move the logic into a Server Component / API route                |
+| `Error: Functions cannot be passed directly to Client Components` | Wrap the function in a Server Action (`"use server"`) and pass that                                                                                         |
+| `Hydration failed because the initial UI does not match`          | Server render and client render diverge — usually `Date.now()`, `Math.random()`, `typeof window`, `localStorage` access during render. Move to `useEffect`. |
 
 #### webpack
 
@@ -152,11 +152,11 @@ Common triggers:
 
 ### Bundler-Independent Runtime Failures
 
-| Error | Fix |
-|---|---|
+| Error                                                                                    | Fix                                                                                                                                               |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Invalid hook call. Hooks can only be called inside of the body of a function component` | Multiple React copies in `node_modules`. Run `npm ls react` — should show exactly one. Use `resolutions`/`overrides` in `package.json` to dedupe. |
-| `Element type is invalid: expected a string or class/function but got: undefined` | Default vs named import mismatch. Check the component's export style. |
-| `Functions are not valid as a React child` | A function reference is passed where a component or value is expected. Add `()` or wrap in JSX. |
+| `Element type is invalid: expected a string or class/function but got: undefined`        | Default vs named import mismatch. Check the component's export style.                                                                             |
+| `Functions are not valid as a React child`                                               | A function reference is passed where a component or value is expected. Add `()` or wrap in JSX.                                                   |
 
 ### Dependency Issues
 

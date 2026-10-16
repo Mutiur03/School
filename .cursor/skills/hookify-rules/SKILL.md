@@ -27,13 +27,13 @@ Can include markdown formatting, warnings, suggestions, etc.
 
 ### Frontmatter Fields
 
-| Field | Required | Values | Description |
-|-------|----------|--------|-------------|
-| name | Yes | kebab-case string | Unique identifier (verb-first: warn-*, block-*, require-*) |
-| enabled | Yes | true/false | Toggle without deleting |
-| event | Yes | bash/file/stop/prompt/all | Which hook event triggers this |
-| action | No | warn/block | warn (default) shows message; block prevents operation |
-| pattern | Yes* | regex string | Pattern to match (*or use conditions for complex rules) |
+| Field   | Required | Values                    | Description                                                |
+| ------- | -------- | ------------------------- | ---------------------------------------------------------- |
+| name    | Yes      | kebab-case string         | Unique identifier (verb-first: warn-_, block-_, require-*) |
+| enabled | Yes      | true/false                | Toggle without deleting                                    |
+| event   | Yes      | bash/file/stop/prompt/all | Which hook event triggers this                             |
+| action  | No       | warn/block                | warn (default) shows message; block prevents operation     |
+| pattern | Yes*     | regex string              | Pattern to match (*or use conditions for complex rules)    |
 
 ### Advanced Format (Multiple Conditions)
 
@@ -55,6 +55,7 @@ You're adding an API key to a .env file. Ensure this file is in .gitignore!
 ```
 
 **Condition fields by event:**
+
 - bash: `command`
 - file: `file_path`, `new_text`, `old_text`, `content`
 - prompt: `user_prompt`
@@ -66,37 +67,46 @@ All conditions must match for rule to trigger.
 ## Event Type Guide
 
 ### bash Events
+
 Match Bash command patterns:
+
 - Dangerous commands: `rm\s+-rf`, `dd\s+if=`, `mkfs`
 - Privilege escalation: `sudo\s+`, `su\s+`
 - Permission issues: `chmod\s+777`
 
 ### file Events
+
 Match Edit/Write/MultiEdit operations:
+
 - Debug code: `console\.log\(`, `debugger`
 - Security risks: `eval\(`, `innerHTML\s*=`
 - Sensitive files: `\.env$`, `credentials`, `\.pem$`
 
 ### stop Events
+
 Completion checks and reminders. Pattern `.*` matches always.
 
 ### prompt Events
+
 Match user prompt content for workflow enforcement.
 
 ## Pattern Writing Tips
 
 ### Regex Basics
+
 - Escape special chars: `.` to `\.`, `(` to `\(`
 - `\s` whitespace, `\d` digit, `\w` word char
 - `+` one or more, `*` zero or more, `?` optional
 - `|` OR operator
 
 ### Common Pitfalls
+
 - **Too broad**: `log` matches "login", "dialog" — use `console\.log\(`
 - **Too specific**: `rm -rf /tmp` — use `rm\s+-rf`
 - **YAML escaping**: Use unquoted patterns; quoted strings need `\\s`
 
 ### Testing
+
 ```bash
 python3 -c "import re; print(re.search(r'your_pattern', 'test text'))"
 ```
@@ -117,6 +127,7 @@ python3 -c "import re; print(re.search(r'your_pattern', 'test text'))"
 ## Quick Reference
 
 Minimum viable rule:
+
 ```markdown
 ---
 name: my-rule
@@ -124,5 +135,6 @@ enabled: true
 event: bash
 pattern: dangerous_command
 ---
+
 Warning message here
 ```

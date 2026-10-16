@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: "Generate a design system from an existing codebase or audit one for visual consistency: extract tokens (colors, typography, spacing, shadows) into design-tokens.json and CSS custom properties with DESIGN.md rationale and an interactive HTML preview, score the UI across 10 dimensions, and flag AI-slop patterns. Use when starting a design system, auditing visual consistency before a redesign, or reviewing a PR that touches styling."
+description: 'Generate a design system from an existing codebase or audit one for visual consistency: extract tokens (colors, typography, spacing, shadows) into design-tokens.json and CSS custom properties with DESIGN.md rationale and an interactive HTML preview, score the UI across 10 dimensions, and flag AI-slop patterns. Use when starting a design system, auditing visual consistency before a redesign, or reviewing a PR that touches styling.'
 metadata:
   origin: ECC
 ---
@@ -68,16 +68,19 @@ Identifies generic AI-generated design patterns:
 ## Examples
 
 **Generate for a SaaS app:**
+
 ```
 /design-system generate --style minimal --palette earth-tones
 ```
 
 **Audit existing UI:**
+
 ```
 /design-system audit --url http://localhost:3000 --pages / /pricing /docs
 ```
 
 **Check for AI slop:**
+
 ```
 /design-system slop-check
 ```

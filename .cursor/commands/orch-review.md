@@ -16,10 +16,10 @@ per dimension, dedup, adversarial verify); this command owns input and output.
 
 ## Mode Selection
 
-| Input | Mode |
-|---|---|
-| Blank | **Local Mode** — review uncommitted changes |
-| Number (e.g. `42`) or PR URL | **PR Mode** — review a GitHub PR |
+| Input                        | Mode                                        |
+| ---------------------------- | ------------------------------------------- |
+| Blank                        | **Local Mode** — review uncommitted changes |
+| Number (e.g. `42`) or PR URL | **PR Mode** — review a GitHub PR            |
 
 ---
 

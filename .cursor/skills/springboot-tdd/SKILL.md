@@ -17,10 +17,10 @@ TDD guidance for Spring Boot services with 80%+ coverage (unit + integration).
 
 ## Workflow
 
-1) Write tests first (they should fail)
-2) Implement minimal code to pass
-3) Refactor with tests green
-4) Enforce coverage (JaCoCo)
+1. Write tests first (they should fail)
+2. Implement minimal code to pass
+3. Refactor with tests green
+4. Enforce coverage (JaCoCo)
 
 ## Unit Tests (JUnit 5 + Mockito)
 
@@ -44,6 +44,7 @@ class MarketServiceTest {
 ```
 
 Patterns:
+
 - Arrange-Act-Assert
 - Avoid partial mocks; prefer explicit stubbing
 - Use `@ParameterizedTest` for variants
@@ -117,6 +118,7 @@ class MarketRepositoryTest {
 ## Coverage (JaCoCo)
 
 Maven snippet:
+
 ```xml
 <plugin>
   <groupId>org.jacoco</groupId>

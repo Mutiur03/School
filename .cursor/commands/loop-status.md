@@ -74,4 +74,5 @@ timeout Claude Code runtime tool calls.
 ## Arguments
 
 $ARGUMENTS:
+
 - `--watch` optional

@@ -1,6 +1,6 @@
 ---
 name: java-coding-standards
-description: "Java coding standards for Spring Boot and Quarkus services: naming, immutability, Optional usage, streams, exceptions, generics, CDI, reactive patterns, and project layout. Automatically applies framework-specific conventions. Use when writing or reviewing Java in a Spring Boot or Quarkus service."
+description: 'Java coding standards for Spring Boot and Quarkus services: naming, immutability, Optional usage, streams, exceptions, generics, CDI, reactive patterns, and project layout. Automatically applies framework-specific conventions. Use when writing or reviewing Java in a Spring Boot or Quarkus service.'
 metadata:
   origin: ECC
 ---
@@ -337,16 +337,19 @@ int maxPageSize;
 ## Testing Expectations
 
 ### Shared
+
 - JUnit 5 + AssertJ for fluent assertions
 - Mockito for mocking; avoid partial mocks where possible
 - Favor deterministic tests; no hidden sleeps
 
 ### [SPRING]
+
 - `@WebMvcTest` for controller slices, `@DataJpaTest` for repository slices
 - `@SpringBootTest` reserved for full integration tests
 - `@MockBean` for replacing beans in Spring context
 
 ### [QUARKUS]
+
 - Plain JUnit 5 + Mockito for unit tests (no `@QuarkusTest`)
 - `@QuarkusTest` reserved for CDI integration tests
 - `@InjectMock` for replacing CDI beans in integration tests

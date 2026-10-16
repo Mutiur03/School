@@ -93,7 +93,8 @@ function providerLabel(hostProvider) {
 
 function buildCodexArgs(tempDir, outputFile) {
   return [
-    '--ask-for-approval', 'never',
+    '--ask-for-approval',
+    'never',
     ...REQUIRED_TOOLLESS_FEATURES.flatMap((feature) => ['--disable', feature]),
     'exec',
     '--ephemeral',
@@ -101,14 +102,22 @@ function buildCodexArgs(tempDir, outputFile) {
     '--ignore-rules',
     '--strict-config',
     '--skip-git-repo-check',
-    '--sandbox', 'read-only',
-    '--cd', tempDir,
-    '--color', 'never',
-    '--config', 'shell_environment_policy.inherit="none"',
-    '--config', 'skills.include_instructions=false',
-    '--config', 'web_search="disabled"',
-    '--config', 'mcp_servers={}',
-    '--output-last-message', outputFile,
+    '--sandbox',
+    'read-only',
+    '--cd',
+    tempDir,
+    '--color',
+    'never',
+    '--config',
+    'shell_environment_policy.inherit="none"',
+    '--config',
+    'skills.include_instructions=false',
+    '--config',
+    'web_search="disabled"',
+    '--config',
+    'mcp_servers={}',
+    '--output-last-message',
+    outputFile,
     '-',
   ];
 }
@@ -143,26 +152,26 @@ function verifyToollessSupport(dependencies = {}) {
   }
   if (versionMatch[1] !== SUPPORTED_CODEX_VERSION) {
     throw new Error(
-      `unsupported Codex version ${versionMatch[1]}; `
-      + `tool-less review requires exactly ${SUPPORTED_CODEX_VERSION}`
+      `unsupported Codex version ${versionMatch[1]}; ` +
+        `tool-less review requires exactly ${SUPPORTED_CODEX_VERSION}`,
     );
   }
 
   const featuresText = probeCodex(spawn, ['features', 'list'], options, 'feature');
   const stages = new Map();
   for (const line of featuresText.split('\n')) {
-    const match = line.trim().match(
-      /^(\S+)\s+(stable|under development|experimental|deprecated|removed)\s+(true|false)$/
-    );
+    const match = line
+      .trim()
+      .match(/^(\S+)\s+(stable|under development|experimental|deprecated|removed)\s+(true|false)$/);
     if (match) stages.set(match[1], match[2]);
   }
   const unavailable = REQUIRED_TOOLLESS_FEATURES.filter(
-    (feature) => stages.get(feature) !== 'stable'
+    (feature) => stages.get(feature) !== 'stable',
   );
   if (unavailable.length > 0) {
     throw new Error(
-      `Codex ${versionMatch[1]} cannot guarantee tool-less review; `
-      + `required stable feature toggles unavailable: ${unavailable.join(', ')}`
+      `Codex ${versionMatch[1]} cannot guarantee tool-less review; ` +
+        `required stable feature toggles unavailable: ${unavailable.join(', ')}`,
     );
   }
   return versionMatch[1];
@@ -170,11 +179,19 @@ function verifyToollessSupport(dependencies = {}) {
 
 function buildEnvironment(sourceEnv = process.env) {
   const allowed = [
-    'PATH', 'HOME', 'USERPROFILE', 'CODEX_HOME',
-    'TMPDIR', 'TMP', 'TEMP', 'SystemRoot', 'ComSpec', 'PATHEXT',
+    'PATH',
+    'HOME',
+    'USERPROFILE',
+    'CODEX_HOME',
+    'TMPDIR',
+    'TMP',
+    'TEMP',
+    'SystemRoot',
+    'ComSpec',
+    'PATHEXT',
   ];
   return Object.fromEntries(
-    allowed.filter((name) => sourceEnv[name]).map((name) => [name, sourceEnv[name]])
+    allowed.filter((name) => sourceEnv[name]).map((name) => [name, sourceEnv[name]]),
   );
 }
 
@@ -237,7 +254,11 @@ function runStdinReview(options, dependencies = {}) {
   const stdout = dependencies.stdout || process.stdout;
   const stderr = dependencies.stderr || process.stderr;
   const review = dependencies.runReview || runReview;
-  const setExitCode = dependencies.setExitCode || ((code) => { process.exitCode = code; });
+  const setExitCode =
+    dependencies.setExitCode ||
+    ((code) => {
+      process.exitCode = code;
+    });
   const chunks = [];
   let promptBytes = 0;
   let promptOverflow = false;
@@ -254,9 +275,7 @@ function runStdinReview(options, dependencies = {}) {
   });
   stdin.on('end', () => {
     if (promptOverflow) {
-      stderr.write(
-        `external review absent: review packet exceeds ${MAX_PROMPT_BYTES} bytes\n`
-      );
+      stderr.write(`external review absent: review packet exceeds ${MAX_PROMPT_BYTES} bytes\n`);
       setExitCode(1);
       return;
     }

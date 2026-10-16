@@ -73,13 +73,13 @@ python manage.py collectstatic --dry-run --noinput 2>&1
 
 ### Dependency / pip Errors
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `ModuleNotFoundError: No module named 'X'` | Missing package | `pip install X` or add to `requirements.txt` |
-| `ImportError: cannot import name 'X' from 'Y'` | Version mismatch | Pin compatible version in requirements |
-| `ERROR: pip's dependency resolver...` | Conflicting deps | Upgrade pip: `pip install --upgrade pip`, then `pip install -r requirements.txt` |
-| `Poetry: No solution found` | Conflicting constraints | Relax version pin in `pyproject.toml` |
-| `pkg_resources.DistributionNotFound` | Installed outside venv | Reinstall inside venv |
+| Error                                          | Cause                   | Fix                                                                              |
+| ---------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
+| `ModuleNotFoundError: No module named 'X'`     | Missing package         | `pip install X` or add to `requirements.txt`                                     |
+| `ImportError: cannot import name 'X' from 'Y'` | Version mismatch        | Pin compatible version in requirements                                           |
+| `ERROR: pip's dependency resolver...`          | Conflicting deps        | Upgrade pip: `pip install --upgrade pip`, then `pip install -r requirements.txt` |
+| `Poetry: No solution found`                    | Conflicting constraints | Relax version pin in `pyproject.toml`                                            |
+| `pkg_resources.DistributionNotFound`           | Installed outside venv  | Reinstall inside venv                                                            |
 
 ```bash
 # Force reinstall all dependencies
@@ -97,14 +97,14 @@ pip install -r requirements.txt
 
 ### Migration Errors
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `django.db.migrations.exceptions.MigrationSchemaMissing` | DB tables not created | `python manage.py migrate` |
-| `InconsistentMigrationHistory` | Applied out of order | Squash or fake migrations |
-| `Migration X dependencies reference nonexistent parent Y` | Missing migration file | Recreate with `makemigrations` |
-| `Table already exists` | Migration applied outside Django | `migrate --fake-initial` |
-| `Multiple leaf nodes in the migration graph` | Conflicting migration branches | Merge: `python manage.py makemigrations --merge` |
-| `django.db.utils.OperationalError: no such column` | Unapplied migration | `python manage.py migrate` |
+| Error                                                     | Cause                            | Fix                                              |
+| --------------------------------------------------------- | -------------------------------- | ------------------------------------------------ |
+| `django.db.migrations.exceptions.MigrationSchemaMissing`  | DB tables not created            | `python manage.py migrate`                       |
+| `InconsistentMigrationHistory`                            | Applied out of order             | Squash or fake migrations                        |
+| `Migration X dependencies reference nonexistent parent Y` | Missing migration file           | Recreate with `makemigrations`                   |
+| `Table already exists`                                    | Migration applied outside Django | `migrate --fake-initial`                         |
+| `Multiple leaf nodes in the migration graph`              | Conflicting migration branches   | Merge: `python manage.py makemigrations --merge` |
+| `django.db.utils.OperationalError: no such column`        | Unapplied migration              | `python manage.py migrate`                       |
 
 ```bash
 # Fix conflicting migrations
@@ -124,14 +124,14 @@ python manage.py migrate --plan
 
 ### Django Configuration Errors
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `django.core.exceptions.ImproperlyConfigured` | Missing setting or wrong value | Check `settings.py` for the named setting |
-| `DJANGO_SETTINGS_MODULE not set` | Env var missing | `export DJANGO_SETTINGS_MODULE=config.settings.development` |
-| `SECRET_KEY must not be empty` | Missing env var | Set `DJANGO_SECRET_KEY` in `.env` |
-| `Invalid HTTP_HOST header` | `ALLOWED_HOSTS` misconfigured | Add hostname to `ALLOWED_HOSTS` |
-| `Apps aren't loaded yet` | Importing models before `django.setup()` | Call `django.setup()` or move imports inside functions |
-| `RuntimeError: Model class ... doesn't declare an explicit app_label` | App not in `INSTALLED_APPS` | Add the app to `INSTALLED_APPS` |
+| Error                                                                 | Cause                                    | Fix                                                         |
+| --------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------- |
+| `django.core.exceptions.ImproperlyConfigured`                         | Missing setting or wrong value           | Check `settings.py` for the named setting                   |
+| `DJANGO_SETTINGS_MODULE not set`                                      | Env var missing                          | `export DJANGO_SETTINGS_MODULE=config.settings.development` |
+| `SECRET_KEY must not be empty`                                        | Missing env var                          | Set `DJANGO_SECRET_KEY` in `.env`                           |
+| `Invalid HTTP_HOST header`                                            | `ALLOWED_HOSTS` misconfigured            | Add hostname to `ALLOWED_HOSTS`                             |
+| `Apps aren't loaded yet`                                              | Importing models before `django.setup()` | Call `django.setup()` or move imports inside functions      |
+| `RuntimeError: Model class ... doesn't declare an explicit app_label` | App not in `INSTALLED_APPS`              | Add the app to `INSTALLED_APPS`                             |
 
 ```bash
 # Verify settings module resolves
@@ -175,12 +175,12 @@ User = apps.get_model('users', 'User')
 
 ### Database Connection Errors
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `django.db.utils.OperationalError: could not connect to server` | DB not running or wrong host | Start DB or fix `DATABASES['HOST']` |
-| `django.db.utils.OperationalError: FATAL: role X does not exist` | Wrong DB user | Fix `DATABASES['USER']` |
-| `django.db.utils.ProgrammingError: relation X does not exist` | Missing migration | `python manage.py migrate` |
-| `psycopg2 not installed` | Missing driver | `pip install psycopg2-binary` |
+| Error                                                            | Cause                        | Fix                                 |
+| ---------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
+| `django.db.utils.OperationalError: could not connect to server`  | DB not running or wrong host | Start DB or fix `DATABASES['HOST']` |
+| `django.db.utils.OperationalError: FATAL: role X does not exist` | Wrong DB user                | Fix `DATABASES['USER']`             |
+| `django.db.utils.ProgrammingError: relation X does not exist`    | Missing migration            | `python manage.py migrate`          |
+| `psycopg2 not installed`                                         | Missing driver               | `pip install psycopg2-binary`       |
 
 ```bash
 # Test database connection
@@ -192,11 +192,11 @@ python -c "from django.conf import settings; print(settings.DATABASES)"
 
 ### collectstatic / Static Files Errors
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `staticfiles.E001: The STATICFILES_DIRS...` | Dir in both `STATICFILES_DIRS` and `STATIC_ROOT` | Remove from `STATICFILES_DIRS` |
-| `FileNotFoundError` during collectstatic | Missing static file referenced in template | Remove or create the referenced file |
-| `AttributeError: 'str' object has no attribute 'path'` | `STORAGES` not configured for Django 4.2+ | Update `STORAGES` dict in settings |
+| Error                                                  | Cause                                            | Fix                                  |
+| ------------------------------------------------------ | ------------------------------------------------ | ------------------------------------ |
+| `staticfiles.E001: The STATICFILES_DIRS...`            | Dir in both `STATICFILES_DIRS` and `STATIC_ROOT` | Remove from `STATICFILES_DIRS`       |
+| `FileNotFoundError` during collectstatic               | Missing static file referenced in template       | Remove or create the referenced file |
+| `AttributeError: 'str' object has no attribute 'path'` | `STORAGES` not configured for Django 4.2+        | Update `STORAGES` dict in settings   |
 
 ```bash
 # Dry run to find issues
@@ -232,6 +232,7 @@ python manage.py runserver --verbosity=2 2>&1
 ## Stop Conditions
 
 Stop and report if:
+
 - Migration conflict requires destructive DB changes (data loss risk)
 - Same error persists after 3 fix attempts
 - Fix requires changes to production data or irreversible DB operations

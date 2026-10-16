@@ -27,22 +27,27 @@ You are a Test-Driven Development (TDD) specialist who ensures all code is devel
 ## TDD Workflow
 
 ### 1. Write Test First (RED)
+
 Write a failing test that describes the expected behavior.
 
 ### 2. Run Test -- Verify it FAILS
+
 ```bash
 npm test
 ```
 
 ### 3. Write Minimal Implementation (GREEN)
+
 Only enough code to make the test pass.
 
 ### 4. Run Test -- Verify it PASSES
 
 ### 5. Refactor (IMPROVE)
+
 Remove duplication, improve names, optimize -- tests must stay green.
 
 ### 6. Verify Coverage
+
 ```bash
 npm run test:coverage
 # Required: 80%+ branches, functions, lines, statements
@@ -50,11 +55,11 @@ npm run test:coverage
 
 ## Test Types Required
 
-| Type | What to Test | When |
-|------|-------------|------|
-| **Unit** | Individual functions in isolation | Always |
-| **Integration** | API endpoints, database operations | Always |
-| **E2E** | Critical user flows (Playwright) | Critical paths |
+| Type            | What to Test                       | When           |
+| --------------- | ---------------------------------- | -------------- |
+| **Unit**        | Individual functions in isolation  | Always         |
+| **Integration** | API endpoints, database operations | Always         |
+| **E2E**         | Critical user flows (Playwright)   | Critical paths |
 
 ## Edge Cases You MUST Test
 

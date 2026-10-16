@@ -70,20 +70,20 @@ Apply these rules throughout every module:
    - `## Raw` — verbatim quotes and examples.
    - `## Synthesis` — your interpretation, three candidate formulations,
      open questions, contradictions between participants.
-   Then update the `state.json` checkpoint (see State protocol below).
+     Then update the `state.json` checkpoint (see State protocol below).
 
 ## Module sequence
 
-| File | Label | Frameworks used |
-|------|-------|-----------------|
-| `10_purpose-why.md` | Purpose / Why | Sinek Golden Circle, Lencioni |
-| `20_positioning.md` | Positioning | Dunford "Obviously Awesome", Moore template |
-| `30_audience-niche.md` | Audience & Niche | Baker "Business of Expertise", ICP |
-| `40_personality-archetype.md` | Personality & Archetype | Mark & Pearson 12 archetypes, J. Aaker 5 dims |
-| `50_voice-tone.md` | Voice & Tone | Brand voice guidelines |
-| `60_narrative-story.md` | Narrative / Story | Neumeier trueline, brand story arc |
-| `70_founder-tension.md` | Founder Brands vs Studio Brand | Enns "Win Without Pitching" |
-| `90_SYNTHESIS.md` | Master Brandbook | Kapferer prism, Aaker brand system |
+| File                          | Label                          | Frameworks used                               |
+| ----------------------------- | ------------------------------ | --------------------------------------------- |
+| `10_purpose-why.md`           | Purpose / Why                  | Sinek Golden Circle, Lencioni                 |
+| `20_positioning.md`           | Positioning                    | Dunford "Obviously Awesome", Moore template   |
+| `30_audience-niche.md`        | Audience & Niche               | Baker "Business of Expertise", ICP            |
+| `40_personality-archetype.md` | Personality & Archetype        | Mark & Pearson 12 archetypes, J. Aaker 5 dims |
+| `50_voice-tone.md`            | Voice & Tone                   | Brand voice guidelines                        |
+| `60_narrative-story.md`       | Narrative / Story              | Neumeier trueline, brand story arc            |
+| `70_founder-tension.md`       | Founder Brands vs Studio Brand | Enns "Win Without Pitching"                   |
+| `90_SYNTHESIS.md`             | Master Brandbook               | Kapferer prism, Aaker brand system            |
 
 Complete modules in order. Honour a user request to jump modules and note
 the skip in `state.json`.

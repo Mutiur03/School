@@ -51,26 +51,27 @@ VERDICT: [Deliver as-is / Fix N issues then deliver / Redo from scratch]
 
 ## Quick Reference: Scoring Triggers
 
-| If you see this... | Accuracy | Completeness | Clarity | Actionability | Conciseness |
-|---|---|---|---|---|---|
-| "should work" / "probably fine" | ≤4 | — | — | — | — |
-| "I think" / "I believe" | ≤4 | — | — | — | — |
-| No test output cited | ≤4 | — | — | — | — |
-| "TODO" / "FIXME" left behind | ≤3 | ≤3 | — | ≤3 | — |
-| Missing error handling | — | ≤3 | — | — | — |
-| Only happy path covered | — | ≤3 | — | — | — |
-| Wall-of-text paragraph (>200 words) | — | — | ≤3 | — | — |
-| No headings or structure | — | — | ≤3 | — | — |
-| "You should..." without specifics | — | — | — | ≤3 | — |
-| No PR or file created | — | — | — | ≤3 | — |
-| User needs to figure out next step | — | — | — | ≤2 | — |
-| Repeated points (3+ times) | — | — | — | — | ≤3 |
-| "Let me explain..." / "To summarize..." x3+ | — | — | — | — | ≤3 |
-| Output >15x longer than task | — | — | — | — | ≤3 |
+| If you see this...                          | Accuracy | Completeness | Clarity | Actionability | Conciseness |
+| ------------------------------------------- | -------- | ------------ | ------- | ------------- | ----------- |
+| "should work" / "probably fine"             | ≤4       | —            | —       | —             | —           |
+| "I think" / "I believe"                     | ≤4       | —            | —       | —             | —           |
+| No test output cited                        | ≤4       | —            | —       | —             | —           |
+| "TODO" / "FIXME" left behind                | ≤3       | ≤3           | —       | ≤3            | —           |
+| Missing error handling                      | —        | ≤3           | —       | —             | —           |
+| Only happy path covered                     | —        | ≤3           | —       | —             | —           |
+| Wall-of-text paragraph (>200 words)         | —        | —            | ≤3      | —             | —           |
+| No headings or structure                    | —        | —            | ≤3      | —             | —           |
+| "You should..." without specifics           | —        | —            | —       | ≤3            | —           |
+| No PR or file created                       | —        | —            | —       | ≤3            | —           |
+| User needs to figure out next step          | —        | —            | —       | ≤2            | —           |
+| Repeated points (3+ times)                  | —        | —            | —       | —             | ≤3          |
+| "Let me explain..." / "To summarize..." x3+ | —        | —            | —       | —             | ≤3          |
+| Output >15x longer than task                | —        | —            | —       | —             | ≤3          |
 
 ## When to Skip
 
 Skip the evaluation if:
+
 - Task was a single tool call (e.g., "read this file" — nothing to evaluate)
 - User explicitly says "don't evaluate" or "just do it"
 - Task is purely conversational (greeting, small talk)
@@ -78,9 +79,9 @@ Skip the evaluation if:
 
 ## Post-Evaluation Actions
 
-| Overall Score | What to do |
-|---|---|
-| ≥4.5 | Deliver as-is. No changes needed. |
-| 3.5–4.4 | Flag top improvement but deliver. Fix if <30 seconds. |
-| 2.5–3.4 | State what you'd change. Ask user: "Should I redo [axis] or deliver as-is?" |
-| <2.5 | Don't deliver. Say: "This scored [score] because [evidence]. Let me redo this with [specific fix]." Then redo. |
+| Overall Score | What to do                                                                                                     |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| ≥4.5          | Deliver as-is. No changes needed.                                                                              |
+| 3.5–4.4       | Flag top improvement but deliver. Fix if <30 seconds.                                                          |
+| 2.5–3.4       | State what you'd change. Ask user: "Should I redo [axis] or deliver as-is?"                                    |
+| <2.5          | Don't deliver. Say: "This scored [score] because [evidence]. Let me redo this with [specific fix]." Then redo. |

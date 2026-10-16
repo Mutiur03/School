@@ -52,26 +52,30 @@ intent."
 ## Report sections
 
 ### 1. Executive summary
+
 3–5 takeaways, decision-first. State the most important findings in plain
 language: where the client is strong, where it's exposed, who occupies its
 target white-space, and the top 2–3 moves. Written so a founder/PM reads only
 this and knows what to do. No methodology here.
 
 ### 2. Market landscape & category framing
+
 Define the category and map it. Use a **multi-axis map** — at minimum a 2×2
-(e.g., *brand-led <-> capability-led* × *boutique <-> enterprise-scale*), and
+(e.g., _brand-led <-> capability-led_ × _boutique <-> enterprise-scale_), and
 ideally the **client's tension plot** from `benchmark-methodology` as the
 headline map. Place every profiled competitor and the client. The map should
 make the client's intended position visually obvious and show how crowded (or
 empty) it is.
 
 ### 3. Competitor tiers
+
 Organize the set into **Direct / Adjacent / Aspirational** (from
 `competitive-platform-analysis`). One short paragraph per tier explaining who's
 in it and why it matters to the client. This sets reader expectations before
 the detail.
 
 ### 4. Benchmarking matrix
+
 The full **competitors × dimensions** table — the quantitative spine. Rows =
 competitors (grouped by tier), columns = the nine benchmark dimensions (note:
 dimension 9 — strategic tension — has two poles (e.g., Memorability and
@@ -83,6 +87,7 @@ add a blended total column — report dimensions separately (per the bias
 controls). Call out the columns where the client leads and where it trails.
 
 ### 5. Deep dives
+
 3–5 most instructive competitors in narrative form (from their profile cards).
 Choose for instruction, not ranking: the best exemplar of the target tension
 (high on both poles), the cautionary "one pole only" case, the "competent but
@@ -91,6 +96,7 @@ deep dive: what they do, what the client should learn, what the client should
 avoid.
 
 ### 6. White-space & threats
+
 The strategic heart. Two parts:
 
 - **White-space:** the position the client can own that rivals don't — argued
@@ -102,6 +108,7 @@ The strategic heart. Two parts:
   reading as un-serious to risk-averse buyers).
 
 ### 7. Strategic recommendations
+
 Concrete, prioritized moves: who the client competes with, how it differentiates,
 and where to invest (offer packaging, evidence/case studies, thought leadership,
 brand sharpening). **Tie every recommendation back to the brand balance from the
@@ -109,6 +116,7 @@ positioning brief** and flag any that would shift it. Sequence by impact ×
 effort.
 
 ### 8. Sources / methodology appendix
+
 The dimensions, weights, rubrics, the scoped set with tiers, source links per
 competitor, and verification notes (asserted vs proven). This is what makes the
 report auditable and defensible — carry the adversarial citation discipline
@@ -145,7 +153,7 @@ End with questions that force decisions, not admiration of the analysis:
   shift?
 - Which dimension where the client trails is worth closing, and which to
   deliberately concede?
-- What's the one move that most widens distinctiveness *without* costing
+- What's the one move that most widens distinctiveness _without_ costing
   hireability / credibility?
 
 ## Anti-Patterns

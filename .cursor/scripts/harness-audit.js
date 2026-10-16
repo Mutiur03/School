@@ -32,8 +32,7 @@ const PROVIDERS = {
     workflowPattern: /(vercel-action|vercel\s+(deploy|--prod))/i,
   },
   Netlify: {
-    detect: (rootDir) =>
-      fileExists(rootDir, 'netlify.toml') || fileExists(rootDir, '.netlify'),
+    detect: (rootDir) => fileExists(rootDir, 'netlify.toml') || fileExists(rootDir, '.netlify'),
     keyPattern: /netlify/i,
     buildPattern: /netlify/i,
     workflowPattern: /(netlify\/actions|netlify\s+deploy)/i,
@@ -235,10 +234,7 @@ function detectTargetMode(rootDir) {
 
 // The everything-claude-code entries below are legacy install ids, kept so
 // existing 1.x installs are still detected.
-const ECC_PLUGIN_KEY_PATTERNS = [
-  /^ecc@/i,
-  /^everything-claude-code@/i,
-];
+const ECC_PLUGIN_KEY_PATTERNS = [/^ecc@/i, /^everything-claude-code@/i];
 
 const ECC_LEGACY_PLUGIN_DIRS = [
   'ecc',
@@ -255,8 +251,12 @@ function uniquePaths(paths) {
 }
 
 function compareVersionDesc(a, b) {
-  const partsA = String(a).split('.').map(part => parseInt(part, 10) || 0);
-  const partsB = String(b).split('.').map(part => parseInt(part, 10) || 0);
+  const partsA = String(a)
+    .split('.')
+    .map((part) => parseInt(part, 10) || 0);
+  const partsB = String(b)
+    .split('.')
+    .map((part) => parseInt(part, 10) || 0);
   const length = Math.max(partsA.length, partsB.length);
 
   for (let index = 0; index < length; index += 1) {
@@ -286,13 +286,15 @@ function findPluginInstallFromManifest(installedPluginsPaths) {
       continue;
     }
 
-    const manifest = safeParseJson(safeRead(path.dirname(installedPath), path.basename(installedPath)));
+    const manifest = safeParseJson(
+      safeRead(path.dirname(installedPath), path.basename(installedPath)),
+    );
     if (!manifest || !manifest.plugins) {
       continue;
     }
 
     for (const [key, value] of Object.entries(manifest.plugins)) {
-      if (!ECC_PLUGIN_KEY_PATTERNS.some(pattern => pattern.test(key))) {
+      if (!ECC_PLUGIN_KEY_PATTERNS.some((pattern) => pattern.test(key))) {
         continue;
       }
 
@@ -342,8 +344,8 @@ function findPluginInstallMarketplaceCache(candidateRoots) {
         try {
           versions = fs
             .readdirSync(pluginRoot, { withFileTypes: true })
-            .filter(entry => entry.isDirectory())
-            .map(entry => entry.name)
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
             .sort(compareVersionDesc);
         } catch {
           continue;
@@ -363,28 +365,26 @@ function findPluginInstallMarketplaceCache(candidateRoots) {
 }
 
 function findPluginInstall(rootDir) {
-  const homeDirs = uniquePaths([
-    process.env.HOME,
-    process.env.USERPROFILE,
-    os.homedir(),
-  ]);
+  const homeDirs = uniquePaths([process.env.HOME, process.env.USERPROFILE, os.homedir()]);
   const pluginRoots = uniquePaths([
     path.join(rootDir, '.claude', 'plugins'),
-    ...homeDirs.map(homeDir => path.join(homeDir, '.claude', 'plugins')),
+    ...homeDirs.map((homeDir) => path.join(homeDir, '.claude', 'plugins')),
   ]);
   const installedPluginsPaths = uniquePaths([
     path.join(rootDir, '.claude', 'plugins', 'installed_plugins.json'),
-    ...homeDirs.map(homeDir => path.join(homeDir, '.claude', 'plugins', 'installed_plugins.json')),
+    ...homeDirs.map((homeDir) =>
+      path.join(homeDir, '.claude', 'plugins', 'installed_plugins.json'),
+    ),
   ]);
   const flatRoots = uniquePaths([
     ...pluginRoots,
-    ...pluginRoots.map(pluginsDir => path.join(pluginsDir, 'marketplaces')),
+    ...pluginRoots.map((pluginsDir) => path.join(pluginsDir, 'marketplaces')),
   ]);
 
   return (
-    findPluginInstallFromManifest(installedPluginsPaths)
-    || findPluginInstallFlatLayout(flatRoots)
-    || findPluginInstallMarketplaceCache(pluginRoots)
+    findPluginInstallFromManifest(installedPluginsPaths) ||
+    findPluginInstallFlatLayout(flatRoots) ||
+    findPluginInstallMarketplaceCache(pluginRoots)
   );
 }
 
@@ -502,7 +502,10 @@ function getRepoChecks(rootDir) {
       scopes: ['repo'],
       path: 'package.json',
       description: 'Test script runs validator chain before tests',
-      pass: typeof packageJson?.scripts?.test === 'string' && packageJson?.scripts?.test.includes('validate-commands.js') && packageJson?.scripts?.test.includes('tests/run-all.js'),
+      pass:
+        typeof packageJson?.scripts?.test === 'string' &&
+        packageJson?.scripts?.test.includes('validate-commands.js') &&
+        packageJson?.scripts?.test.includes('tests/run-all.js'),
       fix: 'Update package.json test script to run validators plus tests/run-all.js.',
     },
     {
@@ -542,7 +545,9 @@ function getRepoChecks(rootDir) {
       scopes: ['repo', 'hooks'],
       path: 'scripts/hooks/session-start.js',
       description: 'Session start/end persistence scripts exist',
-      pass: fileExists(rootDir, 'scripts/hooks/session-start.js') && fileExists(rootDir, 'scripts/hooks/session-end.js'),
+      pass:
+        fileExists(rootDir, 'scripts/hooks/session-start.js') &&
+        fileExists(rootDir, 'scripts/hooks/session-end.js'),
       fix: 'Implement scripts/hooks/session-start.js and scripts/hooks/session-end.js.',
     },
     {
@@ -572,7 +577,10 @@ function getRepoChecks(rootDir) {
       scopes: ['repo', 'commands', 'skills'],
       path: 'commands/checkpoint.md',
       description: 'Checkpoint command and eval/verification skills exist',
-      pass: fileExists(rootDir, 'commands/checkpoint.md') && fileExists(rootDir, 'skills/eval-harness/SKILL.md') && fileExists(rootDir, 'skills/verification-loop/SKILL.md'),
+      pass:
+        fileExists(rootDir, 'commands/checkpoint.md') &&
+        fileExists(rootDir, 'skills/eval-harness/SKILL.md') &&
+        fileExists(rootDir, 'skills/verification-loop/SKILL.md'),
       fix: 'Add checkpoint command plus eval-harness and verification-loop skills to standardize verification loops.',
     },
     {
@@ -818,7 +826,7 @@ function collectProviderChecks(rootDir, packageJson) {
     workflowsText: readAllWorkflowsText(rootDir),
   };
 
-  return providers.flatMap(provider => buildProviderChecks(rootDir, provider, sharedContext));
+  return providers.flatMap((provider) => buildProviderChecks(rootDir, provider, sharedContext));
 }
 
 function getConsumerChecks(rootDir) {
@@ -845,7 +853,8 @@ function getConsumerChecks(rootDir) {
       scopes: ['repo', 'hooks', 'skills', 'commands', 'agents'],
       path: '.claude/',
       description: 'Project-specific harness overrides exist under .claude/',
-      pass: countFiles(rootDir, '.claude/agents', '.md') > 0 ||
+      pass:
+        countFiles(rootDir, '.claude/agents', '.md') > 0 ||
         countFiles(rootDir, '.claude/skills', 'SKILL.md') > 0 ||
         countFiles(rootDir, '.claude/commands', '.md') > 0 ||
         fileExists(rootDir, '.claude/settings.json') ||
@@ -859,7 +868,10 @@ function getConsumerChecks(rootDir) {
       scopes: ['repo'],
       path: 'AGENTS.md',
       description: 'The project has explicit agent or instruction context',
-      pass: fileExists(rootDir, 'AGENTS.md') || fileExists(rootDir, 'CLAUDE.md') || fileExists(rootDir, '.claude/CLAUDE.md'),
+      pass:
+        fileExists(rootDir, 'AGENTS.md') ||
+        fileExists(rootDir, 'CLAUDE.md') ||
+        fileExists(rootDir, '.claude/CLAUDE.md'),
       fix: 'Add AGENTS.md or CLAUDE.md so the harness has project-specific instructions.',
     },
     {
@@ -869,7 +881,10 @@ function getConsumerChecks(rootDir) {
       scopes: ['repo', 'hooks'],
       path: '.mcp.json',
       description: 'The project declares local MCP or Claude settings',
-      pass: fileExists(rootDir, '.mcp.json') || fileExists(rootDir, '.claude/settings.json') || fileExists(rootDir, '.claude/settings.local.json'),
+      pass:
+        fileExists(rootDir, '.mcp.json') ||
+        fileExists(rootDir, '.claude/settings.json') ||
+        fileExists(rootDir, '.claude/settings.local.json'),
       fix: 'Add .mcp.json or .claude/settings.json so project-local tool configuration is explicit.',
     },
     {
@@ -879,7 +894,10 @@ function getConsumerChecks(rootDir) {
       scopes: ['repo'],
       path: 'tests/',
       description: 'The project has an automated test entrypoint',
-      pass: typeof packageJson?.scripts?.test === 'string' || countFiles(rootDir, 'tests', '.test.js') > 0 || hasFileWithExtension(rootDir, '.', ['.spec.js', '.spec.ts', '.test.ts']),
+      pass:
+        typeof packageJson?.scripts?.test === 'string' ||
+        countFiles(rootDir, 'tests', '.test.js') > 0 ||
+        hasFileWithExtension(rootDir, '.', ['.spec.js', '.spec.ts', '.test.ts']),
       fix: 'Add a test script or checked-in tests so harness recommendations can be verified automatically.',
     },
     {
@@ -919,7 +937,10 @@ function getConsumerChecks(rootDir) {
       scopes: ['repo'],
       path: 'SECURITY.md',
       description: 'The project exposes a security policy or automated dependency scanning',
-      pass: fileExists(rootDir, 'SECURITY.md') || fileExists(rootDir, '.github/dependabot.yml') || fileExists(rootDir, '.github/codeql.yml'),
+      pass:
+        fileExists(rootDir, 'SECURITY.md') ||
+        fileExists(rootDir, '.github/dependabot.yml') ||
+        fileExists(rootDir, '.github/codeql.yml'),
       fix: 'Add SECURITY.md or dependency/code scanning configuration to document the project security posture.',
     },
     {
@@ -939,7 +960,10 @@ function getConsumerChecks(rootDir) {
       scopes: ['repo', 'hooks'],
       path: '.claude/settings.json',
       description: 'Project-local hook settings reference tool/prompt guardrails',
-      pass: projectHooks.includes('PreToolUse') || projectHooks.includes('beforeSubmitPrompt') || fileExists(rootDir, '.claude/hooks.json'),
+      pass:
+        projectHooks.includes('PreToolUse') ||
+        projectHooks.includes('beforeSubmitPrompt') ||
+        fileExists(rootDir, '.claude/hooks.json'),
       fix: 'Add project-local hook settings or hook definitions for prompt/tool guardrails.',
     },
     ...buildGithubChecks(rootDir),
@@ -950,10 +974,10 @@ function getConsumerChecks(rootDir) {
 function summarizeCategoryScores(checks) {
   const scores = {};
   for (const category of CATEGORIES) {
-    const inCategory = checks.filter(check => check.category === category);
+    const inCategory = checks.filter((check) => check.category === category);
     const max = inCategory.reduce((sum, check) => sum + check.points, 0);
     const earned = inCategory
-      .filter(check => check.pass)
+      .filter((check) => check.pass)
       .reduce((sum, check) => sum + check.points, 0);
 
     const normalized = max === 0 ? 0 : Math.round((earned / max) * 10);
@@ -970,20 +994,21 @@ function summarizeCategoryScores(checks) {
 function buildReport(scope, options = {}) {
   const rootDir = path.resolve(options.rootDir || process.cwd());
   const targetMode = options.targetMode || detectTargetMode(rootDir);
-  const checks = (targetMode === 'repo' ? getRepoChecks(rootDir) : getConsumerChecks(rootDir))
-    .filter(check => check.scopes.includes(scope));
+  const checks = (
+    targetMode === 'repo' ? getRepoChecks(rootDir) : getConsumerChecks(rootDir)
+  ).filter((check) => check.scopes.includes(scope));
   const categoryScores = summarizeCategoryScores(checks);
   const maxScore = checks.reduce((sum, check) => sum + check.points, 0);
   const overallScore = checks
-    .filter(check => check.pass)
+    .filter((check) => check.pass)
     .reduce((sum, check) => sum + check.points, 0);
-  const applicableCategories = CATEGORIES.filter(name => categoryScores[name]?.max > 0);
+  const applicableCategories = CATEGORIES.filter((name) => categoryScores[name]?.max > 0);
 
-  const failedChecks = checks.filter(check => !check.pass);
+  const failedChecks = checks.filter((check) => !check.pass);
   const topActions = failedChecks
     .sort((left, right) => right.points - left.points)
     .slice(0, 3)
-    .map(check => ({
+    .map((check) => ({
       action: check.fix,
       path: check.path,
       category: check.category,
@@ -1001,7 +1026,7 @@ function buildReport(scope, options = {}) {
     categories: categoryScores,
     applicable_categories: applicableCategories,
     category_count: applicableCategories.length,
-    checks: checks.map(check => ({
+    checks: checks.map((check) => ({
       id: check.id,
       category: check.category,
       points: check.points,
@@ -1014,7 +1039,9 @@ function buildReport(scope, options = {}) {
 }
 
 function printText(report) {
-  console.log(`Harness Audit (${report.scope}, ${report.target_mode}): ${report.overall_score}/${report.max_score}`);
+  console.log(
+    `Harness Audit (${report.scope}, ${report.target_mode}): ${report.overall_score}/${report.max_score}`,
+  );
   console.log(`Root: ${report.root_dir}`);
   console.log('');
 
@@ -1027,7 +1054,7 @@ function printText(report) {
     console.log(`- ${category}: ${data.score}/10 (${data.earned}/${data.max} pts)`);
   }
 
-  const failed = report.checks.filter(check => !check.pass);
+  const failed = report.checks.filter((check) => !check.pass);
   console.log('');
   console.log(`Checks: ${report.checks.length} total, ${failed.length} failing`);
 

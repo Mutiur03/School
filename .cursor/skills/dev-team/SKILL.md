@@ -28,22 +28,22 @@ Use when:
 
 ### When NOT to Use
 
-| Condition | Use Instead |
-| --- | --- |
-| Ambiguous go/no-go decision with real tradeoffs | `council` |
-| You want to hand-pick which agents participate | `team-builder` |
-| Single-role deep-dive (e.g. architecture only) | the `architect` agent |
-| Code review | the `code-reviewer` agent or `/code-review` |
-| Structured adversarial challenge | `santa-method` |
+| Condition                                       | Use Instead                                 |
+| ----------------------------------------------- | ------------------------------------------- |
+| Ambiguous go/no-go decision with real tradeoffs | `council`                                   |
+| You want to hand-pick which agents participate  | `team-builder`                              |
+| Single-role deep-dive (e.g. architecture only)  | the `architect` agent                       |
+| Code review                                     | the `code-reviewer` agent or `/code-review` |
+| Structured adversarial challenge                | `santa-method`                              |
 
 ## Personas
 
-| Role | Name | Lens |
-| --- | --- | --- |
-| Product Manager | PM | user value, scope, prioritization, definition of done |
-| Architect | Arch | system design, scalability, technical risk, integration points |
-| Developer | Dev | implementation complexity, effort, edge cases, technical debt |
-| QA Engineer | QA | testability, acceptance criteria, failure modes, regression risk |
+| Role            | Name | Lens                                                             |
+| --------------- | ---- | ---------------------------------------------------------------- |
+| Product Manager | PM   | user value, scope, prioritization, definition of done            |
+| Architect       | Arch | system design, scalability, technical risk, integration points   |
+| Developer       | Dev  | implementation complexity, effort, edge cases, technical debt    |
+| QA Engineer     | QA   | testability, acceptance criteria, failure modes, regression risk |
 
 All personas are **analysis-only**: they read the prompt they are given and answer from
 their role's perspective. They must not edit files, run state-changing commands, or use
@@ -131,20 +131,25 @@ Format:
 ## Dev Team: <topic title>
 
 ### PM
+
 <response>
 
 ### Architect
+
 <response>
 
 ### Developer
+
 <response>
 
 ### QA
+
 <response>
 
 ---
 
 ### Synthesis
+
 <3-5 bullet summary of what all four roles agree on, and where tensions exist>
 ```
 
@@ -184,13 +189,13 @@ Do not write session output to files by default. If the user explicitly asks to 
 
 The three team surfaces are complementary, not competing:
 
-| | dev-team | team-builder | council |
-| --- | --- | --- | --- |
-| Purpose | Preset four-lens design review | Compose an arbitrary agent team | Adversarial decision |
-| Roles | Always PM / Arch / Dev / QA | User-selected agents | Fixed skeptical panel |
-| Trigger | Feature proposal, planning | Custom parallel dispatch | Go/no-go, tradeoff choice |
-| Tone | Constructive, role-aware | Depends on selection | Skeptical, challenging |
-| Output | Multi-role perspectives + synthesis | Per-agent results | Verdict with dissent |
+|         | dev-team                            | team-builder                    | council                   |
+| ------- | ----------------------------------- | ------------------------------- | ------------------------- |
+| Purpose | Preset four-lens design review      | Compose an arbitrary agent team | Adversarial decision      |
+| Roles   | Always PM / Arch / Dev / QA         | User-selected agents            | Fixed skeptical panel     |
+| Trigger | Feature proposal, planning          | Custom parallel dispatch        | Go/no-go, tradeoff choice |
+| Tone    | Constructive, role-aware            | Depends on selection            | Skeptical, challenging    |
+| Output  | Multi-role perspectives + synthesis | Per-agent results               | Verdict with dissent      |
 
 Run `dev-team` to shape a proposal, then `council` if a specific decision within it needs adversarial pressure.
 

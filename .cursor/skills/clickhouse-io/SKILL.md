@@ -23,6 +23,7 @@ ClickHouse-specific patterns for high-performance analytics and data engineering
 ClickHouse is a column-oriented database management system (DBMS) for online analytical processing (OLAP). It's optimized for fast analytical queries on large datasets.
 
 **Key Features:**
+
 - Column-oriented storage
 - Data compression
 - Parallel query execution
@@ -162,27 +163,27 @@ ORDER BY market_id, date;
 ### Bulk Insert (Recommended)
 
 ```typescript
-import { createClient } from '@clickhouse/client'
+import { createClient } from '@clickhouse/client';
 
 const clickhouse = createClient({
   url: process.env.CLICKHOUSE_URL ?? 'http://localhost:8123',
   username: process.env.CLICKHOUSE_USER,
-  password: process.env.CLICKHOUSE_PASSWORD
-})
+  password: process.env.CLICKHOUSE_PASSWORD,
+});
 
 // PASS: Batch insert (efficient)
 async function bulkInsertTrades(trades: Trade[]) {
   await clickhouse.insert({
     table: 'trades',
-    values: trades.map(trade => ({
+    values: trades.map((trade) => ({
       id: trade.id,
       market_id: trade.market_id,
       user_id: trade.user_id,
       amount: trade.amount,
-      timestamp: trade.timestamp.toISOString()
+      timestamp: trade.timestamp.toISOString(),
     })),
-    format: 'JSONEachRow'
-  })
+    format: 'JSONEachRow',
+  });
 }
 
 // FAIL: Individual inserts (slow)
@@ -190,15 +191,17 @@ async function insertTrade(trade: Trade) {
   // Don't do this in a loop!
   await clickhouse.insert({
     table: 'trades',
-    values: [{
-      id: trade.id,
-      market_id: trade.market_id,
-      user_id: trade.user_id,
-      amount: trade.amount,
-      timestamp: trade.timestamp.toISOString()
-    }],
-    format: 'JSONEachRow'
-  })
+    values: [
+      {
+        id: trade.id,
+        market_id: trade.market_id,
+        user_id: trade.user_id,
+        amount: trade.amount,
+        timestamp: trade.timestamp.toISOString(),
+      },
+    ],
+    format: 'JSONEachRow',
+  });
 }
 ```
 
@@ -206,14 +209,14 @@ async function insertTrade(trade: Trade) {
 
 ```typescript
 // For continuous data ingestion
-import { Readable } from 'node:stream'
+import { Readable } from 'node:stream';
 
 async function streamInserts(dataSource: AsyncIterable<Record<string, unknown>>) {
   await clickhouse.insert({
     table: 'trades',
     values: Readable.from(dataSource, { objectMode: true }),
-    format: 'JSONEachRow'
-  })
+    format: 'JSONEachRow',
+  });
 }
 ```
 
@@ -367,76 +370,81 @@ ORDER BY cohort, months_since_signup;
 // Extract, Transform, Load
 async function etlPipeline() {
   // 1. Extract from source
-  const rawData = await extractFromPostgres()
+  const rawData = await extractFromPostgres();
 
   // 2. Transform
-  const transformed = rawData.map(row => ({
+  const transformed = rawData.map((row) => ({
     date: new Date(row.created_at).toISOString().split('T')[0],
     market_id: row.market_slug,
     volume: parseFloat(row.total_volume),
-    trades: parseInt(row.trade_count)
-  }))
+    trades: parseInt(row.trade_count),
+  }));
 
   // 3. Load to ClickHouse
-  await bulkInsertToClickHouse(transformed)
+  await bulkInsertToClickHouse(transformed);
 }
 
 // Run periodically
-setInterval(etlPipeline, 60 * 60 * 1000)  // Every hour
+setInterval(etlPipeline, 60 * 60 * 1000); // Every hour
 ```
 
 ### Change Data Capture (CDC)
 
 ```typescript
 // Listen to PostgreSQL changes and sync to ClickHouse
-import { Client } from 'pg'
+import { Client } from 'pg';
 
-const pgClient = new Client({ connectionString: process.env.DATABASE_URL })
+const pgClient = new Client({ connectionString: process.env.DATABASE_URL });
 
-pgClient.query('LISTEN market_updates')
+pgClient.query('LISTEN market_updates');
 
 pgClient.on('notification', async (msg) => {
-  const update = JSON.parse(msg.payload)
+  const update = JSON.parse(msg.payload);
 
   await clickhouse.insert({
     table: 'market_updates',
     values: [
       {
         market_id: update.id,
-        event_type: update.operation,  // INSERT, UPDATE, DELETE
+        event_type: update.operation, // INSERT, UPDATE, DELETE
         timestamp: new Date(),
-        data: JSON.stringify(update.new_data)
-      }
+        data: JSON.stringify(update.new_data),
+      },
     ],
-    format: 'JSONEachRow'
-  })
-})
+    format: 'JSONEachRow',
+  });
+});
 ```
 
 ## Best Practices
 
 ### 1. Partitioning Strategy
+
 - Partition by time (usually month or day)
 - Avoid too many partitions (performance impact)
 - Use DATE type for partition key
 
 ### 2. Ordering Key
+
 - Put most frequently filtered columns first
 - Consider cardinality (high cardinality first)
 - Order impacts compression
 
 ### 3. Data Types
+
 - Use smallest appropriate type (UInt32 vs UInt64)
 - Use LowCardinality for repeated strings
 - Use Enum for categorical data
 
 ### 4. Avoid
+
 - SELECT * (specify columns)
 - FINAL (merge data before query instead)
 - Too many JOINs (denormalize for analytics)
 - Small frequent inserts (batch instead)
 
 ### 5. Monitoring
+
 - Track query performance
 - Monitor disk usage
 - Check merge operations

@@ -75,7 +75,10 @@ export class PromotionService {
     const sr = await loadSessionResults(this.prisma, schoolId, year);
     const { missingYearEnd, missingPrevious } = sr;
     const results = sr.results.filter(
-      (r) => !missingPrevious.includes(r.classLevel) && !r.held && (!only || only.includes(r.enrollmentId)),
+      (r) =>
+        !missingPrevious.includes(r.classLevel) &&
+        !r.held &&
+        (!only || only.includes(r.enrollmentId)),
     );
     await rlsTransaction(async (tx) => {
       for (const r of results) {

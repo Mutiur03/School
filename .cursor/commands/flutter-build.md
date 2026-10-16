@@ -17,6 +17,7 @@ This command invokes the **dart-build-resolver** agent to incrementally fix Dart
 ## When to Use
 
 Use `/flutter-build` when:
+
 - `flutter analyze` reports errors
 - `flutter build` fails for any platform
 - `dart pub get` / `flutter pub get` fails with version conflicts
@@ -127,14 +128,14 @@ Build Status: PASS ✓
 
 ## Common Errors Fixed
 
-| Error | Typical Fix |
-|-------|-------------|
-| `A value of type 'X?' can't be assigned to 'X'` | Add `?? default` or null guard |
-| `The name 'X' isn't defined` | Add import or fix typo |
-| `Non-nullable instance field must be initialized` | Add initializer or `late` |
-| `Version solving failed` | Adjust version constraints in pubspec.yaml |
-| `Missing concrete implementation of 'X'` | Implement missing interface method |
-| `build_runner: Part of X expected` | Delete stale `.g.dart` and rebuild |
+| Error                                             | Typical Fix                                |
+| ------------------------------------------------- | ------------------------------------------ |
+| `A value of type 'X?' can't be assigned to 'X'`   | Add `?? default` or null guard             |
+| `The name 'X' isn't defined`                      | Add import or fix typo                     |
+| `Non-nullable instance field must be initialized` | Add initializer or `late`                  |
+| `Version solving failed`                          | Adjust version constraints in pubspec.yaml |
+| `Missing concrete implementation of 'X'`          | Implement missing interface method         |
+| `build_runner: Part of X expected`                | Delete stale `.g.dart` and rebuild         |
 
 ## Fix Strategy
 
@@ -147,6 +148,7 @@ Build Status: PASS ✓
 ## Stop Conditions
 
 The agent will stop and report if:
+
 - Same error persists after 3 attempts
 - Fix introduces more errors
 - Requires architectural changes

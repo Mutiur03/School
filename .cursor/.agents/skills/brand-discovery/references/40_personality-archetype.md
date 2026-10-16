@@ -16,6 +16,7 @@
 ### "If the brand were a person, how would they walk into a room?"
 
 ### Archetype instinct (which of the 12 resonates immediately, and why?)
+
 > Creator · Caregiver · Ruler · Jester · Regular Person · Lover · Hero ·
 > Outlaw · Magician · Innocent · Sage · Explorer
 
@@ -33,20 +34,20 @@
 
 ### Primary archetype + shadow
 
-| | |
-|---|---|
-| **Primary archetype** | (name + 1-line why) |
+|                        |                                                                   |
+| ---------------------- | ----------------------------------------------------------------- |
+| **Primary archetype**  | (name + 1-line why)                                               |
 | **Secondary / shadow** | (what the primary archetype risks becoming; what keeps it honest) |
 
 ### J. Aaker personality scores (1–5, 5 = strongly applies)
 
-| Dimension | Score | Evidence |
-|---|---|---|
-| Sincerity (warm, honest, down-to-earth) | | |
-| Excitement (daring, spirited, imaginative) | | |
-| Competence (reliable, intelligent, successful) | | |
-| Sophistication (upper-class, charming) | | |
-| Ruggedness (outdoorsy, tough) | | |
+| Dimension                                      | Score | Evidence |
+| ---------------------------------------------- | ----- | -------- |
+| Sincerity (warm, honest, down-to-earth)        |       |          |
+| Excitement (daring, spirited, imaginative)     |       |          |
+| Competence (reliable, intelligent, successful) |       |          |
+| Sophistication (upper-class, charming)         |       |          |
+| Ruggedness (outdoorsy, tough)                  |       |          |
 
 ### Personality in action (3 behavioural guidelines derived from the archetype)
 

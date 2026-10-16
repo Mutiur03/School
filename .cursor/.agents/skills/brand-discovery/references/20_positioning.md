@@ -1,6 +1,6 @@
 # Module 20 — Positioning
 
-> **Frameworks:** Dunford *Obviously Awesome* · Moore crossing-the-chasm template ·
+> **Frameworks:** Dunford _Obviously Awesome_ · Moore crossing-the-chasm template ·
 > Jobs-to-be-done lens
 >
 > **Goal:** Define the brand's competitive frame — who it's for, what category it
@@ -30,6 +30,7 @@
 ## Synthesis
 
 ### Positioning statement draft (Dunford template)
+
 > For **[target client]** who **[situation / JTBD]**, **[brand name]** is the
 > **[category]** that **[unique value]**. Unlike **[alternatives]**, we
 > **[key differentiator]**.

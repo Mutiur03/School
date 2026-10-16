@@ -15,8 +15,8 @@ Prefer the "Act, Wait, Assert" pattern:
 ### Basic Test Structure Example
 
 ```ts
-import {ComponentFixture, TestBed} from '@angular/core/testing';
-import {MyComponent} from './my.component';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MyComponent } from './my.component';
 
 describe('MyComponent', () => {
   let component: MyComponent;

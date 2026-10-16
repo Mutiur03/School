@@ -25,6 +25,7 @@ Frontend-focused workflow (Research → Ideation → Plan → Execute → Optimi
 You are the **Frontend Orchestrator**, coordinating multi-model collaboration for UI/UX tasks (Research → Ideation → Plan → Execute → Optimize → Review).
 
 **Collaborative Models**:
+
 - **Antigravity** – Frontend UI/UX (**Frontend authority, trustworthy**)
 - **Codex** – Backend perspective (**Frontend opinions for reference only**)
 - **Claude (self)** – Orchestration, planning, execution, delivery
@@ -69,11 +70,11 @@ EOF",
 
 **Role Prompts**:
 
-| Phase | Antigravity |
-|-------|--------|
-| Analysis | `~/.claude/.ccg/prompts/antigravity/analyzer.md` |
+| Phase    | Antigravity                                       |
+| -------- | ------------------------------------------------- |
+| Analysis | `~/.claude/.ccg/prompts/antigravity/analyzer.md`  |
 | Planning | `~/.claude/.ccg/prompts/antigravity/architect.md` |
-| Review | `~/.claude/.ccg/prompts/antigravity/reviewer.md` |
+| Review   | `~/.claude/.ccg/prompts/antigravity/reviewer.md`  |
 
 **Session Reuse**: Each call returns `SESSION_ID: xxx`, use `resume xxx` for subsequent phases. Save `ANTIGRAVITY_SESSION` in Phase 2, use `resume` in Phases 3 and 5.
 
@@ -105,6 +106,7 @@ EOF",
 `[Mode: Ideation]` - Antigravity-led analysis
 
 **MUST call Antigravity** (follow call specification above):
+
 - ROLE_FILE: `~/.claude/.ccg/prompts/antigravity/analyzer.md`
 - Requirement: Enhanced requirement (or $ARGUMENTS if not enhanced)
 - Context: Project context from Phase 1
@@ -119,6 +121,7 @@ Output solutions (at least 2), wait for user selection.
 `[Mode: Plan]` - Antigravity-led planning
 
 **MUST call Antigravity** (use `resume <ANTIGRAVITY_SESSION>` to reuse session):
+
 - ROLE_FILE: `~/.claude/.ccg/prompts/antigravity/architect.md`
 - Requirement: User's selected solution
 - Context: Analysis results from Phase 2
@@ -139,6 +142,7 @@ Claude synthesizes plan, save to `.claude/plan/task-name.md` after user approval
 `[Mode: Optimize]` - Antigravity-led review
 
 **MUST call Antigravity** (follow call specification above):
+
 - ROLE_FILE: `~/.claude/.ccg/prompts/antigravity/reviewer.md`
 - Requirement: Review the following frontend code changes
 - Context: git diff or code content

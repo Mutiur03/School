@@ -1,6 +1,6 @@
 # Module 70 — Founder Brand vs Organisation Brand
 
-> **Frameworks:** Enns *Win Without Pitching* · Personal brand vs institutional
+> **Frameworks:** Enns _Win Without Pitching_ · Personal brand vs institutional
 > brand spectrum
 >
 > **Goal:** Map the relationship between the founder's personal reputation and the
@@ -36,7 +36,8 @@
 [Founder IS the brand] ←————————→ [Organisation brand stands alone]
          1         2         3         4         5
 ```
-Current position: `___`   Target position (3-year): `___`
+
+Current position: `___` Target position (3-year): `___`
 
 ### What the founder brand should own (and keeps owning)
 

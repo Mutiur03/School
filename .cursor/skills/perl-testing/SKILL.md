@@ -424,19 +424,19 @@ done_testing;
 
 ## Quick Reference
 
-| Task | Command / Pattern |
-|---|---|
-| Run all tests | `prove -lr t/` |
-| Run one test verbose | `prove -lv t/unit/user.t` |
-| Parallel test run | `prove -lr -j8 t/` |
-| Coverage report | `cover -test && cover -report html` |
-| Test equality | `is($got, $expected, 'label')` |
-| Deep comparison | `is($got, hash { field k => 'v'; etc() }, 'label')` |
-| Test exception | `like(dies { ... }, qr/msg/, 'label')` |
-| Test no exception | `ok(lives { ... }, 'label')` |
-| Mock a method | `Test::MockModule->new('Pkg')->mock(m => sub { ... })` |
-| Skip tests | `SKIP: { skip 'reason', $count unless $cond; ... }` |
-| TODO tests | `TODO: { local $TODO = 'reason'; ... }` |
+| Task                 | Command / Pattern                                      |
+| -------------------- | ------------------------------------------------------ |
+| Run all tests        | `prove -lr t/`                                         |
+| Run one test verbose | `prove -lv t/unit/user.t`                              |
+| Parallel test run    | `prove -lr -j8 t/`                                     |
+| Coverage report      | `cover -test && cover -report html`                    |
+| Test equality        | `is($got, $expected, 'label')`                         |
+| Deep comparison      | `is($got, hash { field k => 'v'; etc() }, 'label')`    |
+| Test exception       | `like(dies { ... }, qr/msg/, 'label')`                 |
+| Test no exception    | `ok(lives { ... }, 'label')`                           |
+| Mock a method        | `Test::MockModule->new('Pkg')->mock(m => sub { ... })` |
+| Skip tests           | `SKIP: { skip 'reason', $count unless $cond; ... }`    |
+| TODO tests           | `TODO: { local $TODO = 'reason'; ... }`                |
 
 ## Common Pitfalls
 
@@ -467,7 +467,7 @@ prove -l t/unit/user.t
 
 ### Over-Mocking
 
-Mock the *dependency*, not the code under test. If your test only verifies that a mock returns what you told it to, it tests nothing.
+Mock the _dependency_, not the code under test. If your test only verifies that a mock returns what you told it to, it tests nothing.
 
 ### Test Pollution
 

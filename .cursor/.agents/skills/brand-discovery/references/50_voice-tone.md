@@ -32,25 +32,25 @@
 
 ### Voice spectrum (mark the brand's position on each axis)
 
-| Axis | 1 | 2 | 3 | 4 | 5 | Notes |
-|---|---|---|---|---|---|---|
-| Formal ←→ Casual | | | | | | |
-| Serious ←→ Playful | | | | | | |
-| Distant ←→ Warm | | | | | | |
-| Conventional ←→ Irreverent | | | | | | |
-| Minimal ←→ Expressive | | | | | | |
+| Axis                       | 1   | 2   | 3   | 4   | 5   | Notes |
+| -------------------------- | --- | --- | --- | --- | --- | ----- |
+| Formal ←→ Casual           |     |     |     |     |     |       |
+| Serious ←→ Playful         |     |     |     |     |     |       |
+| Distant ←→ Warm            |     |     |     |     |     |       |
+| Conventional ←→ Irreverent |     |     |     |     |     |       |
+| Minimal ←→ Expressive      |     |     |     |     |     |       |
 
 ### Voice statement (one paragraph a writer can internalise)
 
 ### Tone matrix by content type
 
-| Content type | Tone shift | Example phrase |
-|---|---|---|
-| Homepage headline | | |
-| Case study / evidence | | |
-| Proposal / commercial | | |
-| Error / apology | | |
-| Social / informal | | |
+| Content type          | Tone shift | Example phrase |
+| --------------------- | ---------- | -------------- |
+| Homepage headline     |            |                |
+| Case study / evidence |            |                |
+| Proposal / commercial |            |                |
+| Error / apology       |            |                |
+| Social / informal     |            |                |
 
 ### The three things to check every draft against
 

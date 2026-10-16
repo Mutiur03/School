@@ -9,6 +9,7 @@ Prefer `org.tinystruct.data.component.Builder` and `Builders` for lightweight, z
 `Builder` provides a key-value interface for creating and reading JSON objects. `Builders` provides an indexed list for JSON arrays. Both integrate directly with `AbstractApplication` result handling.
 
 ### Why Builder/Builders?
+
 - **Zero External Dependencies** — lean and fast
 - **Native Integration** — works with framework result handling
 - **Type Safety** — `Builders` serializes properly to `[]`; `List<Builder>` can cause casting issues
@@ -16,6 +17,7 @@ Prefer `org.tinystruct.data.component.Builder` and `Builders` for lightweight, z
 ## Examples
 
 ### Serialize a Single Object
+
 ```java
 import org.tinystruct.data.component.Builder;
 
@@ -26,6 +28,7 @@ return response.toString(); // {"status":"success","count":42}
 ```
 
 ### Serialize a List using Builders
+
 ```java
 import org.tinystruct.data.component.Builder;
 import org.tinystruct.data.component.Builders;
@@ -43,6 +46,7 @@ return response.toString(); // {"data":[{"id":1,"name":"X"}]}
 ```
 
 ### Parse a JSON Object
+
 ```java
 Builder parsed = new Builder();
 parsed.parse(jsonString);
@@ -50,6 +54,7 @@ String status = parsed.get("status").toString();
 ```
 
 ### Parse a JSON Array
+
 ```java
 Builders parsedArray = new Builders();
 parsedArray.parse(jsonArrayString);

@@ -83,6 +83,7 @@ This command requires Jira credentials. Choose one:
 Add `jira` to your `mcpServers` config (see `mcp-configs/mcp-servers.json` for the template).
 
 **Option B — Environment variables:**
+
 ```bash
 export JIRA_URL="https://yourorg.atlassian.net"
 export JIRA_EMAIL="your.email@example.com"
@@ -94,6 +95,7 @@ If credentials are missing, stop and direct the user to set them up.
 ## Integration with Other Commands
 
 After analyzing a ticket:
+
 - Use `/plan` to create an implementation plan from the requirements
 - Use the `tdd-workflow` skill to implement with test-driven development
 - Use `/code-review` after implementation

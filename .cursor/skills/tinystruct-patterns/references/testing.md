@@ -7,13 +7,17 @@ Use these patterns when writing unit tests for your applications with **JUnit 5*
 ## How It Works
 
 ### Unit Testing Applications
+
 ActionRegistry is a singleton. To test an application:
+
 1. Instantiate the application.
 2. Provide a `Settings` object (triggers `init()` and annotation processing).
 3. Use `app.invoke(path, args)` to test logic directly.
 
 ### HTTP Integration Testing
+
 For tests involving the built-in HTTP server:
+
 1. Start `HttpServer` in a background thread.
 2. Use `ApplicationManager.call("start", context, Action.Mode.CLI)` to boot.
 3. Wait for the port to be open using a `Socket`.
@@ -22,6 +26,7 @@ For tests involving the built-in HTTP server:
 ## Examples
 
 ### Unit Test
+
 ```java
 import org.junit.jupiter.api.*;
 import org.tinystruct.system.Settings;
@@ -51,6 +56,7 @@ class MyAppTest {
 ```
 
 ### ActionRegistry Match Testing
+
 ```java
 @Test
 void testRouting() {
@@ -61,6 +67,7 @@ void testRouting() {
 ```
 
 ### HTTP Integration Pattern
+
 Reference: `src/test/java/org/tinystruct/system/HttpServerHttpModeTest.java`
 
 ```java

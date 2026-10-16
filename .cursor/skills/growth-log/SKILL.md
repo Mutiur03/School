@@ -8,7 +8,7 @@ metadata:
 
 # Growth Log Skill
 
-> **The problem:** Most people write "fixed a bug in X" as a learning log. That's a diary entry, not a learning artifact. A real growth log extracts the *pattern* so you recognize it next time.
+> **The problem:** Most people write "fixed a bug in X" as a learning log. That's a diary entry, not a learning artifact. A real growth log extracts the _pattern_ so you recognize it next time.
 >
 > **This skill teaches:** How to write learning entries that compound across sessions. Works with any note-taking system — Markdown files, Notion, Obsidian, plain text. Templates are generic; adapt to your setup.
 
@@ -18,7 +18,7 @@ metadata:
 - After a failure, mistake, or "that was harder than expected" moment
 - When you want to review what you've learned over a period
 
-**When NOT to activate:** Trivial changes (typo fixes, single-line tweaks, config value changes with no debugging). The threshold: *did this task involve debugging, redoing, rollback, or a non-obvious decision?* If yes → write an entry. If no → skip.
+**When NOT to activate:** Trivial changes (typo fixes, single-line tweaks, config value changes with no debugging). The threshold: _did this task involve debugging, redoing, rollback, or a non-obvious decision?_ If yes → write an entry. If no → skip.
 
 ## The Three Rules
 
@@ -32,7 +32,7 @@ A failure is nutritionally denser than a success. One bug that took 2 hours to f
 
 ### Rule 2: The Bole Principle (伯乐原则)
 
-Before writing a new entry, ask: *"Is this fundamentally the same as something I already recorded?"*
+Before writing a new entry, ask: _"Is this fundamentally the same as something I already recorded?"_
 
 Same root cause, different symptom → **merge**, don't duplicate. New root cause → new entry.
 
@@ -42,11 +42,12 @@ Same root cause, different symptom → **merge**, don't duplicate. New root caus
 
 ### Rule 3: Must Be Transferable
 
-Every entry must answer: *"Next time I face a similar situation, what do I do differently?"*
+Every entry must answer: _"Next time I face a similar situation, what do I do differently?"_
 
 If you can't write that sentence, you haven't extracted the pattern yet.
 
 **How to extract a pattern from a concrete event:**
+
 1. State what happened in one sentence
 2. Ask "why?" iteratively until you reach root cause (usually 3-5 whys)
 3. Generalize: "What class of problem is this?" (not "Chrome 128 bug" but "browser default change breaking existing behavior")
@@ -61,17 +62,21 @@ If you can't write that sentence, you haven't extracted the pattern yet.
 ## [Title: the pattern, not the event]
 
 ### Context
+
 - What was I trying to do?
 - What went wrong / what worked surprisingly well?
 
 ### Root Cause / Core Insight
+
 - The underlying mechanism, not just the symptom
 
 ### The Pattern (transferable)
+
 - Next time [similar situation], I will [specific action].
 - Signal to recognize: [what observable tells me this pattern is active?]
 
 ### Related
+
 - [entry-name](../path/to/related-entry.md)
 ```
 
@@ -79,18 +84,18 @@ If you can't write that sentence, you haven't extracted the pattern yet.
 
 All four types use the template above. The type determines which sections carry the most weight:
 
-| Type | When to Use | Emphasis | Example Title |
-|------|------------|----------|---------------|
-| **Failure** | Something broke, needed debugging, or required rework | Root Cause | "Config inheritance ≠ behavior inheritance across sessions" |
-| **Methodology** | A repeatable process emerged from the work | Context / Pattern | "PPT → open-book exam study guide: three-layer structure" |
-| **Pattern Discovery** | A reusable insight about tools, systems, or thinking | Pattern section | "PR description template: describe the gap, not the feature" |
-| **Capability Change** | A measurable skill improvement | Context (before vs after) | "Git: from clone/push to independent PR with 12 commits" |
+| Type                  | When to Use                                           | Emphasis                  | Example Title                                                |
+| --------------------- | ----------------------------------------------------- | ------------------------- | ------------------------------------------------------------ |
+| **Failure**           | Something broke, needed debugging, or required rework | Root Cause                | "Config inheritance ≠ behavior inheritance across sessions"  |
+| **Methodology**       | A repeatable process emerged from the work            | Context / Pattern         | "PPT → open-book exam study guide: three-layer structure"    |
+| **Pattern Discovery** | A reusable insight about tools, systems, or thinking  | Pattern section           | "PR description template: describe the gap, not the feature" |
+| **Capability Change** | A measurable skill improvement                        | Context (before vs after) | "Git: from clone/push to independent PR with 12 commits"     |
 
 ## Quality Checklist
 
 Before finalizing a growth log entry:
 
-- [ ] Does the title name the *pattern*, not the event?
+- [ ] Does the title name the _pattern_, not the event?
 - [ ] Is there a "Next time I will..." sentence?
 - [ ] Is the "Signal to recognize" specific enough to trigger the pattern next time?
 - [ ] Did I search existing entries for duplicates before writing? (Bole Principle)
@@ -109,6 +114,7 @@ Before finalizing a growth log entry:
 ## Storage
 
 Store entries wherever you keep notes. Common patterns:
+
 - Markdown files in a `growth-log/` directory (one file per day: `YYYY-MM-DD.md`)
 - A dedicated section in Notion, Obsidian, or your note-taking app
 - Plain text files with a consistent naming convention
@@ -117,7 +123,7 @@ Pick one convention and stick to it. Searchability matters more than format.
 
 ## If You Use Delivery Gate
 
-The `delivery-gate` Stop hook checks that learning files were modified today via filesystem timestamps. This skill teaches *what to write* — so the file that delivery-gate checks actually contains useful patterns, not empty timestamps.
+The `delivery-gate` Stop hook checks that learning files were modified today via filesystem timestamps. This skill teaches _what to write_ — so the file that delivery-gate checks actually contains useful patterns, not empty timestamps.
 
 ```
 Task completes → delivery-gate checks: was the learning file touched today?

@@ -60,11 +60,13 @@ npx playwright show-report                 # View HTML report
 ## Workflow
 
 ### 1. Plan
+
 - Identify critical user journeys (auth, core features, payments, CRUD)
 - Define scenarios: happy path, edge cases, error cases
 - Prioritize by risk: HIGH (financial, auth), MEDIUM (search, nav), LOW (UI polish)
 
 ### 2. Create
+
 - Use Page Object Model (POM) pattern
 - Prefer `data-testid` locators over CSS/XPath
 - Add assertions at key steps
@@ -72,6 +74,7 @@ npx playwright show-report                 # View HTML report
 - Use proper waits (never `waitForTimeout`)
 
 ### 3. Execute
+
 - Run locally 3-5 times to check for flakiness
 - Quarantine flaky tests with `test.fixme()` or `test.skip()`
 - Upload artifacts to CI
@@ -90,8 +93,8 @@ npx playwright show-report                 # View HTML report
 ```typescript
 // Quarantine
 test('flaky: market search', async ({ page }) => {
-  test.fixme(true, 'Flaky - Issue #123')
-})
+  test.fixme(true, 'Flaky - Issue #123');
+});
 
 // Identify flakiness
 // npx playwright test --repeat-each=10

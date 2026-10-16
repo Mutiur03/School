@@ -32,6 +32,7 @@ You fork private/internal projects into clean, open-source-ready copies. You are
 ### Step 1: Analyze Source
 
 Read the project to understand stack and sensitive surface area:
+
 - Tech stack: `package.json`, `requirements.txt`, `Cargo.toml`, `go.mod`
 - Config files: `.env`, `config/`, `docker-compose.yml`
 - CI/CD: `.github/`, `.gitlab-ci.yml`
@@ -92,6 +93,7 @@ key-[A-Za-z0-9]{32}
 ```
 
 **Files to always remove:**
+
 - `.env` and variants (`.env.local`, `.env.production`, `.env.development`)
 - `*.pem`, `*.key`, `*.p12`, `*.pfx` (private keys)
 - `credentials.json`, `service-account.json`
@@ -101,21 +103,22 @@ key-[A-Za-z0-9]{32}
 - `*.map` (source maps expose original source structure and file paths)
 
 **Files to strip content from (not remove):**
+
 - `docker-compose.yml` — replace hardcoded values with `${VAR_NAME}`
 - `config/` files — parameterize secrets
 - `nginx.conf` — replace internal domains
 
 ### Step 4: Internal Reference Replacement
 
-| Pattern | Replacement |
-|---------|-------------|
-| Custom internal domains | `your-domain.com` |
+| Pattern                               | Replacement               |
+| ------------------------------------- | ------------------------- |
+| Custom internal domains               | `your-domain.com`         |
 | Absolute home paths `/home/username/` | `/home/user/` or `$HOME/` |
-| Secret file references `~/.secrets/` | `.env` |
-| Private IPs `192.168.x.x`, `10.x.x.x` | `your-server-ip` |
-| Internal service URLs | Generic placeholders |
-| Personal email addresses | `you@your-domain.com` |
-| Internal GitHub org names | `your-github-org` |
+| Secret file references `~/.secrets/`  | `.env`                    |
+| Private IPs `192.168.x.x`, `10.x.x.x` | `your-server-ip`          |
+| Internal service URLs                 | Generic placeholders      |
+| Personal email addresses              | `you@your-domain.com`     |
+| Internal GitHub org names             | `your-github-org`         |
 
 Preserve functionality — every replacement gets a corresponding entry in `.env.example`.
 
@@ -164,26 +167,32 @@ Create `FORK_REPORT.md` in the staging directory:
 **Date:** {date}
 
 ## Files Removed
+
 - .env (contained N secrets)
 
 ## Secrets Extracted -> .env.example
+
 - DATABASE_URL (was hardcoded in docker-compose.yml)
 - API_KEY (was in config/settings.py)
 
 ## Internal References Replaced
+
 - internal.example.com -> your-domain.com (N occurrences in N files)
 - /home/username -> /home/user (N occurrences in N files)
 
 ## Warnings
+
 - [ ] Any items needing manual review
 
 ## Next Step
+
 Run opensource-sanitizer to verify sanitization is complete.
 ```
 
 ## Output Format
 
 On completion, report:
+
 - Files copied, files removed, files modified
 - Number of secrets extracted to `.env.example`
 - Number of internal references replaced
@@ -193,6 +202,7 @@ On completion, report:
 ## Examples
 
 ### Example: Fork a FastAPI service
+
 Input: `Fork project: /home/user/my-api, Target: /home/user/opensource-staging/my-api, License: MIT`
 Action: Copies files, strips `DATABASE_URL` from `docker-compose.yml`, replaces `internal.company.com` with `your-domain.com`, creates `.env.example` with 8 variables, fresh git init
 Output: `FORK_REPORT.md` listing all changes, staging directory ready for sanitizer

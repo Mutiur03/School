@@ -95,7 +95,7 @@ The `extensions/index.ts` file handles:
    timeout and an output limit
 6. **Package resolution** — Resolves hook scripts from the installed package via `__dirname`,
    never from `process.cwd()`, so a global install works from any project directory. Hooks
-   still *run* in the user's project directory, so project detection stays correct
+   still _run_ in the user's project directory, so project detection stays correct
 
 All hook execution is non-shell (`execFile` without shell interpretation), so paths containing
 spaces, tabs, or shell metacharacters are safe.
@@ -172,6 +172,7 @@ registered with `pi list`.
 **Cause:** Extension not loaded or package installed incorrectly.
 
 **Fix:**
+
 1. Run `pi list` to confirm ECC is registered
 2. Restart Pi: exit and reopen the session
 3. Run `/ecc-doctor` again
@@ -185,6 +186,7 @@ A `NOT FOUND` line points at the specific path that failed to resolve.
 **Cause:** the extension is not loaded, or the hooks are gated off by an ECC hook profile.
 
 **Fix:**
+
 1. Confirm `pi list` shows ECC and that `/ecc-doctor` reports the hook runner as found
 2. Check `ECC_HOOK_PROFILE` and `ECC_DISABLED_HOOKS` — `/ecc-doctor` prints both. A hook
    listed in `ECC_DISABLED_HOOKS` is skipped by design

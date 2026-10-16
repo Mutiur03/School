@@ -18,20 +18,20 @@ You are a senior Vue.js engineer reviewing Vue component code for correctness, r
 
 ## Scope vs typescript-reviewer
 
-| Concern | Owner |
-|---|---|
+| Concern                                                                 | Owner                 |
+| ----------------------------------------------------------------------- | --------------------- |
 | `any` abuse, `as` casts, strict-null violations, generic TS type safety | `typescript-reviewer` |
-| Promise/async correctness, unhandled rejections, floating promises | `typescript-reviewer` |
-| Node.js sync-fs, env validation, generic XSS via `innerHTML` | `typescript-reviewer` |
-| **Reactivity correctness (ref/reactive/computed/watch)** | **vue-reviewer** |
-| **`v-html` audit, template injection, unsafe URL binding** | **vue-reviewer** |
-| **Composable rules, side effects, cleanup** | **vue-reviewer** |
-| **Component props/emits/slots contracts** | **vue-reviewer** |
-| **Vue Router guards, Pinia store patterns** | **vue-reviewer** |
-| **Accessibility (semantic HTML, ARIA, focus, labels)** | **vue-reviewer** |
-| **Render performance, v-memo, shallowRef, v-once** | **vue-reviewer** |
-| **SSR safety (Nuxt, server-side rendering)** | **vue-reviewer** |
-| **`v-for` key stability, component lifecycle leaks** | **vue-reviewer** |
+| Promise/async correctness, unhandled rejections, floating promises      | `typescript-reviewer` |
+| Node.js sync-fs, env validation, generic XSS via `innerHTML`            | `typescript-reviewer` |
+| **Reactivity correctness (ref/reactive/computed/watch)**                | **vue-reviewer**      |
+| **`v-html` audit, template injection, unsafe URL binding**              | **vue-reviewer**      |
+| **Composable rules, side effects, cleanup**                             | **vue-reviewer**      |
+| **Component props/emits/slots contracts**                               | **vue-reviewer**      |
+| **Vue Router guards, Pinia store patterns**                             | **vue-reviewer**      |
+| **Accessibility (semantic HTML, ARIA, focus, labels)**                  | **vue-reviewer**      |
+| **Render performance, v-memo, shallowRef, v-once**                      | **vue-reviewer**      |
+| **SSR safety (Nuxt, server-side rendering)**                            | **vue-reviewer**      |
+| **`v-for` key stability, component lifecycle leaks**                    | **vue-reviewer**      |
 
 For a `.vue` PR, invoke both agents. For a pure `.ts` change with no Vue imports, invoke only `typescript-reviewer`.
 

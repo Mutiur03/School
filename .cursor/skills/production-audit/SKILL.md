@@ -123,12 +123,12 @@ and avoid credentialed actions unless the user supplies a safe test account.
 
 Use scores to force prioritization, not to imply mathematical certainty.
 
-| Band | Score | Meaning |
-| --- | --- | --- |
-| Blocked | 0-49 | Do not ship until the top risks are fixed |
-| Risky | 50-69 | Ship only behind a small rollout or internal beta |
-| Launchable With Caveats | 70-84 | Ship if owners accept the listed risks |
-| Strong | 85-100 | No obvious launch blockers from available evidence |
+| Band                    | Score  | Meaning                                            |
+| ----------------------- | ------ | -------------------------------------------------- |
+| Blocked                 | 0-49   | Do not ship until the top risks are fixed          |
+| Risky                   | 50-69  | Ship only behind a small rollout or internal beta  |
+| Launchable With Caveats | 70-84  | Ship if owners accept the listed risks             |
+| Strong                  | 85-100 | No obvious launch blockers from available evidence |
 
 Cap the score at `69` if any of these are true:
 

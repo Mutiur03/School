@@ -350,7 +350,7 @@ fn service_returns_none_when_not_found() {
 
 ### Executable Documentation
 
-```rust
+````rust
 /// Adds two numbers together.
 ///
 /// # Examples
@@ -386,7 +386,7 @@ pub fn add(a: i32, b: i32) -> i32 {
 pub fn parse_config(input: &str) -> Result<Config, ParseError> {
     todo!()
 }
-```
+````
 
 ## Benchmarking with Criterion
 
@@ -433,11 +433,11 @@ cargo llvm-cov --fail-under-lines 80  # Fail if below threshold
 
 ### Coverage Targets
 
-| Code Type | Target |
-|-----------|--------|
-| Critical business logic | 100% |
-| Public API | 90%+ |
-| General code | 80%+ |
+| Code Type                | Target  |
+| ------------------------ | ------- |
+| Critical business logic  | 100%    |
+| Public API               | 90%+    |
+| General code             | 80%+    |
 | Generated / FFI bindings | Exclude |
 
 ## Testing Commands
@@ -456,6 +456,7 @@ cargo test -- --ignored           # Run ignored tests
 ## Best Practices
 
 **DO:**
+
 - Write tests FIRST (TDD)
 - Use `#[cfg(test)]` modules for unit tests
 - Test behavior, not implementation
@@ -465,6 +466,7 @@ cargo test -- --ignored           # Run ignored tests
 - Keep tests independent — no shared mutable state
 
 **DON'T:**
+
 - Use `#[should_panic]` when you can test `Result::is_err()` instead
 - Mock everything — prefer integration tests when feasible
 - Ignore flaky tests — fix or quarantine them

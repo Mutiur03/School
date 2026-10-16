@@ -49,18 +49,18 @@ cppcheck --enable=all src/ 2>/dev/null || echo "cppcheck not available"
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `undefined reference to X` | Missing implementation or library | Add source file or link library |
-| `no matching function for call` | Wrong argument types | Fix types or add overload |
-| `expected ';'` | Syntax error | Fix syntax |
-| `use of undeclared identifier` | Missing include or typo | Add `#include` or fix name |
-| `multiple definition of` | Duplicate symbol | Use `inline`, move to .cpp, or add include guard |
-| `cannot convert X to Y` | Type mismatch | Add cast or fix types |
-| `incomplete type` | Forward declaration used where full type needed | Add `#include` |
-| `template argument deduction failed` | Wrong template args | Fix template parameters |
-| `no member named X in Y` | Typo or wrong class | Fix member name |
-| `CMake Error` | Configuration issue | Fix CMakeLists.txt |
+| Error                                | Cause                                           | Fix                                              |
+| ------------------------------------ | ----------------------------------------------- | ------------------------------------------------ |
+| `undefined reference to X`           | Missing implementation or library               | Add source file or link library                  |
+| `no matching function for call`      | Wrong argument types                            | Fix types or add overload                        |
+| `expected ';'`                       | Syntax error                                    | Fix syntax                                       |
+| `use of undeclared identifier`       | Missing include or typo                         | Add `#include` or fix name                       |
+| `multiple definition of`             | Duplicate symbol                                | Use `inline`, move to .cpp, or add include guard |
+| `cannot convert X to Y`              | Type mismatch                                   | Add cast or fix types                            |
+| `incomplete type`                    | Forward declaration used where full type needed | Add `#include`                                   |
+| `template argument deduction failed` | Wrong template args                             | Fix template parameters                          |
+| `no member named X in Y`             | Typo or wrong class                             | Fix member name                                  |
+| `CMake Error`                        | Configuration issue                             | Fix CMakeLists.txt                               |
 
 ## CMake Troubleshooting
 
@@ -81,6 +81,7 @@ cmake --build build --clean-first
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope

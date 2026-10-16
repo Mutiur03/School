@@ -93,15 +93,12 @@ export default async function ProductPage({ params }: { params: { id: string } }
 }
 
 // Client Component - opt in with "use client"
-"use client";
+('use client');
 export function AddToCartButton({ productId }: { productId: string }) {
   const [pending, startTransition] = useTransition();
   return (
-    <button
-      disabled={pending}
-      onClick={() => startTransition(() => addToCart(productId))}
-    >
-      {pending ? "Adding..." : "Add to cart"}
+    <button disabled={pending} onClick={() => startTransition(() => addToCart(productId))}>
+      {pending ? 'Adding...' : 'Add to cart'}
     </button>
   );
 }
@@ -132,15 +129,15 @@ Boundaries:
 ### React 19 form actions (preferred for new code)
 
 ```tsx
-"use client";
-import { useActionState } from "react";
+'use client';
+import { useActionState } from 'react';
 
 const initial = { error: null as string | null };
 
 async function updateUserAction(_prev: typeof initial, formData: FormData) {
-  "use server";
+  'use server';
   const parsed = UserSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Invalid input" };
+  if (!parsed.success) return { error: 'Invalid input' };
   await db.user.update({ where: { id: parsed.data.id }, data: parsed.data });
   return { error: null };
 }
@@ -150,7 +147,9 @@ export function UserForm() {
   return (
     <form action={formAction}>
       <input name="name" required />
-      <button type="submit" disabled={pending}>Save</button>
+      <button type="submit" disabled={pending}>
+        Save
+      </button>
       {state.error && <p role="alert">{state.error}</p>}
     </form>
   );
@@ -167,13 +166,13 @@ For multi-step forms, dynamic field arrays, or cross-field validation: use a lib
 
 ## Data Fetching Decision Matrix
 
-| Need | Tool |
-|---|---|
-| Per-request data in Next.js App Router | RSC `await fetch()` |
-| Client-side cache + mutations + invalidation | TanStack Query |
-| Lightweight client cache + revalidation | SWR |
-| Real-time subscriptions | Server-Sent Events, WebSockets, or the lib's subscription API |
-| One-off fire-and-forget | `fetch()` in an event handler |
+| Need                                         | Tool                                                          |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| Per-request data in Next.js App Router       | RSC `await fetch()`                                           |
+| Client-side cache + mutations + invalidation | TanStack Query                                                |
+| Lightweight client cache + revalidation      | SWR                                                           |
+| Real-time subscriptions                      | Server-Sent Events, WebSockets, or the lib's subscription API |
+| One-off fire-and-forget                      | `fetch()` in an event handler                                 |
 
 Avoid `useEffect` + `fetch` for application data — race conditions, no cache, no retry, no Suspense integration.
 
@@ -204,8 +203,12 @@ Avoid `useEffect` + `fetch` for application data — race conditions, no cache, 
     <Tabs.Trigger value="profile">Profile</Tabs.Trigger>
     <Tabs.Trigger value="settings">Settings</Tabs.Trigger>
   </Tabs.List>
-  <Tabs.Panel value="profile"><Profile /></Tabs.Panel>
-  <Tabs.Panel value="settings"><Settings /></Tabs.Panel>
+  <Tabs.Panel value="profile">
+    <Profile />
+  </Tabs.Panel>
+  <Tabs.Panel value="settings">
+    <Settings />
+  </Tabs.Panel>
 </Tabs>
 ```
 
@@ -215,7 +218,7 @@ Useful when the parent needs to pass parameters to the rendered output:
 
 ```tsx
 <DataLoader id={id}>
-  {({ data, isLoading }) => isLoading ? <Spinner /> : <UserCard user={data} />}
+  {({ data, isLoading }) => (isLoading ? <Spinner /> : <UserCard user={data} />)}
 </DataLoader>
 ```
 
@@ -285,10 +288,10 @@ function useDebounce<T>(value: T, delay = 300): T {
 }
 
 function SearchBox() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const debounced = useDebounce(query, 300);
   const { data } = useQuery({
-    queryKey: ["search", debounced],
+    queryKey: ['search', debounced],
     queryFn: () => searchApi(debounced),
     enabled: debounced.length > 0,
   });
@@ -304,24 +307,28 @@ function SearchBox() {
 ### Optimistic UI with React 19 `useOptimistic`
 
 ```tsx
-"use client";
-import { useOptimistic } from "react";
+'use client';
+import { useOptimistic } from 'react';
 
 export function MessageList({ messages }: { messages: Message[] }) {
-  const [optimistic, addOptimistic] = useOptimistic(
-    messages,
-    (state, newMessage: Message) => [...state, newMessage],
-  );
+  const [optimistic, addOptimistic] = useOptimistic(messages, (state, newMessage: Message) => [
+    ...state,
+    newMessage,
+  ]);
 
   async function send(formData: FormData) {
-    const text = String(formData.get("text"));
-    addOptimistic({ id: "pending", text, sender: "me" });
+    const text = String(formData.get('text'));
+    addOptimistic({ id: 'pending', text, sender: 'me' });
     await saveMessage(text);
   }
 
   return (
     <>
-      <ul>{optimistic.map((m) => <li key={m.id}>{m.text}</li>)}</ul>
+      <ul>
+        {optimistic.map((m) => (
+          <li key={m.id}>{m.text}</li>
+        ))}
+      </ul>
       <form action={send}>
         <input name="text" />
         <button type="submit">Send</button>
@@ -335,7 +342,7 @@ export function MessageList({ messages }: { messages: Message[] }) {
 
 ```tsx
 // Two contexts: one rarely changes, one frequently
-const ThemeContext = createContext<Theme>("light");
+const ThemeContext = createContext<Theme>('light');
 const NotificationsContext = createContext<Notification[]>([]);
 
 // A component that only consumes ThemeContext does NOT re-render when notifications change

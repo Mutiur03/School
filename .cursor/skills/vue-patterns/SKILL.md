@@ -11,6 +11,7 @@ Comprehensive guide for Vue.js 3 development using Composition API (`<script set
 ## When to Activate
 
 Activate this skill when:
+
 - The project uses Vue.js (any version), Nuxt, Vite + Vue, or Pinia.
 - The user asks about Vue component architecture, composables, reactivity, or state management.
 - Reviewing Vue Single-File Components (`.vue` files).
@@ -42,12 +43,12 @@ src/
 
 ### File Naming
 
-| Convention | When to Use |
-|-----------|-------------|
-| `PascalCase.vue` | All components (enforced by `vue/multi-word-component-names`) |
-| `useCamelCase.ts` | Composables |
-| `camelCase.ts` | Utilities, API clients, types |
-| `kebab-case` directories | Route segments, feature folders |
+| Convention               | When to Use                                                   |
+| ------------------------ | ------------------------------------------------------------- |
+| `PascalCase.vue`         | All components (enforced by `vue/multi-word-component-names`) |
+| `useCamelCase.ts`        | Composables                                                   |
+| `camelCase.ts`           | Utilities, API clients, types                                 |
+| `kebab-case` directories | Route segments, feature folders                               |
 
 ---
 
@@ -72,7 +73,7 @@ src/
 </template>
 
 <style scoped>
-  /* Scoped styles */
+/* Scoped styles */
 </style>
 ```
 
@@ -87,13 +88,13 @@ src/
 // Type-based props with defaults
 interface Props {
   label: string;
-  variant?: "primary" | "secondary";
+  variant?: 'primary' | 'secondary';
   disabled?: boolean;
   items: Item[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  variant: "primary",
+  variant: 'primary',
   disabled: false,
 });
 ```
@@ -108,7 +109,7 @@ const props = withDefaults(defineProps<Props>(), {
 ```ts
 const emit = defineEmits<{
   submit: [];
-  "update:modelValue": [value: string];
+  'update:modelValue': [value: string];
   select: [id: string, index: number];
 }>();
 ```
@@ -132,8 +133,10 @@ export function useDebounce<T>(value: MaybeRef<T>, delay: number): Ref<T> {
     () => toValue(value),
     (newVal) => {
       clearTimeout(timer);
-      timer = setTimeout(() => { debounced.value = newVal; }, delay);
-    }
+      timer = setTimeout(() => {
+        debounced.value = newVal;
+      }, delay);
+    },
   );
 
   onUnmounted(() => clearTimeout(timer));
@@ -152,6 +155,7 @@ export function useDebounce<T>(value: MaybeRef<T>, delay: number): Ref<T> {
 ### vs Mixins
 
 Composables replace Vue 2 mixins entirely:
+
 - **Mixins**: Opaque data flow, source-of-truth collisions, name conflicts.
 - **Composables**: Explicit imports, clear return values, composable and tree-shakable.
 
@@ -161,34 +165,30 @@ Composables replace Vue 2 mixins entirely:
 
 ### When to Use What
 
-| Pattern | Use Case |
-|---------|----------|
-| `ref()` / `reactive()` | Local component state |
-| Props + Emits | Parent-child communication |
-| Provide / Inject | Theme, config, plugin API |
-| Pinia store | Global, shared, complex state |
+| Pattern                 | Use Case                                            |
+| ----------------------- | --------------------------------------------------- |
+| `ref()` / `reactive()`  | Local component state                               |
+| Props + Emits           | Parent-child communication                          |
+| Provide / Inject        | Theme, config, plugin API                           |
+| Pinia store             | Global, shared, complex state                       |
 | Server state composable | API data with caching (wrap `fetch`/TanStack Query) |
 
 ### Pinia Setup Store (Preferred)
 
 ```ts
 // stores/useCartStore.ts
-export const useCartStore = defineStore("cart", () => {
+export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([]);
   const isLoading = ref(false);
 
-  const totalPrice = computed(() =>
-    items.value.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  );
-  const itemCount = computed(() =>
-    items.value.reduce((sum, i) => sum + i.quantity, 0)
-  );
+  const totalPrice = computed(() => items.value.reduce((sum, i) => sum + i.price * i.quantity, 0));
+  const itemCount = computed(() => items.value.reduce((sum, i) => sum + i.quantity, 0));
 
   async function addItem(productId: string) {
     isLoading.value = true;
     try {
       const item = await fetchProduct(productId);
-      const existing = items.value.find(i => i.id === item.id);
+      const existing = items.value.find((i) => i.id === item.id);
       if (existing) existing.quantity++;
       else items.value.push({ ...item, quantity: 1 });
     } finally {
@@ -213,9 +213,9 @@ export const useCartStore = defineStore("cart", () => {
 ```ts
 const routes = [
   {
-    path: "/users/:id",
-    name: "user-detail",
-    component: () => import("@/pages/UserDetail.vue"), // lazy
+    path: '/users/:id',
+    name: 'user-detail',
+    component: () => import('@/pages/UserDetail.vue'), // lazy
     props: true, // pass params as props
     meta: { requiresAuth: true },
   },
@@ -228,7 +228,7 @@ const routes = [
 router.beforeEach((to, from) => {
   const { isLoggedIn } = useAuthStore();
   if (to.meta.requiresAuth && !isLoggedIn) {
-    return { name: "login", query: { redirect: to.fullPath } };
+    return { name: 'login', query: { redirect: to.fullPath } };
   }
 });
 ```
@@ -278,16 +278,16 @@ watch(id, (newId) => fetchItem(newId));
 
 ## 7. Performance
 
-| Technique | When to Use |
-|-----------|-------------|
-| `v-memo` | List items that rarely change |
-| `v-once` | Content rendered once and static forever |
-| `shallowRef()` | Large data structures replaced wholesale |
-| `shallowReactive()` | Only top-level properties are reactive |
-| `v-show` over `v-if` | Frequent visibility toggles |
-| `<KeepAlive :max="10">` | Cache toggled views |
-| Lazy routes | `() => import(...)` for non-critical routes |
-| `Suspense` | Async component loading with fallback |
+| Technique               | When to Use                                 |
+| ----------------------- | ------------------------------------------- |
+| `v-memo`                | List items that rarely change               |
+| `v-once`                | Content rendered once and static forever    |
+| `shallowRef()`          | Large data structures replaced wholesale    |
+| `shallowReactive()`     | Only top-level properties are reactive      |
+| `v-show` over `v-if`    | Frequent visibility toggles                 |
+| `<KeepAlive :max="10">` | Cache toggled views                         |
+| Lazy routes             | `() => import(...)` for non-critical routes |
+| `Suspense`              | Async component loading with fallback       |
 
 ---
 
@@ -303,19 +303,21 @@ watch(id, (newId) => fetchItem(newId));
 ### Component Test Pattern
 
 ```ts
-import { mount } from "@vue/test-utils";
-import { createPinia, setActivePinia } from "pinia";
-import UserCard from "./UserCard.vue";
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import UserCard from './UserCard.vue';
 
-beforeEach(() => { setActivePinia(createPinia()); });
+beforeEach(() => {
+  setActivePinia(createPinia());
+});
 
-it("renders and emits", async () => {
+it('renders and emits', async () => {
   const wrapper = mount(UserCard, {
-    props: { user: { id: "1", name: "Alice" } },
+    props: { user: { id: '1', name: 'Alice' } },
   });
-  expect(wrapper.text()).toContain("Alice");
-  await wrapper.find("button").trigger("click");
-  expect(wrapper.emitted("select")![0]).toEqual(["1"]);
+  expect(wrapper.text()).toContain('Alice');
+  await wrapper.find('button').trigger('click');
+  expect(wrapper.emitted('select')![0]).toEqual(['1']);
 });
 ```
 
@@ -330,14 +332,19 @@ Nuxt auto-imports `ref`, `computed`, `watch`, `useFetch`, `useAsyncData`, etc. U
 ### useAsyncData / useFetch
 
 ```ts
-const { data: user, pending, error, refresh } = await useAsyncData(
-  "user", // unique key for caching
+const {
+  data: user,
+  pending,
+  error,
+  refresh,
+} = await useAsyncData(
+  'user', // unique key for caching
   () => $fetch(`/api/users/${id}`),
 );
 
-const { data: posts } = await useFetch("/api/posts", {
+const { data: posts } = await useFetch('/api/posts', {
   query: { page: 1 },
-  key: "posts-page-1", // dedupes requests
+  key: 'posts-page-1', // dedupes requests
 });
 ```
 
@@ -346,9 +353,12 @@ const { data: posts } = await useFetch("/api/posts", {
 ```ts
 // server/api/users/[id].ts
 export default defineEventHandler(async (event) => {
-  const { id } = await getValidatedRouterParams(event, z.object({
-    id: z.string().uuid(),
-  }).parse);
+  const { id } = await getValidatedRouterParams(
+    event,
+    z.object({
+      id: z.string().uuid(),
+    }).parse,
+  );
   // ... fetch and return
 });
 ```
@@ -360,10 +370,10 @@ export default defineEventHandler(async (event) => {
 export default defineNuxtConfig({
   runtimeConfig: {
     // server-only
-    apiSecret: "",
+    apiSecret: '',
     // public (exposed to client)
     public: {
-      apiBase: "https://api.example.com",
+      apiBase: 'https://api.example.com',
     },
   },
 });
@@ -393,8 +403,8 @@ watch(() => count, (newVal) => { ... }); // PASS getter required
 Replace name-matched plain refs with `useTemplateRef()` for template references:
 
 ```ts
-import { useTemplateRef } from "vue";
-const inputEl = useTemplateRef<HTMLInputElement>("input");
+import { useTemplateRef } from 'vue';
+const inputEl = useTemplateRef<HTMLInputElement>('input');
 // "input" matches the ref="input" attribute in template, not the variable name
 ```
 
@@ -405,7 +415,7 @@ Supports dynamic ref IDs: `useTemplateRef(dynamicRefId)`.
 Globally importable watcher cleanup API (Vue 3.5+). It must be called synchronously inside the watcher callback:
 
 ```ts
-import { watch, onWatcherCleanup } from "vue";
+import { watch, onWatcherCleanup } from 'vue';
 
 watch(userId, async (newId) => {
   const controller = new AbortController();
@@ -419,7 +429,7 @@ watch(userId, async (newId) => {
 SSR-stable unique ID generation for form elements and accessibility:
 
 ```ts
-import { useId } from "vue";
+import { useId } from 'vue';
 const id = useId();
 ```
 
@@ -437,9 +447,9 @@ const id = useId();
 `defineAsyncComponent()` now supports `hydrate` strategy:
 
 ```ts
-import { defineAsyncComponent, hydrateOnVisible } from "vue";
+import { defineAsyncComponent, hydrateOnVisible } from 'vue';
 const AsyncComp = defineAsyncComponent({
-  loader: () => import("./Comp.vue"),
+  loader: () => import('./Comp.vue'),
   hydrate: hydrateOnVisible(),
 });
 ```
@@ -448,20 +458,20 @@ const AsyncComp = defineAsyncComponent({
 
 ## Anti-Patterns
 
-| Anti-Pattern | Why It's Wrong | The Fix |
-|-------------|---------------|---------|
-| Destructuring `defineProps()` (Vue < 3.5) | Captures snapshot, loses reactivity | Access via `props.xxx` or use `toRefs()` |
-| `watch()` on destructured prop (Vue 3.5+) | Compile-time error — destructured props can't be watched directly | Use getter wrapper: `watch(() => count, ...)` |
-| `v-if` + `v-for` on same element | Ambiguous execution order | Use computed filtered array |
-| `v-for` key = index | Broken state on reorder | Use stable database IDs |
-| Mutating props | Violates one-way data flow | Emit events or use `v-model` |
-| `v-html` with user content | XSS vulnerability | Sanitize with DOMPurify |
-| Mixins in Vue 3 | Opaque, collision-prone | Replace with composables |
-| Module-scope side effects in composable | Shared across instances | Scope in `onMounted` + `onUnmounted` |
-| `reactive()` for replaceable state | Replacement breaks reactivity | Use `ref()` instead |
-| Watcher without cleanup | Memory leaks, race conditions | Use `onCleanup` or `onWatcherCleanup()` (Vue 3.5+) |
-| Options API in new Vue 3 code | Ecosystem move to Composition API | Use `<script setup>` |
-| Plain ref for template references | No dynamic ref support, name-matching fragile | Use `useTemplateRef()` (Vue 3.5+) |
+| Anti-Pattern                              | Why It's Wrong                                                    | The Fix                                            |
+| ----------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------- |
+| Destructuring `defineProps()` (Vue < 3.5) | Captures snapshot, loses reactivity                               | Access via `props.xxx` or use `toRefs()`           |
+| `watch()` on destructured prop (Vue 3.5+) | Compile-time error — destructured props can't be watched directly | Use getter wrapper: `watch(() => count, ...)`      |
+| `v-if` + `v-for` on same element          | Ambiguous execution order                                         | Use computed filtered array                        |
+| `v-for` key = index                       | Broken state on reorder                                           | Use stable database IDs                            |
+| Mutating props                            | Violates one-way data flow                                        | Emit events or use `v-model`                       |
+| `v-html` with user content                | XSS vulnerability                                                 | Sanitize with DOMPurify                            |
+| Mixins in Vue 3                           | Opaque, collision-prone                                           | Replace with composables                           |
+| Module-scope side effects in composable   | Shared across instances                                           | Scope in `onMounted` + `onUnmounted`               |
+| `reactive()` for replaceable state        | Replacement breaks reactivity                                     | Use `ref()` instead                                |
+| Watcher without cleanup                   | Memory leaks, race conditions                                     | Use `onCleanup` or `onWatcherCleanup()` (Vue 3.5+) |
+| Options API in new Vue 3 code             | Ecosystem move to Composition API                                 | Use `<script setup>`                               |
+| Plain ref for template references         | No dynamic ref support, name-matching fragile                     | Use `useTemplateRef()` (Vue 3.5+)                  |
 
 ## Related Skills
 

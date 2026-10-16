@@ -60,20 +60,20 @@ flutter build web 2>&1           # Web
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `The name 'X' isn't defined` | Missing import or typo | Add correct `import` or fix name |
-| `A value of type 'X?' can't be assigned to type 'X'` | Null safety — nullable not handled | Add `!`, `?? default`, or null check |
-| `The argument type 'X' can't be assigned to 'Y'` | Type mismatch | Fix type, add explicit cast, or correct API call |
-| `Non-nullable instance field 'x' must be initialized` | Missing initializer | Add initializer, mark `late`, or make nullable |
-| `The method 'X' isn't defined for type 'Y'` | Wrong type or wrong import | Check type and imports |
-| `'await' applied to non-Future` | Awaiting a non-async value | Remove `await` or make function async |
-| `Missing concrete implementation of 'X'` | Abstract interface not fully implemented | Add missing method implementations |
-| `The class 'X' doesn't implement 'Y'` | Missing `implements` or missing method | Add method or fix class signature |
-| `Because X depends on Y >=A and Z depends on Y <B, version solving failed` | Pub version conflict | Adjust version constraints or add `dependency_overrides` |
-| `Could not find a file named "pubspec.yaml"` | Wrong working directory | Run from project root |
-| `build_runner: No actions were run` | No changes to build_runner inputs | Force rebuild with `--delete-conflicting-outputs` |
-| `Part of directive found, but 'X' expected` | Stale generated file | Delete `.g.dart` file and re-run build_runner |
+| Error                                                                      | Cause                                    | Fix                                                      |
+| -------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------- |
+| `The name 'X' isn't defined`                                               | Missing import or typo                   | Add correct `import` or fix name                         |
+| `A value of type 'X?' can't be assigned to type 'X'`                       | Null safety — nullable not handled       | Add `!`, `?? default`, or null check                     |
+| `The argument type 'X' can't be assigned to 'Y'`                           | Type mismatch                            | Fix type, add explicit cast, or correct API call         |
+| `Non-nullable instance field 'x' must be initialized`                      | Missing initializer                      | Add initializer, mark `late`, or make nullable           |
+| `The method 'X' isn't defined for type 'Y'`                                | Wrong type or wrong import               | Check type and imports                                   |
+| `'await' applied to non-Future`                                            | Awaiting a non-async value               | Remove `await` or make function async                    |
+| `Missing concrete implementation of 'X'`                                   | Abstract interface not fully implemented | Add missing method implementations                       |
+| `The class 'X' doesn't implement 'Y'`                                      | Missing `implements` or missing method   | Add method or fix class signature                        |
+| `Because X depends on Y >=A and Z depends on Y <B, version solving failed` | Pub version conflict                     | Adjust version constraints or add `dependency_overrides` |
+| `Could not find a file named "pubspec.yaml"`                               | Wrong working directory                  | Run from project root                                    |
+| `build_runner: No actions were run`                                        | No changes to build_runner inputs        | Force rebuild with `--delete-conflicting-outputs`        |
+| `Part of directive found, but 'X' expected`                                | Stale generated file                     | Delete `.g.dart` file and re-run build_runner            |
 
 ## Pub Dependency Troubleshooting
 
@@ -186,6 +186,7 @@ flutter clean && cd ios && pod deintegrate && pod install && cd ..
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Requires architectural changes or package upgrades that change behavior

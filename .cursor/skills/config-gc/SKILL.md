@@ -29,16 +29,16 @@ Do NOT activate for: cleaning project source code (that's refactoring), clearing
 
 ## Scan Channels
 
-| # | Channel | Path | Staleness / redundancy signals |
-|---|---------|------|--------------------------------|
-| 1 | Skills | `~/.claude/skills/*/` | Heavily overlapping names; never triggered in recent transcripts; domain mismatch with the user's actual work; broken or empty SKILL.md |
-| 2 | Memory | `~/.claude/**/memory/*.md` + its index | Multiple index entries for one topic; contents contradicting newer entries; dates that have passed; orphan files missing from the index; sub-100-word fragments that should merge |
-| 3 | Hooks | `~/.claude/hooks/` + settings | Scripts present on disk but referenced by no hook config; old versions superseded by rewrites |
-| 4 | Permissions | `permissions.allow` in `settings.json` / `settings.local.json` | Duplicate entries; specific entries already covered by a wildcard (e.g. `Bash(git push)` when `Bash(*)` is allowed); one-off grants from past experiments |
-| 5 | MCP servers | `~/.claude.json` or project `.mcp.json` | Servers that fail to connect; functional duplicates; long-unused |
-| 6 | Scheduled reminders / jobs | wherever the user keeps them | Fired one-shots older than 30 days; jobs whose target scripts no longer exist |
-| 7 | Project history | `~/.claude/projects/*/` | Stale handoff snapshots; session records superseded by newer state |
-| 8 | Runtime caches | `cache/`, `file-history/`, `logs/`, `shell-snapshots/` | Sort by size and mtime; propose items >30 days old and large |
+| #   | Channel                    | Path                                                           | Staleness / redundancy signals                                                                                                                                                    |
+| --- | -------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Skills                     | `~/.claude/skills/*/`                                          | Heavily overlapping names; never triggered in recent transcripts; domain mismatch with the user's actual work; broken or empty SKILL.md                                           |
+| 2   | Memory                     | `~/.claude/**/memory/*.md` + its index                         | Multiple index entries for one topic; contents contradicting newer entries; dates that have passed; orphan files missing from the index; sub-100-word fragments that should merge |
+| 3   | Hooks                      | `~/.claude/hooks/` + settings                                  | Scripts present on disk but referenced by no hook config; old versions superseded by rewrites                                                                                     |
+| 4   | Permissions                | `permissions.allow` in `settings.json` / `settings.local.json` | Duplicate entries; specific entries already covered by a wildcard (e.g. `Bash(git push)` when `Bash(*)` is allowed); one-off grants from past experiments                         |
+| 5   | MCP servers                | `~/.claude.json` or project `.mcp.json`                        | Servers that fail to connect; functional duplicates; long-unused                                                                                                                  |
+| 6   | Scheduled reminders / jobs | wherever the user keeps them                                   | Fired one-shots older than 30 days; jobs whose target scripts no longer exist                                                                                                     |
+| 7   | Project history            | `~/.claude/projects/*/`                                        | Stale handoff snapshots; session records superseded by newer state                                                                                                                |
+| 8   | Runtime caches             | `cache/`, `file-history/`, `logs/`, `shell-snapshots/`         | Sort by size and mtime; propose items >30 days old and large                                                                                                                      |
 
 ## Workflow
 
@@ -113,7 +113,7 @@ jq '.permissions.allow -= ["Bash(git push)"]' ~/.claude/settings.local.json.bak 
 
 ## Related Skills
 
-- `skill-stocktake` — audits skill *quality*; config-gc audits skill *existence*. Run stocktake on what survives GC.
+- `skill-stocktake` — audits skill _quality_; config-gc audits skill _existence_. Run stocktake on what survives GC.
 - `workspace-surface-audit` — the additive counterpart: recommends what to install. config-gc is the subtractive half of the same lifecycle.
 - `configure-ecc` — after installing skills with it, run config-gc to reconcile overlaps with your pre-existing setup.
 - `continuous-learning` — produces the memory files this skill later audits.

@@ -31,6 +31,7 @@ cat pom.xml 2>/dev/null || cat build.gradle 2>/dev/null || cat build.gradle.kts 
 - If neither is detected → review using general Java rules only and note the ambiguity
 
 Then proceed:
+
 1. Run `git diff -- '*.java'` to see recent Java file changes
 2. Run the appropriate build check:
    - **[SPRING]**: `./mvnw verify -q` or `./gradlew check`
@@ -45,6 +46,7 @@ You DO NOT refactor or rewrite code — you report findings only.
 ## Review Priorities
 
 ### CRITICAL -- Security
+
 - **SQL injection**: String concatenation in queries — use bind parameters (`:param` or `?`)
   - **[SPRING]**: Watch for `@Query`, `JdbcTemplate`, `NamedParameterJdbcTemplate`
   - **[QUARKUS]**: Watch for `@Query`, Panache custom queries, `EntityManager.createNativeQuery()`
@@ -66,6 +68,7 @@ You DO NOT refactor or rewrite code — you report findings only.
 If any CRITICAL security issue is found, stop and escalate to `security-reviewer`.
 
 ### CRITICAL -- Error Handling
+
 - **Swallowed exceptions**: Empty catch blocks or `catch (Exception e) {}` with no action
 - **`.get()` on Optional**: Calling `.get()` without `.isPresent()` — use `.orElseThrow()`
   - **[SPRING]**: `repository.findById(id).get()`
@@ -76,6 +79,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **Wrong HTTP status**: Returning `200 OK` with null body instead of `404`, or missing `201` on creation
 
 ### HIGH -- Architecture
+
 - **Dependency injection style**:
   - **[SPRING]**: `@Autowired` on fields is a code smell — constructor injection is required
   - **[QUARKUS]**: Bare field references expecting CDI — must use `@Inject` or constructor injection
@@ -88,6 +92,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **[QUARKUS] Blocking call on reactive thread**: Calling blocking I/O (JDBC, file I/O, `Thread.sleep()`) from a `@NonBlocking` endpoint or `Uni`/`Multi` pipeline — use `@Blocking`, `Uni.createFrom().item(() -> ...)` with `.runSubscriptionOn(executor)`, or the reactive client
 
 ### HIGH -- JPA / Relational Database
+
 - **N+1 query problem**: `FetchType.EAGER` on collections — use `JOIN FETCH` or `@EntityGraph` / `@NamedEntityGraph`
 - **Unbounded list endpoints**:
   - **[SPRING]**: Returning `List<T>` without `Pageable` and `Page<T>`
@@ -97,6 +102,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **[QUARKUS] Active record misuse**: Mixing `PanacheEntity` and `PanacheRepository` in the same bounded context — pick one and stay consistent
 
 ### HIGH -- Panache MongoDB [QUARKUS only]
+
 - **Missing codec or serialisation config**: Custom types in documents without a registered `Codec` or proper BSON annotation — causes silent serialisation failures
 - **Unbounded `listAll()` / `findAll()`**: Using `PanacheMongoEntity.listAll()` or `PanacheMongoRepository.listAll()` without pagination — use `.find(query).page(Page.of(index, size))`
 - **No index on query fields**: Querying by fields not covered by a MongoDB index — define indexes via `@MongoEntity(collection = "...")` + migration scripts or `createIndex()` at startup
@@ -106,6 +112,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **Missing `@Transactional` awareness**: MongoDB multi-document transactions require an explicit `ClientSession` — Panache MongoDB does not auto-manage transactions like Hibernate ORM; document the consistency guarantees
 
 ### MEDIUM -- NoSQL General
+
 - **Schema evolution without migration strategy**: Changing document shapes without a versioned migration plan (e.g. a `schemaVersion` field or migration script) — leads to runtime deserialization failures on old documents
 - **Storing large blobs in documents**: Embedding large binary data directly in documents instead of using GridFS or external storage — causes memory pressure and hits the 16 MB BSON limit
 - **Overly nested documents**: Deeply nested document structures that should be modelled as separate collections with references — query and update complexity grows exponentially
@@ -113,6 +120,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **No read preference / write concern configuration**: Production deployments using defaults without evaluating consistency requirements
 
 ### MEDIUM -- Concurrency and State
+
 - **Mutable singleton fields**: Non-final instance fields in singleton-scoped beans are a race condition
   - **[SPRING]**: `@Service` / `@Component`
   - **[QUARKUS]**: `@ApplicationScoped` / `@Singleton`
@@ -124,6 +132,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **[QUARKUS] Reactive stream misuse**: Building `Uni`/`Multi` pipelines that subscribe more than once or share mutable state between subscribers
 
 ### MEDIUM -- Java Idioms and Performance
+
 - **String concatenation in loops**: Use `StringBuilder` or `String.join`
 - **Raw type usage**: Unparameterised generics (`List` instead of `List<T>`)
 - **Missed pattern matching**: `instanceof` check followed by explicit cast — use pattern matching (Java 16+)
@@ -131,6 +140,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **[QUARKUS] Not leveraging build-time init**: Using runtime reflection or classpath scanning that could be replaced by Quarkus build-time extensions or `@RegisterForReflection`
 
 ### MEDIUM -- Testing
+
 - **Over-scoped test annotations**:
   - **[SPRING]**: `@SpringBootTest` for unit tests — use `@WebMvcTest` for controllers, `@DataJpaTest` for repositories
   - **[QUARKUS]**: `@QuarkusTest` for unit tests — reserve for integration tests; use plain JUnit 5 + Mockito for units
@@ -142,6 +152,7 @@ If any CRITICAL security issue is found, stop and escalate to `security-reviewer
 - **Weak test names**: `testFindUser` gives no information — use `should_return_404_when_user_not_found`
 
 ### MEDIUM -- Workflow and State Machine (payment / event-driven code)
+
 - **Idempotency key checked after processing**: Must be checked before any state mutation
 - **Illegal state transitions**: No guard on transitions like `CANCELLED → PROCESSING`
 - **Non-atomic compensation**: Rollback/compensation logic that can partially succeed
@@ -181,10 +192,12 @@ grep -rn "PanacheMongoEntity\|PanacheMongoRepository" src/main/java --include="*
 Read `pom.xml`, `build.gradle`, or `build.gradle.kts` to determine the build tool and framework version before reviewing.
 
 ## Approval Criteria
+
 - **Approve**: No CRITICAL or HIGH issues
 - **Warning**: MEDIUM issues only
 - **Block**: CRITICAL or HIGH issues found
 
 For detailed patterns and examples:
+
 - **[SPRING]**: See `skill: springboot-patterns`
 - **[QUARKUS]**: See `skill: quarkus-patterns`

@@ -43,13 +43,14 @@ EOF",
 ```
 
 **Model Parameter Notes**:
+
 - No extra model flag is needed for `--backend antigravity` or `--backend codex`; `codeagent-wrapper` picks each backend's default model.
 
 **Role Prompts**:
 
-| Phase | Codex | Antigravity |
-|-------|-------|--------|
-| Analysis | `~/.claude/.ccg/prompts/codex/analyzer.md` | `~/.claude/.ccg/prompts/antigravity/analyzer.md` |
+| Phase    | Codex                                       | Antigravity                                       |
+| -------- | ------------------------------------------- | ------------------------------------------------- |
+| Analysis | `~/.claude/.ccg/prompts/codex/analyzer.md`  | `~/.claude/.ccg/prompts/antigravity/analyzer.md`  |
 | Planning | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/antigravity/architect.md` |
 
 **Session Reuse**: Each call returns `SESSION_ID: xxx` (typically output by wrapper), **MUST save** for subsequent `/ccg:execute` use.
@@ -61,6 +62,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 ```
 
 **IMPORTANT**:
+
 - Must specify `timeout: 600000`, otherwise default 30 seconds will cause premature timeout
 - If still incomplete after 10 minutes, continue polling with `TaskOutput`, **NEVER kill the process**
 - If waiting is skipped due to timeout, **MUST call `AskUserQuestion` to ask user whether to continue waiting or kill task**
@@ -106,6 +108,7 @@ mcp__ace-tool__search_context({
 - **NEVER answer based on assumptions**
 
 **If ace-tool MCP is NOT available**, use Claude Code built-in tools as fallback:
+
 1. **Glob**: Find relevant files by pattern (e.g., `Glob("**/*.ts")`, `Glob("src/**/*.py")`)
 2. **Grep**: Search for key symbols, function names, class definitions (e.g., `Grep("className|functionName")`)
 3. **Read**: Read the discovered files to gather complete context
@@ -175,28 +178,34 @@ Synthesize both analyses, generate **Step-by-step Implementation Plan**:
 ## Implementation Plan: <Task Name>
 
 ### Task Type
+
 - [ ] Frontend (→ Antigravity)
 - [ ] Backend (→ Codex)
 - [ ] Fullstack (→ Parallel)
 
 ### Technical Solution
+
 <Optimal solution synthesized from Codex + Antigravity analysis>
 
 ### Implementation Steps
+
 1. <Step 1> - Expected deliverable
 2. <Step 2> - Expected deliverable
-...
+   ...
 
 ### Key Files
-| File | Operation | Description |
-|------|-----------|-------------|
-| path/to/file.ts:L10-L50 | Modify | Description |
+
+| File                    | Operation | Description |
+| ----------------------- | --------- | ----------- |
+| path/to/file.ts:L10-L50 | Modify    | Description |
 
 ### Risks and Mitigation
+
 | Risk | Mitigation |
-|------|------------|
+| ---- | ---------- |
 
 ### SESSION_ID (for /ccg:execute use)
+
 - CODEX_SESSION: <session_id>
 - ANTIGRAVITY_SESSION: <session_id>
 ```
@@ -210,15 +219,18 @@ Synthesize both analyses, generate **Step-by-step Implementation Plan**:
 3. Output prompt in **bold text** (MUST use actual saved file path):
 
 ---
+
 **Plan generated and saved to `.claude/plan/actual-feature-name.md`**
 
 **Please review the plan above. You can:**
+
 - **Modify plan**: Tell me what needs adjustment, I'll update the plan
 - **Execute plan**: Copy the following command to a new session
 
 ```
 /ccg:execute .claude/plan/actual-feature-name.md
 ```
+
 ---
 
 **NOTE**: The `actual-feature-name.md` above MUST be replaced with the actual saved filename!
@@ -226,6 +238,7 @@ Synthesize both analyses, generate **Step-by-step Implementation Plan**:
 4. **Immediately terminate current response** (Stop here. No more tool calls.)
 
 **ABSOLUTELY FORBIDDEN**:
+
 - Ask user "Y/N" then auto-execute (execution is `/ccg:execute`'s responsibility)
 - Any write operations to production code
 - Automatically call `/ccg:execute` or any implementation actions

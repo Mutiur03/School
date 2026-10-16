@@ -39,6 +39,7 @@ Run autonomous loops safely with clear stop conditions, observability, and recov
 ## Escalation
 
 Escalate when any condition is true:
+
 - no progress across two consecutive checkpoints
 - repeated failures with identical stack traces
 - cost drift outside budget window

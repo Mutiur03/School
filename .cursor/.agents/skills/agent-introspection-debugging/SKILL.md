@@ -21,12 +21,14 @@ This is a workflow skill, not a hidden runtime. It teaches the agent to debug it
 ## Scope Boundaries
 
 Activate this skill for:
+
 - capturing failure state before retrying blindly
 - diagnosing common agent-specific failure patterns
 - applying contained recovery actions
 - producing a structured human-readable debug report
 
 Do not use this skill as the primary source for:
+
 - feature verification after code changes; use `verification-loop`
 - framework-specific debugging when a narrower ECC skill already exists
 - runtime promises the current harness cannot enforce automatically
@@ -38,6 +40,7 @@ Do not use this skill as the primary source for:
 Before trying to recover, record the failure precisely.
 
 Capture:
+
 - error type, message, and stack trace when available
 - last meaningful tool call sequence
 - what the agent was trying to do
@@ -48,6 +51,7 @@ Minimum capture template:
 
 ```markdown
 ## Failure Capture
+
 - Session / task:
 - Goal in progress:
 - Error:
@@ -61,16 +65,17 @@ Minimum capture template:
 
 Match the failure to a known pattern before changing anything.
 
-| Pattern | Likely Cause | Check |
-| --- | --- | --- |
-| Maximum tool calls / repeated same command | loop or no-exit observer path | inspect the last N tool calls for repetition |
-| Context overflow / degraded reasoning | unbounded notes, repeated plans, oversized logs | inspect recent context for duplication and low-signal bulk |
-| `ECONNREFUSED` / timeout | service unavailable or wrong port | verify service health, URL, and port assumptions |
-| `429` / quota exhaustion | retry storm or missing backoff | count repeated calls and inspect retry spacing |
-| file missing after write / stale diff | race, wrong cwd, or branch drift | re-check path, cwd, git status, and actual file existence |
-| tests still failing after “fix” | wrong hypothesis | isolate the exact failing test and re-derive the bug |
+| Pattern                                    | Likely Cause                                    | Check                                                      |
+| ------------------------------------------ | ----------------------------------------------- | ---------------------------------------------------------- |
+| Maximum tool calls / repeated same command | loop or no-exit observer path                   | inspect the last N tool calls for repetition               |
+| Context overflow / degraded reasoning      | unbounded notes, repeated plans, oversized logs | inspect recent context for duplication and low-signal bulk |
+| `ECONNREFUSED` / timeout                   | service unavailable or wrong port               | verify service health, URL, and port assumptions           |
+| `429` / quota exhaustion                   | retry storm or missing backoff                  | count repeated calls and inspect retry spacing             |
+| file missing after write / stale diff      | race, wrong cwd, or branch drift                | re-check path, cwd, git status, and actual file existence  |
+| tests still failing after “fix”            | wrong hypothesis                                | isolate the exact failing test and re-derive the bug       |
 
 Diagnosis questions:
+
 - is this a logic failure, state failure, environment failure, or policy failure?
 - did the agent lose the real objective and start optimizing the wrong subtask?
 - is the failure deterministic or transient?
@@ -81,6 +86,7 @@ Diagnosis questions:
 Recover with the smallest action that changes the diagnosis surface.
 
 Safe recovery actions:
+
 - stop repeated retries and restate the hypothesis
 - trim low-signal context and keep only the active goal, blockers, and evidence
 - re-check the actual filesystem / branch / process state
@@ -94,6 +100,7 @@ Contained recovery checklist:
 
 ```markdown
 ## Recovery Action
+
 - Diagnosis chosen:
 - Smallest action taken:
 - Why this is safe:
@@ -106,6 +113,7 @@ End with a report that makes the recovery legible to the next agent or human.
 
 ```markdown
 ## Agent Self-Debug Report
+
 - Session / task:
 - Failure:
 - Root cause:
@@ -127,9 +135,11 @@ Prefer these interventions in order:
 5. Only then retry.
 
 Bad pattern:
+
 - retrying the same action three times with slightly different wording
 
 Good pattern:
+
 - capture failure
 - classify the pattern
 - run one direct check
@@ -147,6 +157,7 @@ Good pattern:
 When this skill is active, do not end with “I fixed it” alone.
 
 Always provide:
+
 - the failure pattern
 - the root-cause hypothesis
 - the recovery action

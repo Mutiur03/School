@@ -55,7 +55,7 @@ Before writing, apply these guarded-write requirements:
 ```markdown
 ---
 name: pattern-name
-description: "Use when <observable trigger condition> — <one-line summary of the pattern>"
+description: 'Use when <observable trigger condition> — <one-line summary of the pattern>'
 metadata:
   origin: auto-extracted
 ---
@@ -66,15 +66,19 @@ metadata:
 **Context:** [Brief description of when this applies]
 
 ## Problem
+
 [What problem this solves - be specific]
 
 ## Solution
+
 [The pattern/technique/workaround]
 
 ## Example
+
 [Code example if applicable]
 
 ## When to Use
+
 [Trigger conditions - what should activate this skill]
 ```
 

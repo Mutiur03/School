@@ -245,15 +245,12 @@ const ViewMarks = () => {
     const newWindow = openPdfLoadingTab('Generating marksheets…');
 
     try {
-      const response = await axios.get(
-        `/api/marksheets/classes/${className}/bundle`,
-        {
-          responseType: 'blob',
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          params: { year, exam, section: section || undefined },
-        },
-      );
+      const response = await axios.get(`/api/marksheets/classes/${className}/bundle`, {
+        responseType: 'blob',
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        params: { year, exam, section: section || undefined },
+      });
       const blob = response.data as Blob;
       if (blob.type.includes('json')) {
         const { data } = JSON.parse(await blob.text()) as {
@@ -282,15 +279,12 @@ const ViewMarks = () => {
     }
     const loadingToast = toast.loading('Generating summary PDF...');
     try {
-      const response = await axios.get(
-        `/api/marksheets/classes/${className}/summary`,
-        {
-          responseType: 'blob',
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          params: { year, exam, section: section || undefined },
-        },
-      );
+      const response = await axios.get(`/api/marksheets/classes/${className}/summary`, {
+        responseType: 'blob',
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        params: { year, exam, section: section || undefined },
+      });
       const disposition = response.headers['content-disposition'] as string | undefined;
       const match = disposition?.match(/filename="([^"]+)"/);
       const filename = match?.[1] ?? `${className}${section || 'All'}_Summary_${exam}_${year}.pdf`;

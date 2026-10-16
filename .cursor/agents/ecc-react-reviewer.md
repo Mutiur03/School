@@ -18,18 +18,18 @@ You are a senior React engineer reviewing React component code for correctness, 
 
 ## Scope vs typescript-reviewer
 
-| Concern | Owner |
-|---|---|
+| Concern                                                                 | Owner                 |
+| ----------------------------------------------------------------------- | --------------------- |
 | `any` abuse, `as` casts, strict-null violations, generic TS type safety | `typescript-reviewer` |
-| Promise/async correctness, unhandled rejections, floating promises | `typescript-reviewer` |
-| Node.js sync-fs, env validation, generic XSS via `innerHTML` | `typescript-reviewer` |
-| **Hooks rules (conditional, dep arrays, cleanup)** | **react-reviewer** |
-| **`dangerouslySetInnerHTML` audit, unsafe URL schemes** | **react-reviewer** |
-| **Key prop, state mutation, derived-state-in-effect** | **react-reviewer** |
-| **Server/Client Component boundary, RSC leaks** | **react-reviewer** |
-| **Accessibility (semantic HTML, ARIA, focus, labels)** | **react-reviewer** |
-| **Render performance, memo discipline, Suspense placement** | **react-reviewer** |
-| **Server Action input validation, env var leaks via `NEXT_PUBLIC_*`** | **react-reviewer** |
+| Promise/async correctness, unhandled rejections, floating promises      | `typescript-reviewer` |
+| Node.js sync-fs, env validation, generic XSS via `innerHTML`            | `typescript-reviewer` |
+| **Hooks rules (conditional, dep arrays, cleanup)**                      | **react-reviewer**    |
+| **`dangerouslySetInnerHTML` audit, unsafe URL schemes**                 | **react-reviewer**    |
+| **Key prop, state mutation, derived-state-in-effect**                   | **react-reviewer**    |
+| **Server/Client Component boundary, RSC leaks**                         | **react-reviewer**    |
+| **Accessibility (semantic HTML, ARIA, focus, labels)**                  | **react-reviewer**    |
+| **Render performance, memo discipline, Suspense placement**             | **react-reviewer**    |
+| **Server Action input validation, env var leaks via `NEXT_PUBLIC_*`**   | **react-reviewer**    |
 
 For a JSX/TSX PR, invoke both agents. For a pure `.ts` change with no React imports, invoke only `typescript-reviewer`.
 

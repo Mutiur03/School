@@ -54,14 +54,14 @@
 
 ### 4. Kapferer Brand Identity Prism
 
-| Facet | Content |
-|---|---|
-| **Physique** (visible, tangible brand attributes) | |
-| **Personality** (character if the brand were a person) | |
-| **Culture** (values and principles behind the brand) | |
-| **Relationship** (how the brand relates to clients) | |
-| **Reflection** (how clients see themselves using this brand) | |
-| **Self-image** (how clients feel inside when using this brand) | |
+| Facet                                                          | Content |
+| -------------------------------------------------------------- | ------- |
+| **Physique** (visible, tangible brand attributes)              |         |
+| **Personality** (character if the brand were a person)         |         |
+| **Culture** (values and principles behind the brand)           |         |
+| **Relationship** (how the brand relates to clients)            |         |
+| **Reflection** (how clients see themselves using this brand)   |         |
+| **Self-image** (how clients feel inside when using this brand) |         |
 
 ---
 
@@ -72,10 +72,11 @@
 > **Secondary archetype** (if present):
 >
 > **Aaker brand identity** — four dimensions:
-> - *Brand as product:*
-> - *Brand as organisation:*
-> - *Brand as person (personality):*
-> - *Brand as symbol:*
+>
+> - _Brand as product:_
+> - _Brand as organisation:_
+> - _Brand as person (personality):_
+> - _Brand as symbol:_
 >
 > **Brand associations** (3–5 key associations the brand should own):
 >
@@ -87,10 +88,7 @@
 
 > **Voice statement (one paragraph):**
 >
-> **The three checks every draft must pass:**
-> 1.
-> 2.
-> 3.
+> **The three checks every draft must pass:** 1. 2. 3.
 
 ---
 
@@ -113,8 +111,8 @@
 ### 8. Tensions resolved (record any module-to-module conflicts and how they were settled)
 
 | Tension | Module A | Module B | Resolution |
-|---|---|---|---|
-| | | | |
+| ------- | -------- | -------- | ---------- |
+|         |          |          |            |
 
 ---
 

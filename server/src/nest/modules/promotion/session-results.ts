@@ -170,7 +170,9 @@ export async function loadSessionResults(
     };
   });
   // Held students are not ranked, so releasing or regenerating never shifts anyone's merit.
-  const positions = engine.rankStudents(computed.filter((c) => !c.e.result_held).map((c) => c.result));
+  const positions = engine.rankStudents(
+    computed.filter((c) => !c.e.result_held).map((c) => c.result),
+  );
 
   const wanted = opts.enrollmentIds && new Set(opts.enrollmentIds);
   const results = computed

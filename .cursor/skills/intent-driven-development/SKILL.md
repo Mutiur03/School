@@ -89,11 +89,11 @@ and silent assumptions, then returns corrected or supplemental criteria without 
    or operations against production/live data without explicit authorization and an identified
    safe environment.
 10. When an acceptance criterion cannot be satisfied due to an architectural, platform, or
-   external constraint discovered during implementation, do not silently drop or workaround it.
-   Update the affected criterion (mark it `[revised]`, state the constraint, and adjust scope or
-   verification method), increment the revision number, and re-present only the changed criteria
-   to the user before continuing. Require explicit confirmation only if the revision changes a
-   blocking decision or materially reduces safety or correctness guarantees.
+    external constraint discovered during implementation, do not silently drop or workaround it.
+    Update the affected criterion (mark it `[revised]`, state the constraint, and adjust scope or
+    verification method), increment the revision number, and re-present only the changed criteria
+    to the user before continuing. Require explicit confirmation only if the revision changes a
+    blocking decision or materially reduces safety or correctness guarantees.
 
 ## Choose The Depth
 
@@ -192,17 +192,17 @@ defining observable evidence or recording them as a human-review judgment.
 
 Consider these categories, but include only categories that apply:
 
-| Category | Include when | Typical evidence |
-| --- | --- | --- |
-| Happy path | New or changed user-visible behavior | Successful workflow or state transition |
-| Validation | The change accepts input | Rejected malformed or boundary value without mutation |
-| Authorization/privacy | Data or actions have access boundaries | Denied access and no sensitive disclosure |
-| Persistence/migration | Stored data or schemas change | Backward read, migration, rollback or backup behavior |
-| Compatibility | Public APIs, files, events, or clients may break | Existing contract or fixture remains valid |
-| Failure recovery | Network, service, or asynchronous failure exists | No partial state or clear retry/degraded behavior |
-| Idempotency/concurrency | Repeats or simultaneous writes are plausible | No duplicate side effect or invalid final state |
-| Performance | A user or service threshold matters | Defined measurement conditions and threshold |
-| UX/accessibility | A person interacts with the result | Keyboard, feedback, error recovery, visual/manual review |
+| Category                | Include when                                     | Typical evidence                                         |
+| ----------------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| Happy path              | New or changed user-visible behavior             | Successful workflow or state transition                  |
+| Validation              | The change accepts input                         | Rejected malformed or boundary value without mutation    |
+| Authorization/privacy   | Data or actions have access boundaries           | Denied access and no sensitive disclosure                |
+| Persistence/migration   | Stored data or schemas change                    | Backward read, migration, rollback or backup behavior    |
+| Compatibility           | Public APIs, files, events, or clients may break | Existing contract or fixture remains valid               |
+| Failure recovery        | Network, service, or asynchronous failure exists | No partial state or clear retry/degraded behavior        |
+| Idempotency/concurrency | Repeats or simultaneous writes are plausible     | No duplicate side effect or invalid final state          |
+| Performance             | A user or service threshold matters              | Defined measurement conditions and threshold             |
+| UX/accessibility        | A person interacts with the result               | Keyboard, feedback, error recovery, visual/manual review |
 
 ### 6. Present And Continue
 
@@ -229,9 +229,9 @@ Use this template for a Full Acceptance Brief. Omit irrelevant sections for Quic
 
 ## Revision Log
 
-| Rev | Date | Changed criteria | Reason |
-| --- | --- | --- | --- |
-| 1 | <date> | — | Initial draft |
+| Rev | Date   | Changed criteria | Reason        |
+| --- | ------ | ---------------- | ------------- |
+| 1   | <date> | —                | Initial draft |
 
 ## Goal
 
@@ -240,38 +240,45 @@ Use this template for a Full Acceptance Brief. Omit irrelevant sections for Quic
 ## Scope
 
 **In scope**
+
 - <behavior included>
 
 **Out of scope**
+
 - <adjacent work excluded>
 
 ## Context
 
 **Discovered facts** (technical, verified from repository or artifact)
+
 - <how the system behaves today, conventions, contracts>
 
 **Product/business constraints** (supplied by user or product artifact, never inferred from code)
+
 - <business rule, compliance/SLA obligation, retention policy, priority, target user — or "none supplied yet">
 
 **Assumptions**
+
 - <unverified claim to confirm or validate>
 
 **Dependencies and constraints**
+
 - <external service, local convention, compatibility obligation, environment limit>
 
 ## Risk Review
 
-| Risk area | Applies? | Required handling |
-| --- | --- | --- |
-| Security/privacy | Yes/No | <redaction, authorization, review, etc.> |
-| Persistent data/migration | Yes/No | <compatibility, backup, rollback, etc.> |
-| External effects/cost | Yes/No | <sandbox/test environment/authorization> |
-| Compatibility/API | Yes/No | <contract to preserve or version> |
-| UX/accessibility | Yes/No | <manual or automated evidence> |
+| Risk area                 | Applies? | Required handling                        |
+| ------------------------- | -------- | ---------------------------------------- |
+| Security/privacy          | Yes/No   | <redaction, authorization, review, etc.> |
+| Persistent data/migration | Yes/No   | <compatibility, backup, rollback, etc.>  |
+| External effects/cost     | Yes/No   | <sandbox/test environment/authorization> |
+| Compatibility/API         | Yes/No   | <contract to preserve or version>        |
+| UX/accessibility          | Yes/No   | <manual or automated evidence>           |
 
 ## Acceptance Criteria
 
 ### AC-001: <observable behavior>
+
 - **Scenario:** <starting condition>
 - **Action:** <single trigger>
 - **Expected:** <observable result>
@@ -286,9 +293,9 @@ Use this template for a Full Acceptance Brief. Omit irrelevant sections for Quic
 
 ## Verification Plan
 
-| Criterion | Verification evidence | Status |
-| --- | --- | --- |
-| AC-001 | <test/check/review command or evidence type> | Pending |
+| Criterion | Verification evidence                        | Status  |
+| --------- | -------------------------------------------- | ------- |
+| AC-001    | <test/check/review command or evidence type> | Pending |
 ```
 
 ## Pass/Fail Examples

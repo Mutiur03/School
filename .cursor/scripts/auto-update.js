@@ -26,7 +26,7 @@ function parseArgs(argv) {
     repoRoot: null,
     dryRun: false,
     json: false,
-    help: false
+    help: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -100,11 +100,15 @@ function buildInstallApplyArgs(record) {
     args.push('--modules', request.modules.join(','));
   }
 
-  for (const componentId of Array.isArray(request.includeComponents) ? request.includeComponents : []) {
+  for (const componentId of Array.isArray(request.includeComponents)
+    ? request.includeComponents
+    : []) {
     args.push('--with', componentId);
   }
 
-  for (const componentId of Array.isArray(request.excludeComponents) ? request.excludeComponents : []) {
+  for (const componentId of Array.isArray(request.excludeComponents)
+    ? request.excludeComponents
+    : []) {
     args.push('--without', componentId);
   }
 
@@ -156,7 +160,9 @@ function validateRepoRoot(repoRoot) {
     throw new Error(`Invalid ECC repo root: unreadable package.json at ${packageJsonPath}`);
   }
   if (!ECC_PACKAGE_NAMES.has(pkgName)) {
-    throw new Error(`Refusing to run install from untrusted repo root ${normalized}: package.json name '${pkgName}' is not an official ECC package.`);
+    throw new Error(
+      `Refusing to run install from untrusted repo root ${normalized}: package.json name '${pkgName}' is not an official ECC package.`,
+    );
   }
 
   return normalized;
@@ -167,7 +173,7 @@ function runExternalCommand(command, args, options = {}) {
     cwd: options.cwd,
     env: options.env || process.env,
     encoding: 'utf8',
-    maxBuffer: 10 * 1024 * 1024
+    maxBuffer: 10 * 1024 * 1024,
   });
 
   if (result.error) {
@@ -198,13 +204,14 @@ function runAutoUpdate(options = {}, dependencies = {}) {
   const discoveredRecords = discover({
     homeDir,
     projectRoot,
-    targets: options.targets
+    targets: options.targets,
   });
-  const records = discoveredRecords.filter(record => record.exists && !record.legacy);
-  const legacyRecords = discoveredRecords.filter(record => record.exists && record.legacy);
-  const warnings = records.length === 0 && legacyRecords.length > 0
-    ? [...new Set(legacyRecords.map(legacyMigrationWarning))]
-    : [];
+  const records = discoveredRecords.filter((record) => record.exists && !record.legacy);
+  const legacyRecords = discoveredRecords.filter((record) => record.exists && record.legacy);
+  const warnings =
+    records.length === 0 && legacyRecords.length > 0
+      ? [...new Set(legacyRecords.map(legacyMigrationWarning))]
+      : [];
 
   const results = [];
   if (records.length === 0) {
@@ -216,8 +223,8 @@ function runAutoUpdate(options = {}, dependencies = {}) {
       summary: {
         checkedCount: 0,
         updatedCount: 0,
-        errorCount: 0
-      }
+        errorCount: 0,
+      },
     };
   }
 
@@ -229,16 +236,17 @@ function runAutoUpdate(options = {}, dependencies = {}) {
         adapter: record.adapter,
         installStatePath: record.installStatePath,
         status: 'error',
-        error: record.error || 'No valid install-state available'
+        error: record.error || 'No valid install-state available',
       });
       continue;
     }
 
-    const recordRepoRoot = requestedRepoRoot || validateRepoRoot(deriveRepoRootFromState(record.state));
+    const recordRepoRoot =
+      requestedRepoRoot || validateRepoRoot(deriveRepoRootFromState(record.state));
     inferredRepoRoots.push(recordRepoRoot);
     validRecords.push({
       record,
-      repoRoot: recordRepoRoot
+      repoRoot: recordRepoRoot,
     });
   }
 
@@ -259,15 +267,15 @@ function runAutoUpdate(options = {}, dependencies = {}) {
       summary: {
         checkedCount: results.length,
         updatedCount: 0,
-        errorCount: results.length
-      }
+        errorCount: results.length,
+      },
     };
   }
 
   const env = {
     ...process.env,
     HOME: homeDir,
-    USERPROFILE: homeDir
+    USERPROFILE: homeDir,
   };
 
   if (!options.dryRun) {
@@ -286,7 +294,7 @@ function runAutoUpdate(options = {}, dependencies = {}) {
     try {
       const commandResult = execute(process.execPath, args, {
         cwd: determineInstallCwd(entry.record, repoRoot),
-        env
+        env,
       });
 
       let payload = null;
@@ -301,7 +309,7 @@ function runAutoUpdate(options = {}, dependencies = {}) {
         cwd: determineInstallCwd(entry.record, repoRoot),
         installArgs,
         status: options.dryRun ? 'planned' : 'updated',
-        payload
+        payload,
       });
     } catch (error) {
       results.push({
@@ -310,7 +318,7 @@ function runAutoUpdate(options = {}, dependencies = {}) {
         repoRoot,
         installArgs,
         status: 'error',
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -322,18 +330,22 @@ function runAutoUpdate(options = {}, dependencies = {}) {
     warnings,
     summary: {
       checkedCount: results.length,
-      updatedCount: results.filter(result => result.status === 'updated' || result.status === 'planned').length,
-      errorCount: results.filter(result => result.status === 'error').length
-    }
+      updatedCount: results.filter(
+        (result) => result.status === 'updated' || result.status === 'planned',
+      ).length,
+      errorCount: results.filter((result) => result.status === 'error').length,
+    },
   };
 }
 
 function printHuman(result) {
   if (result.results.length === 0) {
     const hasWarnings = Array.isArray(result.warnings) && result.warnings.length > 0;
-    console.log(hasWarnings
-      ? 'No active ECC install-state files found for the current home/project context.'
-      : 'No ECC install-state files found for the current home/project context.');
+    console.log(
+      hasWarnings
+        ? 'No active ECC install-state files found for the current home/project context.'
+        : 'No ECC install-state files found for the current home/project context.',
+    );
     for (const warning of Array.isArray(result.warnings) ? result.warnings : []) {
       console.log(`Warning: ${warning}`);
     }
@@ -357,7 +369,9 @@ function printHuman(result) {
     console.log(`  Reinstall args: ${entry.installArgs.join(' ') || '(none)'}`);
   }
 
-  console.log(`\nSummary: checked=${result.summary.checkedCount}, ${result.dryRun ? 'planned' : 'updated'}=${result.summary.updatedCount}, errors=${result.summary.errorCount}`);
+  console.log(
+    `\nSummary: checked=${result.summary.checkedCount}, ${result.dryRun ? 'planned' : 'updated'}=${result.summary.updatedCount}, errors=${result.summary.errorCount}`,
+  );
 }
 
 function main() {
@@ -372,7 +386,7 @@ function main() {
       projectRoot: process.cwd(),
       targets: options.targets,
       repoRoot: options.repoRoot,
-      dryRun: options.dryRun
+      dryRun: options.dryRun,
     });
 
     if (options.json) {
@@ -397,5 +411,5 @@ module.exports = {
   deriveRepoRootFromState,
   buildInstallApplyArgs,
   determineInstallCwd,
-  runAutoUpdate
+  runAutoUpdate,
 };

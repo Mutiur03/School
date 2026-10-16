@@ -10,6 +10,7 @@ metadata:
 ## When to Use
 
 Use this skill when:
+
 - Starting a new Flutter feature and need idiomatic patterns for state management, navigation, or data access
 - Reviewing or writing Dart code and need guidance on null safety, sealed types, or async composition
 - Setting up a new Flutter project and choosing between BLoC, Riverpod, or Provider
@@ -20,6 +21,7 @@ Use this skill when:
 ## How It Works
 
 This skill provides copy-paste-ready Dart/Flutter code patterns organized by concern:
+
 1. **Null safety** — avoid `!`, prefer `?.`/`??`/pattern matching
 2. **Immutable state** — sealed classes, `freezed`, `copyWith`
 3. **Async composition** — concurrent `Future.wait`, safe `BuildContext` after `await`

@@ -45,6 +45,7 @@ public class MarketEntity {
 ```
 
 Enable auditing:
+
 ```java
 @Configuration
 @EnableJpaAuditing
@@ -78,6 +79,7 @@ public interface MarketRepository extends JpaRepository<MarketEntity, Long> {
 ```
 
 - Use projections for lightweight queries:
+
 ```java
 public interface MarketSummary {
   Long getId();
@@ -122,6 +124,7 @@ For cursor-like pagination, include `id > :lastId` in JPQL with ordering.
 ## Connection Pooling (HikariCP)
 
 Recommended properties:
+
 ```
 spring.datasource.hikari.maximum-pool-size=20
 spring.datasource.hikari.minimum-idle=5
@@ -130,6 +133,7 @@ spring.datasource.hikari.validation-timeout=5000
 ```
 
 For PostgreSQL LOB handling, add:
+
 ```
 spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
 ```

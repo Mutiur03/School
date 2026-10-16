@@ -19,6 +19,7 @@ Turn one idea into strong, platform-native content instead of posting the same t
 ## First Questions
 
 Clarify:
+
 - source asset: what are we adapting from
 - audience: builders, investors, customers, operators, or general audience
 - platform: X, LinkedIn, TikTok, YouTube, newsletter, or multi-platform
@@ -35,27 +36,32 @@ Clarify:
 ## Platform Guidance
 
 ### X
+
 - open fast
 - one idea per post or per tweet in a thread
 - keep links out of the main body unless necessary
 - avoid hashtag spam
 
 ### LinkedIn
+
 - strong first line
 - short paragraphs
 - more explicit framing around lessons, results, and takeaways
 
 ### TikTok / Short Video
+
 - first 3 seconds must interrupt attention
 - script around visuals, not just narration
 - one demo, one claim, one CTA
 
 ### YouTube
+
 - show the result early
 - structure by chapter
 - refresh the visual every 20-30 seconds
 
 ### Newsletter
+
 - deliver one clear lens, not a bundle of unrelated items
 - make section titles skimmable
 - keep the opening paragraph doing real work
@@ -63,6 +69,7 @@ Clarify:
 ## Repurposing Flow
 
 Default cascade:
+
 1. anchor asset: article, video, demo, memo, or launch doc
 2. extract 3-7 atomic ideas
 3. write platform-native variants
@@ -72,6 +79,7 @@ Default cascade:
 ## Deliverables
 
 When asked for a campaign, return:
+
 - the core angle
 - platform-specific drafts
 - optional posting order
@@ -81,6 +89,7 @@ When asked for a campaign, return:
 ## Quality Gate
 
 Before delivering:
+
 - each draft reads natively for its platform
 - hooks are strong and specific
 - no generic hype language

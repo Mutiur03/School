@@ -60,22 +60,22 @@ xcodebuild -showBuildSettings 2>&1 | grep -E 'SWIFT_VERSION|CODE_SIGN|PRODUCT_BU
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `cannot find type 'X' in scope` | Missing import or typo | Add `import Module` or fix name |
-| `value of type 'X' has no member 'Y'` | Wrong type or missing extension | Fix type or add missing method |
-| `cannot convert value of type 'X' to expected type 'Y'` | Type mismatch | Add conversion, cast, or fix type annotation |
-| `type 'X' does not conform to protocol 'Y'` | Missing required members | Implement missing protocol requirements |
-| `missing return in closure expected to return 'X'` | Incomplete closure body | Add explicit return statement |
-| `expression is 'async' but is not marked with 'await'` | Missing `await` | Add `await` keyword |
-| `non-sendable type 'X' passed in implicitly asynchronous call` | Sendable violation | Add `Sendable` conformance or restructure |
-| `actor-isolated property cannot be referenced from non-isolated context` | Actor isolation mismatch | Add `await`, mark caller as `async`, or use `nonisolated` |
-| `reference to captured var 'X' in concurrently-executing code` | Captured mutable state | Use `let` copy before closure or actor |
-| `ambiguous use of 'X'` | Multiple matching declarations | Use fully qualified name or explicit type annotation |
-| `circular reference` | Recursive type or protocol | Break cycle with indirect enum or protocol |
-| `cannot assign to property: 'X' is a 'let' constant` | Mutating immutable value | Change `let` to `var` or restructure |
-| `initializer requires that 'X' conform to 'Decodable'` | Missing Codable conformance | Add `Codable` conformance or custom init |
-| `@MainActor function cannot be called from non-isolated context` | Main actor isolation | Add `await` and make caller `async`, or use `MainActor.run {}` |
+| Error                                                                    | Cause                           | Fix                                                            |
+| ------------------------------------------------------------------------ | ------------------------------- | -------------------------------------------------------------- |
+| `cannot find type 'X' in scope`                                          | Missing import or typo          | Add `import Module` or fix name                                |
+| `value of type 'X' has no member 'Y'`                                    | Wrong type or missing extension | Fix type or add missing method                                 |
+| `cannot convert value of type 'X' to expected type 'Y'`                  | Type mismatch                   | Add conversion, cast, or fix type annotation                   |
+| `type 'X' does not conform to protocol 'Y'`                              | Missing required members        | Implement missing protocol requirements                        |
+| `missing return in closure expected to return 'X'`                       | Incomplete closure body         | Add explicit return statement                                  |
+| `expression is 'async' but is not marked with 'await'`                   | Missing `await`                 | Add `await` keyword                                            |
+| `non-sendable type 'X' passed in implicitly asynchronous call`           | Sendable violation              | Add `Sendable` conformance or restructure                      |
+| `actor-isolated property cannot be referenced from non-isolated context` | Actor isolation mismatch        | Add `await`, mark caller as `async`, or use `nonisolated`      |
+| `reference to captured var 'X' in concurrently-executing code`           | Captured mutable state          | Use `let` copy before closure or actor                         |
+| `ambiguous use of 'X'`                                                   | Multiple matching declarations  | Use fully qualified name or explicit type annotation           |
+| `circular reference`                                                     | Recursive type or protocol      | Break cycle with indirect enum or protocol                     |
+| `cannot assign to property: 'X' is a 'let' constant`                     | Mutating immutable value        | Change `let` to `var` or restructure                           |
+| `initializer requires that 'X' conform to 'Decodable'`                   | Missing Codable conformance     | Add `Codable` conformance or custom init                       |
+| `@MainActor function cannot be called from non-isolated context`         | Main actor isolation            | Add `await` and make caller `async`, or use `MainActor.run {}` |
 
 ## SPM Troubleshooting
 
@@ -150,6 +150,7 @@ head -1 Package.swift
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope

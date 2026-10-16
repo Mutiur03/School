@@ -1,6 +1,6 @@
 ---
 description: Plan and execute a full marketing campaign. Accepts a product brief and returns positioning, landing page copy, email sequence, social posts, ad variants, video scripts, and a content calendar. Can also review existing copy for conversion quality. This is the slash-command entrypoint that delegates to the marketing-agent; prefer the marketing-campaign skill for the same end-to-end workflow in conversation.
-allowed-tools: ["Read", "Grep", "Glob", "WebSearch", "WebFetch", "Write"]
+allowed-tools: ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch', 'Write']
 ---
 
 # /marketing-campaign
@@ -28,6 +28,7 @@ Plan and execute a marketing campaign from brief to full content suite.
 ### Full Campaign Mode
 
 Provide a product brief containing:
+
 - Product name and description
 - Target audience (specific, not generic)
 - Core problem the product solves
@@ -58,6 +59,7 @@ Requires positioning to be defined first. Run full mode or provide the angle bef
 ```
 
 Returns a structured audit against:
+
 - 5-second clarity test (above-fold copy)
 - CTA quality (specific, earned, one per piece)
 - Brand tone consistency
@@ -112,6 +114,7 @@ Confirm the save location before writing files.
 ## Agent Delegation
 
 This command invokes:
+
 - `marketing-agent` — campaign planning and copy production
 - `brand-voice` — voice capture when tone needs locking across multiple outputs
 - `content-engine` — platform-native social content production
@@ -126,4 +129,4 @@ This command invokes:
 
 ---
 
-*Part of [ECC](https://github.com/affaan-m/ECC)*
+_Part of [ECC](https://github.com/affaan-m/ECC)_

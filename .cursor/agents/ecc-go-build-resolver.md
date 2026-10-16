@@ -52,18 +52,18 @@ go mod tidy -v
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `undefined: X` | Missing import, typo, unexported | Add import or fix casing |
-| `cannot use X as type Y` | Type mismatch, pointer/value | Type conversion or dereference |
-| `X does not implement Y` | Missing method | Implement method with correct receiver |
-| `import cycle not allowed` | Circular dependency | Extract shared types to new package |
-| `cannot find package` | Missing dependency | `go get pkg@version` or `go mod tidy` |
-| `missing return` | Incomplete control flow | Add return statement |
-| `declared but not used` | Unused var/import | Remove or use blank identifier |
-| `multiple-value in single-value context` | Unhandled return | `result, err := func()` |
-| `cannot assign to struct field in map` | Map value mutation | Use pointer map or copy-modify-reassign |
-| `invalid type assertion` | Assert on non-interface | Only assert from `interface{}` |
+| Error                                    | Cause                            | Fix                                     |
+| ---------------------------------------- | -------------------------------- | --------------------------------------- |
+| `undefined: X`                           | Missing import, typo, unexported | Add import or fix casing                |
+| `cannot use X as type Y`                 | Type mismatch, pointer/value     | Type conversion or dereference          |
+| `X does not implement Y`                 | Missing method                   | Implement method with correct receiver  |
+| `import cycle not allowed`               | Circular dependency              | Extract shared types to new package     |
+| `cannot find package`                    | Missing dependency               | `go get pkg@version` or `go mod tidy`   |
+| `missing return`                         | Incomplete control flow          | Add return statement                    |
+| `declared but not used`                  | Unused var/import                | Remove or use blank identifier          |
+| `multiple-value in single-value context` | Unhandled return                 | `result, err := func()`                 |
+| `cannot assign to struct field in map`   | Map value mutation               | Use pointer map or copy-modify-reassign |
+| `invalid type assertion`                 | Assert on non-interface          | Only assert from `interface{}`          |
 
 ## Module Troubleshooting
 
@@ -85,6 +85,7 @@ go clean -modcache && go mod download  # Fix checksum issues
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope

@@ -17,6 +17,7 @@ This command invokes the **flutter-reviewer** agent to review Flutter/Dart code 
 ## Prerequisites
 
 Before running `/flutter-review`, ensure:
+
 1. **Build passes** — run `/flutter-build` first; a review on broken code is incomplete
 2. **Tests pass** — run `/flutter-test` to confirm no regressions
 3. **No merge conflicts** — resolve all conflicts so the diff reflects only intentional changes
@@ -25,6 +26,7 @@ Before running `/flutter-review`, ensure:
 ## When to Use
 
 Use `/flutter-review` when:
+
 - Before submitting a PR with Flutter/Dart changes (after build and tests pass)
 - After implementing a new feature to catch issues early
 - When reviewing someone else's Flutter code
@@ -33,23 +35,23 @@ Use `/flutter-review` when:
 
 ## Review Areas
 
-| Area | Severity |
-|------|----------|
-| Hardcoded secrets, cleartext HTTP | CRITICAL |
+| Area                                                    | Severity |
+| ------------------------------------------------------- | -------- |
+| Hardcoded secrets, cleartext HTTP                       | CRITICAL |
 | Architecture violations, state management anti-patterns | CRITICAL |
-| Widget rebuild issues, resource leaks | HIGH |
-| Missing `dispose()`, `BuildContext` after await | HIGH |
-| Dart null safety, missing error/loading states | HIGH |
-| Const propagation, widget composition | HIGH |
-| Performance: expensive work in `build()` | HIGH |
-| Accessibility, semantic labels | MEDIUM |
-| Missing tests for state transitions | HIGH |
-| Hardcoded strings (l10n) | MEDIUM |
-| Pub dependency hygiene | LOW |
+| Widget rebuild issues, resource leaks                   | HIGH     |
+| Missing `dispose()`, `BuildContext` after await         | HIGH     |
+| Dart null safety, missing error/loading states          | HIGH     |
+| Const propagation, widget composition                   | HIGH     |
+| Performance: expensive work in `build()`                | HIGH     |
+| Accessibility, semantic labels                          | MEDIUM   |
+| Missing tests for state transitions                     | HIGH     |
+| Hardcoded strings (l10n)                                | MEDIUM   |
+| Pub dependency hygiene                                  | LOW      |
 
 ## Example Session
 
-````text
+```text
 User: /flutter-review
 
 Agent:
@@ -96,7 +98,7 @@ Fix: Use the project's l10n accessor: `Text(context.l10n.loginButton)`.
 | LOW      | 0     | note   |
 
 Verdict: BLOCK — HIGH issues must be fixed before merge.
-````
+```
 
 ## Approval Criteria
 

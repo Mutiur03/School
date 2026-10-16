@@ -9,11 +9,14 @@ Use the built-in ORM-like data layer for database operations. It provides a ligh
 ### Architecture
 
 Each table is represented by:
+
 1. **Java POJO**: Extends `AbstractData`, provides getters/setters and `setData(Row)`.
 2. **Mapping XML**: `ClassName.map.xml` in resources, binding Java fields to DB columns.
 
 #### Key Base Class: `AbstractData`
+
 Provides CRUD methods:
+
 - `append()` / `appendAndGetId()`
 - `update()`
 - `delete()`
@@ -26,7 +29,9 @@ Provides CRUD methods:
 Introspect a live database table to produce the POJO and mapping file.
 
 #### Configuration
+
 `application.properties`:
+
 ```properties
 driver=com.mysql.cj.jdbc.Driver
 database.url=jdbc:mysql://localhost:3306/mydb
@@ -35,6 +40,7 @@ database.password=secret
 ```
 
 #### Command
+
 ```bash
 # Interactive mode
 bin/dispatcher generate
@@ -46,6 +52,7 @@ bin/dispatcher generate --tables users
 ## Examples
 
 ### CRUD Operations
+
 ```java
 // CREATE
 User user = new User();
@@ -66,6 +73,7 @@ user.delete();
 ```
 
 ### Querying with Conditions
+
 ```java
 User user = new User();
 Table results = user.findWith("username LIKE ?", new Object[]{"%jam%"});
@@ -80,7 +88,9 @@ Table filtered = user.find(
 ```
 
 ### Mapping XML Structure
+
 `User.map.xml`:
+
 ```xml
 <mapping>
   <class name="User" table="users">

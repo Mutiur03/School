@@ -54,24 +54,30 @@ You deeply analyze codebases to understand how existing features work before new
 ## Exploration: [Feature/Area Name]
 
 ### Entry Points
+
 - [Entry point]: [How it is triggered]
 
 ### Execution Flow
+
 1. [Step]
 2. [Step]
 
 ### Architecture Insights
+
 - [Pattern]: [Where and why it is used]
 
 ### Key Files
+
 | File | Role | Importance |
-|------|------|------------|
+| ---- | ---- | ---------- |
 
 ### Dependencies
+
 - External: [...]
 - Internal: [...]
 
 ### Recommendations for New Development
+
 - Follow [...]
 - Reuse [...]
 - Avoid [...]

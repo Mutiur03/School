@@ -16,6 +16,6 @@ Find and display all hookify rules in a formatted table.
 3. Display them as a table:
 
 | Rule | Enabled | Event | Pattern | File |
-|------|---------|-------|---------|------|
+| ---- | ------- | ----- | ------- | ---- |
 
 4. Show the rule count and remind the user that `/hookify-configure` can change state later.

@@ -49,18 +49,18 @@ Run these in order:
 
 ## Common Fix Patterns
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `Unresolved reference: X` | Missing import, typo, missing dependency | Add import or dependency |
-| `Type mismatch: Required X, Found Y` | Wrong type, missing conversion | Add conversion or fix type |
-| `None of the following candidates is applicable` | Wrong overload, wrong argument types | Fix argument types or add explicit cast |
-| `Smart cast impossible` | Mutable property or concurrent access | Use local `val` copy or `let` |
-| `'when' expression must be exhaustive` | Missing branch in sealed class `when` | Add missing branches or `else` |
-| `Suspend function can only be called from coroutine` | Missing `suspend` or coroutine scope | Add `suspend` modifier or launch coroutine |
-| `Cannot access 'X': it is internal in 'Y'` | Visibility issue | Change visibility or use public API |
-| `Conflicting declarations` | Duplicate definitions | Remove duplicate or rename |
-| `Could not resolve: group:artifact:version` | Missing repository or wrong version | Add repository or fix version |
-| `Execution failed for task ':detekt'` | Code style violations | Fix detekt findings |
+| Error                                                | Cause                                    | Fix                                        |
+| ---------------------------------------------------- | ---------------------------------------- | ------------------------------------------ |
+| `Unresolved reference: X`                            | Missing import, typo, missing dependency | Add import or dependency                   |
+| `Type mismatch: Required X, Found Y`                 | Wrong type, missing conversion           | Add conversion or fix type                 |
+| `None of the following candidates is applicable`     | Wrong overload, wrong argument types     | Fix argument types or add explicit cast    |
+| `Smart cast impossible`                              | Mutable property or concurrent access    | Use local `val` copy or `let`              |
+| `'when' expression must be exhaustive`               | Missing branch in sealed class `when`    | Add missing branches or `else`             |
+| `Suspend function can only be called from coroutine` | Missing `suspend` or coroutine scope     | Add `suspend` modifier or launch coroutine |
+| `Cannot access 'X': it is internal in 'Y'`           | Visibility issue                         | Change visibility or use public API        |
+| `Conflicting declarations`                           | Duplicate definitions                    | Remove duplicate or rename                 |
+| `Could not resolve: group:artifact:version`          | Missing repository or wrong version      | Add repository or fix version              |
+| `Execution failed for task ':detekt'`                | Code style violations                    | Fix detekt findings                        |
 
 ## Gradle Troubleshooting
 
@@ -108,6 +108,7 @@ kotlin {
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope

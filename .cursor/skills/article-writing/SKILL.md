@@ -26,6 +26,7 @@ Write long-form content that sounds like a real person or brand, not generic AI 
 ## Voice Capture Workflow
 
 If the user wants a specific voice, collect one or more of:
+
 - published articles
 - newsletters
 - X / LinkedIn posts
@@ -33,6 +34,7 @@ If the user wants a specific voice, collect one or more of:
 - a short style guide
 
 Then extract:
+
 - sentence length and rhythm
 - whether the voice is formal, conversational, or sharp
 - favored rhetorical devices such as parentheses, lists, fragments, or questions
@@ -44,6 +46,7 @@ If no voice references are given, default to a direct, operator-style voice: con
 ## Banned Patterns
 
 Delete and rewrite any of these:
+
 - generic openings like "In today's rapidly evolving landscape"
 - filler transitions such as "Moreover" and "Furthermore"
 - hype phrases like "game-changer", "cutting-edge", or "revolutionary"
@@ -61,16 +64,19 @@ Delete and rewrite any of these:
 ## Structure Guidance
 
 ### Technical Guides
+
 - open with what the reader gets
 - use code or terminal examples in every major section
 - end with concrete takeaways, not a soft summary
 
 ### Essays / Opinion Pieces
+
 - start with tension, contradiction, or a sharp observation
 - keep one argument thread per section
 - use examples that earn the opinion
 
 ### Newsletters
+
 - keep the first screen strong
 - mix insight with updates, not diary filler
 - use clear section labels and easy skim structure
@@ -78,6 +84,7 @@ Delete and rewrite any of these:
 ## Quality Gate
 
 Before delivering:
+
 - verify factual claims against provided sources
 - remove filler and corporate language
 - confirm the voice matches the supplied examples

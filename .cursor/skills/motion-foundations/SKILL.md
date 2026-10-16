@@ -60,23 +60,23 @@ These are non-negotiable. They apply to every component in the system.
 
 ### Choosing a duration
 
-| Token | Use when |
-| --------- | -------------------------------------------- |
+| Token     | Use when                                    |
+| --------- | ------------------------------------------- |
 | `instant` | Tooltip show/hide, focus ring, badge update |
-| `fast` | Button feedback, icon swap, chip toggle |
-| `normal` | Modal open, card expand, page element enter |
-| `slow` | Hero entrance, full-page transition |
-| `crawl` | Deliberate storytelling; use sparingly |
+| `fast`    | Button feedback, icon swap, chip toggle     |
+| `normal`  | Modal open, card expand, page element enter |
+| `slow`    | Hero entrance, full-page transition         |
+| `crawl`   | Deliberate storytelling; use sparingly      |
 
 ### Choosing a spring
 
-| Preset | Use when |
+| Preset    | Use when                                   |
 | --------- | ------------------------------------------ |
-| `snappy` | Default UI — buttons, chips, nav items |
-| `gentle` | Cards, modals, panels landing softly |
-| `bouncy` | Playful moments — empty states, onboarding |
-| `instant` | Tooltips, popovers, dropdowns |
-| `release` | Drag release — natural physics feel |
+| `snappy`  | Default UI — buttons, chips, nav items     |
+| `gentle`  | Cards, modals, panels landing softly       |
+| `bouncy`  | Playful moments — empty states, onboarding |
+| `instant` | Tooltips, popovers, dropdowns              |
+| `release` | Drag release — natural physics feel        |
 
 ### When to disable animation entirely
 
@@ -96,14 +96,14 @@ Disable (make `shouldAnimate()` return `false`) when:
 export const motionTokens = {
   duration: {
     instant: 0.08,
-    fast:    0.18,
-    normal:  0.35,
-    slow:    0.6,
-    crawl:   1.0,
+    fast: 0.18,
+    normal: 0.35,
+    slow: 0.6,
+    crawl: 1.0,
   },
   easing: {
     smooth: [0.22, 1, 0.36, 1],
-    sharp:  [0.4, 0, 0.2, 1],
+    sharp: [0.4, 0, 0.2, 1],
     bounce: [0.34, 1.56, 0.64, 1],
     linear: [0, 0, 1, 1],
   },
@@ -116,18 +116,18 @@ export const motionTokens = {
   },
   scale: {
     subtle: 0.98,
-    press:  0.95,
-    pop:    1.04,
+    press: 0.95,
+    pop: 1.04,
   },
-}
+};
 
 export const springs = {
-  snappy:  { type: "spring", stiffness: 300, damping: 30 },
-  gentle:  { type: "spring", stiffness: 120, damping: 14 },
-  bouncy:  { type: "spring", stiffness: 400, damping: 10 },
-  instant: { type: "spring", stiffness: 600, damping: 35 },
-  release: { type: "spring", stiffness: 200, damping: 20, restDelta: 0.001 },
-}
+  snappy: { type: 'spring', stiffness: 300, damping: 30 },
+  gentle: { type: 'spring', stiffness: 120, damping: 14 },
+  bouncy: { type: 'spring', stiffness: 400, damping: 10 },
+  instant: { type: 'spring', stiffness: 600, damping: 35 },
+  release: { type: 'spring', stiffness: 200, damping: 20, restDelta: 0.001 },
+};
 ```
 
 ### Runtime flags
@@ -136,31 +136,27 @@ export const springs = {
 // lib/motion-config.ts
 export const motionConfig = {
   isLowEnd() {
-    return (
-      typeof navigator !== "undefined" &&
-      navigator.hardwareConcurrency <= 4
-    )
+    return typeof navigator !== 'undefined' && navigator.hardwareConcurrency <= 4;
   },
 
   prefersReduced() {
     return (
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    )
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
   },
 
   shouldAnimate({ essential = false } = {}) {
-    if (this.prefersReduced()) return false
-    if (!essential && this.isLowEnd()) return false
-    return true
+    if (this.prefersReduced()) return false;
+    if (!essential && this.isLowEnd()) return false;
+    return true;
   },
 
   duration() {
     return this.isLowEnd() || this.prefersReduced()
       ? motionTokens.duration.instant
-      : motionTokens.duration.normal
+      : motionTokens.duration.normal;
   },
-}
+};
 ```
 
 ### Accessibility
@@ -176,24 +172,28 @@ that causes layout shift or confuses orientation.
 
 ```tsx
 // hooks/use-reduced-motion.tsx
-"use client"
-import { useReducedMotion } from "motion/react"
+'use client';
+import { useReducedMotion } from 'motion/react';
 
 export function useSafeMotion(fullY: number = 16) {
-  const reduce = useReducedMotion()
+  const reduce = useReducedMotion();
   return {
     initial: { opacity: 0, y: reduce ? 0 : fullY },
     animate: { opacity: 1, y: 0 },
-    exit:    { opacity: 0, y: reduce ? 0 : -fullY },
-  }
+    exit: { opacity: 0, y: reduce ? 0 : -fullY },
+  };
 }
 ```
 
 ```css
 /* globals.css */
 @media (prefers-reduced-motion: reduce) {
-  .motion-safe-transition  { transition: opacity 0.15s; }
-  .motion-reduce-transform { transform: none !important; }
+  .motion-safe-transition {
+    transition: opacity 0.15s;
+  }
+  .motion-reduce-transform {
+    transform: none !important;
+  }
 }
 ```
 
@@ -227,30 +227,30 @@ useEffect(() => setMounted(true), [])
 
 ```tsx
 // components/fade-in-card.tsx
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { motion } from "motion/react"
-import { motionTokens, springs } from "@/lib/motion-tokens"
-import { useSafeMotion } from "@/hooks/use-reduced-motion"
-import { motionConfig } from "@/lib/motion-config"
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { motionTokens, springs } from '@/lib/motion-tokens';
+import { useSafeMotion } from '@/hooks/use-reduced-motion';
+import { motionConfig } from '@/lib/motion-config';
 
 interface FadeInCardProps {
-  children: React.ReactNode
-  delay?: number
+  children: React.ReactNode;
+  delay?: number;
 }
 
 export function FadeInCard({ children, delay = 0 }: FadeInCardProps) {
   // SSR guard — initial must match server output (opacity: 1)
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Accessibility — disables transform when reduced motion is preferred
-  const safeMotion = useSafeMotion(motionTokens.distance.md)
+  const safeMotion = useSafeMotion(motionTokens.distance.md);
 
   // Device gate — skip animation on low-end hardware
   if (!motionConfig.shouldAnimate() || !mounted) {
-    return <div>{children}</div>
+    return <div>{children}</div>;
   }
 
   return (
@@ -267,7 +267,7 @@ export function FadeInCard({ children, delay = 0 }: FadeInCardProps) {
     >
       {children}
     </motion.div>
-  )
+  );
 }
 ```
 
@@ -283,16 +283,16 @@ This skill does **not** cover:
 
 ## Anti-Patterns
 
-| Anti-pattern | Rule violated | Fix |
-| --------------------------------------- | ------- | ------------------------------- |
-| `import { motion } from "framer-motion"` | Rule 1 | Use `motion/react` |
-| `initial={{ opacity: 0 }}` on SSR component | Rule 2 | Add mount guard |
-| Skipping `useReducedMotion` check | Rule 3 | Use `useSafeMotion` hook |
-| `animate={{ width: "100%" }}` | Rule 4 | Use `scaleX` transform instead |
-| `transition={{ duration: 0.4 }}` inline | Rule 5 | Use `motionTokens.duration.normal` |
-| `{ stiffness: 300, damping: 30 }` inline | Rule 6 | Use `springs.snappy` |
-| Missing `"use client"` directive | Rule 7 | Add to top of file |
-| `navigator.hardwareConcurrency` at module level | Rule 8 | Wrap in `typeof navigator !== "undefined"` |
+| Anti-pattern                                    | Rule violated | Fix                                        |
+| ----------------------------------------------- | ------------- | ------------------------------------------ |
+| `import { motion } from "framer-motion"`        | Rule 1        | Use `motion/react`                         |
+| `initial={{ opacity: 0 }}` on SSR component     | Rule 2        | Add mount guard                            |
+| Skipping `useReducedMotion` check               | Rule 3        | Use `useSafeMotion` hook                   |
+| `animate={{ width: "100%" }}`                   | Rule 4        | Use `scaleX` transform instead             |
+| `transition={{ duration: 0.4 }}` inline         | Rule 5        | Use `motionTokens.duration.normal`         |
+| `{ stiffness: 300, damping: 30 }` inline        | Rule 6        | Use `springs.snappy`                       |
+| Missing `"use client"` directive                | Rule 7        | Add to top of file                         |
+| `navigator.hardwareConcurrency` at module level | Rule 8        | Wrap in `typeof navigator !== "undefined"` |
 
 ## Related Skills
 

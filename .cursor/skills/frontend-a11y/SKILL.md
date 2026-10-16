@@ -105,7 +105,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           id="email"
           type="email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           aria-required="true"
           aria-describedby={errors.email ? 'email-error' : undefined}
           aria-invalid={!!errors.email}
@@ -126,7 +126,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           id="password"
           type="password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           aria-required="true"
           aria-describedby={errors.password ? 'password-error' : undefined}
           aria-invalid={!!errors.password}
@@ -231,7 +231,11 @@ export function Accordion({ title, children }: { title: string; children: React.
 
   return (
     <div>
-      <button aria-expanded={isOpen} aria-controls={contentId} onClick={() => setIsOpen(prev => !prev)}>
+      <button
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
         {title}
       </button>
       <div id={contentId} hidden={!isOpen}>
@@ -249,7 +253,13 @@ Every interactive element must be reachable and operable by keyboard alone.
 ### Custom Dropdown
 
 ```tsx
-export function Dropdown({ options, onSelect }: { options: string[]; onSelect: (value: string) => void }) {
+export function Dropdown({
+  options,
+  onSelect,
+}: {
+  options: string[];
+  onSelect: (value: string) => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const listId = useId();
@@ -260,17 +270,17 @@ export function Dropdown({ options, onSelect }: { options: string[]; onSelect: (
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setActiveIndex(i => Math.min(i + 1, options.length - 1));
+        setActiveIndex((i) => Math.min(i + 1, options.length - 1));
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setActiveIndex(i => Math.max(i - 1, 0));
+        setActiveIndex((i) => Math.max(i - 1, 0));
         break;
       case 'Enter':
       case ' ':
         e.preventDefault();
         if (isOpen) onSelect(options[activeIndex]);
-        setIsOpen(prev => !prev);
+        setIsOpen((prev) => !prev);
         break;
       case 'Escape':
         setIsOpen(false);
@@ -286,7 +296,7 @@ export function Dropdown({ options, onSelect }: { options: string[]; onSelect: (
       aria-controls={listId}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      onClick={() => setIsOpen(prev => !prev)}
+      onClick={() => setIsOpen((prev) => !prev)}
     >
       <span>{options[activeIndex]}</span>
       {isOpen && (
@@ -320,7 +330,17 @@ Focus must move logically when UI state changes — especially for modals and ro
 > This example covers initial focus and restoration. For a full focus trap (Tab/Shift+Tab cycling within the modal), use a library like [`focus-trap-react`](https://github.com/focus-trap/focus-trap-react) which handles edge cases like dynamic content and nested portals.
 
 ```tsx
-export function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -338,7 +358,14 @@ export function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; o
   if (!isOpen) return null;
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabIndex={-1} onKeyDown={e => e.key === 'Escape' && onClose()}>
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      tabIndex={-1}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    >
       <h2 id="modal-title">{title}</h2>
       {children}
       <button onClick={onClose}>Close</button>
@@ -391,7 +418,7 @@ export function AnimatedCard({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        transition: reduceMotion ? 'none' : 'transform 300ms ease'
+        transition: reduceMotion ? 'none' : 'transform 300ms ease',
       }}
     >
       {children}

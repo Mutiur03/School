@@ -19,7 +19,7 @@ const {
   setProjectPackageManager,
   getAvailablePackageManagers,
   detectFromLockFile,
-  detectFromPackageJson
+  detectFromPackageJson,
 } = require('./lib/package-manager');
 
 function showHelp() {

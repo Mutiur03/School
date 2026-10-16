@@ -106,6 +106,7 @@ severity: CRITICAL
 ### Step 4: Dangerous Files Check (CRITICAL — existence = FAIL)
 
 Verify these do NOT exist:
+
 ```
 .env (any variant: .env.local, .env.production, .env.*.local)
 *.pem, *.key, *.p12, *.pfx, *.jks
@@ -120,6 +121,7 @@ node_modules/, __pycache__/, .venv/, venv/
 ### Step 5: Configuration Completeness (WARNING)
 
 Verify:
+
 - `.env.example` exists
 - Every env var referenced in code has an entry in `.env.example`
 - `docker-compose.yml` (if present) uses `${VAR}` syntax, not hardcoded values
@@ -149,14 +151,14 @@ Generate `SANITIZATION_REPORT.md` in the project directory:
 
 ## Summary
 
-| Category | Status | Findings |
-|----------|--------|----------|
-| Secrets | PASS/FAIL | {count} findings |
-| PII | PASS/FAIL | {count} findings |
+| Category            | Status    | Findings         |
+| ------------------- | --------- | ---------------- |
+| Secrets             | PASS/FAIL | {count} findings |
+| PII                 | PASS/FAIL | {count} findings |
 | Internal References | PASS/FAIL | {count} findings |
-| Dangerous Files | PASS/FAIL | {count} findings |
+| Dangerous Files     | PASS/FAIL | {count} findings |
 | Config Completeness | PASS/WARN | {count} findings |
-| Git History | PASS/FAIL | {count} findings |
+| Git History         | PASS/FAIL | {count} findings |
 
 ## Critical Findings (Must Fix Before Release)
 
@@ -182,6 +184,7 @@ Generate `SANITIZATION_REPORT.md` in the project directory:
 ## Examples
 
 ### Example: Scan a sanitized Node.js project
+
 Input: `Verify project: /home/user/opensource-staging/my-api`
 Action: Runs all 6 scan categories across 47 files, checks git log (1 commit), verifies `.env.example` covers 5 variables found in code
 Output: `SANITIZATION_REPORT.md` — PASS WITH WARNINGS (one hardcoded port in README)

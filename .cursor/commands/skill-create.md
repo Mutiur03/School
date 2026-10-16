@@ -1,7 +1,7 @@
 ---
 name: skill-create
 description: Analyze local git history to extract coding patterns and generate SKILL.md files. Local version of the Skill Creator GitHub App. Use to generate new skills from local git history on demand; check the skill-scout skill first to avoid duplicating an existing local, marketplace, or GitHub skill.
-allowed-tools: ["Bash", "Read", "Write", "Grep", "Glob"]
+allowed-tools: ['Bash', 'Read', 'Write', 'Grep', 'Glob']
 ---
 
 # /skill-create - Local Skill Generation
@@ -43,13 +43,13 @@ git log --oneline -n 200 | cut -d' ' -f2- | head -50
 
 Look for these pattern types:
 
-| Pattern | Detection Method |
-|---------|-----------------|
+| Pattern                | Detection Method                               |
+| ---------------------- | ---------------------------------------------- |
 | **Commit conventions** | Regex on commit messages (feat:, fix:, chore:) |
-| **File co-changes** | Files that always change together |
-| **Workflow sequences** | Repeated file change patterns |
-| **Architecture** | Folder structure and naming conventions |
-| **Testing patterns** | Test file locations, naming, coverage |
+| **File co-changes**    | Files that always change together              |
+| **Workflow sequences** | Repeated file change patterns                  |
+| **Architecture**       | Folder structure and naming conventions        |
+| **Testing patterns**   | Test file locations, naming, coverage          |
 
 ### Step 3: Generate SKILL.md
 
@@ -94,26 +94,30 @@ Output format:
 
 ```markdown
 ---
-name: {skill-name}
-description: "Use when working in {repo-name}, especially before editing its common modules, placing tests, naming branches, or writing commits — conventions measured from git history"
+name: { skill-name }
+description: 'Use when working in {repo-name}, especially before editing its common modules, placing tests, naming branches, or writing commits — conventions measured from git history'
 metadata:
-  version: "1.0.0"
+  version: '1.0.0'
   source: local-git-analysis
-  analyzed_commits: "{count}"
+  analyzed_commits: '{count}'
 ---
 
 # {Repo Name} Patterns
 
 ## Commit Conventions
+
 {detected commit message patterns}
 
 ## Code Architecture
+
 {detected folder structure and organization}
 
 ## Workflows
+
 {detected repeating file change patterns}
 
 ## Testing Patterns
+
 {detected test conventions}
 ```
 
@@ -175,4 +179,4 @@ For advanced features (10k+ commits, team sharing, auto-PRs), use the [Skill Cre
 
 ---
 
-*Part of [ECC](https://github.com/affaan-m/ECC)*
+_Part of [ECC](https://github.com/affaan-m/ECC)_

@@ -45,12 +45,12 @@ Only when a role is genuinely missing:
 
 ### 2. Assign four roles
 
-| Role | One job | Existing sources that may fill it | Must not become |
-|---|---|---|---|
-| **Constitution** | Rules agents and contributors must obey, plus links to canonical detail | Active harness instructions, contribution guide, policy docs | Live status, long explanations, or duplicated policy |
-| **Map** | What exists, where it lives, ownership, and where to look next | Architecture overview, codemap, docs index, module map | Health dashboard or event ledger |
-| **Status** | Current health, blockers, thresholds, and intentional-removal delete-zone | Roadmap, project status, maintenance dashboard | Structural reference or historical narrative |
-| **History** | Durable governance decisions, intentional removals, replacements, and material incidents | ADR index, decision log, changelog, maintenance log | A duplicate of every commit, fix, or Git history |
+| Role             | One job                                                                                  | Existing sources that may fill it                            | Must not become                                      |
+| ---------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| **Constitution** | Rules agents and contributors must obey, plus links to canonical detail                  | Active harness instructions, contribution guide, policy docs | Live status, long explanations, or duplicated policy |
+| **Map**          | What exists, where it lives, ownership, and where to look next                           | Architecture overview, codemap, docs index, module map       | Health dashboard or event ledger                     |
+| **Status**       | Current health, blockers, thresholds, and intentional-removal delete-zone                | Roadmap, project status, maintenance dashboard               | Structural reference or historical narrative         |
+| **History**      | Durable governance decisions, intentional removals, replacements, and material incidents | ADR index, decision log, changelog, maintenance log          | A duplicate of every commit, fix, or Git history     |
 
 The discipline is **one canonical owner per fact**. Other files link to that owner rather than copying it. "Where is auth?" belongs to the map. "Is auth migration blocked?" belongs to status. "Why was the legacy auth path removed?" belongs to history or an ADR.
 
@@ -101,26 +101,26 @@ History is append-oriented for traceability, but not immutable at the expense of
 
 Start with a role map, not four new files:
 
-| Role | Canonical source | Gap or action |
-|---|---|---|
-| Constitution | `AGENTS.md` | Link existing contribution rules |
-| Map | `docs/architecture.md` | Add ownership and "find X" table |
-| Status | `docs/roadmap.md` | Add blockers and delete-zone section |
-| History | `docs/adr/README.md` | Use ADRs for durable decisions; Git for routine changes |
+| Role         | Canonical source       | Gap or action                                           |
+| ------------ | ---------------------- | ------------------------------------------------------- |
+| Constitution | `AGENTS.md`            | Link existing contribution rules                        |
+| Map          | `docs/architecture.md` | Add ownership and "find X" table                        |
+| Status       | `docs/roadmap.md`      | Add blockers and delete-zone section                    |
+| History      | `docs/adr/README.md`   | Use ADRs for durable decisions; Git for routine changes |
 
 Useful sections to add only when missing:
 
 **Map jump table**
 
-| Need | Go to | Verify with |
-|---|---|---|
-| Change authentication | `src/auth/` and its module docs | Auth tests and current routes |
-| Understand data ownership | Architecture/data-flow doc | Schema and migrations |
+| Need                      | Go to                           | Verify with                   |
+| ------------------------- | ------------------------------- | ----------------------------- |
+| Change authentication     | `src/auth/` and its module docs | Auth tests and current routes |
+| Understand data ownership | Architecture/data-flow doc      | Schema and migrations         |
 
 **Status delete-zone**
 
-| Path or concept | Why removed | Replacement | Revisit condition |
-|---|---|---|---|
+| Path or concept    | Why removed                | Replacement   | Revisit condition                        |
+| ------------------ | -------------------------- | ------------- | ---------------------------------------- |
 | `legacy_parser.py` | Incorrect duplicate parser | `src/parser/` | Recreate only through a new approved ADR |
 
 **History entry**

@@ -12,15 +12,15 @@ The framework operates on a singleton `ActionRegistry` that maps URL patterns (o
 
 #### Key Abstractions
 
-| Class/Interface | Role |
-|---|---|
-| `AbstractApplication` | Base class for all tinystruct applications. Extend this. |
-| `@Action` annotation | Maps a method to a URI path (web) or command name (CLI). The single routing primitive. |
-| `ActionRegistry` | Singleton that maps URL patterns to `Action` objects via regex. Never instantiate directly. |
-| `Action` | Wraps a `MethodHandle` + regex pattern + priority + `Mode` for dispatch. |
-| `Context` | Per-request state store. Access via `getContext()`. Holds CLI args and HTTP request/response. |
-| `Dispatcher` | CLI entry point (`bin/dispatcher`). Reads `--import` to load applications. |
-| `HttpServer` | Built-in HTTP server. Start with `bin/dispatcher start --import org.tinystruct.system.HttpServer`. |
+| Class/Interface       | Role                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `AbstractApplication` | Base class for all tinystruct applications. Extend this.                                           |
+| `@Action` annotation  | Maps a method to a URI path (web) or command name (CLI). The single routing primitive.             |
+| `ActionRegistry`      | Singleton that maps URL patterns to `Action` objects via regex. Never instantiate directly.        |
+| `Action`              | Wraps a `MethodHandle` + regex pattern + priority + `Mode` for dispatch.                           |
+| `Context`             | Per-request state store. Access via `getContext()`. Holds CLI args and HTTP request/response.      |
+| `Dispatcher`          | CLI entry point (`bin/dispatcher`). Reads `--import` to load applications.                         |
+| `HttpServer`          | Built-in HTTP server. Start with `bin/dispatcher start --import org.tinystruct.system.HttpServer`. |
 
 ### Package Map
 
@@ -61,6 +61,7 @@ By default, the framework assumes a view template is required. If `templateRequi
 ## Examples
 
 ### Minimal Application Initialization
+
 ```java
 @Override
 public void init() {
@@ -70,13 +71,16 @@ public void init() {
 ```
 
 ### Action Definition and CLI Invocation
+
 ```java
 @Action("hello")
 public String hello() {
     return "Hello, tinystruct!";
 }
 ```
+
 **Execution via Dispatcher:**
+
 ```bash
 bin/dispatcher hello
 bin/dispatcher greet/James
@@ -84,7 +88,9 @@ bin/dispatcher echo --words "Hello" --import com.example.HelloApp
 ```
 
 ### Configuration Access
+
 Located at `src/main/resources/application.properties`:
+
 ```java
 String port = this.getConfiguration("server.port");
 ```

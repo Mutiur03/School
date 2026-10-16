@@ -118,7 +118,9 @@ function main() {
 
     if (options.dashboard || options.panel) {
       const result = renderDashboard(options);
-      process.stdout.write(options.json ? `${JSON.stringify(result.data, null, 2)}\n` : result.text);
+      process.stdout.write(
+        options.json ? `${JSON.stringify(result.data, null, 2)}\n` : result.text,
+      );
     } else {
       const report = collectSkillHealth(options);
       process.stdout.write(formatHealthReport(report, { json: options.json }));

@@ -18,14 +18,14 @@ Comprehensive testing patterns for .NET applications using xUnit, FluentAssertio
 
 ## Test Framework Stack
 
-| Tool | Purpose |
-|---|---|
-| **xUnit** | Test framework (preferred for .NET) |
-| **FluentAssertions** | Readable assertion syntax |
-| **NSubstitute** or **Moq** | Mocking dependencies |
-| **Testcontainers** | Real infrastructure in integration tests |
-| **WebApplicationFactory** | ASP.NET Core integration tests |
-| **Bogus** | Realistic test data generation |
+| Tool                       | Purpose                                  |
+| -------------------------- | ---------------------------------------- |
+| **xUnit**                  | Test framework (preferred for .NET)      |
+| **FluentAssertions**       | Readable assertion syntax                |
+| **NSubstitute** or **Moq** | Mocking dependencies                     |
+| **Testcontainers**         | Real infrastructure in integration tests |
+| **WebApplicationFactory**  | ASP.NET Core integration tests           |
+| **Bogus**                  | Realistic test data generation           |
 
 ## Unit Test Structure
 
@@ -292,15 +292,15 @@ var order = new OrderBuilder()
 
 ## Common Anti-Patterns
 
-| Anti-Pattern | Fix |
-|---|---|
-| Testing implementation details | Test behavior and outcomes |
-| Shared mutable test state | Fresh instance per test (xUnit does this via constructors) |
-| `Thread.Sleep` in async tests | Use `Task.Delay` with timeout, or polling helpers |
-| Asserting on `ToString()` output | Assert on typed properties |
-| One giant assertion per test | One logical assertion per test |
-| Test names describing implementation | Name by behavior: `Method_ExpectedResult_WhenCondition` |
-| Ignoring `CancellationToken` | Always pass and verify cancellation |
+| Anti-Pattern                         | Fix                                                        |
+| ------------------------------------ | ---------------------------------------------------------- |
+| Testing implementation details       | Test behavior and outcomes                                 |
+| Shared mutable test state            | Fresh instance per test (xUnit does this via constructors) |
+| `Thread.Sleep` in async tests        | Use `Task.Delay` with timeout, or polling helpers          |
+| Asserting on `ToString()` output     | Assert on typed properties                                 |
+| One giant assertion per test         | One logical assertion per test                             |
+| Test names describing implementation | Name by behavior: `Method_ExpectedResult_WhenCondition`    |
+| Ignoring `CancellationToken`         | Always pass and verify cancellation                        |
 
 ## Running Tests
 

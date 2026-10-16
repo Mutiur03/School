@@ -275,7 +275,15 @@ export class MarksheetJobsService {
     const where = { school_id: schoolId, exam_id: examId };
     // Unpublished: nothing generates, so leftover pending rows must not show as progress.
     if (!(await this.isPublished(schoolId, examId))) {
-      const empty = { pending: 0, generating: 0, ready: 0, failed: 0, skipped: 0, total: 0, done: 0 };
+      const empty = {
+        pending: 0,
+        generating: 0,
+        ready: 0,
+        failed: 0,
+        skipped: 0,
+        total: 0,
+        done: 0,
+      };
       return { ...empty, bundles: { ...empty, stale: 0, staleItems: [], failedItems: [] } };
     }
     // Remove orphan skipped rows (students without marks for this exam).

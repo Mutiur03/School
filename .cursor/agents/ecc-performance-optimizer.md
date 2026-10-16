@@ -57,32 +57,32 @@ npx webpack-bundle-analyzer
 
 **Critical Performance Indicators:**
 
-| Metric | Target | Action if Exceeded |
-|--------|--------|-------------------|
-| First Contentful Paint | < 1.8s | Optimize critical path, inline critical CSS |
-| Largest Contentful Paint | < 2.5s | Lazy load images, optimize server response |
-| Time to Interactive | < 3.8s | Code splitting, reduce JavaScript |
-| Cumulative Layout Shift | < 0.1 | Reserve space for images, avoid layout thrashing |
-| Total Blocking Time | < 200ms | Break up long tasks, use web workers |
-| Bundle Size (gzipped) | < 200KB | Tree shaking, lazy loading, code splitting |
+| Metric                   | Target  | Action if Exceeded                               |
+| ------------------------ | ------- | ------------------------------------------------ |
+| First Contentful Paint   | < 1.8s  | Optimize critical path, inline critical CSS      |
+| Largest Contentful Paint | < 2.5s  | Lazy load images, optimize server response       |
+| Time to Interactive      | < 3.8s  | Code splitting, reduce JavaScript                |
+| Cumulative Layout Shift  | < 0.1   | Reserve space for images, avoid layout thrashing |
+| Total Blocking Time      | < 200ms | Break up long tasks, use web workers             |
+| Bundle Size (gzipped)    | < 200KB | Tree shaking, lazy loading, code splitting       |
 
 ### 2. Algorithmic Analysis
 
 Check for inefficient algorithms:
 
-| Pattern | Complexity | Better Alternative |
-|---------|------------|-------------------|
-| Nested loops on same data | O(n²) | Use Map/Set for O(1) lookups |
-| Repeated array searches | O(n) per search | Convert to Map for O(1) |
-| Sorting inside loop | O(n² log n) | Sort once outside loop |
-| String concatenation in loop | O(n²) | Use array.join() |
-| Deep cloning large objects | O(n) each time | Use shallow copy or immer |
-| Recursion without memoization | O(2^n) | Add memoization |
+| Pattern                       | Complexity      | Better Alternative           |
+| ----------------------------- | --------------- | ---------------------------- |
+| Nested loops on same data     | O(n²)           | Use Map/Set for O(1) lookups |
+| Repeated array searches       | O(n) per search | Convert to Map for O(1)      |
+| Sorting inside loop           | O(n² log n)     | Sort once outside loop       |
+| String concatenation in loop  | O(n²)           | Use array.join()             |
+| Deep cloning large objects    | O(n) each time  | Use shallow copy or immer    |
+| Recursion without memoization | O(2^n)          | Add memoization              |
 
 ```typescript
 // BAD: O(n²) - searching array in loop
 for (const user of users) {
-  const posts = allPosts.filter(p => p.userId === user.id); // O(n) per user
+  const posts = allPosts.filter((p) => p.userId === user.id); // O(n) per user
 }
 
 // GOOD: O(n) - group once with Map
@@ -157,14 +157,14 @@ du -sh node_modules/* | sort -hr | head -20
 
 **Optimization Strategies:**
 
-| Issue | Solution |
-|-------|----------|
+| Issue               | Solution                           |
+| ------------------- | ---------------------------------- |
 | Large vendor bundle | Tree shaking, smaller alternatives |
-| Duplicate code | Extract to shared module |
-| Unused exports | Remove dead code with knip |
-| Moment.js | Use date-fns or dayjs (smaller) |
-| Lodash | Use lodash-es or native methods |
-| Large icons library | Import only needed icons |
+| Duplicate code      | Extract to shared module           |
+| Unused exports      | Remove dead code with knip         |
+| Moment.js           | Use date-fns or dayjs (smaller)    |
+| Lodash              | Use lodash-es or native methods    |
+| Large icons library | Import only needed icons           |
 
 ```javascript
 // BAD: Import entire library
@@ -225,10 +225,7 @@ const posts = await fetchPosts(user.id);
 const comments = await fetchComments(posts[0].id);
 
 // GOOD: Parallel requests when independent
-const [user, posts] = await Promise.all([
-  fetchUser(id),
-  fetchPosts(id)
-]);
+const [user, posts] = await Promise.all([fetchUser(id), fetchPosts(id)]);
 
 // GOOD: Batch requests when possible
 const results = await batchFetch(['user1', 'user2', 'user3']);
@@ -238,7 +235,7 @@ const fetchWithCache = async (url: string, ttl = 300000) => {
   const cached = cache.get(url);
   if (cached) return cached;
 
-  const data = await fetch(url).then(r => r.json());
+  const data = await fetch(url).then((r) => r.json());
   cache.set(url, data, ttl);
   return data;
 };
@@ -365,10 +362,10 @@ npx lighthouse https://your-app.com --only-categories=performance
 // Track Core Web Vitals (web-vitals v4 API)
 import { onCLS, onINP, onLCP, onFCP, onTTFB } from 'web-vitals';
 
-onCLS(console.log);  // Cumulative Layout Shift
-onINP(console.log);  // Interaction to Next Paint
-onLCP(console.log);  // Largest Contentful Paint
-onFCP(console.log);  // First Contentful Paint
+onCLS(console.log); // Cumulative Layout Shift
+onINP(console.log); // Interaction to Next Paint
+onLCP(console.log); // Largest Contentful Paint
+onFCP(console.log); // First Contentful Paint
 onTTFB(console.log); // Time to First Byte
 ```
 
@@ -378,27 +375,31 @@ onTTFB(console.log); // Time to First Byte
 # Performance Audit Report
 
 ## Executive Summary
+
 - **Overall Score**: X/100
 - **Critical Issues**: X
 - **Recommendations**: X
 
 ## Bundle Analysis
-| Metric | Current | Target | Status |
-|--------|---------|--------|--------|
-| Total Size (gzip) | XXX KB | < 200 KB | WARNING: |
-| Main Bundle | XXX KB | < 100 KB | PASS: |
-| Vendor Bundle | XXX KB | < 150 KB | WARNING: |
+
+| Metric            | Current | Target   | Status   |
+| ----------------- | ------- | -------- | -------- |
+| Total Size (gzip) | XXX KB  | < 200 KB | WARNING: |
+| Main Bundle       | XXX KB  | < 100 KB | PASS:    |
+| Vendor Bundle     | XXX KB  | < 150 KB | WARNING: |
 
 ## Web Vitals
-| Metric | Current | Target | Status |
-|--------|---------|--------|--------|
-| LCP | X.Xs | < 2.5s | PASS: |
-| INP | XXms | < 200ms | PASS: |
-| CLS | X.XX | < 0.1 | WARNING: |
+
+| Metric | Current | Target  | Status   |
+| ------ | ------- | ------- | -------- |
+| LCP    | X.Xs    | < 2.5s  | PASS:    |
+| INP    | XXms    | < 200ms | PASS:    |
+| CLS    | X.XX    | < 0.1   | WARNING: |
 
 ## Critical Issues
 
 ### 1. [Issue Title]
+
 **File**: path/to/file.ts:42
 **Impact**: High - Causes XXXms delay
 **Fix**: [Description of fix]
@@ -412,14 +413,17 @@ const fastCode = ...;
 ```
 
 ### 2. [Issue Title]
+
 ...
 
 ## Recommendations
+
 1. [Priority recommendation]
 2. [Priority recommendation]
 3. [Priority recommendation]
 
 ## Estimated Impact
+
 - Bundle size reduction: XX KB (XX%)
 - LCP improvement: XXms
 - Time to Interactive improvement: XXms
@@ -433,13 +437,13 @@ const fastCode = ...;
 
 ## Red Flags - Act Immediately
 
-| Issue | Action |
-|-------|--------|
-| Bundle > 500KB gzip | Code split, lazy load, tree shake |
-| LCP > 4s | Optimize critical path, preload resources |
+| Issue                | Action                                    |
+| -------------------- | ----------------------------------------- |
+| Bundle > 500KB gzip  | Code split, lazy load, tree shake         |
+| LCP > 4s             | Optimize critical path, preload resources |
 | Memory usage growing | Check for leaks, review useEffect cleanup |
-| CPU spikes | Profile with Chrome DevTools |
-| Database query > 1s | Add index, optimize query, cache results |
+| CPU spikes           | Profile with Chrome DevTools              |
+| Database query > 1s  | Add index, optimize query, cache results  |
 
 ## Success Metrics
 

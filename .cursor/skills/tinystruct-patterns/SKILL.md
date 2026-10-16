@@ -38,6 +38,7 @@ Routing is handled by the `ActionRegistry`, which automatically maps path segmen
 ## Examples
 
 ### Basic Application (MyService)
+
 ```java
 public class MyService extends AbstractApplication {
     @Override
@@ -61,6 +62,7 @@ public class MyService extends AbstractApplication {
 ```
 
 ### HTTP Mode Disambiguation (login)
+
 ```java
 @Action(value = "login", mode = Mode.HTTP_POST)
 public String doLogin(Request<?, ?> request) throws ApplicationException {
@@ -70,6 +72,7 @@ public String doLogin(Request<?, ?> request) throws ApplicationException {
 ```
 
 ### Native JSON Data Handling (Builder + Builders)
+
 ```java
 import org.tinystruct.data.component.Builder;
 import org.tinystruct.data.component.Builders;
@@ -90,6 +93,7 @@ public String getData() throws ApplicationException {
 ```
 
 ### SSE (Server-Sent Events)
+
 ```java
 import org.tinystruct.http.SSEPushManager;
 
@@ -110,6 +114,7 @@ SSEPushManager.getInstance().broadcast(msg);
 ```
 
 ### File Upload
+
 ```java
 import org.tinystruct.data.FileEntity;
 
@@ -129,6 +134,7 @@ public String upload(Request<?, ?> request) throws ApplicationException {
 
 tinystruct provides native support for the Model Context Protocol (MCP) starting with SDK version **`1.7.26`**.
 The MCP APIs (e.g., `org.tinystruct.mcp.MCPTool`, `org.tinystruct.mcp.MCPServer`, `org.tinystruct.mcp.MCPException`) are included directly in the core dependency:
+
 ```xml
 <dependency>
     <groupId>org.tinystruct</groupId>
@@ -141,6 +147,7 @@ The MCP APIs (e.g., `org.tinystruct.mcp.MCPTool`, `org.tinystruct.mcp.MCPServer`
 > Tool return values are fed directly back into the AI model's context window. You **MUST** validate and sanitize all caller-supplied arguments before including them in the tool's return string. Failure to sanitize inputs can allow an attacker to inject adversarial instructions (Prompt Injection) that override the model's behavior. Always validate length, character sets, and nullity.
 
 **To create an MCP Tool:**
+
 1. Extend `org.tinystruct.mcp.MCPTool`.
 2. Annotate operations with `@Action` and declare parameters using `@Argument` within the `arguments` array.
 3. Accept parameters as explicit method arguments matching the keys in `@Argument`. (Do **not** use `getContext().getAttribute(...)` for tool arguments).
@@ -175,6 +182,7 @@ public class MyCustomTool extends MCPTool {
 ```
 
 **To deploy an MCP Server:**
+
 1. Extend `org.tinystruct.mcp.MCPServer`.
 2. Override `init()` and register your tools using `this.registerTool()`. The framework automatically scans and maps the `@Action` methods.
 
@@ -196,6 +204,7 @@ public class MyMCPServer extends MCPServer {
 ```
 
 Run the server via the dispatcher:
+
 ```bash
 bin/dispatcher start --import org.tinystruct.system.HttpServer --import com.example.MyMCPServer
 ```
@@ -225,23 +234,24 @@ default.language=en_US
 ```
 
 Access config values in your application:
+
 ```java
 String port = this.getConfiguration("server.port");
 ```
 
 ## Red Flags & Anti-patterns
 
-| Symptom | Correct Pattern |
-|---|---|
-| Importing `com.google.gson` or `com.fasterxml.jackson` | Use `org.tinystruct.data.component.Builder` / `Builders`. |
-| Using `List<Builder>` for JSON arrays | Use `Builders` to avoid generic type erasure issues. |
-| `ApplicationRuntimeException: template not found` | Call `setTemplateRequired(false)` in `init()` for API-only apps. |
-| Annotating `private` methods with `@Action` | Actions must be `public` to be registered by the framework. |
-| Hardcoding `main(String[] args)` in apps | Use `bin/dispatcher` as the entry point for all modules. |
-| Manual `ActionRegistry` registration | Prefer the `@Action` annotation for automatic discovery. |
-| Action not found at runtime | Ensure class is imported via `--import` or listed in `application.properties`. |
-| CLI arg not visible | Pass with `--key value`; access via `getContext().getAttribute("--key")`. |
-| Two methods same path, wrong one fires | Set explicit `mode` (e.g., `HTTP_GET` vs `HTTP_POST`) to disambiguate. |
+| Symptom                                                | Correct Pattern                                                                |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Importing `com.google.gson` or `com.fasterxml.jackson` | Use `org.tinystruct.data.component.Builder` / `Builders`.                      |
+| Using `List<Builder>` for JSON arrays                  | Use `Builders` to avoid generic type erasure issues.                           |
+| `ApplicationRuntimeException: template not found`      | Call `setTemplateRequired(false)` in `init()` for API-only apps.               |
+| Annotating `private` methods with `@Action`            | Actions must be `public` to be registered by the framework.                    |
+| Hardcoding `main(String[] args)` in apps               | Use `bin/dispatcher` as the entry point for all modules.                       |
+| Manual `ActionRegistry` registration                   | Prefer the `@Action` annotation for automatic discovery.                       |
+| Action not found at runtime                            | Ensure class is imported via `--import` or listed in `application.properties`. |
+| CLI arg not visible                                    | Pass with `--key value`; access via `getContext().getAttribute("--key")`.      |
+| Two methods same path, wrong one fires                 | Set explicit `mode` (e.g., `HTTP_GET` vs `HTTP_POST`) to disambiguate.         |
 
 ## Best Practices
 

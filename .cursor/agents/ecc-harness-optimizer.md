@@ -41,6 +41,7 @@ Re-run `node scripts/harness-audit.js repo --format json` plus `node tests/run-a
 ## Output Format
 
 `EVAL REPORT: harness-optimization`
+
 - Capability Evals: results per leverage area (pass/fail, pass@k)
 - Regression Evals: results (pass^k for safety-critical paths)
 - Applied changes (final diff) and remaining risks

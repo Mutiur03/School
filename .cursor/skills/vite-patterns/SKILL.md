@@ -36,26 +36,26 @@ Build tool and dev server patterns for Vite 8+ projects. Covers configuration, e
 
 ```typescript
 // vite.config.ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: { '@': new URL('./src', import.meta.url).pathname },
   },
-})
+});
 ```
 
 #### Conditional Config
 
 ```typescript
 // vite.config.ts
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ command, mode }) => {
-  const env = loadEnv(mode, process.cwd())   // VITE_ prefixed only (safe)
+  const env = loadEnv(mode, process.cwd()); // VITE_ prefixed only (safe)
 
   return {
     plugins: [react()],
@@ -63,20 +63,20 @@ export default defineConfig(({ command, mode }) => {
     define: {
       __API_URL__: JSON.stringify(env.VITE_API_URL),
     },
-  }
-})
+  };
+});
 ```
 
 #### Key Config Options
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `root` | `'.'` | Project root (where `index.html` lives) |
-| `base` | `'/'` | Public base path for deployed assets |
-| `envPrefix` | `'VITE_'` | Prefix for client-exposed env vars |
-| `build.outDir` | `'dist'` | Output directory |
-| `build.minify` | `'oxc'` | Minifier (`'oxc'`, `'terser'`, or `false`) |
-| `build.sourcemap` | `false` | `true`, `'inline'`, or `'hidden'` |
+| Key               | Default   | Description                                |
+| ----------------- | --------- | ------------------------------------------ |
+| `root`            | `'.'`     | Project root (where `index.html` lives)    |
+| `base`            | `'/'`     | Public base path for deployed assets       |
+| `envPrefix`       | `'VITE_'` | Prefix for client-exposed env vars         |
+| `build.outDir`    | `'dist'`  | Output directory                           |
+| `build.minify`    | `'oxc'`   | Minifier (`'oxc'`, `'terser'`, or `false`) |
+| `build.sourcemap` | `false`   | `true`, `'inline'`, or `'hidden'`          |
 
 ### Plugins
 
@@ -84,17 +84,17 @@ export default defineConfig(({ command, mode }) => {
 
 Most plugin needs are covered by a handful of well-maintained packages. Reach for these before writing your own.
 
-| Plugin | Purpose | When to use |
-|--------|---------|-------------|
-| `@vitejs/plugin-react-swc` | React HMR + Fast Refresh via SWC | Default for React apps (faster than Babel variant) |
-| `@vitejs/plugin-react` | React HMR + Fast Refresh via Babel | Only if you need Babel plugins (emotion, MobX decorators) |
-| `@vitejs/plugin-vue` | Vue 3 SFC support | Vue apps |
-| `vite-plugin-checker` | Runs `tsc` + ESLint in worker thread with HMR overlay | **Any TypeScript app** — Vite does NOT type-check during `vite build` |
-| `vite-tsconfig-paths` | Honors `tsconfig.json` `paths` aliases | Any time you already have aliases in `tsconfig.json` |
-| `vite-plugin-dts` | Emits `.d.ts` files in library mode | Publishing TypeScript libraries |
-| `vite-plugin-svgr` | Imports SVGs as React components | React apps using SVGs as components |
-| `rollup-plugin-visualizer` | Bundle treemap/sunburst report | Periodic bundle size audits (use `enforce: 'post'`) |
-| `vite-plugin-pwa` | Zero-config PWA + Workbox | Offline-capable apps |
+| Plugin                     | Purpose                                               | When to use                                                           |
+| -------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| `@vitejs/plugin-react-swc` | React HMR + Fast Refresh via SWC                      | Default for React apps (faster than Babel variant)                    |
+| `@vitejs/plugin-react`     | React HMR + Fast Refresh via Babel                    | Only if you need Babel plugins (emotion, MobX decorators)             |
+| `@vitejs/plugin-vue`       | Vue 3 SFC support                                     | Vue apps                                                              |
+| `vite-plugin-checker`      | Runs `tsc` + ESLint in worker thread with HMR overlay | **Any TypeScript app** — Vite does NOT type-check during `vite build` |
+| `vite-tsconfig-paths`      | Honors `tsconfig.json` `paths` aliases                | Any time you already have aliases in `tsconfig.json`                  |
+| `vite-plugin-dts`          | Emits `.d.ts` files in library mode                   | Publishing TypeScript libraries                                       |
+| `vite-plugin-svgr`         | Imports SVGs as React components                      | React apps using SVGs as components                                   |
+| `rollup-plugin-visualizer` | Bundle treemap/sunburst report                        | Periodic bundle size audits (use `enforce: 'post'`)                   |
+| `vite-plugin-pwa`          | Zero-config PWA + Workbox                             | Offline-capable apps                                                  |
 
 **Critical callout:** `vite build` transpiles but does NOT type-check. Type errors silently ship to production unless you add `vite-plugin-checker` or run `tsc --noEmit` in CI.
 
@@ -106,14 +106,14 @@ Authoring is rare — most needs are covered by existing plugins. When you do ne
 // vite.config.ts — minimal inline plugin
 function myPlugin(): Plugin {
   return {
-    name: 'my-plugin',                       // required, must be unique
-    enforce: 'pre',                           // 'pre' | 'post' (optional)
-    apply: 'build',                           // 'build' | 'serve' (optional)
+    name: 'my-plugin', // required, must be unique
+    enforce: 'pre', // 'pre' | 'post' (optional)
+    apply: 'build', // 'build' | 'serve' (optional)
     transform(code, id) {
-      if (!id.endsWith('.custom')) return
-      return { code: transformCustom(code), map: null }
+      if (!id.endsWith('.custom')) return;
+      return { code: transformCustom(code), map: null };
     },
-  }
+  };
 }
 ```
 
@@ -131,13 +131,13 @@ Framework plugins (`@vitejs/plugin-react`, `@vitejs/plugin-vue`, etc.) handle HM
 // src/store.ts — manual HMR for a vanilla module
 if (import.meta.hot) {
   // Persist state across updates (must MUTATE, never reassign .data)
-  import.meta.hot.data.count = import.meta.hot.data.count ?? 0
+  import.meta.hot.data.count = import.meta.hot.data.count ?? 0;
 
   // Cleanup side effects before module is replaced
-  import.meta.hot.dispose((data) => clearInterval(data.intervalId))
+  import.meta.hot.dispose((data) => clearInterval(data.intervalId));
 
   // Accept this module's own updates
-  import.meta.hot.accept()
+  import.meta.hot.accept();
 }
 ```
 
@@ -152,28 +152,28 @@ Vite loads `.env`, `.env.local`, `.env.[mode]`, and `.env.[mode].local` in that 
 Only `VITE_`-prefixed vars are exposed to client code:
 
 ```typescript
-import.meta.env.VITE_API_URL   // string
-import.meta.env.MODE            // 'development' | 'production' | custom
-import.meta.env.BASE_URL        // base config value
-import.meta.env.DEV             // boolean
-import.meta.env.PROD            // boolean
-import.meta.env.SSR             // boolean
+import.meta.env.VITE_API_URL; // string
+import.meta.env.MODE; // 'development' | 'production' | custom
+import.meta.env.BASE_URL; // base config value
+import.meta.env.DEV; // boolean
+import.meta.env.PROD; // boolean
+import.meta.env.SSR; // boolean
 ```
 
 #### Using Env in Config
 
 ```typescript
 // vite.config.ts
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd())          // VITE_ prefixed only (safe)
+  const env = loadEnv(mode, process.cwd()); // VITE_ prefixed only (safe)
   return {
     define: {
       __API_URL__: JSON.stringify(env.VITE_API_URL),
     },
-  }
-})
+  };
+});
 ```
 
 ### Security
@@ -189,10 +189,10 @@ Any variable prefixed with `VITE_` is **statically inlined into the client bundl
 ```typescript
 // BAD: passing '' as the third arg loads ALL env vars — including server secrets —
 // and makes them available to inline into client code via `define`.
-const env = loadEnv(mode, process.cwd(), '')
+const env = loadEnv(mode, process.cwd(), '');
 
 // GOOD: explicit prefix list
-const env = loadEnv(mode, process.cwd(), ['VITE_', 'APP_'])
+const env = loadEnv(mode, process.cwd(), ['VITE_', 'APP_']);
 ```
 
 #### Source Maps in Production
@@ -265,10 +265,10 @@ Barrel files (`index.ts` re-exporting everything from a directory) force Vite to
 
 ```typescript
 // BAD — importing one util forces Vite to load the whole barrel
-import { slash } from '@/utils'
+import { slash } from '@/utils';
 
 // GOOD — direct import, only the one file is loaded
-import { slash } from '@/utils/slash'
+import { slash } from '@/utils/slash';
 ```
 
 #### Be Explicit with Import Extensions
@@ -277,10 +277,10 @@ Each implicit extension forces up to 6 filesystem checks via `resolve.extensions
 
 ```typescript
 // BAD
-import Component from './Component'
+import Component from './Component';
 
 // GOOD
-import Component from './Component.tsx'
+import Component from './Component.tsx';
 ```
 
 Narrow `tsconfig.json` `allowImportingTsExtensions` + `resolve.extensions` to only the extensions you actually use.
@@ -325,7 +325,7 @@ build: {
 
 ### SSR Externals
 
-Bare `createServer({ middlewareMode: true })` setups are framework-author territory. Most apps should use Nuxt, Remix, SvelteKit, Astro, or TanStack Start instead. What you *will* tweak as a framework user is the externals config when deps break in SSR:
+Bare `createServer({ middlewareMode: true })` setups are framework-author territory. Most apps should use Nuxt, Remix, SvelteKit, Astro, or TanStack Start instead. What you _will_ tweak as a framework user is the externals config when deps break in SSR:
 
 ```typescript
 // vite.config.ts — ssr options
@@ -428,20 +428,20 @@ import.meta.hot.data.count = 0                 // CORRECT
 
 ## Quick Reference
 
-| Pattern | When to Use |
-|---------|-------------|
-| `defineConfig` | Always — provides type inference |
-| `loadEnv(mode, root, ['VITE_'])` | Access env vars in config (explicit prefix) |
-| `vite-plugin-checker` | Any TypeScript app (fills the type-check gap) |
-| `vite-tsconfig-paths` | Instead of hand-rolled `resolve.alias` |
-| `optimizeDeps.include` | CJS deps causing interop issues |
-| `server.proxy` | Route API requests to backend in dev |
-| `server.host: true` | Docker, containers, remote access |
-| `server.warmup.clientFiles` | Pre-transform hot-path routes |
-| `build.lib` + `external` | Publishing npm packages |
-| `manualChunks` (object) | Vendor bundle splitting |
-| `vite --profile` | Debug slow dev server |
-| `vite build && vite preview` | Smoke-test prod bundle locally (NOT a prod server) |
+| Pattern                          | When to Use                                        |
+| -------------------------------- | -------------------------------------------------- |
+| `defineConfig`                   | Always — provides type inference                   |
+| `loadEnv(mode, root, ['VITE_'])` | Access env vars in config (explicit prefix)        |
+| `vite-plugin-checker`            | Any TypeScript app (fills the type-check gap)      |
+| `vite-tsconfig-paths`            | Instead of hand-rolled `resolve.alias`             |
+| `optimizeDeps.include`           | CJS deps causing interop issues                    |
+| `server.proxy`                   | Route API requests to backend in dev               |
+| `server.host: true`              | Docker, containers, remote access                  |
+| `server.warmup.clientFiles`      | Pre-transform hot-path routes                      |
+| `build.lib` + `external`         | Publishing npm packages                            |
+| `manualChunks` (object)          | Vendor bundle splitting                            |
+| `vite --profile`                 | Debug slow dev server                              |
+| `vite build && vite preview`     | Smoke-test prod bundle locally (NOT a prod server) |
 
 ## Related Skills
 

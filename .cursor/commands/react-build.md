@@ -144,16 +144,16 @@ Build Status: PASS: SUCCESS
 
 ## Common Errors Fixed
 
-| Error | Typical Fix |
-|---|---|
-| `'React' is not defined` | Set `"jsx": "react-jsx"` in tsconfig (React 17+) |
-| Missing `@types/react` | `npm i -D @types/react @types/react-dom` |
-| `Unexpected token '<'` | Add `@vitejs/plugin-react` / `babel-loader` |
-| `You're importing a component that needs useState` (Next.js) | Add `"use client"` or move hook to a Client Component child |
-| `Module not found: Can't resolve 'fs'` (Next.js) | Remove `fs` import or move logic into Server Component / API route |
-| `Hydration failed because the initial UI does not match` | Move `Date.now()`/`Math.random()`/`window.*` to `useEffect` |
-| `Invalid hook call` | Multiple React copies — dedupe via `resolutions`/`overrides` |
-| `Element type is invalid` | Default vs named import mismatch |
+| Error                                                        | Typical Fix                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `'React' is not defined`                                     | Set `"jsx": "react-jsx"` in tsconfig (React 17+)                   |
+| Missing `@types/react`                                       | `npm i -D @types/react @types/react-dom`                           |
+| `Unexpected token '<'`                                       | Add `@vitejs/plugin-react` / `babel-loader`                        |
+| `You're importing a component that needs useState` (Next.js) | Add `"use client"` or move hook to a Client Component child        |
+| `Module not found: Can't resolve 'fs'` (Next.js)             | Remove `fs` import or move logic into Server Component / API route |
+| `Hydration failed because the initial UI does not match`     | Move `Date.now()`/`Math.random()`/`window.*` to `useEffect`        |
+| `Invalid hook call`                                          | Multiple React copies — dedupe via `resolutions`/`overrides`       |
+| `Element type is invalid`                                    | Default vs named import mismatch                                   |
 
 ## Fix Strategy
 

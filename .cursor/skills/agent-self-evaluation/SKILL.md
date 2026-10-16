@@ -21,13 +21,13 @@ After completing a complex task, the agent pauses to rate its own output against
 
 ### The 5 Evaluation Axes
 
-| Axis | Question | What it catches |
-|---|---|---|
-| **Accuracy** | Are the facts, claims, and outputs correct? | Hallucinations, wrong API names, incorrect syntax, false statements |
-| **Completeness** | Did it cover everything the user asked for? | Missed edge cases, unhandled error paths, forgotten requirements, skipped subtasks |
-| **Clarity** | Is the explanation understandable and well-structured? | Confusing explanations, jargon without definition, missing context, rambling |
-| **Actionability** | Can the user act on the output immediately? | Vague suggestions, missing steps, "you should X" without showing how, no verification path |
-| **Conciseness** | Did it use the minimum words/tokens needed? | Redundancy, over-explanation, repeating the user's question verbatim, filler content |
+| Axis              | Question                                               | What it catches                                                                            |
+| ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| **Accuracy**      | Are the facts, claims, and outputs correct?            | Hallucinations, wrong API names, incorrect syntax, false statements                        |
+| **Completeness**  | Did it cover everything the user asked for?            | Missed edge cases, unhandled error paths, forgotten requirements, skipped subtasks         |
+| **Clarity**       | Is the explanation understandable and well-structured? | Confusing explanations, jargon without definition, missing context, rambling               |
+| **Actionability** | Can the user act on the output immediately?            | Vague suggestions, missing steps, "you should X" without showing how, no verification path |
+| **Conciseness**   | Did it use the minimum words/tokens needed?            | Redundancy, over-explanation, repeating the user's question verbatim, filler content       |
 
 ### Scoring Scale
 

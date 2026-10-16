@@ -39,17 +39,20 @@ psql -c "SELECT indexrelname, idx_scan, idx_tup_read FROM pg_stat_user_indexes O
 ## Review Workflow
 
 ### 1. Query Performance (CRITICAL)
+
 - Are WHERE/JOIN columns indexed?
 - Run `EXPLAIN ANALYZE` on complex queries — check for Seq Scans on large tables
 - Watch for N+1 query patterns
 - Verify composite index column order (equality first, then range)
 
 ### 2. Schema Design (HIGH)
+
 - Use proper types: `bigint` for IDs, `text` for strings, `timestamptz` for timestamps, `numeric` for money, `boolean` for flags
 - Define constraints: PK, FK with `ON DELETE`, `NOT NULL`, `CHECK`
 - Use `lowercase_snake_case` identifiers (no quoted mixed-case)
 
 ### 3. Security (CRITICAL)
+
 - RLS enabled on multi-tenant tables with `(SELECT auth.uid())` pattern
 - RLS policy columns indexed
 - Least privilege access — no `GRANT ALL` to application users
@@ -97,4 +100,4 @@ For detailed index patterns, schema design examples, connection management, conc
 
 **Remember**: Database issues are often the root cause of application performance problems. Optimize queries and schema design early. Use EXPLAIN ANALYZE to verify assumptions. Always index foreign keys and RLS policy columns.
 
-*Patterns adapted from Supabase Agent Skills (credit: Supabase team) under MIT license.*
+_Patterns adapted from Supabase Agent Skills (credit: Supabase team) under MIT license._

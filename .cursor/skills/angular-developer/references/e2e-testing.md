@@ -37,13 +37,13 @@ describe('Login flow', () => {
 ### Playwright Example
 
 ```typescript
-import {expect, test} from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-test('redirects to dashboard on valid credentials', async ({page}) => {
+test('redirects to dashboard on valid credentials', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill('user@example.com');
   await page.getByLabel('Password').fill('password123');
-  await page.getByRole('button', {name: 'Sign in'}).click();
+  await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/dashboard/);
 });
 ```

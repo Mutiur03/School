@@ -70,48 +70,48 @@ Run these in order:
 
 ### General Java
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `cannot find symbol` | Missing import, typo, missing dependency | Add import or dependency |
-| `incompatible types: X cannot be converted to Y` | Wrong type, missing cast | Add explicit cast or fix type |
-| `method X in class Y cannot be applied to given types` | Wrong argument types or count | Fix arguments or check overloads |
-| `variable X might not have been initialized` | Uninitialized local variable | Initialise variable before use |
-| `non-static method X cannot be referenced from a static context` | Instance method called statically | Create instance or make method static |
-| `reached end of file while parsing` | Missing closing brace | Add missing `}` |
-| `package X does not exist` | Missing dependency or wrong import | Add dependency to `pom.xml`/`build.gradle` |
-| `error: cannot access X, class file not found` | Missing transitive dependency | Add explicit dependency |
-| `Annotation processor threw uncaught exception` | Lombok/MapStruct misconfiguration | Check annotation processor setup |
-| `Could not resolve: group:artifact:version` | Missing repository or wrong version | Add repository or fix version in POM |
-| `The following artifacts could not be resolved` | Private repo or network issue | Check repository credentials or `settings.xml` |
-| `COMPILATION ERROR: Source option X is no longer supported` | Java version mismatch | Update `maven.compiler.source` / `targetCompatibility` |
+| Error                                                            | Cause                                    | Fix                                                    |
+| ---------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| `cannot find symbol`                                             | Missing import, typo, missing dependency | Add import or dependency                               |
+| `incompatible types: X cannot be converted to Y`                 | Wrong type, missing cast                 | Add explicit cast or fix type                          |
+| `method X in class Y cannot be applied to given types`           | Wrong argument types or count            | Fix arguments or check overloads                       |
+| `variable X might not have been initialized`                     | Uninitialized local variable             | Initialise variable before use                         |
+| `non-static method X cannot be referenced from a static context` | Instance method called statically        | Create instance or make method static                  |
+| `reached end of file while parsing`                              | Missing closing brace                    | Add missing `}`                                        |
+| `package X does not exist`                                       | Missing dependency or wrong import       | Add dependency to `pom.xml`/`build.gradle`             |
+| `error: cannot access X, class file not found`                   | Missing transitive dependency            | Add explicit dependency                                |
+| `Annotation processor threw uncaught exception`                  | Lombok/MapStruct misconfiguration        | Check annotation processor setup                       |
+| `Could not resolve: group:artifact:version`                      | Missing repository or wrong version      | Add repository or fix version in POM                   |
+| `The following artifacts could not be resolved`                  | Private repo or network issue            | Check repository credentials or `settings.xml`         |
+| `COMPILATION ERROR: Source option X is no longer supported`      | Java version mismatch                    | Update `maven.compiler.source` / `targetCompatibility` |
 
 ### [SPRING] Spring Boot Specific
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `No qualifying bean of type X` | Missing `@Component`/`@Service` or component scan | Add annotation or fix scan base package |
-| `Circular dependency involving X` | Constructor injection cycle | Refactor to break cycle or use `@Lazy` on one leg |
-| `BeanCreationException: Error creating bean` | Missing config, bad property, or missing dependency | Check `application.yml`, dependency tree |
-| `HttpMessageNotReadableException` | Malformed JSON or missing Jackson dependency | Check `spring-boot-starter-web` includes Jackson |
-| `Could not autowire. No beans of type found` | Missing bean or wrong profile active | Check `@Profile`, `@ConditionalOn*`, component scan |
-| `Failed to configure a DataSource` | Missing DB driver or datasource properties | Add driver dependency or `spring.datasource.*` config |
-| `spring-boot-starter-* not found` | BOM version mismatch | Check `spring-boot-dependencies` BOM version in parent |
+| Error                                        | Cause                                               | Fix                                                    |
+| -------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| `No qualifying bean of type X`               | Missing `@Component`/`@Service` or component scan   | Add annotation or fix scan base package                |
+| `Circular dependency involving X`            | Constructor injection cycle                         | Refactor to break cycle or use `@Lazy` on one leg      |
+| `BeanCreationException: Error creating bean` | Missing config, bad property, or missing dependency | Check `application.yml`, dependency tree               |
+| `HttpMessageNotReadableException`            | Malformed JSON or missing Jackson dependency        | Check `spring-boot-starter-web` includes Jackson       |
+| `Could not autowire. No beans of type found` | Missing bean or wrong profile active                | Check `@Profile`, `@ConditionalOn*`, component scan    |
+| `Failed to configure a DataSource`           | Missing DB driver or datasource properties          | Add driver dependency or `spring.datasource.*` config  |
+| `spring-boot-starter-* not found`            | BOM version mismatch                                | Check `spring-boot-dependencies` BOM version in parent |
 
 ### [QUARKUS] Quarkus Specific
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `UnsatisfiedResolutionException: no bean found` | Missing `@ApplicationScoped`/`@Inject` or missing extension | Add CDI annotation or `quarkus-*` extension |
-| `AmbiguousResolutionException` | Multiple beans match injection point | Add `@Priority`, `@Alternative`, or qualifier |
-| `Build step X threw an exception: RuntimeException` | Quarkus build-time augmentation failure | Read full stack trace — usually a missing extension, bad config, or reflection issue |
-| `Error injecting X: it's a non-proxyable bean type` | `@Singleton` with interceptor or `final` class | Switch to `@ApplicationScoped` or remove `final` |
-| `ClassNotFoundException at native image build` | Missing `@RegisterForReflection` or reflection config | Add `@RegisterForReflection` or `reflect-config.json` entry |
-| `BlockingNotAllowedOnIOThread` | Blocking call on Vert.x event loop | Add `@Blocking` to endpoint or use reactive client |
-| `ConfigurationException: SRCFG*` | Missing or malformed config property | Check `application.properties` for required `quarkus.*` or `mp.*` keys |
-| `quarkus-extension-* not found` | Wrong BOM version or extension not in BOM | Check `quarkus-bom` version; use `quarkus ext add <name>` |
-| `DEV mode hot reload failure` | Incompatible change during dev mode | Run `./mvnw quarkus:dev` with clean: `./mvnw clean quarkus:dev` |
-| `Panache entity not enhanced` | Entity not detected at build time | Ensure entity is in scanned package; check for missing `quarkus-hibernate-orm-panache` or `quarkus-mongodb-panache` extension |
-| `RESTEASY* deployment failure` | Duplicate JAX-RS paths or missing provider | Check `@Path` uniqueness; ensure `quarkus-resteasy-reactive` vs `quarkus-resteasy` are not mixed |
+| Error                                               | Cause                                                       | Fix                                                                                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `UnsatisfiedResolutionException: no bean found`     | Missing `@ApplicationScoped`/`@Inject` or missing extension | Add CDI annotation or `quarkus-*` extension                                                                                   |
+| `AmbiguousResolutionException`                      | Multiple beans match injection point                        | Add `@Priority`, `@Alternative`, or qualifier                                                                                 |
+| `Build step X threw an exception: RuntimeException` | Quarkus build-time augmentation failure                     | Read full stack trace — usually a missing extension, bad config, or reflection issue                                          |
+| `Error injecting X: it's a non-proxyable bean type` | `@Singleton` with interceptor or `final` class              | Switch to `@ApplicationScoped` or remove `final`                                                                              |
+| `ClassNotFoundException at native image build`      | Missing `@RegisterForReflection` or reflection config       | Add `@RegisterForReflection` or `reflect-config.json` entry                                                                   |
+| `BlockingNotAllowedOnIOThread`                      | Blocking call on Vert.x event loop                          | Add `@Blocking` to endpoint or use reactive client                                                                            |
+| `ConfigurationException: SRCFG*`                    | Missing or malformed config property                        | Check `application.properties` for required `quarkus.*` or `mp.*` keys                                                        |
+| `quarkus-extension-* not found`                     | Wrong BOM version or extension not in BOM                   | Check `quarkus-bom` version; use `quarkus ext add <name>`                                                                     |
+| `DEV mode hot reload failure`                       | Incompatible change during dev mode                         | Run `./mvnw quarkus:dev` with clean: `./mvnw clean quarkus:dev`                                                               |
+| `Panache entity not enhanced`                       | Entity not detected at build time                           | Ensure entity is in scanned package; check for missing `quarkus-hibernate-orm-panache` or `quarkus-mongodb-panache` extension |
+| `RESTEASY* deployment failure`                      | Duplicate JAX-RS paths or missing provider                  | Check `@Path` uniqueness; ensure `quarkus-resteasy-reactive` vs `quarkus-resteasy` are not mixed                              |
 
 ## Maven Troubleshooting
 
@@ -252,6 +252,7 @@ grep -rn "@RegisterForReflection" src/main/java --include="*.java"
 ## Stop Conditions
 
 Stop and report if:
+
 - Same error persists after 3 fix attempts
 - Fix introduces more errors than it resolves
 - Error requires architectural changes beyond scope
@@ -271,5 +272,6 @@ Remaining errors: 1
 Final: `Framework: X | Build Status: SUCCESS/FAILED | Errors Fixed: N | Files Modified: list`
 
 For detailed patterns and examples:
+
 - **[SPRING]**: See `skill: springboot-patterns`
 - **[QUARKUS]**: See `skill: quarkus-patterns`

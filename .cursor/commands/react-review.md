@@ -29,12 +29,12 @@ For pure `.ts`/`.js` changes with no React imports, use `/code-review` (general)
 
 ## Scope vs `/code-review` and TypeScript Review
 
-| Tool | Scope |
-|---|---|
+| Tool                            | Scope                                                             |
+| ------------------------------- | ----------------------------------------------------------------- |
 | `react-reviewer` (this command) | Hooks rules, JSX, RSC, a11y, React-specific security, render perf |
-| `typescript-reviewer` | Generic TS/JS — `any` abuse, async correctness, Node security |
-| `security-reviewer` | Project-wide security audit |
-| `/code-review` | Generic uncommitted-changes or PR review |
+| `typescript-reviewer`           | Generic TS/JS — `any` abuse, async correctness, Node security     |
+| `security-reviewer`             | Project-wide security audit                                       |
+| `/code-review`                  | Generic uncommitted-changes or PR review                          |
 
 On a TSX/JSX PR, invoke both `react-reviewer` and `typescript-reviewer`. Findings from each are non-overlapping by design.
 
@@ -149,11 +149,11 @@ Recommendation: FAIL: Block merge until CRITICAL issue is fixed
 
 ## Approval Criteria
 
-| Status | Condition |
-|---|---|
-| PASS: Approve | No CRITICAL or HIGH issues |
+| Status           | Condition                               |
+| ---------------- | --------------------------------------- |
+| PASS: Approve    | No CRITICAL or HIGH issues              |
 | WARNING: Warning | Only MEDIUM issues (merge with caution) |
-| FAIL: Block | CRITICAL or HIGH issues found |
+| FAIL: Block      | CRITICAL or HIGH issues found           |
 
 ## Integration with Other Commands
 

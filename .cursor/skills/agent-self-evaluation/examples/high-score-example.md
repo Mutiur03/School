@@ -1,18 +1,22 @@
 # High-Score Example: Adding Retry Logic
 
 ## Task
+
 > Add retry logic with exponential backoff to all HTTP requests in the API client. Max 3 retries, initial delay 1s, max delay 30s.
 
 ## Agent Output
 
 ### Summary
+
 Added `httpx.HTTPTransport` with retry configuration to the shared `ApiClient` class. All HTTP methods (GET, POST, PUT, DELETE) now retry on 429, 5xx, and connection errors with exponential backoff. 42 tests pass. Single PR ready to merge.
 
 ### Files Changed
+
 - `src/api_client.py` — Added `RetryTransport` wrapper with `httpx.HTTPTransport(retries=3)` and exponential backoff configured via `httpx.Limits`
 - `tests/test_api_client.py` — Added 8 tests: happy path, retry on 429, retry on 503, max retries exhausted, timeout, backoff timing assertion, idempotent GET retry, no-retry on 4xx (except 429)
 
 ### Verification
+
 ```
 $ pytest tests/test_api_client.py -v
 42 passed in 2.34s
@@ -26,6 +30,7 @@ $ python -c "from src.api_client import ApiClient; c = ApiClient(); print(type(c
 ```
 
 ### Edge Cases Handled
+
 - Connection timeouts (retry with backoff)
 - Rate limiting (429 → retry after delay)
 - Server errors (5xx → retry)

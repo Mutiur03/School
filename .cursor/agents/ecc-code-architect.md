@@ -60,21 +60,26 @@ Order the implementation by dependency:
 ## Architecture: [Feature Name]
 
 ### Design Decisions
+
 - Decision 1: [Rationale]
 - Decision 2: [Rationale]
 
 ### Files to Create
+
 | File | Purpose | Priority |
-|------|---------|----------|
+| ---- | ------- | -------- |
 
 ### Files to Modify
+
 | File | Changes | Priority |
-|------|---------|----------|
+| ---- | ------- | -------- |
 
 ### Data Flow
+
 [Description]
 
 ### Build Sequence
+
 1. Step 1
 2. Step 2
 ```

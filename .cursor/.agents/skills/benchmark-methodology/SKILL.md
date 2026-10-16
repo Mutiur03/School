@@ -109,7 +109,7 @@ For each competitor, work the dimensions in this order (cheapest signal first):
    posture, named clients, manifesto/POV. Screenshot the homepage + one case
    study.
 2. **Case studies / work** — evidence depth, quantified outcomes, client names.
-   Distinguish *asserted* ("we delivered X") from *proven* (metrics, named,
+   Distinguish _asserted_ ("we delivered X") from _proven_ (metrics, named,
    verifiable).
 3. **Review directories** — corroborate clients, project size, engagement model
    → credibility & enterprise-readiness (e.g. Clutch.co or the niche equivalent).

@@ -84,14 +84,15 @@ EOF",
 ```
 
 **Model Parameter Notes**:
+
 - No extra model flag is needed for `--backend antigravity` or `--backend codex`; `codeagent-wrapper` picks each backend's default model.
 
 **Role Prompts**:
 
-| Phase | Codex | Antigravity |
-|-------|-------|--------|
+| Phase          | Codex                                       | Antigravity                                      |
+| -------------- | ------------------------------------------- | ------------------------------------------------ |
 | Implementation | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/antigravity/frontend.md` |
-| Review | `~/.claude/.ccg/prompts/codex/reviewer.md` | `~/.claude/.ccg/prompts/antigravity/reviewer.md` |
+| Review         | `~/.claude/.ccg/prompts/codex/reviewer.md`  | `~/.claude/.ccg/prompts/antigravity/reviewer.md` |
 
 **Session Reuse**: If `/ccg:plan` provided SESSION_ID, use `resume <SESSION_ID>` to reuse context.
 
@@ -102,6 +103,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 ```
 
 **IMPORTANT**:
+
 - Must specify `timeout: 600000`, otherwise default 30 seconds will cause premature timeout
 - If still incomplete after 10 minutes, continue polling with `TaskOutput`, **NEVER kill the process**
 - If waiting is skipped due to timeout, **MUST call `AskUserQuestion` to ask user whether to continue waiting or kill task**
@@ -130,11 +132,11 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 
 4. **Task Type Routing**:
 
-   | Task Type | Detection | Route |
-   |-----------|-----------|-------|
-   | **Frontend** | Pages, components, UI, styles, layout | Antigravity |
-   | **Backend** | API, interfaces, database, logic, algorithms | Codex |
-   | **Fullstack** | Contains both frontend and backend | Codex ∥ Antigravity parallel |
+   | Task Type     | Detection                                    | Route                        |
+   | ------------- | -------------------------------------------- | ---------------------------- |
+   | **Frontend**  | Pages, components, UI, styles, layout        | Antigravity                  |
+   | **Backend**   | API, interfaces, database, logic, algorithms | Codex                        |
+   | **Fullstack** | Contains both frontend and backend           | Codex ∥ Antigravity parallel |
 
 ---
 
@@ -154,17 +156,20 @@ mcp__ace-tool__search_context({
 ```
 
 **Retrieval Strategy**:
+
 - Extract target paths from plan's "Key Files" table
 - Build semantic query covering: entry files, dependency modules, related type definitions
 - If results insufficient, add 1-2 recursive retrievals
 
 **If ace-tool MCP is NOT available**, use Claude Code built-in tools as fallback:
+
 1. **Glob**: Find target files from plan's "Key Files" table (e.g., `Glob("src/components/**/*.tsx")`)
 2. **Grep**: Search for key symbols, function names, type definitions across the codebase
 3. **Read**: Read the discovered files to gather complete context
 4. **Task (Explore agent)**: For broader exploration, use `Task` with `subagent_type: "Explore"`
 
 **After Retrieval**:
+
 - Organize retrieved code snippets
 - Confirm complete context for implementation
 - Proceed to Phase 3
@@ -277,15 +282,18 @@ After audit passes, report to user:
 ## Execution Complete
 
 ### Change Summary
-| File | Operation | Description |
-|------|-----------|-------------|
-| path/to/file.ts | Modified | Description |
+
+| File            | Operation | Description |
+| --------------- | --------- | ----------- |
+| path/to/file.ts | Modified  | Description |
 
 ### Audit Results
+
 - Codex: <Passed/Found N issues>
 - Antigravity: <Passed/Found N issues>
 
 ### Recommendations
+
 1. [ ] <Suggested test steps>
 2. [ ] <Suggested verification steps>
 ```

@@ -19,9 +19,11 @@ This skill ensures all code development follows TDD principles with comprehensiv
 ## Core Principles
 
 ### 1. Tests BEFORE Code
+
 ALWAYS write tests first, then implement code to make tests pass.
 
 ### 2. Coverage Requirements
+
 - Minimum 80% coverage (unit + integration + E2E)
 - All edge cases covered
 - Error scenarios tested
@@ -30,18 +32,21 @@ ALWAYS write tests first, then implement code to make tests pass.
 ### 3. Test Types
 
 #### Unit Tests
+
 - Individual functions and utilities
 - Component logic
 - Pure functions
 - Helpers and utilities
 
 #### Integration Tests
+
 - API endpoints
 - Database operations
 - Service interactions
 - External API calls
 
 #### E2E Tests (Playwright)
+
 - Critical user flows
 - Complete workflows
 - Browser automation
@@ -67,17 +72,18 @@ Do not assume `npm test`. The commands in the steps and examples below use `<tes
 
 Runner command matrix:
 
-| Runner | `<test>` | `<test-watch>` | `<coverage>` | `<lint>` |
-|--------|----------|----------------|--------------|----------|
-| npm | `npm test` | `npm test -- --watch` | `npm run test:coverage` | `npm run lint` |
-| pnpm | `pnpm test` | `pnpm test --watch` | `pnpm test:coverage` | `pnpm lint` |
-| yarn | `yarn test` | `yarn test --watch` | `yarn test:coverage` | `yarn lint` |
+| Runner                        | `<test>`       | `<test-watch>`         | `<coverage>`            | `<lint>`       |
+| ----------------------------- | -------------- | ---------------------- | ----------------------- | -------------- |
+| npm                           | `npm test`     | `npm test -- --watch`  | `npm run test:coverage` | `npm run lint` |
+| pnpm                          | `pnpm test`    | `pnpm test --watch`    | `pnpm test:coverage`    | `pnpm lint`    |
+| yarn                          | `yarn test`    | `yarn test --watch`    | `yarn test:coverage`    | `yarn lint`    |
 | Bun (script runs jest/vitest) | `bun run test` | `bun run test --watch` | `bun run test:coverage` | `bun run lint` |
-| Bun (native `bun:test`) | `bun test` | `bun test --watch` | `bun test --coverage` | `bun run lint` |
+| Bun (native `bun:test`)       | `bun test`     | `bun test --watch`     | `bun test --coverage`   | `bun run lint` |
 
 > `bun test` (Bun's built-in runner) is **not** the same as `bun run test` (which runs the `package.json` `test` script). Picking the wrong one is a common failure — e.g. invoking Jest through `npx`/`bun run` in an ESM-only project breaks, while `bun test` runs the suite natively. Confirm which the project expects before the RED gate, then substitute `<test>` / `<coverage>` everywhere `npm test` appears below.
 
 ### Step 1: Write User Journeys
+
 ```
 As a [role], I want to [action], so that [benefit]
 
@@ -87,35 +93,38 @@ so that I can find relevant markets even without exact keywords.
 ```
 
 ### Step 2: Generate Test Cases
+
 For each user journey, create comprehensive test cases:
 
 ```typescript
 describe('Semantic Search', () => {
   it('returns relevant markets for query', async () => {
     // Test implementation
-  })
+  });
 
   it('handles empty query gracefully', async () => {
     // Test edge case
-  })
+  });
 
   it('falls back to substring search when Redis unavailable', async () => {
     // Test fallback behavior
-  })
+  });
 
   it('sorts results by similarity score', async () => {
     // Test sorting logic
-  })
-})
+  });
+});
 ```
 
 ### Step 3: Run Tests (They Should Fail)
+
 ```bash
 <test>
 # Tests should fail - we haven't implemented yet
 ```
 
 ### Step 4: Implement Code
+
 Write minimal code to make tests pass:
 
 ```typescript
@@ -126,19 +135,23 @@ export async function searchMarkets(query: string) {
 ```
 
 ### Step 5: Run Tests Again
+
 ```bash
 <test>
 # Tests should now pass
 ```
 
 ### Step 6: Refactor
+
 Improve code quality while keeping tests green:
+
 - Remove duplication
 - Improve naming
 - Optimize performance
 - Enhance readability
 
 ### Step 7: Verify Coverage
+
 ```bash
 <coverage>
 # Verify 80%+ coverage achieved
@@ -147,6 +160,7 @@ Improve code quality while keeping tests green:
 ## Testing Patterns
 
 ### Unit Test Pattern (Jest/Vitest)
+
 ```typescript
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Button } from './Button'
@@ -178,19 +192,19 @@ describe('Button Component', () => {
 When the project uses Bun's built-in runner (see [Step 0](#step-0-detect-the-test-runner)), import from `bun:test` and run with `bun test` — not `bun run test`. The API is Jest-like, so `describe` / `it` / `expect` and most matchers carry over. See the `bun-runtime` skill for runtime, install, and bundler details.
 
 ```typescript
-import { describe, it, expect, mock } from 'bun:test'
-import { searchMarkets } from './search'
+import { describe, it, expect, mock } from 'bun:test';
+import { searchMarkets } from './search';
 
 describe('searchMarkets', () => {
   it('returns an empty list for an empty query', async () => {
-    expect(await searchMarkets('')).toEqual([])
-  })
+    expect(await searchMarkets('')).toEqual([]);
+  });
 
   it('sorts results by similarity score', async () => {
-    const results = await searchMarkets('election')
-    expect(results).toEqual([...results].sort((a, b) => b.score - a.score))
-  })
-})
+    const results = await searchMarkets('election');
+    expect(results).toEqual([...results].sort((a, b) => b.score - a.score));
+  });
+});
 ```
 
 ```bash
@@ -203,87 +217,89 @@ bun test --coverage   # coverage report
 - Configure coverage thresholds in `bunfig.toml` under `[test]` (e.g. `coverageThreshold`) rather than the Jest `coverageThresholds` config block.
 
 ### API Integration Test Pattern
+
 ```typescript
-import { NextRequest } from 'next/server'
-import { GET } from './route'
+import { NextRequest } from 'next/server';
+import { GET } from './route';
 
 describe('GET /api/markets', () => {
   it('returns markets successfully', async () => {
-    const request = new NextRequest('http://localhost/api/markets')
-    const response = await GET(request)
-    const data = await response.json()
+    const request = new NextRequest('http://localhost/api/markets');
+    const response = await GET(request);
+    const data = await response.json();
 
-    expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(Array.isArray(data.data)).toBe(true)
-  })
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(Array.isArray(data.data)).toBe(true);
+  });
 
   it('validates query parameters', async () => {
-    const request = new NextRequest('http://localhost/api/markets?limit=invalid')
-    const response = await GET(request)
+    const request = new NextRequest('http://localhost/api/markets?limit=invalid');
+    const response = await GET(request);
 
-    expect(response.status).toBe(400)
-  })
+    expect(response.status).toBe(400);
+  });
 
   it('handles database errors gracefully', async () => {
     // Mock database failure
-    const request = new NextRequest('http://localhost/api/markets')
+    const request = new NextRequest('http://localhost/api/markets');
     // Test error handling
-  })
-})
+  });
+});
 ```
 
 ### E2E Test Pattern (Playwright)
+
 ```typescript
-import { test, expect } from '@playwright/test'
+import { test, expect } from '@playwright/test';
 
 test('user can search and filter markets', async ({ page }) => {
   // Navigate to markets page
-  await page.goto('/')
-  await page.click('a[href="/markets"]')
+  await page.goto('/');
+  await page.click('a[href="/markets"]');
 
   // Verify page loaded
-  await expect(page.locator('h1')).toContainText('Markets')
+  await expect(page.locator('h1')).toContainText('Markets');
 
   // Search for markets
-  await page.fill('input[placeholder="Search markets"]', 'election')
+  await page.fill('input[placeholder="Search markets"]', 'election');
 
   // Wait for debounce and results
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(600);
 
   // Verify search results displayed
-  const results = page.locator('[data-testid="market-card"]')
-  await expect(results).toHaveCount(5, { timeout: 5000 })
+  const results = page.locator('[data-testid="market-card"]');
+  await expect(results).toHaveCount(5, { timeout: 5000 });
 
   // Verify results contain search term
-  const firstResult = results.first()
-  await expect(firstResult).toContainText('election', { ignoreCase: true })
+  const firstResult = results.first();
+  await expect(firstResult).toContainText('election', { ignoreCase: true });
 
   // Filter by status
-  await page.click('button:has-text("Active")')
+  await page.click('button:has-text("Active")');
 
   // Verify filtered results
-  await expect(results).toHaveCount(3)
-})
+  await expect(results).toHaveCount(3);
+});
 
 test('user can create a new market', async ({ page }) => {
   // Login first
-  await page.goto('/creator-dashboard')
+  await page.goto('/creator-dashboard');
 
   // Fill market creation form
-  await page.fill('input[name="name"]', 'Test Market')
-  await page.fill('textarea[name="description"]', 'Test description')
-  await page.fill('input[name="endDate"]', '2025-12-31')
+  await page.fill('input[name="name"]', 'Test Market');
+  await page.fill('textarea[name="description"]', 'Test description');
+  await page.fill('input[name="endDate"]', '2025-12-31');
 
   // Submit form
-  await page.click('button[type="submit"]')
+  await page.click('button[type="submit"]');
 
   // Verify success message
-  await expect(page.locator('text=Market created successfully')).toBeVisible()
+  await expect(page.locator('text=Market created successfully')).toBeVisible();
 
   // Verify redirect to market page
-  await expect(page).toHaveURL(/\/markets\/test-market/)
-})
+  await expect(page).toHaveURL(/\/markets\/test-market/);
+});
 ```
 
 ## Test File Organization
@@ -312,48 +328,57 @@ src/
 ## Mocking External Services
 
 ### Supabase Mock
+
 ```typescript
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     from: jest.fn(() => ({
       select: jest.fn(() => ({
-        eq: jest.fn(() => Promise.resolve({
-          data: [{ id: 1, name: 'Test Market' }],
-          error: null
-        }))
-      }))
-    }))
-  }
-}))
+        eq: jest.fn(() =>
+          Promise.resolve({
+            data: [{ id: 1, name: 'Test Market' }],
+            error: null,
+          }),
+        ),
+      })),
+    })),
+  },
+}));
 ```
 
 ### Redis Mock
+
 ```typescript
 jest.mock('@/lib/redis', () => ({
-  searchMarketsByVector: jest.fn(() => Promise.resolve([
-    { slug: 'test-market', similarity_score: 0.95 }
-  ])),
-  checkRedisHealth: jest.fn(() => Promise.resolve({ connected: true }))
-}))
+  searchMarketsByVector: jest.fn(() =>
+    Promise.resolve([{ slug: 'test-market', similarity_score: 0.95 }]),
+  ),
+  checkRedisHealth: jest.fn(() => Promise.resolve({ connected: true })),
+}));
 ```
 
 ### OpenAI Mock
+
 ```typescript
 jest.mock('@/lib/openai', () => ({
-  generateEmbedding: jest.fn(() => Promise.resolve(
-    new Array(1536).fill(0.1) // Mock 1536-dim embedding
-  ))
-}))
+  generateEmbedding: jest.fn(() =>
+    Promise.resolve(
+      new Array(1536).fill(0.1), // Mock 1536-dim embedding
+    ),
+  ),
+}));
 ```
 
 ## Test Coverage Verification
 
 ### Run Coverage Report
+
 ```bash
 <coverage>
 ```
 
 ### Coverage Thresholds
+
 ```json
 {
   "jest": {
@@ -372,66 +397,79 @@ jest.mock('@/lib/openai', () => ({
 ## Common Testing Mistakes to Avoid
 
 ### FAIL: WRONG: Testing Implementation Details
+
 ```typescript
 // Don't test internal state
-expect(component.state.count).toBe(5)
+expect(component.state.count).toBe(5);
 ```
 
 ### PASS: CORRECT: Test User-Visible Behavior
+
 ```typescript
 // Test what users see
-expect(screen.getByText('Count: 5')).toBeInTheDocument()
+expect(screen.getByText('Count: 5')).toBeInTheDocument();
 ```
 
 ### FAIL: WRONG: Brittle Selectors
+
 ```typescript
 // Breaks easily
-await page.click('.css-class-xyz')
+await page.click('.css-class-xyz');
 ```
 
 ### PASS: CORRECT: Semantic Selectors
+
 ```typescript
 // Resilient to changes
-await page.click('button:has-text("Submit")')
-await page.click('[data-testid="submit-button"]')
+await page.click('button:has-text("Submit")');
+await page.click('[data-testid="submit-button"]');
 ```
 
 ### FAIL: WRONG: No Test Isolation
+
 ```typescript
 // Tests depend on each other
-test('creates user', () => { /* ... */ })
-test('updates same user', () => { /* depends on previous test */ })
+test('creates user', () => {
+  /* ... */
+});
+test('updates same user', () => {
+  /* depends on previous test */
+});
 ```
 
 ### PASS: CORRECT: Independent Tests
+
 ```typescript
 // Each test sets up its own data
 test('creates user', () => {
-  const user = createTestUser()
+  const user = createTestUser();
   // Test logic
-})
+});
 
 test('updates user', () => {
-  const user = createTestUser()
+  const user = createTestUser();
   // Update logic
-})
+});
 ```
 
 ## Continuous Testing
 
 ### Watch Mode During Development
+
 ```bash
 <test-watch>
 # Tests run automatically on file changes
 ```
 
 ### Pre-Commit Hook
+
 ```bash
 # Runs before every commit
 <test> && <lint>
 ```
 
 ### CI/CD Integration
+
 ```yaml
 # GitHub Actions
 - name: Run Tests

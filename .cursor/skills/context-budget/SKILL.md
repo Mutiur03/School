@@ -24,21 +24,25 @@ Analyze token overhead across every loaded component in a Claude Code session an
 Scan all component directories and estimate token consumption:
 
 **Agents** (`agents/*.md`)
+
 - Count lines and tokens per file (words × 1.3)
 - Extract `description` frontmatter length
 - Flag: files >200 lines (heavy), description >30 words (bloated frontmatter)
 
 **Skills** (`skills/*/SKILL.md`)
+
 - Count tokens per SKILL.md
 - Flag: files >400 lines
 - Check for duplicate copies in `.agents/skills/` — skip identical copies to avoid double-counting
 
 **Rules** (`rules/**/*.md`)
+
 - Count tokens per file
 - Flag: files >100 lines
 - Detect content overlap between rule files in the same language module
 
 **MCP Servers** (`.mcp.json` or active MCP config)
+
 - Count configured servers and total tool count
 - Estimate schema overhead at ~500 tokens per tool
 - Flag: servers with >20 tools, servers that wrap simple CLI commands (`gh`, `git`, `npm`, `supabase`, `vercel`)
@@ -94,6 +98,7 @@ reconnect loads. For current harness-reported context and usage, use the version
 [`/context` and `/usage` commands (`/cost` is an alias)](https://code.claude.com/docs/en/commands).
 
 **CLAUDE.md** (project + user-level)
+
 - Count tokens per file in the CLAUDE.md chain
 - Flag: combined total >300 lines
 
@@ -101,11 +106,11 @@ reconnect loads. For current harness-reported context and usage, use the version
 
 Sort every component into a bucket:
 
-| Bucket | Criteria | Action |
-|--------|----------|--------|
-| **Always needed** | Referenced in CLAUDE.md, backs an active command, or matches current project type | Keep |
-| **Sometimes needed** | Domain-specific (e.g. language patterns), not referenced in CLAUDE.md | Consider on-demand activation |
-| **Rarely needed** | No command reference, overlapping content, or no obvious project match | Remove or lazy-load |
+| Bucket               | Criteria                                                                          | Action                        |
+| -------------------- | --------------------------------------------------------------------------------- | ----------------------------- |
+| **Always needed**    | Referenced in CLAUDE.md, backs an active command, or matches current project type | Keep                          |
+| **Sometimes needed** | Domain-specific (e.g. language patterns), not referenced in CLAUDE.md             | Consider on-demand activation |
+| **Rarely needed**    | No command reference, overlapping content, or no obvious project match            | Remove or lazy-load           |
 
 ### Phase 3: Detect Issues
 
@@ -156,6 +161,7 @@ In verbose mode, additionally output per-file token counts, line-by-line breakdo
 ## Examples
 
 **Basic audit**
+
 ```
 User: /context-budget
 Skill: Scans setup → 16 agents (12,400 tokens), 28 skills (6,200), 87 MCP tools (43,500), 2 CLAUDE.md (1,200)
@@ -164,6 +170,7 @@ Skill: Scans setup → 16 agents (12,400 tokens), 28 skills (6,200), 87 MCP tool
 ```
 
 **Verbose mode**
+
 ```
 User: /context-budget --verbose
 Skill: Full report + per-file breakdown showing planner.md (213 lines, 1,840 tokens),
@@ -171,6 +178,7 @@ Skill: Full report + per-file breakdown showing planner.md (213 lines, 1,840 tok
 ```
 
 **Pre-expansion check**
+
 ```
 User: I want to add 5 more MCP servers, do I have room?
 Skill: Current overhead 33% → adding 5 servers (~50 tools) would add ~25,000 tokens → pushes to 45% overhead

@@ -1,6 +1,6 @@
 # Module 30 — Audience & Niche
 
-> **Frameworks:** Baker *The Business of Expertise* · Ideal Client Profile (ICP) ·
+> **Frameworks:** Baker _The Business of Expertise_ · Ideal Client Profile (ICP) ·
 > Pain / trigger / desired outcome lens
 >
 > **Goal:** Make the target audience concrete enough to brief a copywriter or run
@@ -33,15 +33,15 @@
 
 ### Ideal Client Profile (ICP)
 
-| Dimension | Description |
-|---|---|
-| Role / title | |
-| Organisation type & size | |
-| Trigger situation | |
-| Primary pain | |
-| Desired outcome | |
-| Budget signal | |
-| Red-flag / disqualifier | |
+| Dimension                | Description |
+| ------------------------ | ----------- |
+| Role / title             |             |
+| Organisation type & size |             |
+| Trigger situation        |             |
+| Primary pain             |             |
+| Desired outcome          |             |
+| Budget signal            |             |
+| Red-flag / disqualifier  |             |
 
 ### Psychographic portrait (2–3 sentences: how this person thinks, what they value, what they distrust)
 
