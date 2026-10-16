@@ -118,7 +118,10 @@ test.each([
     'foreign head',
     () => ({
       ...voucher(),
-      lines: [{ head_id: 2147483647, debit: 1 }, { head_id: cashId, credit: 1 }],
+      lines: [
+        { head_id: 2147483647, debit: 1 },
+        { head_id: cashId, credit: 1 },
+      ],
     }),
     'Unknown account head',
   ],

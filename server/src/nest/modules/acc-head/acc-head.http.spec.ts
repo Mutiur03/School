@@ -147,7 +147,11 @@ test('create parent/child → list → get → update → delete in-use 409 → 
     body: { name: `${name}-edited`, is_active: false },
   });
   expect(updated.status).toBe(200);
-  expect(updated.body.data).toMatchObject({ id: childId, name: `${name}-edited`, is_active: false });
+  expect(updated.body.data).toMatchObject({
+    id: childId,
+    name: `${name}-edited`,
+    is_active: false,
+  });
 
   const inUse = await call('DELETE', `/api/acc-heads/${parentId}`, { auth: true });
   expect(inUse.status).toBe(409);

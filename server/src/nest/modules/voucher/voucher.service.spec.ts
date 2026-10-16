@@ -107,8 +107,20 @@ describe('VoucherService.create', () => {
   });
 
   it.each([
-    ['unbalanced', [{ head_id: 2, debit: 100 }, { head_id: 1, credit: 99.99 }]],
-    ['both sides on a line', [{ head_id: 2, debit: 100, credit: 100 }, { head_id: 1, credit: 0 }]],
+    [
+      'unbalanced',
+      [
+        { head_id: 2, debit: 100 },
+        { head_id: 1, credit: 99.99 },
+      ],
+    ],
+    [
+      'both sides on a line',
+      [
+        { head_id: 2, debit: 100, credit: 100 },
+        { head_id: 1, credit: 0 },
+      ],
+    ],
     ['empty line', [{ head_id: 2 }, { head_id: 1 }]],
   ])('%s → 400, no DB calls', async (_name, bad) => {
     await expect(service.create(1, { ...dto, lines: bad })).rejects.toBeInstanceOf(

@@ -73,9 +73,21 @@ test.each([
 });
 
 test.each([
-  ['bad date', '/api/acc-reports/trial-balance?from=nope', 'from must be a valid ISO 8601 date string'],
-  ['unknown field', '/api/acc-reports/trial-balance?school_id=2', 'property school_id should not exist'],
-  ['from after to', '/api/acc-reports/income-expense?from=2026-05-01&to=2026-01-01', 'From date cannot be after to date'],
+  [
+    'bad date',
+    '/api/acc-reports/trial-balance?from=nope',
+    'from must be a valid ISO 8601 date string',
+  ],
+  [
+    'unknown field',
+    '/api/acc-reports/trial-balance?school_id=2',
+    'property school_id should not exist',
+  ],
+  [
+    'from after to',
+    '/api/acc-reports/income-expense?from=2026-05-01&to=2026-01-01',
+    'From date cannot be after to date',
+  ],
   ['missing head_id', '/api/acc-reports/ledger', 'head_id must be an integer number'],
   ['bad head_id', '/api/acc-reports/ledger?head_id=abc', 'head_id must be an integer number'],
 ])('%s → 400', async (_name, path, message) => {

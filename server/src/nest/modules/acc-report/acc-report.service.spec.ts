@@ -144,7 +144,14 @@ describe('AccReportService.costCenter', () => {
 });
 
 describe('AccReportService.ledger', () => {
-  const line = (id: number, vid: number, type: string, date: string, debit: number, credit: number) => ({
+  const line = (
+    id: number,
+    vid: number,
+    type: string,
+    date: string,
+    debit: number,
+    credit: number,
+  ) => ({
     id,
     debit: D(debit),
     credit: D(credit),

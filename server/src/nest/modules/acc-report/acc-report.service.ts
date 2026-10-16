@@ -3,7 +3,13 @@ import type { AccHeadType, PrismaClient } from '@/generated/prisma/client.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { LedgerQueryDto, ReportQueryDto } from './dto/report-query.dto.js';
 
-type Head = { id: number; code: string | null; name: string; type: AccHeadType; parent_id: number | null };
+type Head = {
+  id: number;
+  code: string | null;
+  name: string;
+  type: AccHeadType;
+  parent_id: number | null;
+};
 type Sum = { debit: unknown; credit: unknown } | null | undefined;
 
 const TYPE_ORDER: AccHeadType[] = ['asset', 'liability', 'equity', 'income', 'expense'];
@@ -128,7 +134,9 @@ export class AccReportService {
     const assets = this.section(nets, 'asset', 1);
     const liabilities = this.section(nets, 'liability', -1);
     const equity = this.section(nets, 'equity', -1);
-    const surplus = r2(sum(this.section(nets, 'income', -1)) - sum(this.section(nets, 'expense', 1)));
+    const surplus = r2(
+      sum(this.section(nets, 'income', -1)) - sum(this.section(nets, 'expense', 1)),
+    );
     return {
       assets,
       liabilities,
