@@ -236,6 +236,43 @@ export const Money = ({ value, className }: { value: number; className?: string 
   </span>
 );
 
+/** Calendar-year shortcut for reports: picks 1 Jan - 31 Dec; shows Custom when the dates differ. */
+export const YearSelect = ({
+  from,
+  to,
+  onPick,
+}: {
+  /** Omit for as-of reports that only have a `to` date. */
+  from?: string;
+  to: string;
+  onPick: (from: string, to: string) => void;
+}) => {
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: 8 }, (_, i) => thisYear - i);
+  const value = years.find(
+    (y) => to === `${y}-12-31` && (from === undefined || from === `${y}-01-01`),
+  );
+  return (
+    <label className="block space-y-1">
+      <span className="text-muted-foreground block text-xs font-medium">Year</span>
+      <select
+        value={value ?? ''}
+        onChange={(e) =>
+          e.target.value && onPick(`${e.target.value}-01-01`, `${e.target.value}-12-31`)
+        }
+        className={cn(selectClass, 'w-28')}
+      >
+        <option value="">Custom</option>
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
+
 export const DateInput = ({
   label,
   value,

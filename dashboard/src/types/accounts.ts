@@ -46,6 +46,8 @@ export interface Voucher {
   fee_receipt_no: number | null;
   /** The opening-balances voucher: read-only here, edited on each account head. */
   is_opening: boolean;
+  /** Year-end closing voucher: read-only, undone by reopening the year. */
+  is_closing: boolean;
   lines: VoucherLine[];
 }
 
@@ -120,4 +122,16 @@ export interface CostCenterReport {
     expense: number;
     net: number;
   }[];
+}
+
+export interface AccYear {
+  year: number;
+  closed: boolean;
+  closed_at: string | null;
+  income: number;
+  expense: number;
+  /** income - expense; negative = deficit */
+  net: number;
+  can_close: boolean;
+  can_reopen: boolean;
 }

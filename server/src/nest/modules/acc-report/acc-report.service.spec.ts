@@ -51,13 +51,26 @@ describe('date range', () => {
   it('groups by head with school_id and date filter', async () => {
     mockBooks();
     await service.trialBalance(1, { from: '2026-01-01', to: '2026-12-31' });
+    // a closing voucher inside the range is left out; earlier years' closings stay in
+    const closing = { NOT: { is_closing: true, date: { gte: new Date('2026-01-01') } } };
+    const sum = { debit: true, credit: true };
+    // income/expense over the range ...
     expect(groupBy).toHaveBeenCalledWith({
       by: ['head_id'],
       where: {
         school_id: 1,
-        voucher: { date: { gte: new Date('2026-01-01'), lte: new Date('2026-12-31') } },
+        voucher: {
+          date: { gte: new Date('2026-01-01'), lte: new Date('2026-12-31') },
+          ...closing,
+        },
       },
-      _sum: { debit: true, credit: true },
+      _sum: sum,
+    });
+    // ... balance-sheet heads cumulative up to `to`
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ['head_id'],
+      where: { school_id: 1, voucher: { date: { lte: new Date('2026-12-31') }, ...closing } },
+      _sum: sum,
     });
     expect(headsFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { school_id: 1 } }),
@@ -87,7 +100,55 @@ describe('AccReportService.trialBalance', () => {
   });
 });
 
+describe('AccReportService.trialBalance (unclosed earlier years)', () => {
+  it('shows prior unclosed income/expense as an equity line so it still balances', async () => {
+    headsFindMany.mockResolvedValue(heads);
+    // period (income/expense of the year), cumulative (balance-sheet heads), before `from`
+    groupBy
+      .mockResolvedValueOnce([{ head_id: 3, _sum: sums(0, 500) }])
+      .mockResolvedValueOnce([
+        { head_id: 1, _sum: sums(1300, 0) }, // 1000 opening +100 -300 earlier, +500 this year
+        { head_id: 2, _sum: sums(0, 1000) },
+      ])
+      .mockResolvedValueOnce([
+        { head_id: 3, _sum: sums(0, 100) },
+        { head_id: 4, _sum: sums(300, 0) },
+      ]);
+    const tb = await service.trialBalance(1, { from: '2026-01-01', to: '2026-12-31' });
+    expect(groupBy).toHaveBeenLastCalledWith({
+      by: ['head_id'],
+      where: { school_id: 1, voucher: { date: { lt: new Date('2026-01-01') } } },
+      _sum: { debit: true, credit: true },
+    });
+    // earlier years: expense 300 - income 100 = 200 debit
+    expect(tb.rows.find((r) => r.name === 'Prior years (not closed)')).toMatchObject({
+      type: 'equity',
+      debit: 200,
+      credit: 0,
+    });
+    expect(tb.total_debit).toBe(1500); // cash 1300 + prior deficit 200
+    expect(tb.total_credit).toBe(1500); // capital 1000 + this year's income 500
+  });
+
+  it('no line when earlier years net to zero (closed) or there is no from date', async () => {
+    mockBooks();
+    const tb = await service.trialBalance(1, {});
+    expect(tb.rows.some((r) => r.name === 'Prior years (not closed)')).toBe(false);
+    expect(groupBy).toHaveBeenCalledTimes(2); // no "before" query without from
+  });
+});
+
 describe('AccReportService.incomeExpense', () => {
+  it('never counts year-closing vouchers', async () => {
+    mockBooks();
+    await service.incomeExpense(1, { from: '2026-01-01', to: '2026-12-31' });
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ voucher: expect.objectContaining({ is_closing: false }) }),
+      }),
+    );
+  });
+
   it('income credit-debit, expense debit-credit, net', async () => {
     mockBooks();
     const r = await service.incomeExpense(1, {});

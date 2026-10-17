@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components';
 import { useAccHeads, useAccReport } from '@/queries/accounts.queries';
 import type { BalanceSheetReport } from '@/types/accounts';
 import { cn, formatMoney, formatYmd } from '@/lib/utils';
-import { DateInput, ExportButton, Money, PageTitle, num, td } from '../ui';
+import { DateInput, ExportButton, Money, PageTitle, YearSelect, num, td } from '../ui';
 import AmountTable from './AmountTable';
 import { exportXlsx } from './exportXlsx';
 
@@ -46,6 +46,7 @@ const BalanceSheet = () => {
         <ExportButton onClick={onExport} disabled={!data} />
       </PageTitle>
       <div className="mb-4 flex flex-wrap items-end gap-3">
+        <YearSelect to={to} onPick={(_, t) => setTo(t)} />
         <DateInput label="As of" value={to} onChange={setTo} />
       </div>
 

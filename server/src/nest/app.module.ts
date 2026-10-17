@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from './common/prisma.module.js';
 import { AccHeadModule } from './modules/acc-head/acc-head.module.js';
+import { AccYearModule } from './modules/acc-year/acc-year.module.js';
 import { AccReportModule } from './modules/acc-report/acc-report.module.js';
 import { CostCenterModule } from './modules/cost-center/cost-center.module.js';
 import { HolidayModule } from './modules/holiday/holiday.module.js';
@@ -22,6 +23,7 @@ import { PublicResultsModule } from './modules/public-results/public-results.mod
     PrismaModule,
     HolidayModule,
     AccHeadModule,
+    AccYearModule,
     CostCenterModule,
     VoucherModule,
     AccReportModule,

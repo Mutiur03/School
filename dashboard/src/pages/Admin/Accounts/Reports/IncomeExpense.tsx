@@ -4,7 +4,7 @@ import { ErrorMessage } from '@/components';
 import { useAccHeads, useAccReport } from '@/queries/accounts.queries';
 import type { IncomeExpenseReport } from '@/types/accounts';
 import { cn, formatMoney, formatYmd } from '@/lib/utils';
-import { DateInput, ExportButton, PageTitle } from '../ui';
+import { DateInput, ExportButton, PageTitle, YearSelect } from '../ui';
 import AmountTable from './AmountTable';
 import { exportXlsx } from './exportXlsx';
 
@@ -37,6 +37,14 @@ const IncomeExpense = () => {
         <ExportButton onClick={onExport} disabled={!data} />
       </PageTitle>
       <div className="mb-4 flex flex-wrap items-end gap-3">
+        <YearSelect
+          from={from}
+          to={to}
+          onPick={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+        />
         <DateInput label="From" value={from} onChange={setFrom} />
         <DateInput label="To" value={to} onChange={setTo} />
       </div>

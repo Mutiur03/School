@@ -14,10 +14,12 @@ const vouchers = {
 };
 const heads = { findFirst: jest.fn<Fn>(), create: jest.fn<Fn>() };
 const lines = { deleteMany: jest.fn<Fn>() };
+const years = { findFirst: jest.fn<Fn>() };
 const tx = {
   acc_vouchers: vouchers,
   acc_heads: heads,
   acc_voucher_lines: lines,
+  acc_years: years,
 } as unknown as Prisma.TransactionClient;
 
 const service = new OpeningBalanceService();
@@ -159,6 +161,17 @@ describe('OpeningBalanceService.set', () => {
     });
     await service.set(tx, 1, bank, 0);
     expect(vouchers.delete).toHaveBeenCalledWith({ where: { id: 7, school_id: 1 } });
+    expect(vouchers.update).not.toHaveBeenCalled();
+  });
+
+  it('a closed year refuses changes', async () => {
+    vouchers.findFirst.mockResolvedValue({
+      id: 7,
+      date: new Date('2026-01-01'),
+      lines: [{ head_id: 1, debit: '5', credit: '0' }],
+    });
+    years.findFirst.mockResolvedValue({ year: 2026 });
+    await expect(service.set(tx, 1, bank, 9)).rejects.toThrow('Year 2026 is closed');
     expect(vouchers.update).not.toHaveBeenCalled();
   });
 

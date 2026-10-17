@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { Prisma, PrismaClient, VoucherType } from '@/generated/prisma/client.js';
 import { rlsTransaction } from '@/config/prisma.js';
 import { PRISMA } from '../../common/prisma.module.js';
+import { assertYearOpen } from '../../common/period-lock.js';
 import type { CreateVoucherDto, VoucherLineDto } from './dto/create-voucher.dto.js';
 import type { ListVouchersQueryDto } from './dto/list-vouchers-query.dto.js';
 import type { UpdateVoucherDto } from './dto/update-voucher.dto.js';
@@ -44,6 +45,7 @@ const toResponse = (v: VoucherRow) => {
   return {
     fee_receipt_no: v.fee_receipt?.receipt_no ?? null,
     is_opening: v.is_opening,
+    is_closing: v.is_closing,
     id: v.id,
     voucher_no: `${PREFIX[v.type]}-${v.id}`,
     type: v.type,
@@ -101,6 +103,7 @@ export class VoucherService {
   }
 
   async create(schoolId: number, dto: CreateVoucherDto) {
+    await assertYearOpen(this.prisma, schoolId, dto.date);
     await this.validate(schoolId, dto.type, dto.lines);
     const row = await this.prisma.acc_vouchers.create({
       data: {
@@ -117,7 +120,7 @@ export class VoucherService {
   }
 
   async update(schoolId: number, id: number, dto: UpdateVoucherDto) {
-    await this.assertNotFeeVoucher(schoolId, id);
+    await this.assertEditable(schoolId, id, dto.date);
     const { lines, date, ...rest } = dto;
     const where = { id, school_id: schoolId };
     const data = { ...rest, ...(date && { date: new Date(date) }) };
@@ -157,15 +160,23 @@ export class VoucherService {
   }
 
   async remove(schoolId: number, id: number) {
-    await this.assertNotFeeVoucher(schoolId, id);
+    await this.assertEditable(schoolId, id);
     await this.prisma.acc_vouchers.delete({ where: { id, school_id: schoolId } });
   }
 
-  /** Fee-receipt and opening-balance vouchers are owned by their source: edit/delete it there. */
-  private async assertNotFeeVoucher(schoolId: number, id: number) {
+  /**
+   * Fee-receipt, opening-balance and year-closing vouchers are owned by their source: edit them
+   * there. Anything dated in a closed year (before or after the change) is frozen.
+   */
+  private async assertEditable(schoolId: number, id: number, newDate?: string) {
     const v = await this.prisma.acc_vouchers.findFirst({
       where: { id, school_id: schoolId },
-      select: { is_opening: true, fee_receipt: { select: { receipt_no: true } } },
+      select: {
+        date: true,
+        is_opening: true,
+        is_closing: true,
+        fee_receipt: { select: { receipt_no: true } },
+      },
     });
     if (v?.fee_receipt) {
       throw new BadRequestException(
@@ -175,6 +186,10 @@ export class VoucherService {
     if (v?.is_opening) {
       throw new BadRequestException('Opening balances are edited on each account head.');
     }
+    if (v?.is_closing) {
+      throw new BadRequestException('Year-end closing voucher. Reopen the year to undo it.');
+    }
+    await assertYearOpen(this.prisma, schoolId, v?.date, newDate);
   }
 
   private async validate(schoolId: number, type: VoucherType, lines: VoucherLineDto[]) {

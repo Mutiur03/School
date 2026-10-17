@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { Prisma, PrismaClient } from '@/generated/prisma/client.js';
 import { rlsTransaction } from '@/config/prisma.js';
+import { assertYearOpen } from '../../common/period-lock.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { CreateFeeReceiptDto, ListReceiptsQueryDto } from './dto/fee-receipt.dto.js';
 import { FeeDueService } from './fee-due.service.js';
@@ -133,6 +134,7 @@ export class FeeReceiptService {
    * Dr each deposit account, Cr each fee head's income account.
    */
   async create(schoolId: number, userId: number | undefined, dto: CreateFeeReceiptDto) {
+    await assertYearOpen(this.prisma, schoolId, dto.date);
     const keys = dto.items.map((i) => `${i.fee_head_id}:${i.month}`);
     if (new Set(keys).size !== keys.length) throw new BadRequestException('Duplicate installment');
 
@@ -259,10 +261,11 @@ export class FeeReceiptService {
   /** Deletes the receipt and its voucher together, so the ledger never keeps an orphan entry. */
   async remove(schoolId: number, id: number) {
     await rlsTransaction(async (tx) => {
-      const { voucher_id } = await tx.fee_receipts.findFirstOrThrow({
+      const { voucher_id, date } = await tx.fee_receipts.findFirstOrThrow({
         where: { id, school_id: schoolId },
-        select: { voucher_id: true },
+        select: { voucher_id: true, date: true },
       });
+      await assertYearOpen(tx, schoolId, date);
       await tx.fee_receipts.delete({ where: { id, school_id: schoolId } });
       await tx.acc_vouchers.delete({ where: { id: voucher_id, school_id: schoolId } });
     });

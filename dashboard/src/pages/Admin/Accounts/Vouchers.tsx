@@ -4,10 +4,20 @@ import type { VoucherType } from '@school/shared-schemas';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmationPopup } from '@/components';
-import { useDeleteVoucher, useVouchers } from '@/queries/accounts.queries';
+import { useAccYears, useDeleteVoucher, useVouchers } from '@/queries/accounts.queries';
 import type { Voucher } from '@/types/accounts';
-import { cn, formatDay } from '@/lib/utils';
-import { DataTable, DateInput, Money, PageTitle, RowActions, StateRows, num, td } from './ui';
+import { cn, formatDay, formatYmd } from '@/lib/utils';
+import {
+  DataTable,
+  DateInput,
+  Money,
+  PageTitle,
+  RowActions,
+  StateRows,
+  YearSelect,
+  num,
+  td,
+} from './ui';
 import VoucherForm from './VoucherForm';
 import { VOUCHER_MODES, selectClass } from './heads';
 
@@ -33,10 +43,21 @@ const columns = [
 
 const Vouchers = () => {
   const [type, setType] = useState<VoucherType | ''>('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  // this year by default, like the reports; the Year dropdown reaches older years
+  const [from, setFrom] = useState(`${new Date().getFullYear()}-01-01`);
+  const [to, setTo] = useState(formatYmd(new Date()));
   const { data: vouchers = [], isLoading, isError } = useVouchers({ type, from, to });
   const remove = useDeleteVoucher();
+  const { data: years = [] } = useAccYears();
+  // a closed year freezes every voucher dated in it
+  const closedYears = new Set(years.filter((y) => y.closed).map((y) => y.year));
+  const isLocked = (v: Voucher) =>
+    !!(
+      v.fee_receipt_no ||
+      v.is_opening ||
+      v.is_closing ||
+      closedYears.has(Number(v.date.slice(0, 4)))
+    );
 
   // undefined = closed, null = new voucher
   const [formVoucher, setFormVoucher] = useState<Voucher | null | undefined>(undefined);
@@ -66,6 +87,14 @@ const Vouchers = () => {
             ))}
           </select>
         </label>
+        <YearSelect
+          from={from}
+          to={to}
+          onPick={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+        />
         <DateInput label="From" value={from} onChange={setFrom} />
         <DateInput label="To" value={to} onChange={setTo} />
       </div>
@@ -82,7 +111,7 @@ const Vouchers = () => {
           vouchers.map((v) => (
             <tr key={v.id} className="bg-card hover:bg-muted/40">
               <td className={td}>
-                {v.fee_receipt_no || v.is_opening ? (
+                {isLocked(v) ? (
                   <span className="font-medium tabular-nums">{v.voucher_no}</span>
                 ) : (
                   <button
@@ -112,17 +141,27 @@ const Vouchers = () => {
                 <Money value={v.total} />
               </td>
               <td className={`${td} text-right`}>
-                {v.fee_receipt_no || v.is_opening ? (
+                {isLocked(v) ? (
                   <Badge
                     variant="outline"
                     className="whitespace-nowrap"
                     title={
-                      v.is_opening
-                        ? 'Opening balances. Edit them on each account head.'
-                        : 'Posted by fee collection. Edit or delete the receipt in Fees > Receipts.'
+                      v.is_closing
+                        ? 'Year-end closing. Reopen the year in Fiscal Years to undo it.'
+                        : v.is_opening
+                          ? 'Opening balances. Edit them on each account head.'
+                          : v.fee_receipt_no
+                            ? 'Posted by fee collection. Edit or delete the receipt in Fees > Receipts.'
+                            : 'This year is closed. Reopen it in Fiscal Years to change it.'
                     }
                   >
-                    {v.is_opening ? 'Opening balances' : `Fee receipt #${v.fee_receipt_no}`}
+                    {v.is_closing
+                      ? 'Year-end closing'
+                      : v.is_opening
+                        ? 'Opening balances'
+                        : v.fee_receipt_no
+                          ? `Fee receipt #${v.fee_receipt_no}`
+                          : 'Year closed'}
                   </Badge>
                 ) : (
                   <RowActions

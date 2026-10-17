@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
 import type { AccHeadFormData, CostCenterFormData, VoucherFormData } from '@school/shared-schemas';
-import type { AccHead, CostCenter, Voucher, VoucherFilters } from '@/types/accounts';
+import type { AccHead, AccYear, CostCenter, Voucher, VoucherFilters } from '@/types/accounts';
 
 export type Params = Record<string, string | number | undefined | null>;
 
@@ -121,6 +121,33 @@ export const useDeleteVoucher = () =>
     ['vouchers', 'acc-reports'],
     'Voucher deleted',
     'Error deleting voucher',
+  );
+
+// ---- Fiscal years ----
+const YEAR_KEYS = ['acc-years', 'vouchers', 'acc-reports'];
+
+export const useAccYears = () =>
+  useQuery<AccYear[]>({
+    queryKey: ['acc-years'],
+    queryFn: () => get('/api/acc-years'),
+    // income/expense per year change with every voucher or fee receipt, so never trust the cache
+    refetchOnMount: 'always',
+  });
+
+export const useCloseYear = () =>
+  useAccMutation(
+    (year: number) => axios.put(`/api/acc-years/${year}`),
+    [...YEAR_KEYS, 'acc-heads'],
+    'Year closed',
+    'Error closing year',
+  );
+
+export const useReopenYear = () =>
+  useAccMutation(
+    (year: number) => axios.delete(`/api/acc-years/${year}`),
+    YEAR_KEYS,
+    'Year reopened',
+    'Error reopening year',
   );
 
 // ---- Reports ----

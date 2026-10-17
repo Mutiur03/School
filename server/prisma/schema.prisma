@@ -89,6 +89,7 @@ model School {
   acc_heads                acc_heads[]
   acc_cost_centers         acc_cost_centers[]
   acc_vouchers             acc_vouchers[]
+  acc_years                acc_years[]
   acc_voucher_lines        acc_voucher_lines[]
   fee_heads                fee_heads[]
   fee_structures           fee_structures[]
@@ -194,23 +195,45 @@ model acc_cost_centers {
 }
 
 model acc_vouchers {
-  id          Int                 @id @default(autoincrement())
-  school_id   Int                 @default(dbgenerated("app.current_school_id()"))
-  school      School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  type        VoucherType
-  date        DateTime            @db.Date
-  narration   String?             @db.Text
-  reference   String?             @db.VarChar(100)
-  /** The single per-school voucher holding opening balances; edited only through account heads. */
-  is_opening  Boolean             @default(false)
-  created_by  Int?
-  created_at  DateTime            @default(now())
-  updated_at  DateTime            @updatedAt
-  lines       acc_voucher_lines[]
-  fee_receipt fee_receipts?
+  id           Int                 @id @default(autoincrement())
+  school_id    Int                 @default(dbgenerated("app.current_school_id()"))
+  school       School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  type         VoucherType
+  date         DateTime            @db.Date
+  narration    String?             @db.Text
+  reference    String?             @db.VarChar(100)
+  /**
+   * The single per-school voucher holding opening balances; edited only through account heads.
+   */
+  is_opening   Boolean             @default(false)
+  /**
+   * Year-end closing voucher: zeroes income/expense into equity; excluded from P&L reports.
+   */
+  is_closing   Boolean             @default(false)
+  created_by   Int?
+  created_at   DateTime            @default(now())
+  updated_at   DateTime            @updatedAt
+  lines        acc_voucher_lines[]
+  fee_receipt  fee_receipts?
+  closing_year acc_years?
 
   @@index([school_id, date])
   @@index([school_id, type])
+}
+
+/// A closed financial year (calendar year). Rows exist only while closed; deleting one reopens it.
+model acc_years {
+  id                 Int           @id @default(autoincrement())
+  school_id          Int           @default(dbgenerated("app.current_school_id()"))
+  school             School        @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  year               Int
+  closed_at          DateTime      @default(now())
+  /// Null when the year had no income or expense to close.
+  closing_voucher_id Int?          @unique
+  closing_voucher    acc_vouchers? @relation(fields: [closing_voucher_id], references: [id], onDelete: Restrict)
+
+  @@unique([school_id, year])
+  @@index([school_id])
 }
 
 model acc_voucher_lines {

@@ -194,6 +194,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         { label: 'Account Heads', link: '/admin/accounts/heads', id: 'acc-heads' },
         { label: 'Cost Centers', link: '/admin/accounts/cost-centers', id: 'acc-cost-centers' },
         { label: 'Vouchers', link: '/admin/accounts/vouchers', id: 'acc-vouchers' },
+        { label: 'Fiscal Years', link: '/admin/accounts/years', id: 'acc-years' },
         { label: 'Ledger', link: '/admin/accounts/reports/ledger', id: 'acc-ledger' },
         {
           label: 'Trial Balance',

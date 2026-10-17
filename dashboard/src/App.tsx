@@ -56,6 +56,7 @@ const Notice = lazy(() => import('./pages/Admin/Notice'));
 const Holidays = lazy(() => import('./pages/Admin/Holidays'));
 const AccountHeads = lazy(() => import('./pages/Admin/Accounts/AccountHeads'));
 const CostCenters = lazy(() => import('./pages/Admin/Accounts/CostCenters'));
+const FiscalYears = lazy(() => import('./pages/Admin/Accounts/FiscalYears'));
 const Vouchers = lazy(() => import('./pages/Admin/Accounts/Vouchers'));
 const FeeOverview = lazy(() => import('./pages/Admin/Fees/FeeOverview'));
 const FeeCollection = lazy(() => import('./pages/Admin/Fees/FeeCollection'));
@@ -123,6 +124,7 @@ registerRoutePrefetchers({
   '/admin/fees/reports': FeeReports,
   '/admin/accounts/heads': AccountHeads,
   '/admin/accounts/cost-centers': CostCenters,
+  '/admin/accounts/years': FiscalYears,
   '/admin/accounts/reports/ledger': LedgerReport,
   '/admin/accounts/reports/trial-balance': TrialBalance,
   '/admin/accounts/reports/income-expense': IncomeExpense,
@@ -489,6 +491,7 @@ function App() {
                               <Route path="/accounts/heads" element={<AccountHeads />} />
                               <Route path="/accounts/cost-centers" element={<CostCenters />} />
                               <Route path="/accounts/vouchers" element={<Vouchers />} />
+                              <Route path="/accounts/years" element={<FiscalYears />} />
                               <Route path="/accounts/reports/ledger" element={<LedgerReport />} />
                               <Route
                                 path="/accounts/reports/trial-balance"

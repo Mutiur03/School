@@ -15,6 +15,7 @@ const t = {
   },
   acc_vouchers: { create: jest.fn<Fn>(), delete: jest.fn<Fn>() },
   acc_heads: { count: jest.fn<Fn>() },
+  acc_years: { findFirst: jest.fn<Fn>() },
   fee_heads: { findMany: jest.fn<Fn>() },
 };
 const prisma = t as unknown as PrismaClient;
@@ -356,6 +357,24 @@ describe('FeeReceiptService reads and delete', () => {
     expect(order).toEqual(['receipt', 'voucher']);
     expect(t.fee_receipts.delete).toHaveBeenCalledWith({ where: { id: 55, school_id: 1 } });
     expect(t.acc_vouchers.delete).toHaveBeenCalledWith({ where: { id: 90, school_id: 1 } });
+  });
+
+  it('remove in a closed year → 400, nothing deleted', async () => {
+    t.fee_receipts.findFirstOrThrow.mockResolvedValue({
+      voucher_id: 90,
+      date: new Date('2026-03-05'),
+    });
+    t.acc_years.findFirst.mockResolvedValue({ year: 2026 });
+    await expect(service.remove(1, 55)).rejects.toThrow('Year 2026 is closed');
+    expect(t.fee_receipts.delete).not.toHaveBeenCalled();
+    expect(t.acc_vouchers.delete).not.toHaveBeenCalled();
+  });
+
+  it('create dated in a closed year → 400 before any work', async () => {
+    t.acc_years.findFirst.mockResolvedValue({ year: 2026 });
+    await expect(service.create(1, 5, dto)).rejects.toThrow('Year 2026 is closed');
+    expect(t.fee_receipts.create).not.toHaveBeenCalled();
+    expect(t.acc_vouchers.create).not.toHaveBeenCalled();
   });
 
   it('remove of a missing receipt bubbles P2025 and deletes nothing', async () => {

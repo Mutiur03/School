@@ -14,11 +14,13 @@ const vouchers = {
   delete: jest.fn<Fn>(),
 };
 const headsFindMany = jest.fn<Fn>();
+const yearsFindFirst = jest.fn<Fn>();
 const costCentersCount = jest.fn<Fn>();
 const linesDeleteMany = jest.fn<Fn>();
 const prisma = {
   acc_vouchers: vouchers,
   acc_heads: { findMany: headsFindMany },
+  acc_years: { findFirst: yearsFindFirst },
   acc_cost_centers: { count: costCentersCount },
   acc_voucher_lines: { deleteMany: linesDeleteMany },
 } as unknown as PrismaClient;
@@ -286,6 +288,34 @@ describe('VoucherService.update', () => {
     expect(linesDeleteMany).not.toHaveBeenCalled();
   });
 
+  it('year-closing voucher → 400, nothing written', async () => {
+    vouchers.findFirst.mockResolvedValue({
+      is_opening: false,
+      is_closing: true,
+      fee_receipt: null,
+    });
+    await expect(service.update(1, 7, { narration: 'x' })).rejects.toThrow('Reopen the year');
+    expect(vouchers.update).not.toHaveBeenCalled();
+  });
+
+  it('voucher dated in a closed year (old or new date) → 400, nothing written', async () => {
+    vouchers.findFirst.mockResolvedValue({
+      date: new Date('2025-06-01'),
+      is_opening: false,
+      is_closing: false,
+      fee_receipt: null,
+    });
+    yearsFindFirst.mockResolvedValue({ year: 2025 });
+    await expect(service.update(1, 7, { date: '2026-02-01' })).rejects.toThrow(
+      'Year 2025 is closed',
+    );
+    expect(yearsFindFirst).toHaveBeenCalledWith({
+      where: { school_id: 1, year: { in: [2025, 2026] } },
+      select: { year: true },
+    });
+    expect(vouchers.update).not.toHaveBeenCalled();
+  });
+
   it('voucher posted by a fee receipt → 400, nothing written', async () => {
     vouchers.findFirst.mockResolvedValue({ is_opening: false, fee_receipt: { receipt_no: 12 } });
     await expect(service.update(1, 7, { narration: 'x' })).rejects.toThrow(
@@ -293,10 +323,25 @@ describe('VoucherService.update', () => {
     );
     expect(vouchers.findFirst).toHaveBeenCalledWith({
       where: { id: 7, school_id: 1 },
-      select: { is_opening: true, fee_receipt: { select: { receipt_no: true } } },
+      select: {
+        date: true,
+        is_opening: true,
+        is_closing: true,
+        fee_receipt: { select: { receipt_no: true } },
+      },
     });
     expect(vouchers.update).not.toHaveBeenCalled();
     expect(linesDeleteMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('VoucherService.create (closed year)', () => {
+  it('a date in a closed year → 400 before any write', async () => {
+    yearsFindFirst.mockResolvedValue({ year: 2025 });
+    await expect(service.create(1, { ...dto, date: '2025-12-30' })).rejects.toThrow(
+      'Year 2025 is closed',
+    );
+    expect(vouchers.create).not.toHaveBeenCalled();
   });
 });
 

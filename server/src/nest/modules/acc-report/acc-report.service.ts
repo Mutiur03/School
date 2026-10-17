@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { AccHeadType, PrismaClient } from '@/generated/prisma/client.js';
+import type { AccHeadType, Prisma, PrismaClient } from '@/generated/prisma/client.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { LedgerQueryDto, ReportQueryDto } from './dto/report-query.dto.js';
 
@@ -15,6 +15,9 @@ type Sum = { debit: unknown; credit: unknown } | null | undefined;
 const TYPE_ORDER: AccHeadType[] = ['asset', 'liability', 'equity', 'income', 'expense'];
 const VOUCHER_PREFIX = { receipt: 'RV', payment: 'PV', contra: 'CV', journal: 'JV' } as const;
 const HEAD_SELECT = { id: true, code: true, name: true, type: true, parent_id: true } as const;
+
+/** Trial-balance line for earlier years' results that have not been closed into equity yet. */
+const PRIOR_UNCLOSED = 'Prior years (not closed)';
 
 const r2 = (n: number) => Math.round(n * 100) / 100 || 0; // `|| 0` turns -0 into 0
 const net = (s: Sum) => Number(s?.debit ?? 0) - Number(s?.credit ?? 0); // debit - credit
@@ -35,12 +38,19 @@ const dateRange = (q: ReportQueryDto) => {
 export class AccReportService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  /** Net (debit - credit) per head over the range, joined to the school's heads. Zero-net heads dropped. */
-  private async headNets(schoolId: number, date: ReturnType<typeof dateRange>) {
+  /**
+   * Net (debit - credit) per head over the range, joined to the school's heads. Zero-net heads
+   * dropped. `voucher` adds extra voucher filters (the year-closing rules below).
+   */
+  private async headNets(
+    schoolId: number,
+    date: Prisma.DateTimeFilter,
+    voucher: Prisma.acc_vouchersWhereInput = {},
+  ) {
     const [groups, heads] = await Promise.all([
       this.prisma.acc_voucher_lines.groupBy({
         by: ['head_id'],
-        where: { school_id: schoolId, voucher: { date } },
+        where: { school_id: schoolId, voucher: { date, ...voucher } },
         _sum: { debit: true, credit: true },
       }),
       this.prisma.acc_heads.findMany({ where: { school_id: schoolId }, select: HEAD_SELECT }),
@@ -95,8 +105,35 @@ export class AccReportService {
     return { head, opening: r2(opening), rows, closing: r2(balance) };
   }
 
+  /**
+   * Income/expense over from..to; asset, liability and equity heads cumulative up to `to`. A
+   * year-closing voucher dated inside from..to is left out (it would zero the very year being
+   * shown); earlier years' closings stay in, so Retained Earnings carries their results.
+   */
   async trialBalance(schoolId: number, q: ReportQueryDto) {
-    const nets = await this.headNets(schoolId, dateRange(q));
+    const closing: Prisma.acc_vouchersWhereInput = q.from
+      ? { NOT: { is_closing: true, date: { gte: new Date(q.from) } } }
+      : {};
+    const [period, cumulative, before] = await Promise.all([
+      this.headNets(schoolId, dateRange(q), closing),
+      this.headNets(schoolId, dateRange({ to: q.to }), closing),
+      // income/expense before `from` (closing vouchers included, so closed years net to zero)
+      q.from ? this.headNets(schoolId, { lt: new Date(q.from) }) : [],
+    ]);
+    const isPeriod = (t: AccHeadType) => t === 'income' || t === 'expense';
+    const nets = [
+      ...period.filter((x) => isPeriod(x.head.type)),
+      ...cumulative.filter((x) => !isPeriod(x.head.type)),
+    ];
+    // Results of earlier years that were never closed: they are in the balance-sheet heads but not
+    // yet in equity, so show them as their own line and the trial balance still balances.
+    const unclosed = r2(before.filter((x) => isPeriod(x.head.type)).reduce((t, x) => t + x.net, 0));
+    if (unclosed !== 0) {
+      nets.push({
+        head: { id: 0, code: null, name: PRIOR_UNCLOSED, type: 'equity', parent_id: null },
+        net: unclosed,
+      });
+    }
     const rows = nets
       .sort(
         (a, b) =>
@@ -120,7 +157,8 @@ export class AccReportService {
   }
 
   async incomeExpense(schoolId: number, q: ReportQueryDto) {
-    const nets = await this.headNets(schoolId, dateRange(q));
+    // year-closing vouchers only move results into equity, so they never count as income/expense
+    const nets = await this.headNets(schoolId, dateRange(q), { is_closing: false });
     const income = this.section(nets, 'income', -1);
     const expense = this.section(nets, 'expense', 1);
     const total_income = sum(income);

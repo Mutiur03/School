@@ -2,7 +2,17 @@ import { useState } from 'react';
 import { useAccHeads, useAccReport } from '@/queries/accounts.queries';
 import type { TrialBalanceReport } from '@/types/accounts';
 import { cn, formatMoney, formatYmd } from '@/lib/utils';
-import { DataTable, DateInput, ExportButton, Money, PageTitle, StateRows, num, td } from '../ui';
+import {
+  DataTable,
+  DateInput,
+  ExportButton,
+  Money,
+  PageTitle,
+  StateRows,
+  YearSelect,
+  num,
+  td,
+} from '../ui';
 import { TYPE_LABELS, depthOf, topAncestor } from '../heads';
 import { exportXlsx } from './exportXlsx';
 
@@ -82,6 +92,14 @@ const TrialBalance = () => {
       </PageTitle>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
+        <YearSelect
+          from={from}
+          to={to}
+          onPick={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+        />
         <DateInput label="From" value={from} onChange={setFrom} />
         <DateInput label="To" value={to} onChange={setTo} />
         <div className="bg-muted inline-flex rounded-lg p-1" role="group" aria-label="Detail">

@@ -59,7 +59,7 @@ const QuickHeadPopup = ({ preset, onClose }: { preset: QuickHead; onClose: () =>
     <FormPopup
       open
       onClose={onClose}
-      title={isCash ? 'New cash / bank account' : `New ${TYPE_LABELS[type].toLowerCase()} head`}
+      title={isCash ? 'New cash / bank account' : `New ${type} head`}
       onSubmit={onSubmit}
       saving={create.isPending}
       disabled={!parsed.success || !!clash}

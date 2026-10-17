@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { OPENING_EQUITY_NAME } from '@school/shared-schemas';
 import type { AccHeadType, Prisma } from '@/generated/prisma/client.js';
+import { equityHeadId } from '../../common/acc-system-head.js';
+import { assertYearOpen } from '../../common/period-lock.js';
 
 type Head = { id: number; type: AccHeadType };
 type Line = { head_id: number; debit: number; credit: number };
@@ -43,7 +45,10 @@ export class OpeningBalanceService {
   ) {
     const voucher = await this.find(tx, schoolId);
     if (!voucher && cents(amount) === 0) return;
-    const equityId = await this.equityHeadId(tx, schoolId);
+    const equityId = await equityHeadId(tx, schoolId, OPENING_EQUITY_NAME);
+    // a brand-new voucher lands on `date`, or 1 Jan of this year
+    const when = date ?? (voucher ? null : `${new Date().getFullYear()}-01-01`);
+    await assertYearOpen(tx, schoolId, voucher?.date, when);
     if (head.id === equityId) {
       throw new BadRequestException(`${OPENING_EQUITY_NAME} is calculated automatically`);
     }
@@ -92,33 +97,12 @@ export class OpeningBalanceService {
         data: {
           school_id: schoolId,
           type: 'journal',
-          date: new Date(date ?? `${new Date().getFullYear()}-01-01`),
+          date: new Date(when!),
           narration: 'Opening balances',
           is_opening: true,
           lines: { create: rows },
         },
       });
     }
-  }
-
-  /** The school's Opening Balance Equity head, created on first use. */
-  private async equityHeadId(tx: Prisma.TransactionClient, schoolId: number) {
-    const found = await tx.acc_heads.findFirst({
-      where: { school_id: schoolId, name: OPENING_EQUITY_NAME },
-      select: { id: true, type: true },
-    });
-    if (found) {
-      if (found.type !== 'equity') {
-        throw new BadRequestException(
-          `"${OPENING_EQUITY_NAME}" already exists and is not an equity head`,
-        );
-      }
-      return found.id;
-    }
-    const created = await tx.acc_heads.create({
-      data: { school_id: schoolId, name: OPENING_EQUITY_NAME, type: 'equity' },
-      select: { id: true },
-    });
-    return created.id;
   }
 }
