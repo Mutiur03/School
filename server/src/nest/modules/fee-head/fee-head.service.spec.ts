@@ -14,10 +14,18 @@ const feeHeads = {
   delete: jest.fn<Fn>(),
 };
 const accCount = jest.fn<Fn>();
-const prisma = { fee_heads: feeHeads, acc_heads: { count: accCount } } as unknown as PrismaClient;
+const accFindFirst = jest.fn<Fn>();
+const accCreate = jest.fn<Fn>();
+const prisma = {
+  fee_heads: feeHeads,
+  acc_heads: { count: accCount, findFirst: accFindFirst, create: accCreate },
+} as unknown as PrismaClient;
 const service = new FeeHeadService(prisma);
 
-const include = { income_head: { select: { id: true, name: true } } };
+const include = {
+  income_head: { select: { id: true, name: true } },
+  deposit_head: { select: { id: true, name: true } },
+};
 
 beforeEach(() => accCount.mockResolvedValue(1));
 afterEach(() => jest.resetAllMocks());
@@ -52,6 +60,42 @@ describe('FeeHeadService', () => {
     });
   });
 
+  it('create without an income head makes "<name> Fees" and uses it', async () => {
+    accFindFirst.mockResolvedValue(null);
+    accCreate.mockResolvedValue({ id: 77 });
+    feeHeads.create.mockResolvedValue({ id: 1 });
+    await service.create(1, { name: 'Tiffin' });
+    expect(accFindFirst).toHaveBeenCalledWith({
+      where: { school_id: 1, name: 'Tiffin Fees' },
+      select: { id: true, type: true },
+    });
+    expect(accCreate).toHaveBeenCalledWith({
+      data: { school_id: 1, name: 'Tiffin Fees', type: 'income' },
+      select: { id: true },
+    });
+    expect(feeHeads.create).toHaveBeenCalledWith({
+      data: { name: 'Tiffin', income_head_id: 77, school_id: 1 },
+      include,
+    });
+  });
+
+  it('create without an income head reuses an existing income account of that name', async () => {
+    accFindFirst.mockResolvedValue({ id: 55, type: 'income' });
+    feeHeads.create.mockResolvedValue({ id: 1 });
+    await service.create(1, { name: 'Tiffin' });
+    expect(accCreate).not.toHaveBeenCalled();
+    expect(feeHeads.create).toHaveBeenCalledWith({
+      data: { name: 'Tiffin', income_head_id: 55, school_id: 1 },
+      include,
+    });
+  });
+
+  it('create without an income head rejects a same-named non-income account', async () => {
+    accFindFirst.mockResolvedValue({ id: 55, type: 'asset' });
+    await expect(service.create(1, { name: 'Tiffin' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(feeHeads.create).not.toHaveBeenCalled();
+  });
+
   it('create rejects a non-income or foreign head', async () => {
     accCount.mockResolvedValue(0);
     await expect(service.create(1, { name: 'X', income_head_id: 9 })).rejects.toBeInstanceOf(
@@ -74,6 +118,38 @@ describe('FeeHeadService', () => {
   it('update re-checks a changed income head', async () => {
     accCount.mockResolvedValue(0);
     await expect(service.update(1, 5, { income_head_id: 9 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('create checks a fixed deposit account is an active cash/bank head of the school', async () => {
+    feeHeads.create.mockResolvedValue({ id: 1 });
+    await service.create(1, { name: 'Tuition', income_head_id: 20, deposit_head_id: 30 });
+    expect(accCount).toHaveBeenCalledWith({
+      where: { id: 30, school_id: 1, is_cash_bank: true, is_active: true },
+    });
+  });
+
+  it('create rejects a deposit account that is not cash/bank', async () => {
+    accCount.mockResolvedValueOnce(1).mockResolvedValueOnce(0); // income ok, deposit not
+    await expect(
+      service.create(1, { name: 'X', income_head_id: 20, deposit_head_id: 31 }),
+    ).rejects.toThrow('Deposit account must be an active cash/bank account');
+    expect(feeHeads.create).not.toHaveBeenCalled();
+  });
+
+  it('update can clear the deposit account with null without a lookup', async () => {
+    feeHeads.update.mockResolvedValue({ id: 5 });
+    await service.update(1, 5, { deposit_head_id: null });
+    expect(accCount).not.toHaveBeenCalled();
+    expect(feeHeads.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { deposit_head_id: null } }),
+    );
+  });
+
+  it('update re-checks a changed deposit account', async () => {
+    accCount.mockResolvedValue(0);
+    await expect(service.update(1, 5, { deposit_head_id: 9 })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });

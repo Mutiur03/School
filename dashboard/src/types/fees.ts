@@ -6,6 +6,9 @@ export interface FeeHead {
   frequency: FeeFrequency;
   income_head_id: number;
   income_head: { id: number; name: string };
+  /** Fixed cash/bank account for this fee; null = the cashier picks at collection. */
+  deposit_head_id: number | null;
+  deposit_head: { id: number; name: string } | null;
   is_waivable: boolean;
   sort_order: number;
   is_active: boolean;
@@ -14,7 +17,9 @@ export interface FeeHead {
 export interface FeeHeadInput {
   name: string;
   frequency: FeeFrequency;
-  income_head_id: number;
+  /** Omit to let the server create "<name> Fees". */
+  income_head_id?: number;
+  deposit_head_id: number | null;
   is_waivable: boolean;
   sort_order: number;
   is_active: boolean;
@@ -60,6 +65,7 @@ export interface DueRow {
   status: 'paid' | 'due' | 'waived';
   receipt_no: number | null;
   paid_amount: number;
+  deposit: { id: number; name: string } | null;
 }
 
 export interface FeeStatement {
@@ -79,7 +85,8 @@ export interface FeeReceiptListItem {
   roll: number;
   total: number;
   student: { id: number; name: string; login_id: number | string };
-  pay_head: { id: number; name: string };
+  /** Cash/bank accounts the money went into (one receipt can span several). */
+  accounts: { id: number; name: string; amount: number }[];
   voucher_no: string;
 }
 
@@ -87,7 +94,8 @@ export interface FeeReceiptInput {
   student_id: number;
   year: number;
   date: string;
-  pay_head_id: number;
+  /** Only for fees that have no fixed deposit account. */
+  pay_head_id?: number;
   note?: string;
   items: { fee_head_id: number; month: number }[];
 }
@@ -99,7 +107,7 @@ export interface FeeCollectionReport {
   count: number;
   by_day: { date: string; count: number; total: number }[];
   by_class: { class: number; count: number; total: number }[];
-  by_account: { pay_head_id: number; name: string; total: number }[];
+  by_account: { deposit_head_id: number; name: string; total: number }[];
   by_head: { fee_head_id: number; name: string; count: number; waiver: number; total: number }[];
 }
 

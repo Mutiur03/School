@@ -18,6 +18,8 @@ import {
 } from '@/components';
 import ActionButton from '@/components/ActionButton';
 import { cn, formatMoney } from '@/lib/utils';
+import type { AccHead } from '@/types/accounts';
+import { TYPE_LABELS, groupByType } from './heads';
 
 /** Shared bits for the Accounts pages (same look as Holidays). */
 
@@ -143,6 +145,22 @@ export const RowActions = ({
     </DropdownMenuContent>
   </DropdownMenu>
 );
+
+/** `<option>`s of account heads grouped by type (empty types skipped), children indented under parents. */
+export const GroupedHeadOptions = ({ heads }: { heads: AccHead[] }) =>
+  groupByType(heads)
+    .filter((g) => g.rows.length)
+    .map((g) => (
+      <optgroup key={g.type} label={TYPE_LABELS[g.type]}>
+        {g.rows.map(({ head, depth }) => (
+          // nbsp: plain spaces collapse inside the styled (flex) option list
+          <option key={head.id} value={head.id}>
+            {'   '.repeat(depth)}
+            {head.name}
+          </option>
+        ))}
+      </optgroup>
+    ));
 
 export const th =
   'text-foreground/70 bg-muted px-4 py-2 text-xs font-semibold uppercase tracking-wider';

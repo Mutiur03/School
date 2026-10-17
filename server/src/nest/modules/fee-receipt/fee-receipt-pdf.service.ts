@@ -58,7 +58,9 @@ const copy = (header: string, r: ReceiptView, label: string) => `
     </table>
     <p class="words"><b>In words:</b> ${amountInWords(r.total)}</p>
     ${r.note ? `<p class="words"><b>Remarks:</b> ${esc(r.note)}</p>` : ''}
-    <p class="words"><b>Received in:</b> ${esc(r.pay_head.name)}</p>
+    <p class="words"><b>Received in:</b> ${r.accounts
+      .map((a) => (r.accounts.length > 1 ? `${esc(a.name)} (${money(a.amount)})` : esc(a.name)))
+      .join(', ')}</p>
     <div class="sign">Accountant Signature</div>
   </section>`;
 

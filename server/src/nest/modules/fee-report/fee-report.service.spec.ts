@@ -39,14 +39,22 @@ describe('FeeReportService.collection', () => {
       .mockResolvedValueOnce([
         { date: new Date('2026-03-05'), _count: 2, _sum: { total: dec(900) } },
       ])
-      .mockResolvedValueOnce([{ class: 8, _count: 2, _sum: { total: dec(900) } }])
-      .mockResolvedValueOnce([{ pay_head_id: 10, _sum: { total: dec(900) } }]);
-    items.groupBy.mockResolvedValue([
-      { fee_head_id: 1, _count: 3, _sum: { amount: dec(900), waiver: dec(100) } },
-    ]);
+      .mockResolvedValueOnce([{ class: 8, _count: 2, _sum: { total: dec(900) } }]);
+    // first by deposit account (one receipt can land in several), then by fee head
+    items.groupBy
+      .mockResolvedValueOnce([
+        { deposit_head_id: 10, _sum: { amount: dec(800) } },
+        { deposit_head_id: 11, _sum: { amount: dec(100) } },
+      ])
+      .mockResolvedValueOnce([
+        { fee_head_id: 1, _count: 3, _sum: { amount: dec(900), waiver: dec(100) } },
+      ]);
     receipts.aggregate.mockResolvedValue({ _count: 2, _sum: { total: dec(900) } });
     feeHeads.findMany.mockResolvedValue([{ id: 1, name: 'Tuition' }]);
-    accHeads.findMany.mockResolvedValue([{ id: 10, name: 'Cash' }]);
+    accHeads.findMany.mockResolvedValue([
+      { id: 10, name: 'Cash' },
+      { id: 11, name: 'Bank A' },
+    ]);
 
     const r = await service.collection(1, { from: '2026-03-01', to: '2026-03-31' });
 
@@ -55,14 +63,20 @@ describe('FeeReportService.collection', () => {
       expect.objectContaining({ by: ['date'], where: { school_id: 1, date } }),
     );
     expect(items.groupBy).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { school_id: 1, receipt: { date } } }),
+      expect.objectContaining({
+        by: ['deposit_head_id'],
+        where: { school_id: 1, receipt: { date } },
+      }),
     );
     expect(r).toMatchObject({
       total: 900,
       count: 2,
       by_day: [{ date: '2026-03-05', count: 2, total: 900 }],
       by_class: [{ class: 8, total: 900 }],
-      by_account: [{ pay_head_id: 10, name: 'Cash', total: 900 }],
+      by_account: [
+        { deposit_head_id: 10, name: 'Cash', total: 800 },
+        { deposit_head_id: 11, name: 'Bank A', total: 100 },
+      ],
       by_head: [{ fee_head_id: 1, name: 'Tuition', waiver: 100, total: 900 }],
     });
   });

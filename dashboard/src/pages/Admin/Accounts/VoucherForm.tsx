@@ -16,8 +16,9 @@ import {
 } from '@/queries/accounts.queries';
 import type { AccHead, Voucher } from '@/types/accounts';
 import { cn, formatMoney, formatYmd } from '@/lib/utils';
-import { Field, FormPopup, th } from './ui';
-import { TYPE_LABELS, VOUCHER_MODES, groupByType, selectClass } from './heads';
+import { Field, FormPopup, GroupedHeadOptions, th } from './ui';
+import { VOUCHER_MODES, selectClass } from './heads';
+import QuickHeadPopup, { type QuickHead } from './QuickHeadPopup';
 
 type AmountRow = { head_id: string; amount: string; cost_center_id: string };
 type GridRow = {
@@ -59,44 +60,108 @@ const HeadSelect = ({
   heads,
   grouped,
   placeholder = 'Select head…',
+  onAdd,
 }: {
   value: string;
   onChange: (v: string) => void;
   heads: AccHead[];
   grouped?: boolean;
   placeholder?: string;
-}) => (
-  <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
-    <option value="">{placeholder}</option>
-    {grouped
-      ? groupByType(heads)
-          .filter((g) => g.rows.length)
-          .map((g) => (
-            <optgroup key={g.type} label={TYPE_LABELS[g.type]}>
-              {g.rows.map(({ head, depth }) => (
-                <option key={head.id} value={head.id}>
-                  {'  '.repeat(depth)}
-                  {head.name}
-                </option>
-              ))}
-            </optgroup>
-          ))
-      : heads.map((h) => (
+  /** Shows a "+" button that opens the quick add-head popup. */
+  onAdd?: () => void;
+}) => {
+  const select = (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
+      <option value="">{placeholder}</option>
+      {grouped ? (
+        <GroupedHeadOptions heads={heads} />
+      ) : (
+        heads.map((h) => (
           <option key={h.id} value={h.id}>
             {h.name}
           </option>
-        ))}
-  </select>
-);
+        ))
+      )}
+    </select>
+  );
+  if (!onAdd) return select;
+  return (
+    <div className="flex gap-1">
+      {select}
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="shrink-0"
+        aria-label="Add new head"
+        title="Add new head"
+        onClick={onAdd}
+      >
+        <Plus />
+      </Button>
+    </div>
+  );
+};
 
 const amountInput = 'h-9 text-right tabular-nums';
 
+type Simple = {
+  cashId: string;
+  rows: AmountRow[];
+  transfer: { from: string; to: string; amount: string };
+};
+
 /**
- * Mount with `key` so state resets per voucher. Editing always uses the journal grid
- * (keeps the voucher's own type) — rebuilding the simple modes from lines isn't worth it.
+ * Rebuild the Income / Expense / Transfer form from a stored voucher so edit looks like create.
+ * Returns null when the lines don't fit that shape (journals, split cash lines, notes), which
+ * then open in the journal grid so nothing is lost.
  */
+const toSimple = (v: Voucher, heads: AccHead[]): Simple | null => {
+  const byId = new Map(heads.map((h) => [h.id, h]));
+  const empty = { cashId: '', rows: [blankRow()], transfer: { from: '', to: '', amount: '' } };
+  if (v.type === 'journal' || v.lines.some((l) => l.note)) return null;
+  const dr = v.lines.filter((l) => l.debit > 0);
+  const cr = v.lines.filter((l) => l.credit > 0);
+
+  if (v.type === 'contra') {
+    const [d, c] = [dr[0], cr[0]];
+    if (v.lines.length !== 2 || !d || !c || v.lines.some((l) => l.cost_center_id)) return null;
+    if (!byId.get(d.head_id)?.is_cash_bank || !byId.get(c.head_id)?.is_cash_bank) return null;
+    return {
+      ...empty,
+      transfer: { from: String(c.head_id), to: String(d.head_id), amount: String(d.debit) },
+    };
+  }
+
+  const receipt = v.type === 'receipt';
+  const [cashSide, itemSide] = receipt ? [dr, cr] : [cr, dr];
+  const cash = cashSide[0];
+  if (cashSide.length !== 1 || !cash || cash.cost_center_id) return null;
+  if (!byId.get(cash.head_id)?.is_cash_bank) return null;
+  if (itemSide.some((l) => byId.get(l.head_id)?.type !== (receipt ? 'income' : 'expense')))
+    return null;
+  return {
+    ...empty,
+    cashId: String(cash.head_id),
+    rows: itemSide.map((l) => ({
+      head_id: String(l.head_id),
+      amount: String(receipt ? l.credit : l.debit),
+      cost_center_id: l.cost_center_id ? String(l.cost_center_id) : '',
+    })),
+  };
+};
+
+/** Edit needs the heads to pick the right form, so wait for them (usually already cached). */
 const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: () => void }) => {
+  const { isSuccess } = useAccHeads();
+  if (voucher && !isSuccess) return null;
+  return <VoucherEditor voucher={voucher} onClose={onClose} />;
+};
+
+/** Mount with `key` so state resets per voucher. */
+const VoucherEditor = ({ voucher, onClose }: { voucher: Voucher | null; onClose: () => void }) => {
   const { data: heads = [] } = useAccHeads();
+  const simple = voucher ? toSimple(voucher, heads) : null;
   const { data: centers = [] } = useCostCenters();
   const create = useCreateVoucher();
   const update = useUpdateVoucher();
@@ -105,9 +170,10 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
   const [date, setDate] = useState(voucher?.date.slice(0, 10) ?? formatYmd(new Date()));
   const [reference, setReference] = useState(voucher?.reference ?? '');
   const [narration, setNarration] = useState(voucher?.narration ?? '');
-  const [cashId, setCashId] = useState('');
-  const [rows, setRows] = useState<AmountRow[]>([blankRow()]);
-  const [transfer, setTransfer] = useState({ from: '', to: '', amount: '' });
+  const [quick, setQuick] = useState<QuickHead | null>(null);
+  const [cashId, setCashId] = useState(simple?.cashId ?? '');
+  const [rows, setRows] = useState<AmountRow[]>(simple?.rows ?? [blankRow()]);
+  const [transfer, setTransfer] = useState(simple?.transfer ?? { from: '', to: '', amount: '' });
   const [grid, setGrid] = useState<GridRow[]>(
     voucher
       ? voucher.lines.map((l) => ({
@@ -120,12 +186,12 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
       : [blankGrid(), blankGrid()],
   );
 
-  const useGrid = type === 'journal' || voucher !== null;
-  const active = heads.filter((h) => h.is_active);
-  const cashHeads = active.filter((h) => h.is_cash_bank);
+  const useGrid = type === 'journal' || (voucher !== null && !simple);
+  // heads already on this voucher stay selectable even if since deactivated
   const usedIds = new Set(voucher?.lines.map((l) => l.head_id));
   const gridHeads = heads.filter((h) => h.is_active || usedIds.has(h.id));
-  const rowHeads = active.filter((h) => h.type === (type === 'receipt' ? 'income' : 'expense'));
+  const cashHeads = gridHeads.filter((h) => h.is_cash_bank);
+  const rowHeads = gridHeads.filter((h) => h.type === (type === 'receipt' ? 'income' : 'expense'));
   const activeCenters = centers.filter((c) => c.is_active);
 
   // ---- Build double-entry lines from whichever mode is showing ----
@@ -187,6 +253,9 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const setGridRow = (i: number, patch: Partial<GridRow>) =>
     setGrid((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  const addCashBank = (onCreated: (id: number) => void) =>
+    setQuick({ type: 'asset', cashBank: true, onCreated });
 
   const ccSelect = (value: string, onChange: (v: string) => void) => (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={selectClass}>
@@ -291,6 +360,9 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
                       heads={gridHeads}
                       value={r.head_id}
                       onChange={(v) => setGridRow(i, { head_id: v })}
+                      onAdd={() =>
+                        setQuick({ onCreated: (id) => setGridRow(i, { head_id: String(id) }) })
+                      }
                     />
                   </td>
                   <td className="py-1 pr-2">
@@ -371,6 +443,7 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
               heads={cashHeads}
               value={transfer.from}
               onChange={(v) => setTransfer({ ...transfer, from: v })}
+              onAdd={() => addCashBank((id) => setTransfer((t) => ({ ...t, from: String(id) })))}
             />
           </Field>
           <Field label="To account" required>
@@ -378,6 +451,7 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
               heads={cashHeads}
               value={transfer.to}
               onChange={(v) => setTransfer({ ...transfer, to: v })}
+              onAdd={() => addCashBank((id) => setTransfer((t) => ({ ...t, to: String(id) })))}
             />
           </Field>
           <Field label="Amount" required>
@@ -398,7 +472,12 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
             required
             className="sm:max-w-sm"
           >
-            <HeadSelect heads={cashHeads} value={cashId} onChange={setCashId} />
+            <HeadSelect
+              heads={cashHeads}
+              value={cashId}
+              onChange={setCashId}
+              onAdd={() => addCashBank((id) => setCashId(String(id)))}
+            />
           </Field>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[36rem] text-left">
@@ -418,6 +497,12 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
                         heads={rowHeads}
                         value={r.head_id}
                         onChange={(v) => setRow(i, { head_id: v })}
+                        onAdd={() =>
+                          setQuick({
+                            type: type === 'receipt' ? 'income' : 'expense',
+                            onCreated: (id) => setRow(i, { head_id: String(id) }),
+                          })
+                        }
                       />
                     </td>
                     <td className="py-1 pr-2">
@@ -462,6 +547,7 @@ const VoucherForm = ({ voucher, onClose }: { voucher: Voucher | null; onClose: (
           </div>
         </>
       )}
+      {quick && <QuickHeadPopup preset={quick} onClose={() => setQuick(null)} />}
     </FormPopup>
   );
 };

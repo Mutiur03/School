@@ -22,6 +22,7 @@ const include = {
       cost_center: { select: { id: true, name: true } },
     },
   },
+  fee_receipt: { select: { receipt_no: true } },
 } satisfies Prisma.acc_vouchersInclude;
 
 type VoucherRow = Prisma.acc_vouchersGetPayload<{ include: typeof include }>;
@@ -41,6 +42,7 @@ const toResponse = (v: VoucherRow) => {
     note: l.note,
   }));
   return {
+    fee_receipt_no: v.fee_receipt?.receipt_no ?? null,
     id: v.id,
     voucher_no: `${PREFIX[v.type]}-${v.id}`,
     type: v.type,
@@ -114,6 +116,7 @@ export class VoucherService {
   }
 
   async update(schoolId: number, id: number, dto: UpdateVoucherDto) {
+    await this.assertNotFeeVoucher(schoolId, id);
     const { lines, date, ...rest } = dto;
     const where = { id, school_id: schoolId };
     const data = { ...rest, ...(date && { date: new Date(date) }) };
@@ -153,7 +156,21 @@ export class VoucherService {
   }
 
   async remove(schoolId: number, id: number) {
+    await this.assertNotFeeVoucher(schoolId, id);
     await this.prisma.acc_vouchers.delete({ where: { id, school_id: schoolId } });
+  }
+
+  /** A voucher posted by a fee receipt is owned by that receipt: edit/delete it there. */
+  private async assertNotFeeVoucher(schoolId: number, id: number) {
+    const receipt = await this.prisma.fee_receipts.findFirst({
+      where: { voucher_id: id, school_id: schoolId },
+      select: { receipt_no: true },
+    });
+    if (receipt) {
+      throw new BadRequestException(
+        `Posted by fee receipt #${receipt.receipt_no}. Delete that receipt from Fees > Receipts instead.`,
+      );
+    }
   }
 
   private async validate(schoolId: number, type: VoucherType, lines: VoucherLineDto[]) {

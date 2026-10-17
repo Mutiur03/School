@@ -26,7 +26,7 @@ export class FeeDueService {
           class: enrollment.class,
           fee_head: { is_active: true },
         },
-        include: { fee_head: true },
+        include: { fee_head: { include: { deposit_head: { select: { id: true, name: true } } } } },
       }),
       this.prisma.fee_waivers.findMany({
         where: { school_id: schoolId, student_id: studentId, year },
@@ -44,6 +44,7 @@ export class FeeDueService {
       is_waivable: s.fee_head.is_waivable,
       sort_order: s.fee_head.sort_order,
       amount: Number(s.amount),
+      deposit: s.fee_head.deposit_head,
     }));
     const paid = new Map<string, Paid>(
       items.map((i) => [

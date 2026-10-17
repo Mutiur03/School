@@ -49,7 +49,12 @@ export class FeeReportService {
         _count: true,
         orderBy: { class: 'asc' },
       }),
-      this.prisma.fee_receipts.groupBy({ by: ['pay_head_id'], where, _sum: { total: true } }),
+      // by deposit account, from the installments: one receipt can land in several accounts
+      this.prisma.fee_receipt_items.groupBy({
+        by: ['deposit_head_id'],
+        where: { school_id: schoolId, receipt: { date } },
+        _sum: { amount: true },
+      }),
       this.prisma.fee_receipt_items.groupBy({
         by: ['fee_head_id'],
         where: { school_id: schoolId, receipt: { date } },
@@ -64,7 +69,7 @@ export class FeeReportService {
         select: { id: true, name: true },
       }),
       this.prisma.acc_heads.findMany({
-        where: { school_id: schoolId, id: { in: accounts.map((a) => a.pay_head_id) } },
+        where: { school_id: schoolId, id: { in: accounts.map((a) => a.deposit_head_id) } },
         select: { id: true, name: true },
       }),
     ]);
@@ -78,9 +83,9 @@ export class FeeReportService {
       by_day: days.map((d) => ({ date: iso(d.date), count: d._count, total: num(d._sum.total) })),
       by_class: classes.map((c) => ({ class: c.class, count: c._count, total: num(c._sum.total) })),
       by_account: accounts.map((a) => ({
-        pay_head_id: a.pay_head_id,
-        name: accountName.get(a.pay_head_id) ?? '',
-        total: num(a._sum.total),
+        deposit_head_id: a.deposit_head_id,
+        name: accountName.get(a.deposit_head_id) ?? '',
+        total: num(a._sum.amount),
       })),
       by_head: heads
         .map((h) => ({

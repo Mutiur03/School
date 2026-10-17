@@ -21,9 +21,15 @@ export class CreateFeeHeadDto {
   @IsEnum(FeeFrequency)
   frequency?: FeeFrequency;
 
-  /** Income account that collected fees are credited to. */
+  /** Income account that collected fees are credited to. Omit = create "<name> Fees". */
+  @IsOptional()
   @IsInt()
-  income_head_id!: number;
+  income_head_id?: number;
+
+  /** Cash/bank account this fee is always deposited into. Omit/null = choose at collection. */
+  @IsOptional()
+  @IsInt()
+  deposit_head_id?: number | null;
 
   @IsOptional()
   @IsBoolean()

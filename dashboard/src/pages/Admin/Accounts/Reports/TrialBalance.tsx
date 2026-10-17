@@ -6,8 +6,8 @@ import { DataTable, DateInput, ExportButton, Money, PageTitle, StateRows, num, t
 import { TYPE_LABELS, depthOf, topAncestor } from '../heads';
 import { exportXlsx } from './exportXlsx';
 
+const codeColumn = { label: 'Code', className: 'w-28' };
 const columns = [
-  { label: 'Code', className: 'w-28' },
   { label: 'Head' },
   { label: 'Type', className: 'w-32' },
   { label: 'Debit', className: 'w-40 text-right' },
@@ -55,19 +55,22 @@ const TrialBalance = () => {
   }
   const totalDr = short ? rows.reduce((s, r) => s + r.debit, 0) : (data?.total_debit ?? 0);
   const totalCr = short ? rows.reduce((s, r) => s + r.credit, 0) : (data?.total_credit ?? 0);
+  // Code is optional: only show the column once some head actually has one.
+  const hasCodes = rows.some((r) => r.code);
+  const cols = hasCodes ? [codeColumn, ...columns] : columns;
   const mismatch = Math.round(totalDr * 100) !== Math.round(totalCr * 100);
 
   const onExport = () =>
     exportXlsx(
       [
         ...rows.map((r) => ({
-          Code: r.code ?? '',
+          ...(hasCodes && { Code: r.code ?? '' }),
           Head: r.name,
           Type: TYPE_LABELS[r.type],
           Debit: r.debit,
           Credit: r.credit,
         })),
-        { Code: '', Head: 'Total', Type: '', Debit: totalDr, Credit: totalCr },
+        { ...(hasCodes && { Code: '' }), Head: 'Total', Type: '', Debit: totalDr, Credit: totalCr },
       ],
       `Trial Balance ${from} to ${to}`,
     );
@@ -100,11 +103,11 @@ const TrialBalance = () => {
       </div>
 
       <DataTable
-        columns={columns}
+        columns={cols}
         footer={
           data && (
             <tr className={cn('font-semibold', mismatch && 'text-destructive')}>
-              <td colSpan={3} className={td}>
+              <td colSpan={cols.length - 2} className={td}>
                 Total
                 {mismatch && ` — out of balance by ${formatMoney(Math.abs(totalDr - totalCr))}`}
               </td>
@@ -115,7 +118,7 @@ const TrialBalance = () => {
         }
       >
         <StateRows
-          colSpan={columns.length}
+          colSpan={cols.length}
           loading={isLoading}
           error={isError}
           empty={rows.length === 0}
@@ -123,7 +126,9 @@ const TrialBalance = () => {
         />
         {rows.map((r) => (
           <tr key={r.head_id} className="bg-card">
-            <td className={`${td} text-muted-foreground tabular-nums`}>{r.code ?? '—'}</td>
+            {hasCodes && (
+              <td className={`${td} text-muted-foreground tabular-nums`}>{r.code ?? '—'}</td>
+            )}
             <td className={td} style={{ paddingLeft: `${1 + r.depth * 1.25}rem` }}>
               {r.name}
             </td>

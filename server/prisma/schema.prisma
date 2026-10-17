@@ -170,7 +170,8 @@ model acc_heads {
   updated_at   DateTime            @updatedAt
   lines        acc_voucher_lines[]
   fee_heads    fee_heads[]         @relation("fee_head_income")
-  fee_receipts fee_receipts[]      @relation("fee_receipt_pay_head")
+  fee_deposits fee_heads[]         @relation("fee_head_deposit")
+  fee_items    fee_receipt_items[] @relation("fee_item_deposit")
 
   @@unique([school_id, name])
   @@index([school_id])
@@ -236,25 +237,29 @@ enum FeeFrequency {
 
 /// What a school charges (tuition, exam fee...). Collected money is credited to `income_head`.
 model fee_heads {
-  id             Int                 @id @default(autoincrement())
-  school_id      Int                 @default(dbgenerated("app.current_school_id()"))
-  school         School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  name           String              @db.VarChar(100)
-  frequency      FeeFrequency        @default(monthly)
-  income_head_id Int
-  income_head    acc_heads           @relation("fee_head_income", fields: [income_head_id], references: [id], onDelete: Restrict)
-  is_waivable    Boolean             @default(true)
-  sort_order     Int                 @default(0)
-  is_active      Boolean             @default(true)
-  created_at     DateTime            @default(now())
-  updated_at     DateTime            @updatedAt
-  structures     fee_structures[]
-  waivers        fee_waivers[]
-  items          fee_receipt_items[]
+  id              Int                 @id @default(autoincrement())
+  school_id       Int                 @default(dbgenerated("app.current_school_id()"))
+  school          School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  name            String              @db.VarChar(100)
+  frequency       FeeFrequency        @default(monthly)
+  income_head_id  Int
+  income_head     acc_heads           @relation("fee_head_income", fields: [income_head_id], references: [id], onDelete: Restrict)
+  /// Cash/bank account this fee is always deposited into. Null = the cashier picks at collection.
+  deposit_head_id Int?
+  deposit_head    acc_heads?          @relation("fee_head_deposit", fields: [deposit_head_id], references: [id], onDelete: Restrict)
+  is_waivable     Boolean             @default(true)
+  sort_order      Int                 @default(0)
+  is_active       Boolean             @default(true)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt
+  structures      fee_structures[]
+  waivers         fee_waivers[]
+  items           fee_receipt_items[]
 
   @@unique([school_id, name])
   @@index([school_id])
   @@index([income_head_id])
+  @@index([deposit_head_id])
 }
 
 /// Amount charged per class, session year and fee head (per month for monthly heads).
@@ -293,54 +298,55 @@ model fee_waivers {
   @@index([fee_head_id])
 }
 
-/// One money receipt. Posts a receipt voucher: Dr pay_head, Cr each fee head's income head.
+/// One money receipt. Posts a receipt voucher: Dr each deposit account, Cr each fee head's income head.
 model fee_receipts {
-  id          Int                 @id @default(autoincrement())
-  school_id   Int                 @default(dbgenerated("app.current_school_id()"))
-  school      School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  receipt_no  Int
-  student_id  Int
-  student     students            @relation(fields: [student_id], references: [id], onDelete: Restrict)
-  year        Int
-  class       Int
-  section     String              @db.Char(1)
-  roll        Int
-  date        DateTime            @db.Date
-  total       Decimal             @db.Decimal(12, 2)
-  pay_head_id Int
-  pay_head    acc_heads           @relation("fee_receipt_pay_head", fields: [pay_head_id], references: [id], onDelete: Restrict)
-  voucher_id  Int                 @unique
-  voucher     acc_vouchers        @relation(fields: [voucher_id], references: [id], onDelete: Restrict)
-  note        String?             @db.VarChar(255)
-  created_by  Int?
-  created_at  DateTime            @default(now())
-  items       fee_receipt_items[]
+  id         Int                 @id @default(autoincrement())
+  school_id  Int                 @default(dbgenerated("app.current_school_id()"))
+  school     School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  receipt_no Int
+  student_id Int
+  student    students            @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  year       Int
+  class      Int
+  section    String              @db.Char(1)
+  roll       Int
+  date       DateTime            @db.Date
+  total      Decimal             @db.Decimal(12, 2)
+  voucher_id Int                 @unique
+  voucher    acc_vouchers        @relation(fields: [voucher_id], references: [id], onDelete: Restrict)
+  note       String?             @db.VarChar(255)
+  created_by Int?
+  created_at DateTime            @default(now())
+  items      fee_receipt_items[]
 
   @@unique([school_id, receipt_no])
   @@index([school_id, date])
   @@index([student_id, year])
-  @@index([pay_head_id])
 }
 
 /// One paid installment. `month` 1-12 for monthly heads, 0 for one-off heads. Unique per student/year/head/month.
 model fee_receipt_items {
-  id          Int          @id @default(autoincrement())
-  school_id   Int          @default(dbgenerated("app.current_school_id()"))
-  school      School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  receipt_id  Int
-  receipt     fee_receipts @relation(fields: [receipt_id], references: [id], onDelete: Cascade)
-  student_id  Int
-  year        Int
-  fee_head_id Int
-  fee_head    fee_heads    @relation(fields: [fee_head_id], references: [id], onDelete: Restrict)
-  month       Int
-  charge      Decimal      @db.Decimal(12, 2)
-  waiver      Decimal      @default(0) @db.Decimal(12, 2)
-  amount      Decimal      @db.Decimal(12, 2)
+  id              Int          @id @default(autoincrement())
+  school_id       Int          @default(dbgenerated("app.current_school_id()"))
+  school          School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  receipt_id      Int
+  receipt         fee_receipts @relation(fields: [receipt_id], references: [id], onDelete: Cascade)
+  student_id      Int
+  year            Int
+  fee_head_id     Int
+  fee_head        fee_heads    @relation(fields: [fee_head_id], references: [id], onDelete: Restrict)
+  month           Int
+  charge          Decimal      @db.Decimal(12, 2)
+  waiver          Decimal      @default(0) @db.Decimal(12, 2)
+  amount          Decimal      @db.Decimal(12, 2)
+  /// Cash/bank account this installment's money went into.
+  deposit_head_id Int
+  deposit_head    acc_heads    @relation("fee_item_deposit", fields: [deposit_head_id], references: [id], onDelete: Restrict)
 
   @@unique([school_id, student_id, year, fee_head_id, month])
   @@index([receipt_id])
   @@index([fee_head_id])
+  @@index([deposit_head_id])
 }
 
 enum SetupTokenRole {

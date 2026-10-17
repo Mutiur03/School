@@ -38,6 +38,8 @@ export interface Voucher {
   narration: string | null;
   reference: string | null;
   total: number;
+  /** Set when a fee receipt posted this voucher: read-only here, managed from Fees > Receipts. */
+  fee_receipt_no: number | null;
   lines: VoucherLine[];
 }
 

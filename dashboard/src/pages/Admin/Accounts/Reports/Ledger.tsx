@@ -2,8 +2,18 @@ import { useState } from 'react';
 import { useAccHeads, useAccReport } from '@/queries/accounts.queries';
 import type { LedgerReport } from '@/types/accounts';
 import { cn, formatDay, formatYmd } from '@/lib/utils';
-import { DataTable, DateInput, ExportButton, Money, PageTitle, StateRows, num, td } from '../ui';
-import { TYPE_LABELS, drCr, groupByType, selectClass } from '../heads';
+import {
+  DataTable,
+  DateInput,
+  ExportButton,
+  GroupedHeadOptions,
+  Money,
+  PageTitle,
+  StateRows,
+  num,
+  td,
+} from '../ui';
+import { TYPE_LABELS, drCr, selectClass } from '../heads';
 import { exportXlsx } from './exportXlsx';
 
 const columns = [
@@ -80,16 +90,7 @@ const Ledger = () => {
             className={cn(selectClass, 'w-64')}
           >
             <option value="">Select head…</option>
-            {groupByType(heads).map((g) => (
-              <optgroup key={g.type} label={TYPE_LABELS[g.type]}>
-                {g.rows.map(({ head, depth }) => (
-                  <option key={head.id} value={head.id}>
-                    {'  '.repeat(depth)}
-                    {head.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
+            <GroupedHeadOptions heads={heads} />
           </select>
         </label>
         <DateInput label="From" value={from} onChange={setFrom} />

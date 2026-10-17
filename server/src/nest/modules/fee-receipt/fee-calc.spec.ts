@@ -74,4 +74,17 @@ describe('buildRows', () => {
     ]);
     expect(rows[0]).toMatchObject({ receipt_no: 9, paid_amount: 400 });
   });
+
+  it('carries the fee head deposit account onto every row (null when none)', () => {
+    const rows = buildRows(
+      [{ ...tuition, deposit: { id: 5, name: 'Bank A' } }, admission],
+      [],
+      new Map(),
+      1,
+    );
+    expect(rows.map((r) => [r.fee_head, r.deposit])).toEqual([
+      ['Tuition', { id: 5, name: 'Bank A' }],
+      ['Admission', null],
+    ]);
+  });
 });

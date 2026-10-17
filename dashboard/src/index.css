@@ -247,6 +247,31 @@ html {
         cursor: pointer;
       }
 
+      /* Group heading (e.g. Assets / Income): the browser draws the label, we only style it */
+      select optgroup {
+        display: block;
+        padding-top: 0.5rem;
+        text-indent: 0.1875rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted-foreground);
+      }
+
+      select optgroup:not(:first-of-type) {
+        margin-top: 0.25rem;
+        border-top: 1px solid var(--border);
+      }
+
+      select optgroup option {
+        text-indent: 0;
+        letter-spacing: normal;
+        text-transform: none;
+        font-weight: 400;
+        color: var(--popover-foreground);
+      }
+
       select option:hover,
       select option:focus-visible {
         background: var(--muted);

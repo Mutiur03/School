@@ -62,6 +62,16 @@ test.each([
   expect(body.message).toContain(message);
 });
 
+test('POST /fee-heads rejects a deposit account that is not cash/bank → 400', async () => {
+  // the income head is an income account, not a cash/bank asset
+  const { status, body } = await api.call('POST', '/api/fee-heads', {
+    auth: true,
+    body: { name: `${tag}-dep`, income_head_id: incomeHeadId, deposit_head_id: incomeHeadId },
+  });
+  expect(status).toBe(400);
+  expect(body.message).toBe('Deposit account must be an active cash/bank account');
+});
+
 test('POST /fee-heads rejects a non-income head → 400', async () => {
   const { status, body } = await api.call('POST', '/api/fee-heads', {
     auth: true,

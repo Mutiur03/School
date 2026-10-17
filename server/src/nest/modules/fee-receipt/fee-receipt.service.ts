@@ -24,12 +24,25 @@ const MONTHS = [
 
 const include = {
   student: { select: { id: true, name: true, login_id: true, father_name: true } },
-  pay_head: { select: { id: true, name: true } },
   items: {
     orderBy: [{ fee_head_id: 'asc' }, { month: 'asc' }],
-    include: { fee_head: { select: { id: true, name: true } } },
+    include: {
+      fee_head: { select: { id: true, name: true } },
+      deposit_head: { select: { id: true, name: true } },
+    },
   },
 } satisfies Prisma.fee_receiptsInclude;
+
+/** Cash/bank accounts a receipt's money went into, with the amount each received. */
+const accountsOf = (items: { amount: unknown; deposit_head: { id: number; name: string } }[]) => {
+  const byId = new Map<number, { id: number; name: string; amount: number }>();
+  for (const i of items) {
+    const cur = byId.get(i.deposit_head.id) ?? { ...i.deposit_head, amount: 0 };
+    cur.amount = taka(paisa(cur.amount) + paisa(Number(i.amount)));
+    byId.set(cur.id, cur);
+  }
+  return [...byId.values()];
+};
 
 type ReceiptRow = Awaited<ReturnType<FeeReceiptService['load']>>;
 
@@ -44,7 +57,7 @@ const toResponse = (r: ReceiptRow) => ({
   total: Number(r.total),
   note: r.note,
   student: r.student,
-  pay_head: r.pay_head,
+  accounts: accountsOf(r.items),
   voucher_id: r.voucher_id,
   voucher_no: `RV-${r.voucher_id}`,
   items: r.items.map((i) => ({
@@ -89,7 +102,10 @@ export class FeeReceiptService {
       },
       orderBy: [{ date: 'desc' }, { receipt_no: 'desc' }],
       take: 500,
-      include: { ...include, items: false },
+      include: {
+        student: include.student,
+        items: { select: { amount: true, deposit_head: { select: { id: true, name: true } } } },
+      },
     });
     return rows.map((r) => ({
       id: r.id,
@@ -101,7 +117,7 @@ export class FeeReceiptService {
       roll: r.roll,
       total: Number(r.total),
       student: r.student,
-      pay_head: r.pay_head,
+      accounts: accountsOf(r.items),
       voucher_no: `RV-${r.voucher_id}`,
     }));
   }
@@ -112,7 +128,9 @@ export class FeeReceiptService {
 
   /**
    * Collects the chosen installments. Charge and waiver are recomputed server-side from the fee
-   * structure; the client only says which installments to pay. Posts Dr cash/bank, Cr income per fee head.
+   * structure; the client only says which installments to pay. Each installment goes to its fee head's
+   * fixed deposit account, or to `pay_head_id` when the fee head has none. Posts one receipt voucher:
+   * Dr each deposit account, Cr each fee head's income account.
    */
   async create(schoolId: number, userId: number | undefined, dto: CreateFeeReceiptDto) {
     const keys = dto.items.map((i) => `${i.fee_head_id}:${i.month}`);
@@ -130,23 +148,41 @@ export class FeeReceiptService {
       return row;
     });
 
+    // Where each installment's money goes: the fee head's own account, else the one picked at collection.
+    const depositOf = new Map<string, number>();
+    for (const p of picked) {
+      const deposit = p.deposit?.id ?? dto.pay_head_id;
+      if (deposit === undefined) {
+        throw new BadRequestException(
+          `Pick the cash/bank account for ${p.fee_head} (it has no fixed deposit account)`,
+        );
+      }
+      depositOf.set(`${p.fee_head_id}:${p.month}`, deposit);
+    }
+    const depositIds = [...new Set(depositOf.values())];
+
     // FK checks bypass RLS, so these school_id filters are the real tenant gate.
-    const [payHead, feeHeads] = await Promise.all([
+    const [validDeposits, feeHeads] = await Promise.all([
       this.prisma.acc_heads.count({
-        where: { id: dto.pay_head_id, school_id: schoolId, is_cash_bank: true, is_active: true },
+        where: { id: { in: depositIds }, school_id: schoolId, is_cash_bank: true, is_active: true },
       }),
       this.prisma.fee_heads.findMany({
         where: { id: { in: picked.map((p) => p.fee_head_id) }, school_id: schoolId },
         select: { id: true, income_head_id: true },
       }),
     ]);
-    if (!payHead) throw new BadRequestException('Pick an active cash/bank account');
+    if (validDeposits !== depositIds.length) {
+      throw new BadRequestException('Deposit accounts must be active cash/bank accounts');
+    }
     const incomeOf = new Map(feeHeads.map((h) => [h.id, h.income_head_id]));
 
+    const debits = new Map<number, number>();
     const credits = new Map<number, number>();
     let total = 0;
     for (const p of picked) {
+      const deposit = depositOf.get(`${p.fee_head_id}:${p.month}`)!;
       const incomeHead = incomeOf.get(p.fee_head_id)!;
+      debits.set(deposit, (debits.get(deposit) ?? 0) + paisa(p.payable));
       credits.set(incomeHead, (credits.get(incomeHead) ?? 0) + paisa(p.payable));
       total += paisa(p.payable);
     }
@@ -170,7 +206,12 @@ export class FeeReceiptService {
           created_by: userId ?? null,
           lines: {
             create: [
-              { school_id: schoolId, head_id: dto.pay_head_id, debit: taka(total) },
+              ...[...debits].map(([head_id, p]) => ({
+                school_id: schoolId,
+                head_id,
+                debit: taka(p),
+                note: `Fee receipt #${receiptNo}`,
+              })),
               ...[...credits].map(([head_id, p]) => ({
                 school_id: schoolId,
                 head_id,
@@ -192,7 +233,6 @@ export class FeeReceiptService {
           roll: enrollment.roll,
           date: new Date(dto.date),
           total: taka(total),
-          pay_head_id: dto.pay_head_id,
           voucher_id: voucher.id,
           note: dto.note ?? null,
           created_by: userId ?? null,
@@ -206,6 +246,7 @@ export class FeeReceiptService {
               charge: p.charge,
               waiver: p.waiver,
               amount: p.payable,
+              deposit_head_id: depositOf.get(`${p.fee_head_id}:${p.month}`)!,
             })),
           },
         },

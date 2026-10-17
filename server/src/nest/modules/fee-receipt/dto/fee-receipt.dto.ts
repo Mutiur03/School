@@ -38,9 +38,13 @@ export class CreateFeeReceiptDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'date must be YYYY-MM-DD' })
   date!: string;
 
-  /** Cash or bank head the money goes into. */
+  /**
+   * Cash or bank head for fees that have no fixed deposit account. Optional when every picked
+   * fee head already names its own deposit account.
+   */
+  @IsOptional()
   @IsInt()
-  pay_head_id!: number;
+  pay_head_id?: number;
 
   @IsOptional()
   @IsString()

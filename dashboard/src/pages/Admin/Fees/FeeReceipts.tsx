@@ -99,7 +99,9 @@ const FeeReceipts = () => {
                 {r.class}-{r.section} · {r.roll}
               </td>
               <td className={`${td} text-muted-foreground`}>
-                {r.pay_head.name}
+                {r.accounts.length > 1
+                  ? `Multiple: ${r.accounts.map((a) => a.name).join(', ')}`
+                  : (r.accounts[0]?.name ?? '—')}
                 <span className="ml-2 text-xs">{r.voucher_no}</span>
               </td>
               <td className={num}>

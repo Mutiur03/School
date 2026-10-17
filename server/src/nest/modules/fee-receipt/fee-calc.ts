@@ -76,6 +76,8 @@ export type Charge = {
   is_waivable: boolean;
   sort_order: number;
   amount: number;
+  /** Fixed cash/bank account of this fee, if the school set one. */
+  deposit?: { id: number; name: string } | null;
 };
 export type Paid = { receipt_no: number; amount: number };
 export type DueRow = {
@@ -88,6 +90,7 @@ export type DueRow = {
   status: 'paid' | 'due' | 'waived';
   receipt_no: number | null;
   paid_amount: number;
+  deposit: { id: number; name: string } | null;
 };
 
 /** One row per fee head x month for a student. `paid` is keyed by `${fee_head_id}:${month}`. */
@@ -114,6 +117,7 @@ export function buildRows(
           status: hit ? 'paid' : payable === 0 ? 'waived' : 'due',
           receipt_no: hit?.receipt_no ?? null,
           paid_amount: hit?.amount ?? 0,
+          deposit: c.deposit ?? null,
         };
       }),
     );

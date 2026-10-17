@@ -82,13 +82,17 @@ const Vouchers = () => {
           vouchers.map((v) => (
             <tr key={v.id} className="bg-card hover:bg-muted/40">
               <td className={td}>
-                <button
-                  type="button"
-                  onClick={() => setFormVoucher(v)}
-                  className="font-medium tabular-nums hover:underline"
-                >
-                  {v.voucher_no}
-                </button>
+                {v.fee_receipt_no ? (
+                  <span className="font-medium tabular-nums">{v.voucher_no}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFormVoucher(v)}
+                    className="font-medium tabular-nums hover:underline"
+                  >
+                    {v.voucher_no}
+                  </button>
+                )}
               </td>
               <td className={`${td} text-muted-foreground whitespace-nowrap`}>
                 {formatDay(v.date.slice(0, 10))}
@@ -108,11 +112,21 @@ const Vouchers = () => {
                 <Money value={v.total} />
               </td>
               <td className={`${td} text-right`}>
-                <RowActions
-                  label={v.voucher_no}
-                  onEdit={() => setFormVoucher(v)}
-                  onDelete={() => setDeleteTarget(v)}
-                />
+                {v.fee_receipt_no ? (
+                  <Badge
+                    variant="outline"
+                    className="whitespace-nowrap"
+                    title="Posted by fee collection. Edit or delete the receipt in Fees > Receipts."
+                  >
+                    Fee receipt #{v.fee_receipt_no}
+                  </Badge>
+                ) : (
+                  <RowActions
+                    label={v.voucher_no}
+                    onEdit={() => setFormVoucher(v)}
+                    onDelete={() => setDeleteTarget(v)}
+                  />
+                )}
               </td>
             </tr>
           ))}

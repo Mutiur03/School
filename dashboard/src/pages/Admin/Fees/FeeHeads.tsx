@@ -19,6 +19,7 @@ const EMPTY: FeeHeadInput = {
   name: '',
   frequency: 'monthly',
   income_head_id: 0,
+  deposit_head_id: 0, // form value for "chosen at collection"; sent as null
   is_waivable: true,
   sort_order: 0,
   is_active: true,
@@ -28,6 +29,7 @@ const columns = [
   { label: 'Fee' },
   { label: 'Charged', className: 'w-28' },
   { label: 'Income account' },
+  { label: 'Deposit account' },
   { label: 'Waivable', className: 'w-28' },
   { label: 'Status', className: 'w-28' },
   { label: 'Actions', className: 'w-px text-right' },
@@ -37,6 +39,7 @@ const FeeHeads = () => {
   const { data: heads = [], isLoading, isError } = useFeeHeads();
   const { data: accHeads = [] } = useAccHeads();
   const incomeHeads = accHeads.filter((h) => h.type === 'income' && h.is_active);
+  const cashBankHeads = accHeads.filter((h) => h.is_cash_bank && h.is_active);
   const create = useCreateFeeHead();
   const update = useUpdateFeeHead();
   const remove = useDeleteFeeHead();
@@ -49,8 +52,10 @@ const FeeHeads = () => {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FeeHeadInput>({ defaultValues: EMPTY });
+  const name = watch('name');
 
   const openForm = (h: FeeHead | null) => {
     setEditing(h);
@@ -60,6 +65,7 @@ const FeeHeads = () => {
             name: h.name,
             frequency: h.frequency,
             income_head_id: h.income_head_id,
+            deposit_head_id: h.deposit_head_id ?? 0,
             is_waivable: h.is_waivable,
             sort_order: h.sort_order,
             is_active: h.is_active,
@@ -72,7 +78,10 @@ const FeeHeads = () => {
   const onSubmit = handleSubmit(async (data) => {
     const body = {
       ...data,
-      income_head_id: Number(data.income_head_id),
+      // select value 0 = new fee: server creates the income account
+      income_head_id: Number(data.income_head_id) || undefined,
+      // select value 0 = no fixed account (null clears it on edit)
+      deposit_head_id: Number(data.deposit_head_id) || null,
       sort_order: Number(data.sort_order),
     };
     try {
@@ -94,12 +103,6 @@ const FeeHeads = () => {
           <Plus /> Add fee head
         </Button>
       </PageTitle>
-
-      {incomeHeads.length === 0 && !isLoading && (
-        <p className="bg-muted mb-4 rounded-lg p-3 text-sm">
-          Add at least one <b>income</b> account under Accounts → Account Heads first.
-        </p>
-      )}
 
       <DataTable columns={columns} minWidth="42rem">
         <StateRows
@@ -123,6 +126,9 @@ const FeeHeads = () => {
               </td>
               <td className={td}>{h.frequency === 'monthly' ? 'Every month' : 'Once'}</td>
               <td className={`${td} text-muted-foreground`}>{h.income_head.name}</td>
+              <td className={`${td} text-muted-foreground`}>
+                {h.deposit_head?.name ?? 'Chosen at collection'}
+              </td>
               <td className={td}>{h.is_waivable ? 'Yes' : 'No'}</td>
               <td className={td}>
                 {h.is_active ? 'Active' : <span className="text-muted-foreground">Inactive</span>}
@@ -159,20 +165,36 @@ const FeeHeads = () => {
             <option value="once">Once a year</option>
           </select>
         </Field>
-        <Field label="Income account" required error={errors.income_head_id?.message}>
+        <Field label="Income account" error={errors.income_head_id?.message}>
           <select
             {...register('income_head_id', {
-              validate: (v) => Number(v) > 0 || 'Pick an income account',
+              validate: (v) => !editing || Number(v) > 0 || 'Pick an income account',
             })}
             className={selectClass}
           >
-            <option value={0}>Select</option>
+            {!editing && (
+              <option value={0}>Create "{name.trim() || 'fee'} Fees" automatically</option>
+            )}
             {incomeHeads.map((h) => (
               <option key={h.id} value={h.id}>
                 {h.name}
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Deposit account">
+          <select {...register('deposit_head_id')} className={selectClass}>
+            <option value={0}>Chosen at collection</option>
+            {cashBankHeads.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-muted-foreground text-xs">
+            Set this when the fee always goes into one bank or cash account, for example admission
+            into a separate bank account.
+          </p>
         </Field>
         <Field label="Order">
           <Input type="number" min={0} {...register('sort_order')} />

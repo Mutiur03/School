@@ -40,7 +40,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
 
   return (
     <div
-      className={`bg-card border-border rounded-xl border shadow-sm dark:border-gray-700 ${noPadding ? 'overflow-x-clip' : 'overflow-hidden'} ${className}`}
+      className={`bg-card border-border rounded-xl border shadow-sm dark:border-gray-700 ${noPadding ? 'overflow-clip' : 'overflow-hidden'} ${className}`}
     >
       {hasHeader && (
         <div className="flex flex-wrap items-start justify-between gap-4 px-6 pb-4 pt-6">

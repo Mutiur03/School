@@ -15,10 +15,10 @@ describe('CreateFeeHeadDto', () => {
     [{}],
     [{ name: '', income_head_id: 20 }],
     [{ name: 'x'.repeat(101), income_head_id: 20 }],
-    [{ name: 'Tuition' }],
     [{ ...valid, frequency: 'weekly' }],
     [{ ...valid, sort_order: -1 }],
     [{ ...valid, is_waivable: 'yes' }],
+    [{ ...valid, deposit_head_id: 'bank' }],
     [{ ...valid, school_id: 2 }],
   ])('rejects %j → 400', async (body) => {
     await expect(run(body, CreateFeeHeadDto)).rejects.toMatchObject({ status: 400 });
@@ -26,7 +26,10 @@ describe('CreateFeeHeadDto', () => {
 
   it.each([
     [valid],
+    [{ name: 'Tuition' }], // income account omitted → created for the fee
     [{ ...valid, frequency: 'once', is_waivable: false, sort_order: 3, is_active: true }],
+    [{ ...valid, deposit_head_id: 30 }],
+    [{ ...valid, deposit_head_id: null }],
   ])('accepts %j', async (body) => {
     await expect(run(body, CreateFeeHeadDto)).resolves.toMatchObject(body);
   });

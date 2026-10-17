@@ -35,12 +35,13 @@ describe('CreateFeeReceiptDto', () => {
     await expect(run(body, CreateFeeReceiptDto)).rejects.toMatchObject({ status: 400 });
   });
 
-  it.each([[valid], [{ ...valid, note: 'cash', items: [{ fee_head_id: 1, month: 0 }] }]])(
-    'accepts %j',
-    async (body) => {
-      await expect(run(body, CreateFeeReceiptDto)).resolves.toMatchObject(body);
-    },
-  );
+  it.each([
+    [valid],
+    [{ ...valid, note: 'cash', items: [{ fee_head_id: 1, month: 0 }] }],
+    [{ ...valid, pay_head_id: undefined }], // every fee may have its own deposit account
+  ])('accepts %j', async (body) => {
+    await expect(run(body, CreateFeeReceiptDto)).resolves.toMatchObject(body);
+  });
 });
 
 describe('ListReceiptsQueryDto', () => {

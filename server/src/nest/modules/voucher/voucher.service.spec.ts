@@ -15,8 +15,10 @@ const vouchers = {
 const headsFindMany = jest.fn<Fn>();
 const costCentersCount = jest.fn<Fn>();
 const linesDeleteMany = jest.fn<Fn>();
+const feeReceiptFindFirst = jest.fn<Fn>();
 const prisma = {
   acc_vouchers: vouchers,
+  fee_receipts: { findFirst: feeReceiptFindFirst },
   acc_heads: { findMany: headsFindMany },
   acc_cost_centers: { count: costCentersCount },
   acc_voucher_lines: { deleteMany: linesDeleteMany },
@@ -66,6 +68,7 @@ const include = {
       cost_center: { select: { id: true, name: true } },
     },
   },
+  fee_receipt: { select: { receipt_no: true } },
 };
 
 afterEach(() => jest.resetAllMocks());
@@ -283,6 +286,19 @@ describe('VoucherService.update', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(linesDeleteMany).not.toHaveBeenCalled();
   });
+
+  it('voucher posted by a fee receipt → 400, nothing written', async () => {
+    feeReceiptFindFirst.mockResolvedValue({ receipt_no: 12 });
+    await expect(service.update(1, 7, { narration: 'x' })).rejects.toThrow(
+      'Posted by fee receipt #12',
+    );
+    expect(feeReceiptFindFirst).toHaveBeenCalledWith({
+      where: { voucher_id: 7, school_id: 1 },
+      select: { receipt_no: true },
+    });
+    expect(vouchers.update).not.toHaveBeenCalled();
+    expect(linesDeleteMany).not.toHaveBeenCalled();
+  });
 });
 
 describe('VoucherService.remove', () => {
@@ -290,5 +306,11 @@ describe('VoucherService.remove', () => {
     vouchers.delete.mockResolvedValue(undefined);
     await service.remove(1, 5);
     expect(vouchers.delete).toHaveBeenCalledWith({ where: { id: 5, school_id: 1 } });
+  });
+
+  it('voucher posted by a fee receipt → 400, not deleted', async () => {
+    feeReceiptFindFirst.mockResolvedValue({ receipt_no: 3 });
+    await expect(service.remove(1, 5)).rejects.toBeInstanceOf(BadRequestException);
+    expect(vouchers.delete).not.toHaveBeenCalled();
   });
 });

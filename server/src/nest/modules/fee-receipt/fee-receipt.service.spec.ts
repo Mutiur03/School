@@ -38,6 +38,7 @@ const row = (o: object) => ({
   status: 'due',
   receipt_no: null,
   paid_amount: 0,
+  deposit: null,
   ...o,
 });
 const stmt = (rows: object[]) => ({
@@ -53,6 +54,7 @@ const dto = {
   pay_head_id: 10,
   items: [{ fee_head_id: 1, month: 1 }],
 };
+const bankA = { id: 11, name: 'Bank A' };
 
 const stored = {
   id: 55,
@@ -65,12 +67,12 @@ const stored = {
   total: 400,
   note: null,
   student: { id: 7, name: 'Rafi', login_id: 1001, father_name: null },
-  pay_head: { id: 10, name: 'Cash' },
   voucher_id: 90,
   items: [
     {
       fee_head_id: 1,
       fee_head: { id: 1, name: 'Tuition' },
+      deposit_head: { id: 10, name: 'Cash' },
       month: 1,
       charge: 500,
       waiver: 100,
@@ -90,6 +92,8 @@ beforeEach(() => {
 });
 afterEach(() => jest.resetAllMocks());
 
+const voucherLines = () => t.acc_vouchers.create.mock.calls[0][0].data.lines.create;
+
 describe('FeeReceiptService.create', () => {
   it('recomputes amounts from the statement and posts Dr cash / Cr income', async () => {
     const res = await service.create(1, 3, dto);
@@ -103,7 +107,7 @@ describe('FeeReceiptService.create', () => {
         created_by: 3,
         lines: {
           create: [
-            { school_id: 1, head_id: 10, debit: 400 },
+            { school_id: 1, head_id: 10, debit: 400, note: 'Fee receipt #12' },
             { school_id: 1, head_id: 20, credit: 400, note: 'Fee receipt #12' },
           ],
         },
@@ -118,7 +122,6 @@ describe('FeeReceiptService.create', () => {
         roll: 3,
         total: 400,
         voucher_id: 90,
-        pay_head_id: 10,
         items: {
           create: [
             expect.objectContaining({
@@ -127,12 +130,19 @@ describe('FeeReceiptService.create', () => {
               charge: 500,
               waiver: 100,
               amount: 400,
+              deposit_head_id: 10,
             }),
           ],
         },
       }),
     });
-    expect(res).toMatchObject({ id: 55, receipt_no: 12, voucher_no: 'RV-90', total: 400 });
+    expect(res).toMatchObject({
+      id: 55,
+      receipt_no: 12,
+      voucher_no: 'RV-90',
+      total: 400,
+      accounts: [{ id: 10, name: 'Cash', amount: 400 }],
+    });
   });
 
   it('first receipt of a school gets number 1', async () => {
@@ -163,12 +173,89 @@ describe('FeeReceiptService.create', () => {
         { fee_head_id: 2, month: 0 },
       ],
     });
-    const lines = t.acc_vouchers.create.mock.calls[0][0].data.lines.create;
-    expect(lines).toEqual([
-      { school_id: 1, head_id: 10, debit: 1050 },
+    expect(voucherLines()).toEqual([
+      expect.objectContaining({ head_id: 10, debit: 1050 }),
       expect.objectContaining({ head_id: 20, credit: 800 }),
       expect.objectContaining({ head_id: 21, credit: 250 }),
     ]);
+  });
+
+  describe('deposit accounts', () => {
+    const tuitionAtBankA = row({ deposit: bankA });
+    const examAtCash = row({ fee_head_id: 2, fee_head: 'Exam', month: 0, payable: 250 });
+    const mixedItems = [
+      { fee_head_id: 1, month: 1 },
+      { fee_head_id: 2, month: 0 },
+    ];
+    beforeEach(() => {
+      t.fee_heads.findMany.mockResolvedValue([
+        { id: 1, income_head_id: 20 },
+        { id: 2, income_head_id: 21 },
+      ]);
+    });
+
+    it('a fee with a fixed deposit account goes there; the rest use the account picked at collection', async () => {
+      statement.mockResolvedValue(stmt([tuitionAtBankA, examAtCash]));
+      t.acc_heads.count.mockResolvedValue(2);
+
+      await service.create(1, 3, { ...dto, items: mixedItems });
+
+      expect(t.acc_heads.count).toHaveBeenCalledWith({
+        where: { id: { in: [11, 10] }, school_id: 1, is_cash_bank: true, is_active: true },
+      });
+      // one debit per deposit account, one credit per income account; both sides balance
+      expect(voucherLines()).toEqual([
+        expect.objectContaining({ head_id: 11, debit: 400 }),
+        expect.objectContaining({ head_id: 10, debit: 250 }),
+        expect.objectContaining({ head_id: 20, credit: 400 }),
+        expect.objectContaining({ head_id: 21, credit: 250 }),
+      ]);
+      const items = t.fee_receipts.create.mock.calls[0][0].data.items.create;
+      expect(items.map((i: any) => [i.fee_head_id, i.deposit_head_id])).toEqual([
+        [1, 11],
+        [2, 10],
+      ]);
+    });
+
+    it('needs no pay_head_id when every fee has its own deposit account', async () => {
+      statement.mockResolvedValue(
+        stmt([tuitionAtBankA, { ...examAtCash, deposit: { id: 12, name: 'Bank B' } }]),
+      );
+      t.acc_heads.count.mockResolvedValue(2);
+      const { pay_head_id: _unused, ...withoutPayHead } = dto;
+
+      await service.create(1, 3, { ...withoutPayHead, items: mixedItems });
+
+      expect(
+        voucherLines()
+          .filter((l: any) => l.debit)
+          .map((l: any) => l.head_id),
+      ).toEqual([11, 12]);
+    });
+
+    it('a fixed account wins over the account picked at collection', async () => {
+      statement.mockResolvedValue(stmt([tuitionAtBankA]));
+      await service.create(1, 3, dto); // dto.pay_head_id = 10
+      expect(voucherLines()[0]).toMatchObject({ head_id: 11, debit: 400 });
+    });
+
+    it('asks for an account when a fee has no fixed one and none was picked', async () => {
+      statement.mockResolvedValue(stmt([tuitionAtBankA, examAtCash]));
+      const { pay_head_id: _unused, ...withoutPayHead } = dto;
+      await expect(service.create(1, 3, { ...withoutPayHead, items: mixedItems })).rejects.toThrow(
+        'Pick the cash/bank account for Exam',
+      );
+      expect(t.acc_vouchers.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects when any deposit account is not an active cash/bank account of this school', async () => {
+      statement.mockResolvedValue(stmt([tuitionAtBankA, examAtCash]));
+      t.acc_heads.count.mockResolvedValue(1); // 2 distinct accounts, only 1 valid
+      await expect(service.create(1, 3, { ...dto, items: mixedItems })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(t.acc_vouchers.create).not.toHaveBeenCalled();
+    });
   });
 
   it.each([
@@ -198,7 +285,7 @@ describe('FeeReceiptService.create', () => {
     t.acc_heads.count.mockResolvedValue(0);
     await expect(service.create(1, 3, dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(t.acc_heads.count).toHaveBeenCalledWith({
-      where: { id: 10, school_id: 1, is_cash_bank: true, is_active: true },
+      where: { id: { in: [10] }, school_id: 1, is_cash_bank: true, is_active: true },
     });
   });
 
@@ -209,12 +296,24 @@ describe('FeeReceiptService.create', () => {
 });
 
 describe('FeeReceiptService reads and delete', () => {
-  it('findOne scopes by id and school_id', async () => {
+  it('findOne scopes by id and school_id and sums money per account', async () => {
+    t.fee_receipts.findFirstOrThrow.mockResolvedValue({
+      ...stored,
+      items: [
+        ...stored.items,
+        { ...stored.items[0], month: 2, amount: 400 },
+        { ...stored.items[0], deposit_head: { id: 11, name: 'Bank A' }, month: 3, amount: 100 },
+      ],
+    });
     const res = await service.findOne(1, 55);
     expect(t.fee_receipts.findFirstOrThrow).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 55, school_id: 1 } }),
     );
     expect(res.items[0]).toMatchObject({ fee_head: 'Tuition', amount: 400 });
+    expect(res.accounts).toEqual([
+      { id: 10, name: 'Cash', amount: 800 },
+      { id: 11, name: 'Bank A', amount: 100 },
+    ]);
     expect(res.date).toBe('2026-03-05');
   });
 
@@ -231,6 +330,21 @@ describe('FeeReceiptService reads and delete', () => {
         take: 500,
       }),
     );
+  });
+
+  it('findAll lists the accounts each receipt used', async () => {
+    t.fee_receipts.findMany.mockResolvedValue([
+      {
+        ...stored,
+        items: [
+          { amount: 400, deposit_head: { id: 10, name: 'Cash' } },
+          { amount: 100, deposit_head: { id: 11, name: 'Bank A' } },
+        ],
+      },
+    ]);
+    const [r] = await service.findAll(1, {});
+    expect(r.accounts.map((a) => a.name)).toEqual(['Cash', 'Bank A']);
+    expect(r).not.toHaveProperty('items');
   });
 
   it('remove deletes the receipt first, then its voucher, both scoped to the school', async () => {

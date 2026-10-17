@@ -52,6 +52,18 @@ const FeeCollection = () => {
     [rows, picked],
   );
   const dueRows = rows.filter((r) => r.status === 'due');
+  const pickedRows = rows.filter((r) => picked.has(key(r)));
+  // Fees with a fixed deposit account always go there; only the rest use "Received in".
+  const needsPayHead = pickedRows.some((r) => !r.deposit);
+  const payHeadName = cashBank.find((h) => String(h.id) === payHeadId)?.name;
+  const destinations = useMemo(() => {
+    const byName = new Map<string, number>();
+    for (const r of pickedRows) {
+      const name = r.deposit?.name ?? payHeadName ?? 'Pick an account';
+      byName.set(name, (byName.get(name) ?? 0) + Math.round(r.payable * 100));
+    }
+    return [...byName].map(([name, paisa]) => ({ name, amount: paisa / 100 }));
+  }, [pickedRows, payHeadName]);
 
   const toggle = (k: string) =>
     setPicked((s) => {
@@ -67,13 +79,13 @@ const FeeCollection = () => {
 
   const collect = async () => {
     if (!student) return;
-    if (!payHeadId) return toast.error('Pick the cash/bank account');
+    if (needsPayHead && !payHeadId) return toast.error('Pick the cash/bank account');
     try {
       const receipt = (await create.mutateAsync({
         student_id: student.id,
         year,
         date,
-        pay_head_id: Number(payHeadId),
+        pay_head_id: needsPayHead ? Number(payHeadId) : undefined,
         note: note.trim() || undefined,
         items: rows
           .filter((r) => picked.has(key(r)))
@@ -200,7 +212,12 @@ const FeeCollection = () => {
                       aria-label={`${r.fee_head} ${MONTHS[r.month]}`}
                     />
                   </td>
-                  <td className={td}>{r.fee_head}</td>
+                  <td className={td}>
+                    {r.fee_head}
+                    {r.deposit && (
+                      <span className="text-muted-foreground ml-2 text-xs">→ {r.deposit.name}</span>
+                    )}
+                  </td>
                   <td className={`${td} text-muted-foreground`}>{MONTHS[r.month]}</td>
                   <td className={num}>
                     <Money value={r.charge} />
@@ -223,21 +240,23 @@ const FeeCollection = () => {
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
             <DateInput label="Date" value={date} onChange={setDate} />
-            <label className="block space-y-1">
-              <span className="text-muted-foreground block text-xs font-medium">Received in</span>
-              <select
-                value={payHeadId}
-                onChange={(e) => setPayHeadId(e.target.value)}
-                className={cn(selectClass, 'w-56')}
-              >
-                <option value="">Select cash / bank</option>
-                {cashBank.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {(needsPayHead || picked.size === 0) && (
+              <label className="block space-y-1">
+                <span className="text-muted-foreground block text-xs font-medium">Received in</span>
+                <select
+                  value={payHeadId}
+                  onChange={(e) => setPayHeadId(e.target.value)}
+                  className={cn(selectClass, 'w-56')}
+                >
+                  <option value="">Select cash / bank</option>
+                  {cashBank.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="block space-y-1">
               <span className="text-muted-foreground block text-xs font-medium">Remarks</span>
               <Input
@@ -255,6 +274,17 @@ const FeeCollection = () => {
               <Banknote /> Collect {formatMoney(total)}
             </Button>
           </div>
+          {destinations.length > 0 && (
+            <p className="mt-3 text-sm">
+              <span className="text-muted-foreground">Money goes to: </span>
+              {destinations.map((d, i) => (
+                <span key={d.name}>
+                  {i > 0 && <span className="text-muted-foreground"> · </span>}
+                  <b>{d.name}</b> {formatMoney(d.amount)}
+                </span>
+              ))}
+            </p>
+          )}
           {cashBank.length === 0 && (
             <p className="text-muted-foreground mt-2 text-sm">
               No cash/bank account yet. Mark an asset head as cash/bank under Accounts → Account
