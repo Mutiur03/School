@@ -57,6 +57,13 @@ const Holidays = lazy(() => import('./pages/Admin/Holidays'));
 const AccountHeads = lazy(() => import('./pages/Admin/Accounts/AccountHeads'));
 const CostCenters = lazy(() => import('./pages/Admin/Accounts/CostCenters'));
 const Vouchers = lazy(() => import('./pages/Admin/Accounts/Vouchers'));
+const FeeOverview = lazy(() => import('./pages/Admin/Fees/FeeOverview'));
+const FeeCollection = lazy(() => import('./pages/Admin/Fees/FeeCollection'));
+const FeeReceipts = lazy(() => import('./pages/Admin/Fees/FeeReceipts'));
+const FeeHeads = lazy(() => import('./pages/Admin/Fees/FeeHeads'));
+const FeeStructure = lazy(() => import('./pages/Admin/Fees/FeeStructure'));
+const FeeWaivers = lazy(() => import('./pages/Admin/Fees/FeeWaivers'));
+const FeeReports = lazy(() => import('./pages/Admin/Fees/FeeReports'));
 const LedgerReport = lazy(() => import('./pages/Admin/Accounts/Reports/Ledger'));
 const TrialBalance = lazy(() => import('./pages/Admin/Accounts/Reports/TrialBalance'));
 const IncomeExpense = lazy(() => import('./pages/Admin/Accounts/Reports/IncomeExpense'));
@@ -107,6 +114,13 @@ registerRoutePrefetchers({
   '/admin/settings/billing': Billing,
   '/admin/notice': Notice,
   '/admin/holiday': Holidays,
+  '/admin/fees/overview': FeeOverview,
+  '/admin/fees/collect': FeeCollection,
+  '/admin/fees/receipts': FeeReceipts,
+  '/admin/fees/heads': FeeHeads,
+  '/admin/fees/structure': FeeStructure,
+  '/admin/fees/waivers': FeeWaivers,
+  '/admin/fees/reports': FeeReports,
   '/admin/accounts/heads': AccountHeads,
   '/admin/accounts/cost-centers': CostCenters,
   '/admin/accounts/reports/ledger': LedgerReport,
@@ -465,6 +479,13 @@ function App() {
                               <Route path="/settings/billing" element={<Billing />} />
                               <Route path="/notice" element={<Notice />} />
                               <Route path="/holiday" element={<Holidays />} />
+                              <Route path="/fees/overview" element={<FeeOverview />} />
+                              <Route path="/fees/collect" element={<FeeCollection />} />
+                              <Route path="/fees/receipts" element={<FeeReceipts />} />
+                              <Route path="/fees/heads" element={<FeeHeads />} />
+                              <Route path="/fees/structure" element={<FeeStructure />} />
+                              <Route path="/fees/waivers" element={<FeeWaivers />} />
+                              <Route path="/fees/reports" element={<FeeReports />} />
                               <Route path="/accounts/heads" element={<AccountHeads />} />
                               <Route path="/accounts/cost-centers" element={<CostCenters />} />
                               <Route path="/accounts/vouchers" element={<Vouchers />} />

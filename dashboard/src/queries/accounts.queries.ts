@@ -4,17 +4,17 @@ import { toast } from 'react-hot-toast';
 import type { AccHeadFormData, CostCenterFormData, VoucherFormData } from '@school/shared-schemas';
 import type { AccHead, CostCenter, Voucher, VoucherFilters } from '@/types/accounts';
 
-type Params = Record<string, string | number | undefined | null>;
+export type Params = Record<string, string | number | undefined | null>;
 
 /** Drop empty filters so the API sees only what the user set. */
 const clean = (p: Params) =>
   Object.fromEntries(Object.entries(p).filter(([, v]) => v !== '' && v != null));
 
-const get = async <T>(url: string, params?: Params) =>
+export const get = async <T>(url: string, params?: Params) =>
   (await axios.get(url, { params: params && clean(params) })).data.data as T;
 
 /** Shared mutation wiring: invalidate keys, toast success / API error. */
-const useAccMutation = <V>(
+export const useAccMutation = <V>(
   fn: (vars: V) => Promise<unknown>,
   keys: string[],
   success: string,

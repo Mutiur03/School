@@ -90,6 +90,11 @@ model School {
   acc_cost_centers         acc_cost_centers[]
   acc_vouchers             acc_vouchers[]
   acc_voucher_lines        acc_voucher_lines[]
+  fee_heads                fee_heads[]
+  fee_structures           fee_structures[]
+  fee_waivers              fee_waivers[]
+  fee_receipts             fee_receipts[]
+  fee_receipt_items        fee_receipt_items[]
 
   @@index([name])
   @@index([subdomain])
@@ -164,6 +169,8 @@ model acc_heads {
   created_at   DateTime            @default(now())
   updated_at   DateTime            @updatedAt
   lines        acc_voucher_lines[]
+  fee_heads    fee_heads[]         @relation("fee_head_income")
+  fee_receipts fee_receipts[]      @relation("fee_receipt_pay_head")
 
   @@unique([school_id, name])
   @@index([school_id])
@@ -186,17 +193,18 @@ model acc_cost_centers {
 }
 
 model acc_vouchers {
-  id         Int                 @id @default(autoincrement())
-  school_id  Int                 @default(dbgenerated("app.current_school_id()"))
-  school     School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  type       VoucherType
-  date       DateTime            @db.Date
-  narration  String?             @db.Text
-  reference  String?             @db.VarChar(100)
-  created_by Int?
-  created_at DateTime            @default(now())
-  updated_at DateTime            @updatedAt
-  lines      acc_voucher_lines[]
+  id          Int                 @id @default(autoincrement())
+  school_id   Int                 @default(dbgenerated("app.current_school_id()"))
+  school      School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  type        VoucherType
+  date        DateTime            @db.Date
+  narration   String?             @db.Text
+  reference   String?             @db.VarChar(100)
+  created_by  Int?
+  created_at  DateTime            @default(now())
+  updated_at  DateTime            @updatedAt
+  lines       acc_voucher_lines[]
+  fee_receipt fee_receipts?
 
   @@index([school_id, date])
   @@index([school_id, type])
@@ -219,6 +227,120 @@ model acc_voucher_lines {
   @@index([school_id, head_id])
   @@index([voucher_id])
   @@index([cost_center_id])
+}
+
+enum FeeFrequency {
+  monthly
+  once
+}
+
+/// What a school charges (tuition, exam fee...). Collected money is credited to `income_head`.
+model fee_heads {
+  id             Int                 @id @default(autoincrement())
+  school_id      Int                 @default(dbgenerated("app.current_school_id()"))
+  school         School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  name           String              @db.VarChar(100)
+  frequency      FeeFrequency        @default(monthly)
+  income_head_id Int
+  income_head    acc_heads           @relation("fee_head_income", fields: [income_head_id], references: [id], onDelete: Restrict)
+  is_waivable    Boolean             @default(true)
+  sort_order     Int                 @default(0)
+  is_active      Boolean             @default(true)
+  created_at     DateTime            @default(now())
+  updated_at     DateTime            @updatedAt
+  structures     fee_structures[]
+  waivers        fee_waivers[]
+  items          fee_receipt_items[]
+
+  @@unique([school_id, name])
+  @@index([school_id])
+  @@index([income_head_id])
+}
+
+/// Amount charged per class, session year and fee head (per month for monthly heads).
+model fee_structures {
+  id          Int       @id @default(autoincrement())
+  school_id   Int       @default(dbgenerated("app.current_school_id()"))
+  school      School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  year        Int
+  class       Int
+  fee_head_id Int
+  fee_head    fee_heads @relation(fields: [fee_head_id], references: [id], onDelete: Restrict)
+  amount      Decimal   @db.Decimal(12, 2)
+
+  @@unique([school_id, year, class, fee_head_id])
+  @@index([school_id, year, class])
+  @@index([fee_head_id])
+}
+
+/// Per-student concession. `fee_head_id` null = every waivable head. `percent` true = value is a % of the charge.
+model fee_waivers {
+  id          Int        @id @default(autoincrement())
+  school_id   Int        @default(dbgenerated("app.current_school_id()"))
+  school      School     @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  student_id  Int
+  student     students   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  year        Int
+  fee_head_id Int?
+  fee_head    fee_heads? @relation(fields: [fee_head_id], references: [id], onDelete: Cascade)
+  percent     Boolean    @default(false)
+  value       Decimal    @db.Decimal(12, 2)
+  note        String?    @db.VarChar(255)
+  created_at  DateTime   @default(now())
+
+  @@index([school_id, year])
+  @@index([student_id, year])
+  @@index([fee_head_id])
+}
+
+/// One money receipt. Posts a receipt voucher: Dr pay_head, Cr each fee head's income head.
+model fee_receipts {
+  id          Int                 @id @default(autoincrement())
+  school_id   Int                 @default(dbgenerated("app.current_school_id()"))
+  school      School              @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  receipt_no  Int
+  student_id  Int
+  student     students            @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  year        Int
+  class       Int
+  section     String              @db.Char(1)
+  roll        Int
+  date        DateTime            @db.Date
+  total       Decimal             @db.Decimal(12, 2)
+  pay_head_id Int
+  pay_head    acc_heads           @relation("fee_receipt_pay_head", fields: [pay_head_id], references: [id], onDelete: Restrict)
+  voucher_id  Int                 @unique
+  voucher     acc_vouchers        @relation(fields: [voucher_id], references: [id], onDelete: Restrict)
+  note        String?             @db.VarChar(255)
+  created_by  Int?
+  created_at  DateTime            @default(now())
+  items       fee_receipt_items[]
+
+  @@unique([school_id, receipt_no])
+  @@index([school_id, date])
+  @@index([student_id, year])
+  @@index([pay_head_id])
+}
+
+/// One paid installment. `month` 1-12 for monthly heads, 0 for one-off heads. Unique per student/year/head/month.
+model fee_receipt_items {
+  id          Int          @id @default(autoincrement())
+  school_id   Int          @default(dbgenerated("app.current_school_id()"))
+  school      School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  receipt_id  Int
+  receipt     fee_receipts @relation(fields: [receipt_id], references: [id], onDelete: Cascade)
+  student_id  Int
+  year        Int
+  fee_head_id Int
+  fee_head    fee_heads    @relation(fields: [fee_head_id], references: [id], onDelete: Restrict)
+  month       Int
+  charge      Decimal      @db.Decimal(12, 2)
+  waiver      Decimal      @default(0) @db.Decimal(12, 2)
+  amount      Decimal      @db.Decimal(12, 2)
+
+  @@unique([school_id, student_id, year, fee_head_id, month])
+  @@index([receipt_id])
+  @@index([fee_head_id])
 }
 
 enum SetupTokenRole {
@@ -287,6 +409,8 @@ model students {
   galleries       gallery[]             @relation("StudentGalleryUploader")
   sms_logs        sms_logs[]
   enrollments     student_enrollments[]
+  fee_waivers     fee_waivers[]
+  fee_receipts    fee_receipts[]
   school_id       Int                   @default(dbgenerated("app.current_school_id()"))
   school          School                @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
@@ -568,37 +692,37 @@ model attendance_sheets {
 
 /// Public certificate (প্রত্যয়নপত্র) requests: one real column per form field so they can be searched and reported on.
 model certificates {
-  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  school_id       Int                     @default(dbgenerated("app.current_school_id()"))
-  exam            String                  @db.VarChar(10)
-  passing_year    Int
-  student_name_bn String                  @db.VarChar(150)
-  student_name_en String                  @db.VarChar(100)
-  father_name_bn  String                  @db.VarChar(150)
-  father_name_en  String                  @db.VarChar(100)
-  mother_name_bn  String                  @db.VarChar(150)
-  mother_name_en  String                  @db.VarChar(100)
-  address_district        String          @default("") @db.VarChar(50)
-  address_upazila         String          @default("") @db.VarChar(50)
-  address_post_office     String          @default("") @db.VarChar(100)
-  address_post_office_bn  String          @default("") @db.VarChar(100)
-  address_post_code       String          @default("") @db.VarChar(4)
-  address_village_road    String          @default("") @db.VarChar(200)
-  address_village_road_bn String          @default("") @db.VarChar(200)
-  mobile          String                  @db.VarChar(11)
-  dob             DateTime                @db.Date
-  gender          String?                 @db.VarChar(6)
-  roll            String?                 @db.VarChar(6)
-  registration_no String?                 @db.VarChar(10)
-  gpa             Decimal?                @db.Decimal(3, 2)
+  id                      String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  school_id               Int                     @default(dbgenerated("app.current_school_id()"))
+  exam                    String                  @db.VarChar(10)
+  passing_year            Int
+  student_name_bn         String                  @db.VarChar(150)
+  student_name_en         String                  @db.VarChar(100)
+  father_name_bn          String                  @db.VarChar(150)
+  father_name_en          String                  @db.VarChar(100)
+  mother_name_bn          String                  @db.VarChar(150)
+  mother_name_en          String                  @db.VarChar(100)
+  address_district        String                  @default("") @db.VarChar(50)
+  address_upazila         String                  @default("") @db.VarChar(50)
+  address_post_office     String                  @default("") @db.VarChar(100)
+  address_post_office_bn  String                  @default("") @db.VarChar(100)
+  address_post_code       String                  @default("") @db.VarChar(4)
+  address_village_road    String                  @default("") @db.VarChar(200)
+  address_village_road_bn String                  @default("") @db.VarChar(200)
+  mobile                  String                  @db.VarChar(11)
+  dob                     DateTime                @db.Date
+  gender                  String?                 @db.VarChar(6)
+  roll                    String?                 @db.VarChar(6)
+  registration_no         String?                 @db.VarChar(10)
+  gpa                     Decimal?                @db.Decimal(3, 2)
   /// Birth registration or NID; NULL only on rows created before it was collected.
-  birth_reg_no    String?                 @db.VarChar(17)
+  birth_reg_no            String?                 @db.VarChar(17)
   /// pending = editable; approved = locked for public (admin can set back to pending).
-  status          String                  @default("pending")
-  created_at      DateTime                @default(now())
-  updated_at      DateTime                @updatedAt
-  school          School                  @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  revisions       certificate_revisions[]
+  status                  String                  @default("pending")
+  created_at              DateTime                @default(now())
+  updated_at              DateTime                @updatedAt
+  school                  School                  @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  revisions               certificate_revisions[]
 
   @@unique([school_id, passing_year, mobile, exam, birth_reg_no])
   @@index([school_id, updated_at])
@@ -607,34 +731,34 @@ model certificates {
 
 /// Copy of a `certificates` row taken before each edit.
 model certificate_revisions {
-  id              Int          @id @default(autoincrement())
-  certificate_id  String       @db.Uuid
-  school_id       Int          @default(dbgenerated("app.current_school_id()"))
-  exam            String       @db.VarChar(10)
-  passing_year    Int
-  student_name_bn String       @db.VarChar(150)
-  student_name_en String       @db.VarChar(100)
-  father_name_bn  String       @db.VarChar(150)
-  father_name_en  String       @db.VarChar(100)
-  mother_name_bn  String       @db.VarChar(150)
-  mother_name_en  String       @db.VarChar(100)
-  address_district        String @default("") @db.VarChar(50)
-  address_upazila         String @default("") @db.VarChar(50)
-  address_post_office     String @default("") @db.VarChar(100)
-  address_post_office_bn  String @default("") @db.VarChar(100)
-  address_post_code       String @default("") @db.VarChar(4)
-  address_village_road    String @default("") @db.VarChar(200)
-  address_village_road_bn String @default("") @db.VarChar(200)
-  mobile          String       @db.VarChar(11)
-  dob             DateTime     @db.Date
-  gender          String?      @db.VarChar(6)
-  roll            String?      @db.VarChar(6)
-  registration_no String?      @db.VarChar(10)
-  gpa             Decimal?     @db.Decimal(3, 2)
-  birth_reg_no    String?      @db.VarChar(17)
-  created_at      DateTime     @default(now())
-  certificate     certificates @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
-  school          School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  id                      Int          @id @default(autoincrement())
+  certificate_id          String       @db.Uuid
+  school_id               Int          @default(dbgenerated("app.current_school_id()"))
+  exam                    String       @db.VarChar(10)
+  passing_year            Int
+  student_name_bn         String       @db.VarChar(150)
+  student_name_en         String       @db.VarChar(100)
+  father_name_bn          String       @db.VarChar(150)
+  father_name_en          String       @db.VarChar(100)
+  mother_name_bn          String       @db.VarChar(150)
+  mother_name_en          String       @db.VarChar(100)
+  address_district        String       @default("") @db.VarChar(50)
+  address_upazila         String       @default("") @db.VarChar(50)
+  address_post_office     String       @default("") @db.VarChar(100)
+  address_post_office_bn  String       @default("") @db.VarChar(100)
+  address_post_code       String       @default("") @db.VarChar(4)
+  address_village_road    String       @default("") @db.VarChar(200)
+  address_village_road_bn String       @default("") @db.VarChar(200)
+  mobile                  String       @db.VarChar(11)
+  dob                     DateTime     @db.Date
+  gender                  String?      @db.VarChar(6)
+  roll                    String?      @db.VarChar(6)
+  registration_no         String?      @db.VarChar(10)
+  gpa                     Decimal?     @db.Decimal(3, 2)
+  birth_reg_no            String?      @db.VarChar(17)
+  created_at              DateTime     @default(now())
+  certificate             certificates @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
+  school                  School       @relation(fields: [school_id], references: [id], onDelete: Cascade)
 
   @@index([certificate_id])
   @@index([school_id])

@@ -21,6 +21,7 @@ import {
   PartyPopper,
   Building2,
   Landmark,
+  Wallet,
   ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
@@ -165,6 +166,22 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           link: '/admin/registration/class-9',
           id: 'class-9-registration',
         },
+      ],
+    },
+    {
+      label: 'Fees',
+      icon: Wallet,
+      dropdown: true,
+      id: 'fees',
+      roles: ['admin'],
+      items: [
+        { label: 'Overview', link: '/admin/fees/overview', id: 'fees-overview' },
+        { label: 'Collect Fees', link: '/admin/fees/collect', id: 'fees-collect' },
+        { label: 'Receipts', link: '/admin/fees/receipts', id: 'fees-receipts' },
+        { label: 'Fee Heads', link: '/admin/fees/heads', id: 'fees-heads' },
+        { label: 'Fee Structure', link: '/admin/fees/structure', id: 'fees-structure' },
+        { label: 'Waivers', link: '/admin/fees/waivers', id: 'fees-waivers' },
+        { label: 'Reports', link: '/admin/fees/reports', id: 'fees-reports' },
       ],
     },
     {

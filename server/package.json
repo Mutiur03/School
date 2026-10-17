@@ -13,7 +13,7 @@
     "build": "prisma generate && nest build && tsc-alias",
     "db:migrate": "prisma generate && prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",
-    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:dev": "prisma migrate dev && prisma generate",
     "build:docker": "prisma generate",
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
