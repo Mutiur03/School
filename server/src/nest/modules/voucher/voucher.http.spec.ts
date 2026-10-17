@@ -5,8 +5,12 @@ import { env } from '../../../config/env.js';
 import { prisma } from '../../../config/prisma.js';
 import { redis } from '../../../config/redis.js';
 import { runWithRlsContext } from '../../../config/rlsContextStore.js';
-import { marksheetQueue } from '../../../modules/marks/marksheet.queue.js';
+import { nestApp } from '../../common/nest-app.js';
+import { MARKSHEET_QUEUE } from '../marksheets/jobs/marksheet.queue.js';
+import type { MarksheetQueue } from '../marksheets/jobs/marksheet.queue.js';
 import { attendanceSheetQueue } from '../../../modules/attendence/attendence-sheet.queue.js';
+
+const marksheetQueue = () => nestApp().get<MarksheetQueue>(MARKSHEET_QUEUE);
 
 // HTTP contract for /api/vouchers. Needs the accounts migration applied to the local DB.
 let server: Server;
@@ -57,7 +61,7 @@ afterAll(async () => {
   });
   server.closeAllConnections();
   await new Promise((r) => server.close(r));
-  await Promise.all([marksheetQueue.close(), attendanceSheetQueue.close(), prisma.$disconnect()]);
+  await Promise.all([marksheetQueue().close(), attendanceSheetQueue.close(), prisma.$disconnect()]);
   redis.disconnect();
 });
 
