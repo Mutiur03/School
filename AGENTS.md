@@ -30,8 +30,10 @@ Express → Nest migration (strangler fig, same process): Nest is mounted on the
 
 ### Module layout
 
+Related modules are grouped by domain in a subfolder with a parent module that imports its children (`modules/accounts/accounts.module.ts`, `modules/fees/fees.module.ts`; `app.module.ts` imports only the parent). Standalone modules stay at `modules/<name>/`. Each module inside keeps the layout below.
+
 ```
-nest/modules/<name>/
+nest/modules/[<group>/]<name>/
   dto/create-<name>.dto.ts
   dto/update-<name>.dto.ts      # PartialType(Create...)
   dto/<name>.dto.spec.ts
