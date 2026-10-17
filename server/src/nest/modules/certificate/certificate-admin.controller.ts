@@ -30,7 +30,7 @@ export class CertificateAdminController {
   }
 
   @Get(':id/revisions')
-  history(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
+  findRevisions(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
     return this.certificates.history(schoolId, id);
   }
 
@@ -47,7 +47,7 @@ export class CertificateAdminController {
   // Admin-only: any status (pending is stamped); prints the address unless ?address=false.
   @Get(':id/pdf')
   @Header('Cache-Control', 'no-store')
-  async pdf(
+  async findPdf(
     @SchoolId() schoolId: number,
     @Param('id', ParseUUIDPipe) id: string,
     @Query('address', new ParseBoolPipe({ optional: true })) withAddress = true,

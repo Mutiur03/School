@@ -11,30 +11,30 @@ export class FeeReportController {
   constructor(private readonly reports: FeeReportService) {}
 
   @Get('summary')
-  summary(@SchoolId() schoolId: number, @Query() q: SummaryQueryDto) {
+  findSummary(@SchoolId() schoolId: number, @Query() q: SummaryQueryDto) {
     return this.reports.summary(schoolId, q.date);
   }
 
   @Get('collection')
-  collection(@SchoolId() schoolId: number, @Query() q: CollectionQueryDto) {
+  findCollection(@SchoolId() schoolId: number, @Query() q: CollectionQueryDto) {
     return this.reports.collection(schoolId, q);
   }
 
   @Get('collection/pdf')
   @Header('Cache-Control', 'no-store')
-  async collectionPdf(@SchoolId() schoolId: number, @Query() q: CollectionQueryDto) {
+  async findCollectionPdf(@SchoolId() schoolId: number, @Query() q: CollectionQueryDto) {
     const { buffer, name } = await this.reports.collectionPdf(schoolId, q);
     return pdfFile(buffer, `${name}.pdf`);
   }
 
   @Get('dues')
-  dues(@SchoolId() schoolId: number, @Query() q: DuesQueryDto) {
+  findDues(@SchoolId() schoolId: number, @Query() q: DuesQueryDto) {
     return this.reports.dues(schoolId, q);
   }
 
   @Get('dues/pdf')
   @Header('Cache-Control', 'no-store')
-  async duesPdf(@SchoolId() schoolId: number, @Query() q: DuesQueryDto) {
+  async findDuesPdf(@SchoolId() schoolId: number, @Query() q: DuesQueryDto) {
     const { buffer, name } = await this.reports.duesPdf(schoolId, q);
     return pdfFile(buffer, `${name}.pdf`);
   }

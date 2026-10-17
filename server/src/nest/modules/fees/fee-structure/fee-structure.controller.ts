@@ -15,12 +15,12 @@ export class FeeStructureController {
   }
 
   @Put()
-  set(@SchoolId() schoolId: number, @Body() dto: SetStructureDto) {
-    return this.structures.set(schoolId, dto);
+  update(@SchoolId() schoolId: number, @Body() dto: SetStructureDto) {
+    return this.structures.update(schoolId, dto);
   }
 
-  @Post('copy')
-  copy(@SchoolId() schoolId: number, @Body() dto: CopyStructureDto) {
-    return this.structures.copy(schoolId, dto);
+  @Post()
+  create(@SchoolId() schoolId: number, @Body() dto: CopyStructureDto) {
+    return this.structures.create(schoolId, dto);
   }
 }

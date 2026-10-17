@@ -45,7 +45,7 @@ describe('FeeStructureService.findAll', () => {
   });
 });
 
-describe('FeeStructureService.set', () => {
+describe('FeeStructureService.update', () => {
   const dto = {
     year: 2026,
     class: 8,
@@ -58,7 +58,7 @@ describe('FeeStructureService.set', () => {
   it('replaces the class fee list inside one transaction', async () => {
     headsCount.mockResolvedValue(2);
     structures.findMany.mockResolvedValue([]);
-    await service.set(1, dto);
+    await service.update(1, dto);
     expect(headsCount).toHaveBeenCalledWith({ where: { id: { in: [1, 2] }, school_id: 1 } });
     expect(structures.deleteMany).toHaveBeenCalledWith({
       where: { school_id: 1, year: 2026, class: 8 },
@@ -73,26 +73,26 @@ describe('FeeStructureService.set', () => {
 
   it('rejects duplicate heads', async () => {
     await expect(
-      service.set(1, { ...dto, items: [dto.items[0], dto.items[0]] }),
+      service.update(1, { ...dto, items: [dto.items[0], dto.items[0]] }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(structures.deleteMany).not.toHaveBeenCalled();
   });
 
   it('rejects heads from another school', async () => {
     headsCount.mockResolvedValue(1);
-    await expect(service.set(1, dto)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.update(1, dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(structures.deleteMany).not.toHaveBeenCalled();
   });
 
   it('an empty list clears the class', async () => {
     headsCount.mockResolvedValue(0);
     structures.findMany.mockResolvedValue([]);
-    await service.set(1, { ...dto, items: [] });
+    await service.update(1, { ...dto, items: [] });
     expect(structures.deleteMany).toHaveBeenCalled();
   });
 });
 
-describe('FeeStructureService.copy', () => {
+describe('FeeStructureService.create', () => {
   it('copies only classes missing in the target year', async () => {
     structures.findMany
       .mockResolvedValueOnce([
@@ -100,7 +100,7 @@ describe('FeeStructureService.copy', () => {
         { class: 7, fee_head_id: 1, amount: 450 },
       ])
       .mockResolvedValueOnce([{ class: 6 }]);
-    const res = await service.copy(1, { from_year: 2026, to_year: 2027 });
+    const res = await service.create(1, { from_year: 2026, to_year: 2027 });
     expect(res).toEqual({ copied: 1 });
     expect(structures.createMany).toHaveBeenCalledWith({
       data: [{ school_id: 1, year: 2027, class: 7, fee_head_id: 1, amount: 450 }],
@@ -109,12 +109,12 @@ describe('FeeStructureService.copy', () => {
 
   it('does not write when nothing is left to copy', async () => {
     structures.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-    expect(await service.copy(1, { from_year: 2026, to_year: 2027 })).toEqual({ copied: 0 });
+    expect(await service.create(1, { from_year: 2026, to_year: 2027 })).toEqual({ copied: 0 });
     expect(structures.createMany).not.toHaveBeenCalled();
   });
 
   it('rejects same-year copy', async () => {
-    await expect(service.copy(1, { from_year: 2026, to_year: 2026 })).rejects.toBeInstanceOf(
+    await expect(service.create(1, { from_year: 2026, to_year: 2026 })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });

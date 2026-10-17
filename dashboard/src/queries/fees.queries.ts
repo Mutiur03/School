@@ -67,7 +67,7 @@ export const useSetFeeStructure = () =>
 
 export const useCopyFeeStructure = () =>
   useAccMutation(
-    (data: { from_year: number; to_year: number }) => axios.post('/api/fee-structures/copy', data),
+    (data: { from_year: number; to_year: number }) => axios.post('/api/fee-structures', data),
     ['fee-structures'],
     'Fees copied',
     'Error copying fees',

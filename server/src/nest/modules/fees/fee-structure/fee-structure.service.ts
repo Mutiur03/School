@@ -21,7 +21,7 @@ export class FeeStructureService {
     return rows.map((r) => ({ ...r, amount: Number(r.amount) }));
   }
 
-  async set(schoolId: number, dto: SetStructureDto) {
+  async update(schoolId: number, dto: SetStructureDto) {
     const ids = dto.items.map((i) => i.fee_head_id);
     if (new Set(ids).size !== ids.length) throw new BadRequestException('Duplicate fee head');
     // FK checks bypass RLS, so this school_id filter is the real tenant gate.
@@ -47,7 +47,7 @@ export class FeeStructureService {
   }
 
   /** Copies every class's fees into `to_year`, leaving classes that already have fees there alone. */
-  async copy(schoolId: number, dto: CopyStructureDto) {
+  async create(schoolId: number, dto: CopyStructureDto) {
     if (dto.from_year === dto.to_year) throw new BadRequestException('Years must differ');
     const [source, existing] = await Promise.all([
       this.prisma.fee_structures.findMany({ where: { school_id: schoolId, year: dto.from_year } }),

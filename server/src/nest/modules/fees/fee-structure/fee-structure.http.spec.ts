@@ -8,7 +8,7 @@ afterAll(() => api.stop());
 test.each([
   ['GET', '/api/fee-structures?year=2026'],
   ['PUT', '/api/fee-structures'],
-  ['POST', '/api/fee-structures/copy'],
+  ['POST', '/api/fee-structures'],
 ])('%s %s without token → 401', async (method, path) => {
   const { status, body } = await api.call(method, path, {
     body: method === 'GET' ? undefined : {},
@@ -52,8 +52,8 @@ test('PUT with an unknown fee head → 400', async () => {
   expect(body.message).toBe('Unknown fee head');
 });
 
-test('POST /copy to the same year → 400', async () => {
-  const { status } = await api.call('POST', '/api/fee-structures/copy', {
+test('POST to the same year → 400', async () => {
+  const { status } = await api.call('POST', '/api/fee-structures', {
     auth: true,
     body: { from_year: 2026, to_year: 2026 },
   });

@@ -39,7 +39,7 @@ export class FeeReceiptController {
 
   /** What one student owes / has paid in a year: the collection screen's source of truth. */
   @Get('statement')
-  statement(@SchoolId() schoolId: number, @Query() q: StatementQueryDto) {
+  findStatement(@SchoolId() schoolId: number, @Query() q: StatementQueryDto) {
     return this.dues.statement(schoolId, q.student_id, q.year);
   }
 
@@ -50,7 +50,7 @@ export class FeeReceiptController {
 
   @Get(':id/pdf')
   @Header('Cache-Control', 'no-store')
-  async receiptPdf(@SchoolId() schoolId: number, @Param('id', ParseIntPipe) id: number) {
+  async findPdf(@SchoolId() schoolId: number, @Param('id', ParseIntPipe) id: number) {
     const { buffer, name } = await this.pdf.generate(schoolId, id);
     return pdfFile(buffer, `${name}.pdf`);
   }

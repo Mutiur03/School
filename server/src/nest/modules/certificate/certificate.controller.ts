@@ -58,7 +58,7 @@ export class CertificateController {
 
   @Get(':id/pdf')
   @Header('Cache-Control', 'no-store')
-  async pdf(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
+  async findPdf(@SchoolId() schoolId: number, @Param('id', ParseUUIDPipe) id: string) {
     const { buffer, name } = await this.certificates.generatePdf(schoolId, id);
     return new StreamableFile(buffer, {
       type: 'application/pdf',

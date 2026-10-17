@@ -10,27 +10,27 @@ export class AccReportController {
   constructor(private readonly reports: AccReportService) {}
 
   @Get('ledger')
-  ledger(@SchoolId() schoolId: number, @Query() q: LedgerQueryDto) {
+  findLedger(@SchoolId() schoolId: number, @Query() q: LedgerQueryDto) {
     return this.reports.ledger(schoolId, q);
   }
 
   @Get('trial-balance')
-  trialBalance(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
+  findTrialBalance(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
     return this.reports.trialBalance(schoolId, q);
   }
 
   @Get('income-expense')
-  incomeExpense(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
+  findIncomeExpense(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
     return this.reports.incomeExpense(schoolId, q);
   }
 
   @Get('balance-sheet')
-  balanceSheet(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
+  findBalanceSheet(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
     return this.reports.balanceSheet(schoolId, q);
   }
 
   @Get('cost-center')
-  costCenter(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
+  findCostCenter(@SchoolId() schoolId: number, @Query() q: ReportQueryDto) {
     return this.reports.costCenter(schoolId, q);
   }
 }
