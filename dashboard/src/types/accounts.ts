@@ -10,6 +10,10 @@ export interface AccHead {
   bank_name: string | null;
   account_no: string | null;
   is_active: boolean;
+  /** Opening balance on the head's natural side (assets Dr, liabilities/equity Cr). */
+  opening_balance: number;
+  /** One date for all of the school's opening balances; null until the first is set. */
+  opening_date: string | null;
 }
 
 export interface CostCenter {
@@ -40,6 +44,8 @@ export interface Voucher {
   total: number;
   /** Set when a fee receipt posted this voucher: read-only here, managed from Fees > Receipts. */
   fee_receipt_no: number | null;
+  /** The opening-balances voucher: read-only here, edited on each account head. */
+  is_opening: boolean;
   lines: VoucherLine[];
 }
 

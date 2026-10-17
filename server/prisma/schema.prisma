@@ -201,6 +201,8 @@ model acc_vouchers {
   date        DateTime            @db.Date
   narration   String?             @db.Text
   reference   String?             @db.VarChar(100)
+  /** The single per-school voucher holding opening balances; edited only through account heads. */
+  is_opening  Boolean             @default(false)
   created_by  Int?
   created_at  DateTime            @default(now())
   updated_at  DateTime            @updatedAt

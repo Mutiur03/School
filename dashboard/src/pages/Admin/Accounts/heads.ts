@@ -70,3 +70,16 @@ export const depthOf = (id: number, byId: Map<number, AccHead>) => {
     d++;
   return d;
 };
+
+/** Types that can carry an opening balance (income/expense start every year at zero). */
+export const OPENING_TYPES: AccHeadType[] = ['asset', 'liability', 'equity'];
+
+/** Side an opening balance is entered on, per type. */
+export const OPENING_SIDE: Partial<Record<AccHeadType, string>> = {
+  asset: 'Debit balance',
+  liability: 'Credit balance',
+  equity: 'Credit balance',
+};
+
+/** Where the school's opening balances start unless set otherwise. */
+export const defaultOpeningDate = () => `${new Date().getFullYear()}-01-01`;

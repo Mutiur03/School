@@ -7,6 +7,7 @@ import {
   accHeadFormSchema,
   type AccHeadFormData,
   type AccHeadFormInput,
+  OPENING_EQUITY_NAME,
   type AccHeadType,
 } from '@school/shared-schemas';
 import { Button } from '@/components/ui/button';
@@ -20,8 +21,25 @@ import {
   useUpdateAccHead,
 } from '@/queries/accounts.queries';
 import type { AccHead } from '@/types/accounts';
-import { DataTable, Field, FormPopup, PageTitle, RowActions, StateRows, td } from './ui';
-import { TYPE_LABELS, groupByType, selectClass } from './heads';
+import {
+  DataTable,
+  Field,
+  FormPopup,
+  Money,
+  PageTitle,
+  RowActions,
+  StateRows,
+  num,
+  td,
+} from './ui';
+import {
+  OPENING_SIDE,
+  OPENING_TYPES,
+  TYPE_LABELS,
+  defaultOpeningDate,
+  groupByType,
+  selectClass,
+} from './heads';
 
 const EMPTY: AccHeadFormInput = {
   name: '',
@@ -32,12 +50,15 @@ const EMPTY: AccHeadFormInput = {
   bank_name: '',
   account_no: '',
   is_active: true,
+  opening_balance: '',
+  opening_date: '',
 };
 
 const columns = [
   { label: 'Name' },
   { label: 'Code', className: 'w-28' },
   { label: 'Cash / bank', className: 'w-56' },
+  { label: 'Opening', className: 'w-36 text-right' },
   { label: 'Status', className: 'w-24' },
   { label: 'Actions', className: 'w-px text-right' },
 ];
@@ -65,6 +86,10 @@ const AccountHeads = () => {
   const type = watch('type') as AccHeadType;
   const isCashBank = watch('is_cash_bank');
   const parentOptions = heads.filter((h) => h.type === type && h.id !== editing?.id);
+  // opening balances share one date: reuse it once the school has set it
+  const openingDate = heads.find((h) => h.opening_date)?.opening_date ?? defaultOpeningDate();
+  const canOpen = (t: AccHeadType, h: AccHead | null) =>
+    OPENING_TYPES.includes(t) && h?.name !== OPENING_EQUITY_NAME;
 
   const openForm = (head: AccHead | null, presetType?: AccHeadType) => {
     setEditing(head);
@@ -79,8 +104,10 @@ const AccountHeads = () => {
             bank_name: head.bank_name ?? '',
             account_no: head.account_no ?? '',
             is_active: head.is_active,
+            opening_balance: head.opening_balance ? String(head.opening_balance) : '',
+            opening_date: openingDate,
           }
-        : { ...EMPTY, type: presetType ?? EMPTY.type },
+        : { ...EMPTY, type: presetType ?? EMPTY.type, opening_date: openingDate },
     );
     setOpen(true);
   };
@@ -94,6 +121,11 @@ const AccountHeads = () => {
       is_cash_bank: cash,
       bank_name: cash ? data.bank_name : null,
       account_no: cash ? data.account_no : null,
+      // blank on edit clears it (0); types without opening balances send nothing
+      opening_balance: canOpen(data.type, editing)
+        ? (data.opening_balance ?? (editing ? 0 : undefined))
+        : undefined,
+      opening_date: canOpen(data.type, editing) ? data.opening_date : null,
     };
     try {
       if (editing) await updateHead.mutateAsync({ id: editing.id, data: payload });
@@ -165,6 +197,13 @@ const AccountHeads = () => {
                     '—'
                   )}
                 </td>
+                <td className={num}>
+                  {h.opening_balance && h.name !== OPENING_EQUITY_NAME ? (
+                    <Money value={h.opening_balance} />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
                 <td className={td}>
                   {h.is_active ? 'Active' : <span className="text-muted-foreground">Inactive</span>}
                 </td>
@@ -234,6 +273,29 @@ const AccountHeads = () => {
             <Field label="Account no.">
               <Input {...register('account_no')} />
             </Field>
+          </div>
+        )}
+        {canOpen(type, editing) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label={`Opening balance (${OPENING_SIDE[type]})`}
+              error={errors.opening_balance?.message}
+            >
+              <Input
+                type="number"
+                step="0.01"
+                {...register('opening_balance')}
+                className="text-right tabular-nums"
+                placeholder="0.00"
+              />
+            </Field>
+            <Field label="As of">
+              <Input type="date" {...register('opening_date')} />
+            </Field>
+            <p className="text-muted-foreground text-xs sm:col-span-2">
+              What this account held when you started using the system. One date applies to all
+              opening balances.
+            </p>
           </div>
         )}
         <label className="flex items-center gap-2 text-sm">

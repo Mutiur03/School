@@ -3,7 +3,7 @@ import { ACC_HEAD_TYPES, accHeadFormSchema, type AccHeadType } from '@school/sha
 import { Input } from '@/components/ui/input';
 import { useAccHeads, useCreateAccHead } from '@/queries/accounts.queries';
 import { Field, FormPopup } from './ui';
-import { TYPE_LABELS, selectClass } from './heads';
+import { OPENING_SIDE, OPENING_TYPES, TYPE_LABELS, defaultOpeningDate, selectClass } from './heads';
 
 export type QuickHead = {
   /** Locks the type when the field only accepts one (income row, cash/bank picker...). */
@@ -21,6 +21,9 @@ const QuickHeadPopup = ({ preset, onClose }: { preset: QuickHead; onClose: () =>
   const [cashBank, setCashBank] = useState(preset.cashBank ?? false);
   const [bankName, setBankName] = useState('');
   const [accountNo, setAccountNo] = useState('');
+  const [opening, setOpening] = useState('');
+  const existingDate = heads.find((h) => h.opening_date)?.opening_date;
+  const [openingDate, setOpeningDate] = useState(existingDate ?? defaultOpeningDate());
 
   const isCash = type === 'asset' && cashBank;
   // Names are unique per school. Say so before the server does; case-insensitive to also stop look-alikes.
@@ -34,6 +37,8 @@ const QuickHeadPopup = ({ preset, onClose }: { preset: QuickHead; onClose: () =>
     bank_name: isCash ? bankName : '',
     account_no: isCash ? accountNo : '',
     is_active: true,
+    opening_balance: OPENING_TYPES.includes(type) ? opening : '',
+    opening_date: openingDate,
   });
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -101,6 +106,36 @@ const QuickHeadPopup = ({ preset, onClose }: { preset: QuickHead; onClose: () =>
           />
           Cash / bank account
         </label>
+      )}
+      {OPENING_TYPES.includes(type) && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={`Opening balance (${OPENING_SIDE[type]})`}
+            error={
+              parsed.success
+                ? undefined
+                : parsed.error.issues.find((i) => i.path[0] === 'opening_balance')?.message
+            }
+          >
+            <Input
+              type="number"
+              step="0.01"
+              className="text-right tabular-nums"
+              value={opening}
+              onChange={(e) => setOpening(e.target.value)}
+              placeholder="0.00"
+            />
+          </Field>
+          {!existingDate && opening && (
+            <Field label="As of">
+              <Input
+                type="date"
+                value={openingDate}
+                onChange={(e) => setOpeningDate(e.target.value)}
+              />
+            </Field>
+          )}
+        </div>
       )}
       {isCash && (
         <div className="grid gap-4 sm:grid-cols-2">

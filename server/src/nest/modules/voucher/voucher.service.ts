@@ -43,6 +43,7 @@ const toResponse = (v: VoucherRow) => {
   }));
   return {
     fee_receipt_no: v.fee_receipt?.receipt_no ?? null,
+    is_opening: v.is_opening,
     id: v.id,
     voucher_no: `${PREFIX[v.type]}-${v.id}`,
     type: v.type,
@@ -160,16 +161,19 @@ export class VoucherService {
     await this.prisma.acc_vouchers.delete({ where: { id, school_id: schoolId } });
   }
 
-  /** A voucher posted by a fee receipt is owned by that receipt: edit/delete it there. */
+  /** Fee-receipt and opening-balance vouchers are owned by their source: edit/delete it there. */
   private async assertNotFeeVoucher(schoolId: number, id: number) {
-    const receipt = await this.prisma.fee_receipts.findFirst({
-      where: { voucher_id: id, school_id: schoolId },
-      select: { receipt_no: true },
+    const v = await this.prisma.acc_vouchers.findFirst({
+      where: { id, school_id: schoolId },
+      select: { is_opening: true, fee_receipt: { select: { receipt_no: true } } },
     });
-    if (receipt) {
+    if (v?.fee_receipt) {
       throw new BadRequestException(
-        `Posted by fee receipt #${receipt.receipt_no}. Delete that receipt from Fees > Receipts instead.`,
+        `Posted by fee receipt #${v.fee_receipt.receipt_no}. Delete that receipt from Fees > Receipts instead.`,
       );
+    }
+    if (v?.is_opening) {
+      throw new BadRequestException('Opening balances are edited on each account head.');
     }
   }
 

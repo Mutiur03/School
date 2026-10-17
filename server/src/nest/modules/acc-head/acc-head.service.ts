@@ -1,19 +1,37 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { AccHeadType, PrismaClient } from '@/generated/prisma/client.js';
+import { rlsTransaction } from '@/config/prisma.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { CreateAccHeadDto } from './dto/create-acc-head.dto.js';
 import type { UpdateAccHeadDto } from './dto/update-acc-head.dto.js';
+import { OpeningBalanceService } from './opening-balance.service.js';
 
 type TreeFields = { type: AccHeadType; parent_id?: number | null; is_cash_bank?: boolean };
 
 @Injectable()
 export class AccHeadService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    private readonly opening: OpeningBalanceService,
+  ) {}
 
-  findAll(schoolId: number) {
-    return this.prisma.acc_heads.findMany({
-      where: { school_id: schoolId },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+  /** Heads with their opening balance (natural side) and the school's opening date. */
+  async findAll(schoolId: number) {
+    const [heads, voucher] = await Promise.all([
+      this.prisma.acc_heads.findMany({
+        where: { school_id: schoolId },
+        orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      }),
+      this.opening.find(this.prisma, schoolId),
+    ]);
+    const lines = new Map(voucher?.lines.map((l) => [l.head_id, l]));
+    return heads.map((h) => {
+      const line = lines.get(h.id);
+      return {
+        ...h,
+        opening_balance: line ? OpeningBalanceService.amountOf(h.type, line) : 0,
+        opening_date: voucher ? voucher.date.toISOString().slice(0, 10) : null,
+      };
     });
   }
 
@@ -23,7 +41,14 @@ export class AccHeadService {
 
   async create(schoolId: number, dto: CreateAccHeadDto) {
     await this.validate(schoolId, dto);
-    return this.prisma.acc_heads.create({ data: { ...dto, school_id: schoolId } });
+    const { opening_balance, opening_date, ...data } = dto;
+    if (!opening_balance)
+      return this.prisma.acc_heads.create({ data: { ...data, school_id: schoolId } });
+    return rlsTransaction(async (tx) => {
+      const head = await tx.acc_heads.create({ data: { ...data, school_id: schoolId } });
+      await this.opening.set(tx, schoolId, head, opening_balance, opening_date);
+      return head;
+    });
   }
 
   async update(schoolId: number, id: number, dto: UpdateAccHeadDto) {
@@ -39,7 +64,14 @@ export class AccHeadService {
         id,
       );
     }
-    return this.prisma.acc_heads.update({ where: { id, school_id: schoolId }, data: dto });
+    const { opening_balance, opening_date, ...data } = dto;
+    const where = { id, school_id: schoolId };
+    if (opening_balance == null) return this.prisma.acc_heads.update({ where, data });
+    return rlsTransaction(async (tx) => {
+      const head = await tx.acc_heads.update({ where, data });
+      await this.opening.set(tx, schoolId, head, opening_balance, opening_date);
+      return head;
+    });
   }
 
   async remove(schoolId: number, id: number) {

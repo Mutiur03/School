@@ -4,6 +4,9 @@ import { normalizeOptionalText } from './utils.js';
 export const ACC_HEAD_TYPES = ['asset', 'liability', 'equity', 'income', 'expense'] as const;
 export type AccHeadType = (typeof ACC_HEAD_TYPES)[number];
 
+/** System equity head that balances the opening-balances voucher; its amount is never typed in. */
+export const OPENING_EQUITY_NAME = 'Opening Balance Equity';
+
 export const VOUCHER_TYPES = ['receipt', 'payment', 'contra', 'journal'] as const;
 export type VoucherType = (typeof VOUCHER_TYPES)[number];
 
@@ -23,6 +26,13 @@ export const accHeadFormSchema = z.object({
   bank_name: optionalText,
   account_no: optionalText,
   is_active: z.boolean(),
+  /** Balance on the opening date, on the head's natural side (negative = opposite side). */
+  opening_balance: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((v) => (v === '' || v == null ? undefined : Number(v)))
+    .refine((v) => v === undefined || Number.isFinite(v), 'Enter a valid amount'),
+  opening_date: optionalText,
 });
 export type AccHeadFormInput = z.input<typeof accHeadFormSchema>;
 export type AccHeadFormData = z.output<typeof accHeadFormSchema>;

@@ -6,6 +6,7 @@ type Fn = (args: any) => Promise<any>;
 
 // Fake Prisma injected through the constructor: no DB, no tenant.
 const vouchers = {
+  findFirst: jest.fn<Fn>(),
   findMany: jest.fn<Fn>(),
   findUniqueOrThrow: jest.fn<Fn>(),
   create: jest.fn<Fn>(),
@@ -15,10 +16,8 @@ const vouchers = {
 const headsFindMany = jest.fn<Fn>();
 const costCentersCount = jest.fn<Fn>();
 const linesDeleteMany = jest.fn<Fn>();
-const feeReceiptFindFirst = jest.fn<Fn>();
 const prisma = {
   acc_vouchers: vouchers,
-  fee_receipts: { findFirst: feeReceiptFindFirst },
   acc_heads: { findMany: headsFindMany },
   acc_cost_centers: { count: costCentersCount },
   acc_voucher_lines: { deleteMany: linesDeleteMany },
@@ -288,13 +287,13 @@ describe('VoucherService.update', () => {
   });
 
   it('voucher posted by a fee receipt → 400, nothing written', async () => {
-    feeReceiptFindFirst.mockResolvedValue({ receipt_no: 12 });
+    vouchers.findFirst.mockResolvedValue({ is_opening: false, fee_receipt: { receipt_no: 12 } });
     await expect(service.update(1, 7, { narration: 'x' })).rejects.toThrow(
       'Posted by fee receipt #12',
     );
-    expect(feeReceiptFindFirst).toHaveBeenCalledWith({
-      where: { voucher_id: 7, school_id: 1 },
-      select: { receipt_no: true },
+    expect(vouchers.findFirst).toHaveBeenCalledWith({
+      where: { id: 7, school_id: 1 },
+      select: { is_opening: true, fee_receipt: { select: { receipt_no: true } } },
     });
     expect(vouchers.update).not.toHaveBeenCalled();
     expect(linesDeleteMany).not.toHaveBeenCalled();
@@ -308,8 +307,14 @@ describe('VoucherService.remove', () => {
     expect(vouchers.delete).toHaveBeenCalledWith({ where: { id: 5, school_id: 1 } });
   });
 
+  it('opening-balance voucher → 400, not deleted', async () => {
+    vouchers.findFirst.mockResolvedValue({ is_opening: true, fee_receipt: null });
+    await expect(service.remove(1, 5)).rejects.toThrow('Opening balances are edited');
+    expect(vouchers.delete).not.toHaveBeenCalled();
+  });
+
   it('voucher posted by a fee receipt → 400, not deleted', async () => {
-    feeReceiptFindFirst.mockResolvedValue({ receipt_no: 3 });
+    vouchers.findFirst.mockResolvedValue({ is_opening: false, fee_receipt: { receipt_no: 3 } });
     await expect(service.remove(1, 5)).rejects.toBeInstanceOf(BadRequestException);
     expect(vouchers.delete).not.toHaveBeenCalled();
   });

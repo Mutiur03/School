@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@/generated/prisma/client.js';
 import type { PrismaClient } from '@/generated/prisma/client.js';
-import { AccHeadService } from './acc-head.service.js';
+import type { OpeningBalanceService } from './opening-balance.service.js';
 
 type Fn = (args: any) => Promise<any>;
 
@@ -16,7 +16,15 @@ const del = jest.fn<Fn>();
 const prisma = {
   acc_heads: { findMany, findFirst, findFirstOrThrow, create, update, delete: del },
 } as unknown as PrismaClient;
-const service = new AccHeadService(prisma);
+const opening = { find: jest.fn<Fn>(), set: jest.fn<Fn>() };
+
+// ESM: mock before importing the service. rlsTransaction just hands the fake client to the callback.
+jest.unstable_mockModule('@/config/prisma.js', () => ({
+  prisma,
+  rlsTransaction: (fn: (tx: unknown) => unknown) => fn(prisma),
+}));
+const { AccHeadService } = await import('./acc-head.service.js');
+const service = new AccHeadService(prisma, opening as unknown as OpeningBalanceService);
 
 const prismaError = (code: string) =>
   new Prisma.PrismaClientKnownRequestError(code, { code, clientVersion: 'test' });
@@ -26,11 +34,40 @@ afterEach(() => jest.resetAllMocks());
 describe('AccHeadService.findAll', () => {
   it('filters by school_id, sorted by type then name', async () => {
     findMany.mockResolvedValue([]);
+    opening.find.mockResolvedValue(null);
     await service.findAll(1);
     expect(findMany).toHaveBeenCalledWith({
       where: { school_id: 1 },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
     });
+    expect(opening.find).toHaveBeenCalledWith(prisma, 1);
+  });
+
+  it("adds each head's opening balance (natural side) and the opening date", async () => {
+    findMany.mockResolvedValue([
+      { id: 1, type: 'asset' },
+      { id: 2, type: 'liability' },
+      { id: 3, type: 'income' },
+    ]);
+    opening.find.mockResolvedValue({
+      date: new Date('2026-01-01'),
+      lines: [
+        { head_id: 1, debit: '500', credit: '0' },
+        { head_id: 2, debit: '0', credit: '200' },
+      ],
+    });
+    const res = await service.findAll(1);
+    expect(res.map((h) => [h.id, h.opening_balance, h.opening_date])).toEqual([
+      [1, 500, '2026-01-01'],
+      [2, 200, '2026-01-01'],
+      [3, 0, '2026-01-01'],
+    ]);
+  });
+
+  it('opening_date is null when no opening voucher exists', async () => {
+    findMany.mockResolvedValue([{ id: 1, type: 'asset' }]);
+    opening.find.mockResolvedValue(null);
+    expect((await service.findAll(1))[0]).toMatchObject({ opening_balance: 0, opening_date: null });
   });
 });
 
@@ -55,6 +92,32 @@ describe('AccHeadService.create', () => {
     expect(create).toHaveBeenCalledWith({
       data: { name: 'Cash', type: 'asset', is_cash_bank: true, school_id: 1 },
     });
+  });
+
+  it('with an opening balance: creates the head then sets it, in one transaction', async () => {
+    create.mockResolvedValue({ id: 8, type: 'asset' });
+    await service.create(1, {
+      name: 'Sonali',
+      type: 'asset',
+      opening_balance: 50000,
+      opening_date: '2026-01-01',
+    });
+    expect(create).toHaveBeenCalledWith({
+      data: { name: 'Sonali', type: 'asset', school_id: 1 },
+    });
+    expect(opening.set).toHaveBeenCalledWith(
+      prisma,
+      1,
+      { id: 8, type: 'asset' },
+      50000,
+      '2026-01-01',
+    );
+  });
+
+  it('opening_balance 0 on create does not touch the opening voucher', async () => {
+    create.mockResolvedValue({ id: 8 });
+    await service.create(1, { name: 'Sonali', type: 'asset', opening_balance: 0 });
+    expect(opening.set).not.toHaveBeenCalled();
   });
 
   it('looks up parent within the same school', async () => {
@@ -100,6 +163,13 @@ describe('AccHeadService.update', () => {
       where: { id: 5, school_id: 1 },
       data: { name: 'New' },
     });
+  });
+
+  it('opening_balance 0 on update clears it (still calls set)', async () => {
+    update.mockResolvedValue({ id: 5, type: 'asset' });
+    await service.update(1, 5, { opening_balance: 0 });
+    expect(update).toHaveBeenCalledWith({ where: { id: 5, school_id: 1 }, data: {} });
+    expect(opening.set).toHaveBeenCalledWith(prisma, 1, { id: 5, type: 'asset' }, 0, undefined);
   });
 
   it('parent change validated against current type', async () => {

@@ -26,12 +26,18 @@ describe('CreateAccHeadDto', () => {
     [{ ...valid, account_no: 'x'.repeat(51) }],
     [{ ...valid, is_active: 1 }],
     [{ ...valid, school_id: 2 }],
+    [{ ...valid, opening_balance: '100' }],
+    [{ ...valid, opening_balance: 1.234 }],
+    [{ ...valid, opening_date: '01/01/2026' }],
   ])('rejects %j → 400', async (body) => {
     await expect(run(body, CreateAccHeadDto)).rejects.toMatchObject({ status: 400 });
   });
 
   it.each([
     [valid],
+    [{ ...valid, opening_balance: 50000.5, opening_date: '2026-01-01' }],
+    [{ ...valid, opening_balance: -20 }],
+    [{ ...valid, opening_balance: 0 }],
     [
       {
         ...valid,

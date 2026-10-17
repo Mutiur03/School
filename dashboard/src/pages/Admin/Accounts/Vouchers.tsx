@@ -82,7 +82,7 @@ const Vouchers = () => {
           vouchers.map((v) => (
             <tr key={v.id} className="bg-card hover:bg-muted/40">
               <td className={td}>
-                {v.fee_receipt_no ? (
+                {v.fee_receipt_no || v.is_opening ? (
                   <span className="font-medium tabular-nums">{v.voucher_no}</span>
                 ) : (
                   <button
@@ -112,13 +112,17 @@ const Vouchers = () => {
                 <Money value={v.total} />
               </td>
               <td className={`${td} text-right`}>
-                {v.fee_receipt_no ? (
+                {v.fee_receipt_no || v.is_opening ? (
                   <Badge
                     variant="outline"
                     className="whitespace-nowrap"
-                    title="Posted by fee collection. Edit or delete the receipt in Fees > Receipts."
+                    title={
+                      v.is_opening
+                        ? 'Opening balances. Edit them on each account head.'
+                        : 'Posted by fee collection. Edit or delete the receipt in Fees > Receipts.'
+                    }
                   >
-                    Fee receipt #{v.fee_receipt_no}
+                    {v.is_opening ? 'Opening balances' : `Fee receipt #${v.fee_receipt_no}`}
                   </Badge>
                 ) : (
                   <RowActions
