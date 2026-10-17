@@ -23,6 +23,10 @@ import {
   Landmark,
   Wallet,
   ChevronDown,
+  CalendarClock,
+  BookOpen,
+  BarChart3,
+  ScrollText,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import useNavigationStore from '@/store/navigation.Store';
@@ -49,6 +53,7 @@ interface SidebarItem {
     id: string;
   }[];
   roles?: ('admin' | 'teacher' | 'student' | 'super_admin')[];
+  section?: string;
 }
 const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') => {
   const adminRoutes: SidebarItem[] = [
@@ -61,49 +66,62 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       roles: ['admin'],
     },
     {
-      label: 'Student',
+      label: 'Students',
       icon: GraduationCap,
       dropdown: true,
       id: 'student',
       link: '/admin/students',
       roles: ['admin'],
+      section: 'People',
       items: [
-        {
-          label: 'Student List',
-          link: '/admin/students/student-list',
-          id: 'student-list',
-        },
-        {
-          label: 'Alumni List',
-          link: '/admin/students/alumni-list',
-          id: 'alumni-list',
-        },
+        { label: 'Student List', link: '/admin/students/student-list', id: 'student-list' },
+        { label: 'Alumni List', link: '/admin/students/alumni-list', id: 'alumni-list' },
       ],
     },
     {
-      label: 'Teacher',
+      label: 'Staff',
       icon: Briefcase,
       dropdown: true,
       id: 'administration',
       roles: ['admin'],
       items: [
-        {
-          label: 'Teacher List',
-          link: '/admin/administration/teacher-list',
-          id: 'teachers',
-        },
-        {
-          label: 'Staff List',
-          link: '/admin/administration/staff-list',
-          id: 'staff-list',
-        },
-
-        {
-          label: 'Message From Head',
-          link: '/admin/administration/head',
-          id: 'head-message',
-        },
+        { label: 'Teacher List', link: '/admin/administration/teacher-list', id: 'teachers' },
+        { label: 'Staff List', link: '/admin/administration/staff-list', id: 'staff-list' },
+        { label: 'Message From Head', link: '/admin/administration/head', id: 'head-message' },
       ],
+    },
+    {
+      label: 'Attendance',
+      icon: CalendarCheck,
+      dropdown: false,
+      link: '/admin/attendance',
+      id: 'attendance',
+      roles: ['admin'],
+      section: 'Academics',
+    },
+    {
+      label: 'Running Away',
+      icon: Footprints,
+      dropdown: false,
+      link: '/admin/attendance-double',
+      id: 'stay-check',
+      roles: ['admin'],
+    },
+    {
+      label: 'Class Routine',
+      icon: CalendarClock,
+      dropdown: false,
+      link: '/admin/classRoutine',
+      id: 'class-routine',
+      roles: ['admin'],
+    },
+    {
+      label: 'Syllabus',
+      icon: BookOpen,
+      dropdown: false,
+      link: '/admin/syllabus',
+      id: 'syllabus',
+      roles: ['admin'],
     },
     {
       label: 'Results',
@@ -112,31 +130,29 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       id: 'reports',
       roles: ['admin'],
       items: [
-        {
-          label: 'Subjects',
-          link: '/admin/result/add-subject',
-          id: 'add-subject',
-        },
-        {
-          label: 'Assigned Teachers',
-          link: '/admin/result/assigned-teachers',
-          id: 'assignments',
-        },
-        {
-          label: 'Add Marks',
-          link: '/admin/result/add-marks',
-          id: 'add-marks',
-        },
-        {
-          label: 'View Result',
-          link: '/admin/result/view-marks',
-          id: 'view-marks',
-        },
+        { label: 'Exam Setup', link: '/admin/settings/add-exam', id: 'add-exam' },
+        { label: 'Subjects', link: '/admin/result/add-subject', id: 'add-subject' },
+        { label: 'Assigned Teachers', link: '/admin/result/assigned-teachers', id: 'assignments' },
+        { label: 'Add Marks', link: '/admin/result/add-marks', id: 'add-marks' },
+        { label: 'View Result', link: '/admin/result/view-marks', id: 'view-marks' },
         {
           label: 'Year-End Promotion',
           link: '/admin/result/generate-result',
           id: 'generate-result',
         },
+      ],
+    },
+    {
+      label: 'Admission',
+      icon: UserPlus,
+      dropdown: true,
+      id: 'admission',
+      roles: ['admin'],
+      section: 'Admissions',
+      items: [
+        { label: 'Form', link: '/admin/admission/form', id: 'admission-form' },
+        { label: 'Settings', link: '/admin/admission/settings', id: 'admission-settings' },
+        { label: 'Result', link: '/admin/admission/result', id: 'admission-result' },
       ],
     },
     {
@@ -156,11 +172,6 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
           link: '/admin/registration/class-8',
           id: 'class-8-registration',
         },
-        // {
-        //   label: 'Junior Scholarship Exam',
-        //   link: '/admin/registration/junior-scholarship',
-        //   id: 'junior-scholarship-registration',
-        // },
         {
           label: 'Class Nine Registration',
           link: '/admin/registration/class-9',
@@ -174,6 +185,7 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       dropdown: true,
       id: 'fees',
       roles: ['admin'],
+      section: 'Finance',
       items: [
         { label: 'Overview', link: '/admin/fees/overview', id: 'fees-overview' },
         { label: 'Collect Fees', link: '/admin/fees/collect', id: 'fees-collect' },
@@ -195,6 +207,15 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
         { label: 'Cost Centers', link: '/admin/accounts/cost-centers', id: 'acc-cost-centers' },
         { label: 'Vouchers', link: '/admin/accounts/vouchers', id: 'acc-vouchers' },
         { label: 'Fiscal Years', link: '/admin/accounts/years', id: 'acc-years' },
+      ],
+    },
+    {
+      label: 'Account Reports',
+      icon: BarChart3,
+      dropdown: true,
+      id: 'account-reports',
+      roles: ['admin'],
+      items: [
         { label: 'Ledger', link: '/admin/accounts/reports/ledger', id: 'acc-ledger' },
         {
           label: 'Trial Balance',
@@ -219,78 +240,13 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       ],
     },
     {
-      label: 'Admission',
-      icon: UserPlus,
-      dropdown: true,
-      id: 'admission',
-      roles: ['admin'],
-      items: [
-        {
-          label: 'Form',
-          link: '/admin/admission/form',
-          id: 'admission-form',
-        },
-        {
-          label: 'Settings',
-          link: '/admin/admission/settings',
-          id: 'admission-settings',
-        },
-        {
-          label: 'Result',
-          link: '/admin/admission/result',
-          id: 'admission-result',
-        },
-      ],
-    },
-    {
-      label: 'Settings',
-      icon: Settings,
-      dropdown: true,
-      id: 'settings',
-      roles: ['admin'],
-      items: [
-        {
-          label: 'Exam',
-          link: '/admin/settings/add-exam',
-          id: 'add-exam',
-        },
-        {
-          label: 'Billing',
-          link: '/admin/settings/billing',
-          id: 'billing',
-        },
-        {
-          label: 'Syllabus',
-          link: '/admin/syllabus',
-          id: 'syllabus',
-        },
-        {
-          label: 'Class Routine',
-          link: '/admin/classRoutine',
-          id: 'class-routine',
-        },
-        {
-          label: 'Citizen Charter',
-          link: '/admin/citizencharter',
-          id: 'citizen-charter',
-        },
-      ],
-    },
-    {
-      label: 'Attendance',
-      icon: CalendarCheck,
+      label: 'Notice',
+      icon: Bell,
       dropdown: false,
-      link: '/admin/attendance',
-      id: 'attendance',
+      link: '/admin/notice',
+      id: 'notice',
       roles: ['admin'],
-    },
-    {
-      label: 'Running Away',
-      icon: Footprints,
-      dropdown: false,
-      link: '/admin/attendance-double',
-      id: 'stay-check',
-      roles: ['admin'],
+      section: 'Communication',
     },
     {
       label: 'SMS Management',
@@ -298,30 +254,6 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       dropdown: false,
       link: '/admin/sms-management',
       id: 'sms-management',
-      roles: ['admin'],
-    },
-    {
-      label: 'Notice',
-      icon: Bell,
-      dropdown: false,
-      link: '/admin/notice',
-      id: 'notice',
-      roles: ['admin'],
-    },
-    {
-      label: 'Holiday',
-      icon: TreePalm,
-      dropdown: false,
-      link: '/admin/holiday',
-      id: 'holiday',
-      roles: ['admin'],
-    },
-    {
-      label: 'Certificates',
-      icon: FileCheck,
-      dropdown: false,
-      link: '/admin/certificates',
-      id: 'certificates',
       roles: ['admin'],
     },
     {
@@ -333,28 +265,49 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       roles: ['admin'],
     },
     {
+      label: 'Holiday',
+      icon: TreePalm,
+      dropdown: false,
+      link: '/admin/holiday',
+      id: 'holiday',
+      roles: ['admin'],
+    },
+    {
       label: 'Gallery',
       icon: ImageIcon,
       dropdown: true,
       id: 'gallery',
       roles: ['admin'],
       items: [
-        {
-          label: 'Upload Image',
-          link: '/admin/gallery/upload',
-          id: 'upload-image',
-        },
-        {
-          label: 'Approve Image',
-          link: '/admin/gallery/pending',
-          id: 'approve-image',
-        },
-        {
-          label: 'Rejected Image',
-          link: '/admin/gallery/rejected',
-          id: 'rejected-image',
-        },
+        { label: 'Upload Image', link: '/admin/gallery/upload', id: 'upload-image' },
+        { label: 'Approve Image', link: '/admin/gallery/pending', id: 'approve-image' },
+        { label: 'Rejected Image', link: '/admin/gallery/rejected', id: 'rejected-image' },
       ],
+    },
+    {
+      label: 'Certificates',
+      icon: FileCheck,
+      dropdown: false,
+      link: '/admin/certificates',
+      id: 'certificates',
+      roles: ['admin'],
+    },
+    {
+      label: 'Citizen Charter',
+      icon: ScrollText,
+      dropdown: false,
+      link: '/admin/citizencharter',
+      id: 'citizen-charter',
+      roles: ['admin'],
+    },
+    {
+      label: 'Billing',
+      icon: Settings,
+      dropdown: false,
+      link: '/admin/settings/billing',
+      id: 'billing',
+      roles: ['admin'],
+      section: 'System',
     },
   ];
 
@@ -651,8 +604,17 @@ const Sidebar = ({
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-4 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <ul className="space-y-1 px-2">
-              {sidebarItems.map((item) => (
+              {sidebarItems.map((item, i) => (
                 <li key={item.id}>
+                  {item.section &&
+                    item.section !== sidebarItems[i - 1]?.section &&
+                    (sidebarExpanded ? (
+                      <div className="text-muted-foreground px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider">
+                        {item.section}
+                      </div>
+                    ) : (
+                      <div className="border-border mx-2 my-2 border-t" />
+                    ))}
                   {!item.dropdown ? (
                     <NavLink
                       to={item.link as string}
