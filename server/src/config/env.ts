@@ -10,7 +10,6 @@ const envSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)'),
   /** Signs refresh tokens. Unset = falls back to JWT_SECRET with a startup warning (see docs/native-auth.md). */
-  REFRESH_TOKEN_SECRET: z.string().min(1).optional(),
   /** Host suffix for platform-subdomain schools in school-code lookups. Default: `-dashboard.mutiurrahman.com` in production, `.localhost` otherwise. */
   TENANT_HOST_SUFFIX: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

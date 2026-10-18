@@ -59,11 +59,11 @@ Security design:
 
 ## 2. Tokens
 
-|        | Access                        | Refresh                                                            |
-| ------ | ----------------------------- | ------------------------------------------------------------------ |
-| Secret | `JWT_SECRET`                  | `REFRESH_TOKEN_SECRET` (falls back to `JWT_SECRET` with a warning) |
-| Claims | `id, role, typ:'access', sch` | `id, role, version, typ:'refresh', fam, sch, jti`                  |
-| TTL    | 15 min (1 min in development) | 7 days                                                             |
+|        | Access                        | Refresh                                           |
+| ------ | ----------------------------- | ------------------------------------------------- |
+| Secret | `JWT_SECRET`                  | `JWT_SECRET` (the `typ` claim separates the two)  |
+| Claims | `id, role, typ:'access', sch` | `id, role, version, typ:'refresh', fam, sch, jti` |
+| TTL    | 15 min (1 min in development) | 7 days                                            |
 
 - `verifyAccessToken` rejects refresh tokens, so a refresh token can never be used as a
   bearer token. `getTokenRole` (RLS super-admin context) only trusts access tokens.
@@ -121,7 +121,6 @@ workers must be deployed for native sign-in through the edge.
 
 | Variable                    | Where    | Notes                                                                                                                                              |
 | --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `REFRESH_TOKEN_SECRET`      | server   | Recommended. Must differ from `JWT_SECRET`. Unset or equal falls back to `JWT_SECRET` and logs a warning once.                                     |
 | `TENANT_HOST_SUFFIX`        | server   | Optional. Host suffix for subdomain schools in lookup results. Defaults to `-dashboard.mutiurrahman.com` in production and `.localhost` otherwise. |
 | `EXPO_PUBLIC_DIRECTORY_URL` | Expo app | Origin that answers the lookup before a school is chosen. It must reach the server without tenant resolution.                                      |
 | `EXPO_PUBLIC_API_BASE_URL`  | Expo app | Optional. Pins a build to one school; school codes are then not used.                                                                              |
@@ -131,14 +130,11 @@ workers must be deployed for native sign-in through the edge.
 1. **Migration first:** `20261018120000_school_access_codes_auth_sessions`. It is additive:
    two new tables, RLS, one function. Old code ignores it.
 2. **Server.** Existing sessions keep working (see legacy tokens).
-3. **Set `REFRESH_TOKEN_SECRET`** with the same deploy, or later. Setting it later makes
-   typed refresh tokens signed with `JWT_SECRET` invalid: those users sign in again. Legacy
-   tokens are still accepted once, because they are verified against `JWT_SECRET` too.
-4. **Workers** (`auth-bff`, `tenant-router`) for native pass-through. Web behavior is
+3. **Workers** (`auth-bff`, `tenant-router`) for native pass-through. Web behavior is
    identical before and after.
-5. **Dashboard** (School Codes page), then app builds.
+4. **Dashboard** (School Codes page), then app builds.
 
-Rotating `REFRESH_TOKEN_SECRET` signs everyone out at their next refresh.
+Rotating `JWT_SECRET` signs everyone out at their next refresh.
 
 ## 6. Tests
 
@@ -172,7 +168,7 @@ Everything below is local only: never point it at a shared database.
    - The runtime role must be a non-superuser with NOBYPASSRLS (`school_app`, as in
      `docker/postgres/init/10-harden-runtime-role.sh`), so RLS is enforced the way it is in
      production.
-2. **`server/.env`** (git-ignored). Generate the secrets with `openssl rand -hex 32`:
+2. **`server/.env`** (git-ignored). Generate secrets with `openssl rand -hex 32`:
 
    ```env
    NODE_ENV=development            # access tokens live 1 minute here: refresh is exercised
@@ -180,7 +176,6 @@ Everything below is local only: never point it at a shared database.
    DATABASE_URL=postgresql://school_app:<pw>@127.0.0.1:5432/school_dev   # runtime, RLS enforced
    DIRECT_URL=postgresql://postgres:<pw>@127.0.0.1:5432/school_dev       # migrations (superuser)
    JWT_SECRET=<random>
-   REFRESH_TOKEN_SECRET=<random, different>
    ENCRYPTION_KEY=<64 hex chars>
    REDIS_HOST=127.0.0.1
    TENANT_HOST_SUFFIX=.localhost   # school "alpha" -> alpha.localhost

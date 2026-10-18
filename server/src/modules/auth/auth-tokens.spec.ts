@@ -4,7 +4,6 @@ import { env } from '@/config/env.js';
 import {
   accessTokenRole,
   authClientOf,
-  refreshTokenSecret,
   signAccessToken,
   signRefreshToken,
   UnsupportedClientError,
@@ -13,23 +12,9 @@ import {
 } from './auth-tokens.js';
 
 // Pure JWT logic: no DB, no Redis (runs in CI).
-const ORIGINAL = process.env.REFRESH_TOKEN_SECRET;
-afterEach(() => {
-  if (ORIGINAL === undefined) delete process.env.REFRESH_TOKEN_SECRET;
-  else process.env.REFRESH_TOKEN_SECRET = ORIGINAL;
-});
-
 const refreshClaims = { id: 7, role: 'admin', version: 0, sch: 3, fam: 'fam-1' };
 
-describe.each([
-  ['REFRESH_TOKEN_SECRET unset (fallback to JWT_SECRET)', undefined],
-  ['REFRESH_TOKEN_SECRET set', 'a-separate-refresh-secret-for-tests'],
-])('token type separation, %s', (_name, secret) => {
-  beforeEach(() => {
-    if (secret === undefined) delete process.env.REFRESH_TOKEN_SECRET;
-    else process.env.REFRESH_TOKEN_SECRET = secret;
-  });
-
+describe('token type separation (both signed with JWT_SECRET)', () => {
   it('access token verifies as access, never as refresh', () => {
     const access = signAccessToken({ id: 7, role: 'admin', sch: 3 });
     expect(verifyAccessToken(access)).toMatchObject({
@@ -44,9 +29,8 @@ describe.each([
   it('refresh token verifies as refresh, never as access', () => {
     const refresh = signRefreshToken(refreshClaims, 'jti-1');
     expect(verifyRefreshToken(refresh)).toMatchObject({ typ: 'refresh', jti: 'jti-1', sch: 3 });
-    // When both use JWT_SECRET the signature passes; the typ claim must still reject it.
-    if (secret === undefined) expect(verifyAccessToken(refresh)).toBeNull();
-    else expect(() => verifyAccessToken(refresh)).toThrow();
+    // The signature passes; the typ claim must still reject it.
+    expect(verifyAccessToken(refresh)).toBeNull();
     expect(accessTokenRole(refresh)).toBeUndefined();
   });
 
@@ -63,19 +47,10 @@ describe.each([
   });
 });
 
-describe('refresh secret', () => {
-  it('falls back to JWT_SECRET when unset or equal', () => {
-    delete process.env.REFRESH_TOKEN_SECRET;
-    expect(refreshTokenSecret()).toBe(env.JWT_SECRET);
-    process.env.REFRESH_TOKEN_SECRET = env.JWT_SECRET;
-    expect(refreshTokenSecret()).toBe(env.JWT_SECRET);
-  });
-
-  it('a typed refresh token signed with JWT_SECRET is rejected once a separate secret is set', () => {
-    delete process.env.REFRESH_TOKEN_SECRET;
-    const old = signRefreshToken(refreshClaims, 'jti-2');
-    process.env.REFRESH_TOKEN_SECRET = 'a-separate-refresh-secret-for-tests';
-    expect(verifyRefreshToken(old)).toBeNull();
+describe('signature checks', () => {
+  it('refresh tokens are signed with JWT_SECRET', () => {
+    const refresh = signRefreshToken(refreshClaims, 'jti-2');
+    expect(() => jwt.verify(refresh, env.JWT_SECRET)).not.toThrow();
   });
 
   it('rejects tampered or foreign-signed tokens', () => {

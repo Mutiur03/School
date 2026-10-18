@@ -208,10 +208,9 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=...
 ```
 
-**Server — auth (recommended)**
+**Server — auth (optional)**
 
 ```env
-REFRESH_TOKEN_SECRET=...      # separate from JWT_SECRET; falls back to it with a warning
 TENANT_HOST_SUFFIX=-dashboard.mutiurrahman.com   # optional, school-code lookup hosts
 ```
 
