@@ -54,6 +54,7 @@ const SmsManagement = lazy(() => import('./pages/Admin/SmsManagement'));
 const Billing = lazy(() => import('./pages/Admin/Billing'));
 const Notice = lazy(() => import('./pages/Admin/Notice'));
 const Holidays = lazy(() => import('./pages/Admin/Holidays'));
+const SchoolCodes = lazy(() => import('./pages/Admin/SchoolCodes'));
 const AccountHeads = lazy(() => import('./pages/Admin/Accounts/AccountHeads'));
 const CostCenters = lazy(() => import('./pages/Admin/Accounts/CostCenters'));
 const FiscalYears = lazy(() => import('./pages/Admin/Accounts/FiscalYears'));
@@ -113,6 +114,7 @@ registerRoutePrefetchers({
   '/admin/attendance-double': StayCheck,
   '/admin/sms-management': SmsManagement,
   '/admin/settings/billing': Billing,
+  '/admin/settings/school-codes': SchoolCodes,
   '/admin/notice': Notice,
   '/admin/holiday': Holidays,
   '/admin/fees/overview': FeeOverview,
@@ -479,6 +481,7 @@ function App() {
                               <Route path="/attendance-double" element={<StayCheck />} />
                               <Route path="/sms-management" element={<SmsManagement />} />
                               <Route path="/settings/billing" element={<Billing />} />
+                              <Route path="/settings/school-codes" element={<SchoolCodes />} />
                               <Route path="/notice" element={<Notice />} />
                               <Route path="/holiday" element={<Holidays />} />
                               <Route path="/fees/overview" element={<FeeOverview />} />

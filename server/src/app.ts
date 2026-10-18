@@ -62,6 +62,17 @@ import { enforceSubscriptionAccess } from './middlewares/subscription-access.mid
 
 const app = express();
 
+/**
+ * Public routes that run before any school is known: the app looks its school up by code and
+ * only then talks to that school's host. Exact method + path; everything else still needs a
+ * resolved tenant. The handler itself reads only through a narrow SECURITY DEFINER function.
+ */
+const PRE_TENANT_ROUTES = new Set(['POST /api/school-code-lookups']);
+const skipPreTenantRoutes =
+  (middleware: express.RequestHandler): express.RequestHandler =>
+  (req, res, next) =>
+    PRE_TENANT_ROUTES.has(`${req.method} ${req.path}`) ? next() : middleware(req, res, next);
+
 /** Behind nginx-proxy / load balancer in production — required for rate-limit IP keys. */
 const resolveTrustProxy = (): boolean | number => {
   const raw = env.TRUST_PROXY?.trim().toLowerCase();
@@ -183,10 +194,10 @@ app.get('/api/resetLimit', AuthMiddleware.authenticate(['admin']), (_req, res) =
 app.use(superAdminAuthRouter);
 app.use(superAdminSchoolRouter);
 app.use(superAdminExamTypeRouter);
-app.use(schoolContextMiddleware);
+app.use(skipPreTenantRoutes(schoolContextMiddleware));
 app.use(syncRlsSchoolContextMiddleware);
 app.use(sharedAuthSessionRouter);
-app.use(requireSchoolContextMiddleware);
+app.use(skipPreTenantRoutes(requireSchoolContextMiddleware));
 app.use(enforceSubscriptionAccess);
 
 app.use(studentRouter);
