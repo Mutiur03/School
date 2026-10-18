@@ -416,7 +416,8 @@ model admin {
 
 model students {
   id              Int                   @id @default(autoincrement())
-  login_id        BigInt                @unique
+  /// Unique per school (see @@unique below); login is always scoped by school_id.
+  login_id        BigInt
   name            String                @db.VarChar(100)
   father_name     String?               @db.VarChar(100)
   mother_name     String?               @db.VarChar(100)
@@ -453,6 +454,7 @@ model students {
   @@index([father_phone])
   @@index([mother_phone])
   @@index([school_id])
+  @@unique([school_id, login_id])
 }
 
 model promotion_pass_rules {
