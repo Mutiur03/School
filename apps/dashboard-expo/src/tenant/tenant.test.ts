@@ -21,7 +21,7 @@ import {
   purgePrivateQueries,
   tenantQueryKey,
 } from './query-keys';
-import { normalizeHost, resolveTenant } from './resolve';
+import { normalizeHost, resolveTenant, tenantConnection } from './resolve';
 
 describe('resolveTenant', () => {
   it('web same-origin uses the page host (port stripped)', () => {
@@ -75,6 +75,82 @@ describe('resolveTenant', () => {
       }).tenantKey,
       'demo.localhost',
     );
+  });
+  it('a confirmed school code applies when nothing pins the host', () => {
+    const base = { apiBaseUrl: '', devTenantHost: null, selectedHost: 'fxa.localhost' };
+    assert.deepEqual(resolveTenant({ ...base, platform: 'ios', pageHost: null }), {
+      tenantKey: 'fxa.localhost',
+      host: 'fxa.localhost',
+      source: 'school-code',
+    });
+    // Bare localhost is never a school, so the selection wins on a local web build...
+    assert.equal(
+      resolveTenant({ ...base, platform: 'web', pageHost: 'localhost:8081' }).source,
+      'school-code',
+    );
+    assert.equal(
+      resolveTenant({ ...base, platform: 'web', pageHost: '127.0.0.1:8081' }).source,
+      'school-code',
+    );
+    // ...but a real school page host beats it (first-party cookies), and so does a pinned API.
+    assert.equal(
+      resolveTenant({ ...base, platform: 'web', pageHost: 'lbp-dashboard.mutiurrahman.com' })
+        .source,
+      'page-host',
+    );
+    assert.equal(
+      resolveTenant({
+        ...base,
+        platform: 'android',
+        pageHost: null,
+        apiBaseUrl: 'https://x.example.com',
+      }).source,
+      'api-host',
+    );
+    assert.equal(
+      resolveTenant({ ...base, platform: 'web', pageHost: 'localhost', selectedHost: null }).source,
+      'unresolved',
+    );
+  });
+  it('tenantConnection: where requests go for each source', () => {
+    const cfg = {
+      appEnv: 'production' as const,
+      apiBaseUrl: '',
+      directoryUrl: 'https://dir.example.com',
+    };
+    const sel = resolveTenant({
+      platform: 'ios',
+      pageHost: null,
+      apiBaseUrl: '',
+      devTenantHost: null,
+      selectedHost: 'a.example.com',
+    });
+    assert.deepEqual(tenantConnection(sel, cfg, 'https://a.example.com'), {
+      baseUrl: 'https://a.example.com',
+      tenantHeader: null,
+    });
+    // Local dev: one server, school chosen by header.
+    assert.deepEqual(
+      tenantConnection(
+        sel,
+        { ...cfg, appEnv: 'local', directoryUrl: 'http://10.0.2.2:5000' },
+        'http://a.example.com:5000',
+      ),
+      {
+        baseUrl: 'http://10.0.2.2:5000',
+        tenantHeader: 'a.example.com',
+      },
+    );
+    const none = resolveTenant({
+      platform: 'ios',
+      pageHost: null,
+      apiBaseUrl: '',
+      devTenantHost: null,
+    });
+    assert.deepEqual(tenantConnection(none, cfg, null), {
+      baseUrl: 'https://dir.example.com',
+      tenantHeader: null,
+    });
   });
   it('rejects junk hosts', () => {
     assert.equal(normalizeHost('https://user@evil.com/path'), 'evil.com');

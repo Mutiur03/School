@@ -9,8 +9,9 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SchoolProvider, useSchool } from '@/school/SchoolProvider';
 import { ApiProvider } from '@/session/ApiProvider';
 import { getCurrentTenantResolution } from '@/tenant/current-resolution';
 import { TenantProvider, useTenant } from '@/tenant/TenantProvider';
@@ -21,6 +22,26 @@ function TenantTheme({ children }: { children: ReactNode }) {
   return <ThemeProvider overrides={branding.theme}>{children}</ThemeProvider>;
 }
 
+/** Tenant follows the confirmed school; everything below re-keys when it changes. */
+function TenantRoot() {
+  const { ready, selection } = useSchool();
+  const { resolution, connection } = useMemo(
+    () => getCurrentTenantResolution(selection),
+    [selection],
+  );
+  if (!ready) return null;
+  return (
+    <ApiProvider tenant={resolution} connection={connection}>
+      <TenantProvider resolution={resolution}>
+        <TenantTheme>
+          <StatusBar style="dark" />
+          <Slot />
+        </TenantTheme>
+      </TenantProvider>
+    </ApiProvider>
+  );
+}
+
 export default function RootLayout() {
   const [queryClient] = useState(
     () =>
@@ -28,7 +49,6 @@ export default function RootLayout() {
         defaultOptions: { queries: { refetchOnWindowFocus: false } },
       }),
   );
-  const [tenant] = useState(getCurrentTenantResolution);
   // The web dashboard's typeface (Outfit). Render nothing until it is ready (or failed, in which
   // case the system font is used) so text never reflows after first paint.
   const [fontsLoaded, fontError] = useFonts({
@@ -42,14 +62,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <ApiProvider tenant={tenant}>
-          <TenantProvider resolution={tenant}>
-            <TenantTheme>
-              <StatusBar style="dark" />
-              <Slot />
-            </TenantTheme>
-          </TenantProvider>
-        </ApiProvider>
+        <SchoolProvider>
+          <TenantRoot />
+        </SchoolProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   );

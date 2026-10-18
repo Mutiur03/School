@@ -1,7 +1,8 @@
 /**
  * Account menu behind the navbar Power button (the web dashboard's Power button opens a logout
  * confirmation, components/DeleteConfimation.tsx). Desktop: popover panel. Phone: bottom sheet.
- * Profile / switch school are placeholders until login lands; sign-out works with a session.
+ * Profile is a placeholder. "Switch school" (school-code installs only) signs out and drops
+ * everything cached for the current school.
  */
 import { LogOut, Power, RefreshCw, User } from '@/components/ui/icons';
 import { useState } from 'react';
@@ -10,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
+import { useSwitchSchool } from '@/school/useSwitchSchool';
 import { useSession } from '@/session/ApiProvider';
 import { useTenant } from '@/tenant/TenantProvider';
 import { cn } from '@/lib/utils';
@@ -55,7 +57,8 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
   const { shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const session = useSession();
-  const { branding } = useTenant();
+  const { branding, resolution } = useTenant();
+  const switchSchool = useSwitchSchool();
 
   const name =
     session.status === 'authenticated'
@@ -113,7 +116,16 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
             </Text>
           </View>
           <MenuItem icon={User} label="Profile" hint="Soon" disabled />
-          <MenuItem icon={RefreshCw} label="Switch school" hint="Soon" disabled />
+          {resolution.source === 'school-code' ? (
+            <MenuItem
+              icon={RefreshCw}
+              label="Switch school"
+              onPress={() => {
+                setOpen(false);
+                void switchSchool();
+              }}
+            />
+          ) : null}
           <MenuItem
             icon={LogOut}
             label="Logout"

@@ -96,6 +96,8 @@ model School {
   fee_waivers              fee_waivers[]
   fee_receipts             fee_receipts[]
   fee_receipt_items        fee_receipt_items[]
+  access_codes             school_access_codes[]
+  auth_sessions            auth_sessions[]
 
   @@index([name])
   @@index([subdomain])
@@ -1590,4 +1592,48 @@ model sms_settings {
 enum MarkingScheme {
   TOTAL
   BREAKDOWN
+}
+
+/// Short join codes (e.g. ABC-7K4Q) an admin hands out so the app can find its school before
+/// login. Resolved pre-auth only through app.lookup_school_access_code() (SECURITY DEFINER).
+model school_access_codes {
+  id         Int       @id @default(autoincrement())
+  school_id  Int       @default(dbgenerated("app.current_school_id()"))
+  school     School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  /// Stored normalised: upper case, with the dash.
+  code       String    @unique @db.VarChar(16)
+  /// admin | teacher | student, or null for "ask on the login screen".
+  role_hint  String?   @db.VarChar(16)
+  /// admin.id of the creator; kept when that admin is deleted.
+  created_by Int?
+  created_at DateTime  @default(now())
+  expires_at DateTime?
+  revoked_at DateTime?
+
+  @@index([school_id])
+}
+
+/// One row per issued refresh token, for rotation and reuse detection. A family is one login;
+/// presenting a token that was already rotated (outside the grace window) revokes the family.
+model auth_sessions {
+  id          Int       @id @default(autoincrement())
+  jti         String    @unique @db.Uuid
+  family_id   String    @db.Uuid
+  user_role   String    @db.VarChar(16)
+  user_id     Int
+  /// Null only for super_admin sessions.
+  school_id   Int?      @default(dbgenerated("app.current_school_id()"))
+  school      School?   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  /// web | native
+  client      String    @db.VarChar(8)
+  created_at  DateTime  @default(now())
+  expires_at  DateTime
+  rotated_at  DateTime?
+  replaced_by String?   @db.Uuid
+  revoked_at  DateTime?
+
+  @@index([family_id])
+  @@index([school_id])
+  @@index([user_role, user_id])
+  @@index([expires_at])
 }

@@ -61,7 +61,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       output: 'single',
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-router', 'expo-status-bar', 'expo-secure-store', 'expo-font'],
+    plugins: [
+      'expo-router',
+      'expo-status-bar',
+      'expo-secure-store',
+      'expo-font',
+      [
+        'expo-camera',
+        {
+          // QR scanning only: no microphone / RECORD_AUDIO permission.
+          cameraPermission: "Allow $(PRODUCT_NAME) to scan your school's QR code.",
+          microphonePermission: false,
+          recordAudioAndroid: false,
+        },
+      ],
+    ],
     experiments: {
       typedRoutes: true,
     },

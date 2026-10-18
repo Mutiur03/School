@@ -5,3 +5,5 @@ export * from './errors';
 export * from './school';
 export * from './session';
 export * from './token-store';
+export * from './school-codes';
+export * from './students';

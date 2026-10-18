@@ -209,6 +209,16 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=...
 ```
 
+**Server — auth (recommended)**
+
+```env
+REFRESH_TOKEN_SECRET=...      # separate from JWT_SECRET; falls back to it with a warning
+TENANT_HOST_SUFFIX=-dashboard.mutiurrahman.com   # optional, school-code lookup hosts
+```
+
+See [server/docs/native-auth.md](server/docs/native-auth.md) for school codes, native token
+transport and the rollout order.
+
 **Server — marksheets & files**
 
 ```env

@@ -9,6 +9,8 @@ export interface AppConfig {
   appEnv: AppEnv;
   /** API origin without `/api`. Empty string means same-origin (web only). */
   apiBaseUrl: string;
+  /** Origin for the pre-login school-code lookup. Falls back to apiBaseUrl, then same-origin. */
+  directoryUrl: string;
   /** Public CDN origin used for stored R2 keys. Empty when not configured. */
   cdnUrl: string;
   /** Dev-only `x-tenant-host` override; always null outside `local`. */
@@ -24,6 +26,7 @@ export interface ConfigIssue {
 export interface RawPublicEnv {
   appEnv?: string;
   apiBaseUrl?: string;
+  directoryUrl?: string;
   cdnUrl?: string;
   devTenantHost?: string;
 }
@@ -43,29 +46,42 @@ export function buildAppConfig(
   const appEnv = parseAppEnv(raw.appEnv);
   // Accept a value that mistakenly includes /api; every request path already starts with /api.
   const apiBaseUrl = trimTrailingSlashes(raw.apiBaseUrl ?? '').replace(/\/api$/, '');
+  const directoryUrl =
+    trimTrailingSlashes(raw.directoryUrl ?? '').replace(/\/api$/, '') || apiBaseUrl;
   const cdnUrl = trimTrailingSlashes(raw.cdnUrl ?? '');
   const devTenantHost =
     appEnv === 'local' && raw.devTenantHost?.trim() ? raw.devTenantHost.trim().toLowerCase() : null;
 
   const issues: ConfigIssue[] = [];
-  if (platform !== 'web' && !apiBaseUrl) {
+  if (platform !== 'web' && !apiBaseUrl && !directoryUrl) {
     issues.push({
-      key: 'EXPO_PUBLIC_API_BASE_URL',
-      message: 'Native builds have no page origin. Set it to a school dashboard host.',
+      key: 'EXPO_PUBLIC_DIRECTORY_URL',
+      message:
+        'Native builds have no page origin. Set EXPO_PUBLIC_DIRECTORY_URL (school-code lookup) or pin EXPO_PUBLIC_API_BASE_URL to a school dashboard host.',
     });
   }
-  if (apiBaseUrl && !/^https?:\/\/[^/]+$/.test(apiBaseUrl)) {
-    issues.push({
-      key: 'EXPO_PUBLIC_API_BASE_URL',
-      message: 'Must be an http(s) origin with no path, e.g. https://school-dashboard.example.com',
-    });
-  }
-  if (appEnv !== 'local' && apiBaseUrl.startsWith('http://')) {
-    issues.push({
-      key: 'EXPO_PUBLIC_API_BASE_URL',
-      message: 'Staging and production builds must use https.',
-    });
+  for (const [key, value] of [
+    ['EXPO_PUBLIC_API_BASE_URL', apiBaseUrl],
+    ['EXPO_PUBLIC_DIRECTORY_URL', directoryUrl],
+  ] as const) {
+    if (value && !/^https?:\/\/[^/]+$/.test(value)) {
+      issues.push({
+        key,
+        message:
+          'Must be an http(s) origin with no path, e.g. https://school-dashboard.example.com',
+      });
+    }
+    if (appEnv !== 'local' && value.startsWith('http://')) {
+      issues.push({ key, message: 'Staging and production builds must use https.' });
+    }
   }
 
-  return { config: { appEnv, apiBaseUrl, cdnUrl, devTenantHost, platform }, issues };
+  return {
+    config: { appEnv, apiBaseUrl, directoryUrl, cdnUrl, devTenantHost, platform },
+    // The same bad value reported for both keys once is enough.
+    issues: issues.filter(
+      (issue, i) =>
+        issues.findIndex((o) => o.message === issue.message && o.key === issue.key) === i,
+    ),
+  };
 }

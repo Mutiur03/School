@@ -37,6 +37,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.5.0",
     "lucide-react": "^0.483.0",
+    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.55.0",
@@ -50,11 +51,12 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
     "@types/node": "^22.14.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
     "rollup-plugin-visualizer": "^6.0.5",
     "typescript": "^7.0.2",
     "vite": "^7.1.7"

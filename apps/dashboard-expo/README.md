@@ -6,8 +6,9 @@ Expo Router + strict TypeScript**, targeting web, Android and iOS from one codeb
 The existing Vite dashboard (`../../dashboard`) stays in production until this app reaches parity.
 The backend (`../../server`) and the public site (`../../client-next`) are untouched.
 
-> Status: shell, API client and tenant-branding foundation only. Every number on the Overview
-> and Students screens is **MOCK DATA** and labelled as such. There is no login screen yet.
+> Status: school-code onboarding, login (admin / teacher / student), role routing and a live
+> Student List. The Overview numbers are still **MOCK DATA** and labelled as such. Teacher and
+> student homes are placeholders.
 
 ## Quick start
 
@@ -38,10 +39,15 @@ unchanged.
 
 ```
 app/                      Expo Router routes
-  _layout.tsx             providers: SafeArea -> QueryClient -> Api/session -> Tenant -> Theme
-  (dashboard)/_layout.tsx AppShell (navbar + sidebar, or navbar + bottom tabs)
+  _layout.tsx             providers: SafeArea -> QueryClient -> School -> Api/session -> Tenant -> Theme
+  (auth)/join.tsx         enter a school code (or open the scanner on native)
+  (auth)/scan.tsx         QR scanner (expo-camera; web shows "type the code")
+  (auth)/confirm.tsx      "You're joining <school>"
+  (auth)/login.tsx        sign in for the hinted role (admin / teacher / student)
+  teacher.tsx, student.tsx role homes (placeholders)
+  (dashboard)/_layout.tsx RoleGate(admin) + AppShell (navbar + sidebar, or navbar + bottom tabs)
   (dashboard)/index.tsx   Admin Dashboard overview (MOCK DATA)
-  (dashboard)/students.tsx Student List (MOCK DATA)
+  (dashboard)/students.tsx Student List (live: GET /api/students)
   (dashboard)/settings.tsx System status, Expo-only (real config, tenant, session, API probe)
   (dashboard)/attendance.tsx, results.tsx, soon/[id].tsx  "not built yet" placeholders
 src/config                EXPO_PUBLIC_* parsing and validation
@@ -49,8 +55,10 @@ src/lib/api               fetch client, envelopes, errors, auth contracts, sessi
 src/lib/storage           platform key-value + session persistence (*.web.ts for web)
 src/tenant                tenant resolution, branding mapping, tenant-scoped query keys
 src/session               ApiProvider (client + SessionManager per tenant), useSession
+src/school                school-code selection (persisted public data), switch school
+src/features              join / login form logic, QR scanner, role placeholders
 src/theme                 design tokens ported from dashboard/src/index.css + ThemeProvider
-src/navigation            admin menu mirrored from dashboard/src/components/Sidebar.tsx
+src/navigation            admin menu (mirrors dashboard Sidebar), role routes, RoleGate
 src/components/{ui,layout} shadcn-style primitives, lucide icons and the responsive shell
 ```
 
@@ -62,7 +70,7 @@ Responsive behaviour (`src/hooks/useBreakpoint.ts`), mirroring the web dashboard
 | < 768px  | Bottom tabs (Dashboard, Students, Attendance, Results, More); "More" opens the full admin menu in a sheet | "Admin", Power -> bottom sheet                 |
 
 Page padding (16/24/32px at `sm`/`lg`) and grids (`lg:grid-cols-3/2`) follow the web pages.
-Previews: `/?state=loading|error|empty` and `/students?state=loading|empty|error`.
+Previews: `/?state=loading|error|empty` (Overview only; the Student List shows real states).
 
 ## Design system (ported from `dashboard/`)
 
@@ -155,7 +163,8 @@ in these variables or in `eas.json`.** See `.env.example`.
 | Variable                      | Purpose                                                                          |
 | ----------------------------- | -------------------------------------------------------------------------------- |
 | `EXPO_PUBLIC_APP_ENV`         | `local` / `staging` / `production`                                               |
-| `EXPO_PUBLIC_API_BASE_URL`    | API origin without `/api`. Empty on web = same origin. Required on native.       |
+| `EXPO_PUBLIC_API_BASE_URL`    | Optional. Pins the build to one school's API origin (no school codes).           |
+| `EXPO_PUBLIC_DIRECTORY_URL`   | Origin for the pre-login school-code lookup. Native needs it or `API_BASE_URL`.  |
 | `EXPO_PUBLIC_CDN_URL`         | Public CDN for R2 keys (logo etc.), mirrors `VITE_CDN_URL`                       |
 | `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production) |
 
@@ -171,7 +180,8 @@ in these variables or in `eas.json`.** See `.env.example`.
 `runtimeVersion` uses the `fingerprint` policy. **Nothing is published from this repo yet**:
 `expo-updates` is not installed and there is no EAS project id. Before the first EAS build:
 `eas init`, confirm the bundle identifier (`com.mutiurrahman.schooldashboard` is a placeholder),
-and set `EXPO_PUBLIC_API_BASE_URL` per environment with `eas env:create` (plain-text visibility).
+and set `EXPO_PUBLIC_DIRECTORY_URL` (or `EXPO_PUBLIC_API_BASE_URL` for a single-school build) per
+environment with `eas env:create` (plain-text visibility).
 
 ## API client (`src/lib/api`)
 
@@ -202,25 +212,43 @@ What it does:
 - **Cancellation**: every call takes an `AbortSignal`; a per-request timeout is combined with it
   without relying on `AbortSignal.any` (not on every RN runtime). TanStack Query passes its signal.
 - **Auth**: bearer access token from memory; on 401 one **single-flight** refresh
-  (`POST /api/auth/sessions/refresh`, cookie-based) then one retry. Only a 401/403 from refresh
+  (`POST /api/auth/sessions/refresh`: cookie on web, `{ refreshToken }` body on native) then one
+  retry. Only a 401/403 from refresh
   ends the session (`endedReason: 'expired'`) and drops `['tenant', key, 'private', ...]`
   queries. Network errors, 5xx, 429 and **402 (subscription lock)** never sign the user out,
   matching `dashboard/src/context/unifiedAuthContext.tsx`.
 - **Typed only where verified**: auth (`auth.ts`, request bodies are `z.input` of the shared
-  login schemas) and `GET /api/schools/public` (`school.ts`). No other endpoint is wrapped yet.
+  login schemas), `GET /api/schools/public` (`school.ts`), `POST /api/school-code-lookups`
+  (`school-codes.ts`, response validated: https, API host must equal the tenant host) and
+  `GET /api/students` (`students.ts`).
 
 ### Session storage
 
-| Platform | Access token | Refresh credential                                                                                                            |
-| -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Web      | memory only  | HttpOnly cookie set by the backend / edge worker. JS persists nothing.                                                        |
-| Native   | memory only  | `SessionPersistence` adapter (`token-store.ts`), implemented with `expo-secure-store`, one slot per tenant. **Unused today.** |
+| Platform | Access token | Refresh credential                                                                                                     |
+| -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Web      | memory only  | HttpOnly cookie set by the backend / edge worker. JS persists nothing.                                                 |
+| Native   | memory only  | Returned in the body (`X-Client: native`), kept in `expo-secure-store`, one slot per school. Rotated on every refresh. |
 
-Today's backend only issues the refresh token as a cookie, and the edge workers strip it from
-response bodies. A native app therefore cannot restore a session after the 15-minute access token
-expires unless the OS cookie jar happens to keep the cookie (not verified). A proper native token
-mode needs backend work (body-returned refresh token on a native flag, a separate
-`REFRESH_TOKEN_SECRET`, a `typ` claim, rotation). That is deliberately **not** in this milestone.
+Native requests send `X-Client: native` and no cookies (`credentials: 'omit'`). The server
+returns `{ accessToken, refreshToken, user }`; every refresh rotates the refresh token, and the
+new one is stored before it is used. Re-presenting a spent token revokes the session family
+(server reuse detection), so refreshes are single-flight. See `server/docs/native-auth.md`.
+
+### School codes and tenant
+
+1. No school yet: `/join`. The code is looked up at `EXPO_PUBLIC_DIRECTORY_URL`, with no auth and
+   no tenant header.
+2. `/confirm` shows the public school info. Confirming stores it (`sd.school-selection`: host,
+   API origin, name, logo, role hint; never an id or a credential) and the app re-keys to that
+   school.
+3. `/login`: from then on every request goes to the school's own host. The server resolves the
+   tenant from the host; the app never sends a school id.
+4. "Switch school" (user menu, login screen, role homes) signs out, drops the school's cached
+   queries and tenant-scoped storage, forgets the selection and returns to `/join`.
+
+Precedence: dev override > pinned `EXPO_PUBLIC_API_BASE_URL` > web page host (a real school
+host keeps first-party cookies) > school-code selection. Local dev reaches every school through
+`EXPO_PUBLIC_DIRECTORY_URL` and selects it with `x-tenant-host`.
 
 ## Tenant branding (`src/tenant`)
 
@@ -290,13 +318,14 @@ school selection are **not** verified yet.
 
 ## Known limitations
 
-- No login screen, role routing or real school data (next milestone). Only the admin menu is
-  mirrored; teacher/student/super_admin menus follow with role routing.
+- Teacher and student homes are placeholders; super_admin is not served (signed out). Only the
+  admin menu is mirrored. The Overview is still mock data.
 - Visual gaps vs the web dashboard: no Bangla font (SolaimanLipi ships only as woff2, which
   native cannot load), chart has no tooltip/active dot, sidebar/dropdown have no framer-motion
   animations, no collapsed 64px sidebar mode, dark mode not enabled (same as web), Student List
   lacks column filter/sort menus, checkboxes and bulk actions.
-- Native session restore is not possible with the current backend contract (see above).
+- The QR scanner and SecureStore token restore have not been run on a device (no simulator on
+  the build box); they are covered by unit tests and bundle exports only.
 - Android/iOS native builds (Gradle/Xcode) have not been run; only Hermes bundle exports and
   `expo prebuild` config generation were checked.
 - Web export is an SPA (`web.output: 'single'`): hosting needs an index.html fallback.

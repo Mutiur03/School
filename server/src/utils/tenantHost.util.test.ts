@@ -36,4 +36,34 @@ describe('resolveTenantHostname', () => {
     );
     assert.equal(host, 'dev-school.localhost');
   });
+
+  it('a bare localhost Origin does not hide x-tenant-host in non-production', () => {
+    process.env.NODE_ENV = 'development';
+    for (const origin of ['http://localhost:8081', 'http://127.0.0.1:8081']) {
+      assert.equal(
+        resolveTenantHostname(req({ origin, 'x-tenant-host': 'alpha.localhost' })),
+        'alpha.localhost',
+      );
+    }
+    // A real school Origin still wins, as before.
+    assert.equal(
+      resolveTenantHostname(
+        req({ origin: 'http://beta.localhost:5174', 'x-tenant-host': 'alpha.localhost' }),
+      ),
+      'beta.localhost',
+    );
+  });
+
+  it('production ignores Origin and x-tenant-host entirely', () => {
+    process.env.NODE_ENV = 'production';
+    assert.equal(
+      resolveTenantHostname(
+        req(
+          { origin: 'http://localhost:8081', 'x-tenant-host': 'alpha.localhost' },
+          'api.example.com',
+        ),
+      ),
+      'api.example.com',
+    );
+  });
 });

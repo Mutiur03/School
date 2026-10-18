@@ -1,14 +1,22 @@
 /**
- * Auth contracts, verified against server/src/modules/auth (main @ 13003bf4) and the edge proxy
- * in workers/shared/auth-proxy.js. Nothing here is new backend surface.
+ * Auth contracts, verified against server/src/modules/auth and the edge proxy in
+ * workers/shared/auth-proxy.js (see server/docs/native-auth.md).
  *
+ * Web (cookie transport, unchanged):
  * - POST /api/auth/{admin|teacher|student}/sessions -> data: { accessToken, user }
  *   The backend also sets an HttpOnly `refreshToken` cookie; behind the tenant-router/auth-bff
  *   workers it becomes an HttpOnly `refresh_token` cookie scoped to the refresh path, and the
  *   body never contains the refresh token.
+ * - POST /api/auth/sessions/refresh (cookie) -> data: { accessToken, user }
+ * - DELETE /api/auth/sessions (cookie) -> clears the cookie, bumps tokenVersion server-side.
+ *
+ * Native (body transport, every request carries `X-Client: native`):
+ * - login and refresh -> data: { accessToken, refreshToken, user }, no cookie. Refresh tokens
+ *   rotate on every refresh; reusing an old one revokes the whole session server-side.
+ * - refresh / logout read the token from the JSON body `{ refreshToken }` only.
+ * The workers pass native session requests through untouched.
+ *
  * - POST /api/auth/super_admin/sessions only works on the super-admin host.
- * - POST /api/auth/sessions/refresh (cookie only) -> data: { accessToken, user }
- * - DELETE /api/auth/sessions (cookie only) -> clears the cookie, bumps tokenVersion server-side.
  *
  * Access tokens are short-lived JWTs (15 min in production). They are kept in memory only, the
  * same as dashboard/src/context/unifiedAuthContext.tsx.
@@ -50,7 +58,15 @@ export interface AuthUser {
 export interface SessionPayload {
   accessToken: string;
   user: AuthUser;
+  /** Native transport only. Never kept in memory state; goes straight to SecureStore. */
+  refreshToken?: string;
 }
+
+/** 'cookie' on web (HttpOnly cookie), 'body' on native (SecureStore). */
+export type TokenTransport = 'cookie' | 'body';
+
+/** Header the server uses to pick the native transport (refused from browsers). */
+export const NATIVE_CLIENT_HEADER = { 'X-Client': 'native' } as const;
 
 export const AUTH_PATHS = {
   adminLogin: '/api/auth/admin/sessions',
@@ -74,7 +90,7 @@ export function isSessionPayload(value: unknown): value is SessionPayload {
   );
 }
 
-/** Endpoint wrappers. Not wired to a login screen yet (next milestone). */
+/** Endpoint wrappers. The client adds X-Client: native on native (see ApiProvider). */
 export function createAuthApi(client: ApiClient) {
   const login = (path: string, body: object, signal?: AbortSignal) =>
     client.post<SessionPayload>(path, body, { auth: false, signal });
@@ -88,15 +104,24 @@ export function createAuthApi(client: ApiClient) {
       login(AUTH_PATHS.studentLogin, body, signal),
     loginSuperAdmin: (body: SuperAdminLoginBody, signal?: AbortSignal) =>
       login(AUTH_PATHS.superAdminLogin, body, signal),
-    /** Cookie-based. Must not carry the (possibly expired) bearer token or trigger a nested refresh. */
-    refresh: (signal?: AbortSignal) =>
-      client.post<SessionPayload>(
-        AUTH_PATHS.refresh,
-        {},
-        { auth: false, retryOn401: false, signal },
-      ),
-    logout: (signal?: AbortSignal) =>
-      client.delete<unknown>(AUTH_PATHS.logout, { auth: false, retryOn401: false, signal }),
+    /**
+     * Web: cookie-based, pass no token. Native: the stored refresh token goes in the body.
+     * Must not carry the (possibly expired) bearer token or trigger a nested refresh.
+     */
+    refresh: (refreshToken?: string, signal?: AbortSignal) =>
+      client.post<SessionPayload>(AUTH_PATHS.refresh, refreshToken ? { refreshToken } : {}, {
+        auth: false,
+        retryOn401: false,
+        signal,
+      }),
+    logout: (refreshToken?: string, signal?: AbortSignal) =>
+      client.request<unknown>(AUTH_PATHS.logout, {
+        method: 'DELETE',
+        body: refreshToken ? { refreshToken } : undefined,
+        auth: false,
+        retryOn401: false,
+        signal,
+      }),
   };
 }
 

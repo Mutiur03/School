@@ -146,9 +146,20 @@ export const isPasswordResetPath = (pathname) =>
 export const getRefreshToken = (cookies) => cookies[REFRESH_COOKIE] ?? cookies.refreshToken ?? null;
 
 /**
+ * Native apps (`X-Client: native`) carry the refresh token in the JSON body and never use
+ * cookies, so their session requests skip the cookie conversion below and are proxied as-is.
+ * Browsers always add Sec-Fetch-* headers (JS cannot remove them), so a web page claiming to
+ * be native still gets the cookie flow here, and the backend refuses that combination too.
+ */
+export const isNativeClientRequest = (request) =>
+  (request.headers.get('x-client') ?? '').trim().toLowerCase() === 'native' &&
+  !request.headers.has('sec-fetch-site') &&
+  !request.headers.has('sec-fetch-mode');
+
+/**
  * Login / refresh / logout cookie proxy.
  * @param {{ request: Request, pathname: string, headers: Headers, cookies: Record<string,string>, origin: string, corsHeaders: Headers, forward: (req: Request, headers: Headers) => Promise<Response>, logoutFailOn401?: boolean }} opts
- * @returns {Promise<Response | null>} null if path is not a session auth route
+ * @returns {Promise<Response | null>} null if path is not a session auth route, or the caller is a native app
  */
 export async function tryHandleAuthSession({
   request,
@@ -160,6 +171,8 @@ export async function tryHandleAuthSession({
   forward,
   logoutFailOn401 = false,
 }) {
+  if (isNativeClientRequest(request)) return null;
+
   if (LOGIN_PATHS.has(pathname) && request.method === 'POST') {
     const backendResponse = await forward(request, headers);
 

@@ -1,24 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '@/config/env.js';
 import { patchRlsContext, runWithRlsContext } from '@/config/rlsContextStore.js';
+import { accessTokenRole } from '@/modules/auth/auth-tokens.js';
 
-type TokenPayload = {
-  role?: string;
-};
-
+/** Role of a valid ACCESS token only; refresh tokens never set super-admin RLS context. */
 const getTokenRole = (req: Request): string | undefined => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : undefined;
-
-  if (!token) return undefined;
-
-  try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
-    return decoded?.role;
-  } catch {
-    return undefined;
-  }
+  return accessTokenRole(token);
 };
 
 export const initRlsContextMiddleware = (req: Request, _res: Response, next: NextFunction) => {

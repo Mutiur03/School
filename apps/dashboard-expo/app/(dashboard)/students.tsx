@@ -3,26 +3,38 @@
  * selector, "N students" summary, More / Add student actions, and a SectionCard table
  * (muted header, uppercase tracking-wider labels, 28x36 photo/initial, name + father's name).
  * Phones get stacked rows instead of a sideways-scrolling table (Expo-only).
- * All rows are MOCK DATA. `?state=loading|empty|error` previews the page states.
+ * Live data: GET /api/students for the current session year, server-side search, 50 per page.
  */
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, Eye, Pencil, Plus, Search } from '@/components/ui/icons';
-import { useMemo, useState } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pencil,
+  Plus,
+  Search,
+} from '@/components/ui/icons';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
-import { MockDataBadge, StatusBadge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Input } from '@/components/ui/Input';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
-import { MOCK_STUDENTS, type MockStudent } from '@/features/overview/mock-data';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import type { StudentRow } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useApi } from '@/session/ApiProvider';
+import { privateQueryKey } from '@/tenant/query-keys';
+import { useTenant } from '@/tenant/TenantProvider';
 
-const SESSION = 2026;
+const SESSION = new Date().getFullYear();
+const PAGE_SIZE = 50;
 // Column widths shared by the header and body rows.
 const W = {
   student: 'min-w-0 flex-1',
@@ -52,7 +64,7 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function StudentCell({ s }: { s: MockStudent }) {
+function StudentCell({ s }: { s: StudentRow }) {
   return (
     <View className="flex-row items-center gap-3">
       <Avatar name={s.name} />
@@ -71,7 +83,7 @@ function StudentCell({ s }: { s: MockStudent }) {
   );
 }
 
-function Row({ s }: { s: MockStudent }) {
+function Row({ s }: { s: StudentRow }) {
   return (
     <Pressable className="border-border bg-card hover:bg-muted/60 flex-row items-center border-t">
       <View className={cn(TD, W.student)}>
@@ -98,7 +110,7 @@ function Row({ s }: { s: MockStudent }) {
   );
 }
 
-function Table({ rows, loading }: { rows: readonly MockStudent[]; loading?: boolean }) {
+function Table({ rows, loading }: { rows: readonly StudentRow[]; loading?: boolean }) {
   return (
     <View testID="students-table">
       <View className="bg-muted flex-row items-center">
@@ -112,16 +124,16 @@ function Table({ rows, loading }: { rows: readonly MockStudent[]; loading?: bool
       </View>
       {loading
         ? Array.from({ length: 8 }, (_, i) => (
-            <View key={i} className={cn(TD, 'border-border border-t')}>
+            <View key={i} testID="student-skeleton" className={cn(TD, 'border-border border-t')}>
               <Skeleton height={32} />
             </View>
           ))
-        : rows.map((s) => <Row key={s.id} s={s} />)}
+        : rows.map((s) => <Row key={s.enrollment_id ?? s.id} s={s} />)}
     </View>
   );
 }
 
-function MobileList({ rows, loading }: { rows: readonly MockStudent[]; loading?: boolean }) {
+function MobileList({ rows, loading }: { rows: readonly StudentRow[]; loading?: boolean }) {
   return (
     <View testID="students-cards">
       {loading
@@ -132,7 +144,7 @@ function MobileList({ rows, loading }: { rows: readonly MockStudent[]; loading?:
           ))
         : rows.map((s, i) => (
             <View
-              key={s.id}
+              key={s.enrollment_id ?? s.id}
               testID="student-card"
               className={cn(M_ROW, i > 0 && 'border-border border-t')}
             >
@@ -167,34 +179,47 @@ function SessionSelect() {
   );
 }
 
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
 export default function StudentsScreen() {
-  const { state } = useLocalSearchParams<{ state?: string }>();
-  const router = useRouter();
   const mobile = useBreakpoint() === 'mobile';
+  const { students } = useApi();
+  const { resolution } = useTenant();
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const search = useDebounced(query.trim(), 300);
 
-  const rows = useMemo(() => {
-    if (state === 'empty') return [];
-    const q = query.trim().toLowerCase();
-    return q
-      ? MOCK_STUDENTS.filter(
-          (s) =>
-            s.name.toLowerCase().includes(q) ||
-            String(s.roll) === q ||
-            s.father_name.toLowerCase().includes(q),
-        )
-      : MOCK_STUDENTS;
-  }, [query, state]);
+  useEffect(() => setPage(1), [search]);
 
-  const loading = state === 'loading';
-  const summary = `${query ? `${rows.length} of ` : ''}${MOCK_STUDENTS.length} students`;
+  const list = useQuery({
+    queryKey: privateQueryKey(resolution.tenantKey, 'students', { year: SESSION, search, page }),
+    queryFn: ({ signal }) =>
+      students.list({ year: SESSION, page, limit: PAGE_SIZE, search: search || undefined }, signal),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+
+  const rows = list.data?.rows ?? [];
+  const meta = list.data?.meta;
+  const loading = list.isPending;
+  const summary = !meta
+    ? 'Loading…'
+    : search
+      ? `${meta.filtered} of ${meta.total} students`
+      : `${meta.total} students`;
 
   return (
     <PageLayout
       title="Student List"
       titleAccessory={<SessionSelect />}
-      badge={<MockDataBadge />}
-      description={state === 'empty' ? '0 students' : summary}
+      description={summary}
       actions={
         <>
           <Button variant="outline" label="More" icon={ChevronDown} iconPosition="end" disabled />
@@ -202,11 +227,11 @@ export default function StudentsScreen() {
         </>
       }
     >
-      {state === 'error' ? (
+      {list.isError && !list.data ? (
         <ErrorState
           title="Couldn't load students"
-          message="Preview of the error state (MOCK DATA)."
-          onRetry={() => router.setParams({ state: '' })}
+          message={list.error.message}
+          onRetry={() => void list.refetch()}
         />
       ) : (
         <>
@@ -227,7 +252,9 @@ export default function StudentsScreen() {
             {!loading && rows.length === 0 ? (
               <EmptyState
                 message={
-                  query ? `No students match “${query}”.` : `No students in session ${SESSION} yet.`
+                  search
+                    ? `No students match “${search}”.`
+                    : `No students in session ${SESSION} yet.`
                 }
               />
             ) : mobile ? (
@@ -236,6 +263,29 @@ export default function StudentsScreen() {
               <Table rows={rows} loading={loading} />
             )}
           </SectionCard>
+          {meta && meta.totalPages > 1 ? (
+            <View className="flex-row items-center justify-end gap-2">
+              <Text size="sm" color="mutedForeground" tabular>
+                Page {meta.page} of {meta.totalPages}
+              </Text>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                icon={ChevronLeft}
+                accessibilityLabel="Previous page"
+                disabled={page <= 1 || list.isFetching}
+                onPress={() => setPage((p) => Math.max(1, p - 1))}
+              />
+              <Button
+                variant="outline"
+                size="icon-sm"
+                icon={ChevronRight}
+                accessibilityLabel="Next page"
+                disabled={page >= meta.totalPages || list.isFetching}
+                onPress={() => setPage((p) => p + 1)}
+              />
+            </View>
+          ) : null}
         </>
       )}
     </PageLayout>
