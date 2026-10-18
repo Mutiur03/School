@@ -3,8 +3,7 @@
  *
  * - Every token carries `typ` ('access' | 'refresh'), so a refresh token can never be used as a
  *   bearer token and vice versa, even when both are signed with the same secret.
- * - Refresh tokens are signed with REFRESH_TOKEN_SECRET. When it is unset the server falls back
- *   to JWT_SECRET (as before) and logs a warning once; the `typ` claim still separates the two.
+ * - Access and refresh tokens are both signed with JWT_SECRET; the `typ` claim separates them.
  * - `sch` is the school the token was issued for (null for super_admin). The tenant is always
  *   the one resolved server-side from the request host; `sch` is only compared against it.
  * - Tokens issued before this change have no `typ`. Legacy access tokens stay valid until they
@@ -15,7 +14,6 @@ import crypto from 'crypto';
 import type { Request } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '@/config/env.js';
-import logger from '@/utils/logger.js';
 
 export const ACCESS_TOKEN_TTL = env.NODE_ENV === 'development' ? '1m' : '15m';
 export const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -50,23 +48,6 @@ export interface LegacyRefreshClaims {
   version: number;
 }
 
-let warned = false;
-
-/** Resolved on each call so tests (and a hot env change) see the current value. */
-export function refreshTokenSecret(): string {
-  const dedicated = process.env.REFRESH_TOKEN_SECRET;
-  if (dedicated && dedicated !== env.JWT_SECRET) return dedicated;
-  if (!warned) {
-    warned = true;
-    logger.warn(
-      dedicated
-        ? 'REFRESH_TOKEN_SECRET equals JWT_SECRET; set a distinct value. Token types still separate access and refresh tokens.'
-        : 'REFRESH_TOKEN_SECRET is not set; refresh tokens fall back to JWT_SECRET. Token types still separate access and refresh tokens, but set a distinct secret.',
-    );
-  }
-  return env.JWT_SECRET;
-}
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -75,7 +56,7 @@ export function signAccessToken(claims: Omit<AccessClaims, 'typ'>): string {
 }
 
 export function signRefreshToken(claims: Omit<RefreshClaims, 'typ' | 'jti'>, jti: string) {
-  return jwt.sign({ ...claims, typ: 'refresh' }, refreshTokenSecret(), {
+  return jwt.sign({ ...claims, typ: 'refresh' }, env.JWT_SECRET, {
     expiresIn: Math.floor(REFRESH_TOKEN_TTL_MS / 1000),
     jwtid: jti,
   });
@@ -113,27 +94,16 @@ export function accessTokenRole(token: string | undefined): string | undefined {
 
 /** Verify a refresh token. Never throws; null means "unauthorized". */
 export function verifyRefreshToken(token: string): RefreshClaims | LegacyRefreshClaims | null {
-  const decode = (secret: string) => {
-    try {
-      return jwt.verify(token, secret);
-    } catch {
-      return null;
-    }
-  };
-  const secret = refreshTokenSecret();
-  let decoded = decode(secret);
-  // Before REFRESH_TOKEN_SECRET is set everything was signed with JWT_SECRET: accept only the
-  // legacy refresh shape from it, so turning the secret on does not log every web user out.
-  let viaLegacySecret = false;
-  if (!decoded && secret !== env.JWT_SECRET) {
-    decoded = decode(env.JWT_SECRET);
-    viaLegacySecret = true;
+  let decoded: unknown;
+  try {
+    decoded = jwt.verify(token, env.JWT_SECRET);
+  } catch {
+    return null;
   }
   if (!isRecord(decoded) || typeof decoded.id !== 'number' || typeof decoded.role !== 'string') {
     return null;
   }
   if (
-    !viaLegacySecret &&
     decoded.typ === 'refresh' &&
     typeof decoded.jti === 'string' &&
     typeof decoded.fam === 'string' &&
