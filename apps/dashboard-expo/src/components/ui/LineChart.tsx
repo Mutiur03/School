@@ -5,7 +5,8 @@
  * No tooltip / active dot yet.
  */
 import { useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { View, type LayoutChangeEvent } from 'react-native';
+import { cn } from '@/lib/utils';
 import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -99,7 +100,9 @@ export function LineChart<T extends { name: string }>({
 
   return (
     <View
-      style={[styles.box, { height, opacity: dimmed ? 0.6 : 1 }]}
+      className={cn('w-full', dimmed && 'opacity-60')}
+      // Height is a prop; the SVG below takes its colours as props (values from useTheme).
+      style={{ height }}
       onLayout={onLayout}
       testID="attendance-chart"
     >
@@ -168,5 +171,3 @@ export function LineChart<T extends { name: string }>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({ box: { width: '100%' } });

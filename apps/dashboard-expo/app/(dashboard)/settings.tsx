@@ -3,7 +3,7 @@
  * branding source, session state and a live API probe against GET /api/schools/public.
  */
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { StatusBadge, type StatusKind } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,19 +14,17 @@ import { appConfig, configIssues } from '@/config/env';
 import { isApiError } from '@/lib/api';
 import { useApi, useSession } from '@/session/ApiProvider';
 import { useTenant } from '@/tenant/TenantProvider';
-import { useTheme } from '@/theme/ThemeProvider';
 
 function Row({ label, value, tone }: { label: string; value: string; tone?: StatusKind }) {
-  const { colors } = useTheme();
   return (
-    <View style={[styles.row, { borderTopColor: colors.border }]}>
-      <Text size="sm" weight="medium" color="mutedForeground" style={styles.rowLabel}>
+    <View className="border-border flex-row flex-wrap items-center gap-3 border-t py-2.5">
+      <Text size="sm" weight="medium" color="mutedForeground" className="w-40">
         {label}
       </Text>
       {tone ? (
         <StatusBadge status={tone} label={value} />
       ) : (
-        <Text size="sm" style={styles.rowValue} selectable>
+        <Text size="sm" className="min-w-40 flex-1" selectable>
           {value}
         </Text>
       )}
@@ -114,7 +112,7 @@ export default function SystemStatusScreen() {
         title="API connectivity"
         description="Calls GET /api/schools/public through the shared API client."
       >
-        <View style={styles.probe}>
+        <View className="flex-row flex-wrap items-center gap-3">
           <Button
             label={probe.state === 'running' ? 'Checking…' : 'Run check'}
             disabled={probe.state === 'running'}
@@ -128,17 +126,3 @@ export default function SystemStatusScreen() {
     </PageLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    flexWrap: 'wrap',
-  },
-  rowLabel: { width: 160 },
-  rowValue: { flex: 1, minWidth: 160 },
-  probe: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-});

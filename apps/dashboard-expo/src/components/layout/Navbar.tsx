@@ -9,31 +9,28 @@
  *    navbar has no school identity because each school has its own dashboard deployment.
  */
 import { Link } from 'expo-router';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
-import { useMinWidth } from '@/hooks/useBreakpoint';
 import { useTenant } from '@/tenant/TenantProvider';
-import { useTheme } from '@/theme/ThemeProvider';
 import { UserMenu } from './UserMenu';
 
 function SchoolIdentity() {
   const { branding } = useTenant();
-  const { colors, radii } = useTheme();
   return (
     <View
-      style={styles.school}
+      className="min-w-0 shrink flex-row items-center gap-2"
       accessibilityLabel={`Active school: ${branding.displayName}`}
       testID="school-identity"
     >
-      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+      <View className="bg-border h-5 w-px" />
       {branding.logoUrl ? (
         <Image
           source={{ uri: branding.logoUrl }}
           accessibilityIgnoresInvertColors
-          style={{ width: 24, height: 24, borderRadius: radii.base }}
+          className="h-6 w-6 rounded"
         />
       ) : null}
-      <Text size="sm" weight="medium" color="mutedForeground" numberOfLines={1} style={styles.flex}>
+      <Text size="sm" weight="medium" color="mutedForeground" numberOfLines={1} className="shrink">
         {branding.displayName}
       </Text>
     </View>
@@ -41,24 +38,14 @@ function SchoolIdentity() {
 }
 
 export function Navbar({ compact }: { compact: boolean }) {
-  const { colors, layout } = useTheme();
-  const sm = useMinWidth('sm');
   return (
     <View
       testID="navbar"
-      style={[
-        styles.bar,
-        {
-          height: layout.navbarHeight,
-          backgroundColor: colors.sidebar,
-          borderBottomColor: colors.border,
-          paddingHorizontal: sm ? 20 : 12,
-        },
-      ]}
+      className="border-border bg-sidebar z-[3] h-14 flex-row items-center justify-between gap-2 border-b px-3 sm:px-5"
     >
-      <View style={styles.left}>
+      <View className="min-w-0 shrink flex-row items-center gap-3">
         <Link href="/" accessibilityRole="link" testID="navbar-home">
-          <Text size={sm ? 'xl' : 'lg'} weight="semibold" numberOfLines={1}>
+          <Text weight="semibold" numberOfLines={1} className="text-lg sm:text-xl">
             Admin
           </Text>
         </Link>
@@ -68,18 +55,3 @@ export function Navbar({ compact }: { compact: boolean }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    borderBottomWidth: 1,
-    zIndex: 3,
-  },
-  left: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1, minWidth: 0 },
-  school: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 },
-  divider: { width: 1, height: 20 },
-  flex: { flexShrink: 1 },
-});

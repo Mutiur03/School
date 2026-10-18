@@ -5,13 +5,14 @@
  */
 import { LogOut, Power, RefreshCw, User } from '@/components/ui/icons';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { useSession } from '@/session/ApiProvider';
 import { useTenant } from '@/tenant/TenantProvider';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme/ThemeProvider';
 
 function MenuItem({
@@ -29,27 +30,19 @@ function MenuItem({
   destructive?: boolean;
   onPress?: () => void;
 }) {
-  const { colors, radii } = useTheme();
-  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       accessibilityRole="menuitem"
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={[
-        styles.item,
-        {
-          borderRadius: radii.sm,
-          backgroundColor: hovered && !disabled ? colors.accent : 'transparent',
-          opacity: disabled ? 0.5 : 1,
-        },
-      ]}
+      className={cn(
+        'min-h-9 flex-row items-center gap-2 rounded-sm px-2 py-1.5',
+        disabled ? 'opacity-50' : 'hover:bg-accent',
+      )}
     >
       <Icon icon={icon} size={16} color={destructive ? 'destructive' : 'mutedForeground'} />
-      <Text size="sm" color={destructive ? 'destructive' : 'popoverForeground'} style={styles.flex}>
+      <Text size="sm" color={destructive ? 'destructive' : 'popoverForeground'} className="flex-1">
         {label}
       </Text>
       {hint ? <Badge label={hint} variant="secondary" /> : null}
@@ -59,7 +52,7 @@ function MenuItem({
 
 export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
   const [open, setOpen] = useState(false);
-  const { colors, radii, shadows } = useTheme();
+  const { shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const session = useSession();
   const { branding } = useTenant();
@@ -82,10 +75,7 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
         accessibilityLabel="Open account menu"
         testID="user-menu-button"
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [
-          styles.power,
-          { backgroundColor: colors.popover, opacity: pressed ? 0.7 : 1 },
-        ]}
+        className="bg-popover h-8 w-8 items-center justify-center rounded-full active:opacity-70"
       >
         <Icon icon={Power} size={19} />
       </Pressable>
@@ -98,25 +88,23 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
       >
         <Pressable
           accessibilityLabel="Close account menu"
-          style={[styles.backdrop, placement === 'sheet' && styles.backdropDim]}
+          className={cn('absolute inset-0', placement === 'sheet' && 'bg-black/40')}
           onPress={() => setOpen(false)}
         />
         <View
           testID="user-menu"
-          style={[
-            styles.panel,
-            {
-              backgroundColor: colors.popover,
-              borderColor: colors.border,
-              borderRadius: radii.xl,
-              boxShadow: shadows.popover,
-            },
+          className={cn(
+            'border-border bg-popover absolute rounded-xl border p-1',
             placement === 'sheet'
-              ? [styles.sheet, { paddingBottom: 16 + insets.bottom }]
-              : styles.dropdown,
-          ]}
+              ? 'bottom-0 left-0 right-0 rounded-b-none'
+              : 'right-4 top-[52px] w-64',
+          )}
+          style={{
+            boxShadow: shadows.popover,
+            paddingBottom: placement === 'sheet' ? 16 + insets.bottom : undefined,
+          }}
         >
-          <View style={[styles.who, { borderBottomColor: colors.border }]}>
+          <View className="border-border mb-1 border-b p-2">
             <Text size="sm" weight="semibold" color="popoverForeground">
               {name}
             </Text>
@@ -141,28 +129,3 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  power: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backdrop: StyleSheet.absoluteFill,
-  backdropDim: { backgroundColor: 'rgba(0,0,0,0.4)' },
-  panel: { position: 'absolute', borderWidth: 1, padding: 4 },
-  dropdown: { top: 52, right: 16, width: 256 },
-  sheet: { left: 0, right: 0, bottom: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
-  who: { paddingHorizontal: 8, paddingVertical: 8, marginBottom: 4, borderBottomWidth: 1 },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    minHeight: 36,
-  },
-  flex: { flex: 1 },
-});

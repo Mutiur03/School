@@ -4,8 +4,8 @@
  * header action takes its own full-width line (`w-full sm:w-auto`), as on the web.
  */
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { useMinWidth } from '@/hooks/useBreakpoint';
+import { View } from 'react-native';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from './Text';
 
@@ -15,7 +15,7 @@ export function SectionCard({
   icon,
   headerAction,
   noPadding,
-  style,
+  className,
   testID,
   children,
 }: {
@@ -24,36 +24,26 @@ export function SectionCard({
   icon?: ReactNode;
   headerAction?: ReactNode;
   noPadding?: boolean;
-  style?: ViewStyle;
+  className?: string;
   testID?: string;
   children: ReactNode;
 }) {
-  const { colors, radii, shadows } = useTheme();
-  const sm = useMinWidth('sm');
-  const pad = 24;
+  const { shadows } = useTheme();
   const hasHeader = !!(title || description || icon || headerAction);
 
   return (
     <View
       testID={testID}
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          borderRadius: radii.xl,
-          boxShadow: shadows.sm,
-        },
-        style,
-      ]}
+      className={cn('border-border bg-card overflow-hidden rounded-xl border', className)}
+      style={{ boxShadow: shadows.sm }}
     >
       {hasHeader ? (
-        <View style={[styles.header, { paddingHorizontal: pad, paddingTop: pad }]}>
-          <View style={styles.titleRow}>
+        <View className="flex-row flex-wrap items-start justify-between gap-4 px-6 pb-4 pt-6">
+          <View className="shrink flex-row items-center gap-2">
             {icon}
-            <View style={styles.titles}>
+            <View className="shrink">
               {title ? (
-                <Text size="lg" weight="semibold" color="heading" style={styles.title}>
+                <Text size="lg" weight="semibold" color="heading" className="leading-tight">
                   {title}
                 </Text>
               ) : null}
@@ -65,38 +55,13 @@ export function SectionCard({
             </View>
           </View>
           {headerAction ? (
-            <View style={sm ? styles.action : styles.actionFull}>{headerAction}</View>
+            <View className="w-full items-start sm:w-auto sm:shrink-0 sm:items-end">
+              {headerAction}
+            </View>
           ) : null}
         </View>
       ) : null}
-      <View
-        style={
-          noPadding
-            ? undefined
-            : hasHeader
-              ? { paddingHorizontal: pad, paddingBottom: pad }
-              : { padding: pad }
-        }
-      >
-        {children}
-      </View>
+      <View className={noPadding ? undefined : hasHeader ? 'px-6 pb-6' : 'p-6'}>{children}</View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { borderWidth: 1, overflow: 'hidden' },
-  header: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 16,
-    paddingBottom: 16,
-  },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-  titles: { flexShrink: 1 },
-  title: { lineHeight: 22 }, // leading-tight on text-lg
-  action: { flexShrink: 0, alignItems: 'flex-end' },
-  actionFull: { width: '100%', alignItems: 'flex-start' },
-});

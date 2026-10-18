@@ -8,7 +8,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, Eye, Pencil, Plus, Search } from '@/components/ui/icons';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View, type DimensionValue } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { MockDataBadge, StatusBadge } from '@/components/ui/Badge';
@@ -20,22 +20,31 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { MOCK_STUDENTS, type MockStudent } from '@/features/overview/mock-data';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { useTheme } from '@/theme/ThemeProvider';
-import { withAlpha } from '@/theme/tokens';
+import { cn } from '@/lib/utils';
 
 const SESSION = 2026;
-const COLUMNS: { label: string; width?: DimensionValue }[] = [
-  { label: 'Student' },
-  { label: 'Roll', width: 96 },
-  { label: 'Class', width: 128 },
-  { label: 'Section', width: 128 },
-  { label: 'Actions', width: 88 },
+// Column widths shared by the header and body rows.
+const W = {
+  student: 'min-w-0 flex-1',
+  roll: 'w-24',
+  class: 'w-32',
+  section: 'w-32',
+  actions: 'w-[88px]',
+};
+const COLUMNS: { label: string; width: string }[] = [
+  { label: 'Student', width: W.student },
+  { label: 'Roll', width: W.roll },
+  { label: 'Class', width: W.class },
+  { label: 'Section', width: W.section },
+  { label: 'Actions', width: W.actions },
 ];
 
+const TD = 'px-4 py-2';
+const M_ROW = 'flex-row items-center gap-3 px-4 py-2.5';
+
 function Avatar({ name }: { name: string }) {
-  const { colors, radii } = useTheme();
   return (
-    <View style={[styles.avatar, { backgroundColor: colors.muted, borderRadius: radii.base }]}>
+    <View className="bg-muted h-9 w-7 items-center justify-center rounded">
       <Text size="xs" weight="semibold" color="mutedForeground">
         {name.charAt(0).toUpperCase()}
       </Text>
@@ -45,11 +54,11 @@ function Avatar({ name }: { name: string }) {
 
 function StudentCell({ s }: { s: MockStudent }) {
   return (
-    <View style={styles.studentCell}>
+    <View className="flex-row items-center gap-3">
       <Avatar name={s.name} />
-      <View style={styles.flex}>
-        <View style={styles.nameRow}>
-          <Text size="sm" weight="medium" numberOfLines={1} style={styles.shrink}>
+      <View className="min-w-0 flex-1">
+        <View className="flex-row items-center gap-2">
+          <Text size="sm" weight="medium" numberOfLines={1} className="shrink">
             {s.name}
           </Text>
           {s.available ? null : <StatusBadge status="inactive" />}
@@ -63,38 +72,25 @@ function StudentCell({ s }: { s: MockStudent }) {
 }
 
 function Row({ s }: { s: MockStudent }) {
-  const { colors } = useTheme();
-  const [hovered, setHovered] = useState(false);
   return (
-    <Pressable
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={[
-        styles.tr,
-        styles.trBody,
-        {
-          borderTopColor: colors.border,
-          backgroundColor: hovered ? withAlpha(colors.muted, 0.6) : colors.card,
-        },
-      ]}
-    >
-      <View style={[styles.td, styles.flex]}>
+    <Pressable className="border-border bg-card hover:bg-muted/60 flex-row items-center border-t">
+      <View className={cn(TD, W.student)}>
         <StudentCell s={s} />
       </View>
-      <View style={[styles.td, { width: 96 }]}>
+      <View className={cn(TD, W.roll)}>
         <Text size="sm" tabular>
           {s.roll}
         </Text>
       </View>
-      <View style={[styles.td, { width: 128 }]}>
+      <View className={cn(TD, W.class)}>
         <Text size="sm" tabular>
           {s.class}
         </Text>
       </View>
-      <View style={[styles.td, { width: 128 }]}>
+      <View className={cn(TD, W.section)}>
         <Text size="sm">{s.section}</Text>
       </View>
-      <View style={[styles.td, styles.actions, { width: 88 }]}>
+      <View className={cn(TD, W.actions, 'flex-row justify-end gap-0.5')}>
         <ActionButton icon={Pencil} label="Edit" tone="emerald" />
         <ActionButton icon={Eye} label="View" tone="blue" />
       </View>
@@ -103,18 +99,12 @@ function Row({ s }: { s: MockStudent }) {
 }
 
 function Table({ rows, loading }: { rows: readonly MockStudent[]; loading?: boolean }) {
-  const { colors } = useTheme();
   return (
     <View testID="students-table">
-      <View style={[styles.tr, { backgroundColor: colors.muted }]}>
+      <View className="bg-muted flex-row items-center">
         {COLUMNS.map((c) => (
-          <View key={c.label} style={[styles.th, c.width ? { width: c.width } : styles.flex]}>
-            <Text
-              size="xs"
-              weight="semibold"
-              caps
-              style={{ color: withAlpha(colors.foreground, 0.7) }}
-            >
+          <View key={c.label} className={cn('px-4 py-2.5', c.width)}>
+            <Text size="xs" weight="semibold" caps className="text-foreground/70">
               {c.label === 'Actions' ? ' ' : c.label}
             </Text>
           </View>
@@ -122,7 +112,7 @@ function Table({ rows, loading }: { rows: readonly MockStudent[]; loading?: bool
       </View>
       {loading
         ? Array.from({ length: 8 }, (_, i) => (
-            <View key={i} style={[styles.trBody, styles.td, { borderTopColor: colors.border }]}>
+            <View key={i} className={cn(TD, 'border-border border-t')}>
               <Skeleton height={32} />
             </View>
           ))
@@ -132,15 +122,11 @@ function Table({ rows, loading }: { rows: readonly MockStudent[]; loading?: bool
 }
 
 function MobileList({ rows, loading }: { rows: readonly MockStudent[]; loading?: boolean }) {
-  const { colors } = useTheme();
   return (
     <View testID="students-cards">
       {loading
         ? Array.from({ length: 6 }, (_, i) => (
-            <View
-              key={i}
-              style={[styles.mRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-            >
+            <View key={i} className={cn(M_ROW, i > 0 && 'border-border border-t')}>
               <Skeleton height={36} />
             </View>
           ))
@@ -148,12 +134,12 @@ function MobileList({ rows, loading }: { rows: readonly MockStudent[]; loading?:
             <View
               key={s.id}
               testID="student-card"
-              style={[styles.mRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+              className={cn(M_ROW, i > 0 && 'border-border border-t')}
             >
-              <View style={styles.flex}>
+              <View className="min-w-0 flex-1">
                 <StudentCell s={s} />
               </View>
-              <View style={styles.mMeta}>
+              <View className="items-end">
                 <Text size="xs" color="mutedForeground" tabular>
                   Class {s.class} · {s.section}
                 </Text>
@@ -168,11 +154,10 @@ function MobileList({ rows, loading }: { rows: readonly MockStudent[]; loading?:
 }
 
 function SessionSelect() {
-  const { colors, radii } = useTheme();
   return (
     <View
       accessibilityLabel="Session year"
-      style={[styles.select, { borderColor: colors.input, borderRadius: radii.md }]}
+      className="border-input h-8 flex-row items-center gap-2 rounded-md border px-2"
     >
       <Text size="sm" weight="medium">
         Session {SESSION}
@@ -225,8 +210,8 @@ export default function StudentsScreen() {
         />
       ) : (
         <>
-          <View style={styles.search}>
-            <View style={styles.searchIcon} pointerEvents="none">
+          <View className="max-w-[420px] justify-center">
+            <View className="absolute left-3 z-[1]" pointerEvents="none">
               <Icon icon={Search} size={16} color="mutedForeground" />
             </View>
             <Input
@@ -235,7 +220,7 @@ export default function StudentsScreen() {
               placeholder="Search by name, father's name or roll"
               accessibilityLabel="Search students"
               testID="student-search"
-              style={styles.searchInput}
+              className="pl-9"
             />
           </View>
           <SectionCard noPadding>
@@ -256,35 +241,3 @@ export default function StudentsScreen() {
     </PageLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1, minWidth: 0 },
-  shrink: { flexShrink: 1 },
-  tr: { flexDirection: 'row', alignItems: 'center' },
-  trBody: { borderTopWidth: 1 },
-  th: { paddingHorizontal: 16, paddingVertical: 10 },
-  td: { paddingHorizontal: 16, paddingVertical: 8 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 2 },
-  avatar: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
-  studentCell: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  mRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  mMeta: { alignItems: 'flex-end' },
-  select: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 32,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-  },
-  search: { maxWidth: 420, justifyContent: 'center' },
-  searchIcon: { position: 'absolute', left: 12, zIndex: 1 },
-  searchInput: { paddingLeft: 36 },
-});

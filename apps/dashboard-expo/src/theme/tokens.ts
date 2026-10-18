@@ -250,3 +250,10 @@ export function withAlpha(hex: string, alpha: number): string {
     .padStart(2, '0');
   return `${hex}${a}`;
 }
+
+/** `#rrggbb` -> `"r g b"`, the channel format of the CSS variables in global.css. */
+export function hexToRgbChannels(hex: string): string | null {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+}

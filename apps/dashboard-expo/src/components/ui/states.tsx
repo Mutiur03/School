@@ -8,9 +8,8 @@
  */
 import { AlertCircle, AlertTriangle, Loader2 } from '@/components/ui/icons';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, Platform, StyleSheet, View, type DimensionValue } from 'react-native';
-import { useTheme } from '@/theme/ThemeProvider';
-import { withAlpha } from '@/theme/tokens';
+import { Animated, Easing, Platform, View, type DimensionValue } from 'react-native';
+import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { Icon, type LucideIcon } from './Icon';
 import { SectionCard } from './SectionCard';
@@ -54,7 +53,7 @@ export function Spinner({ size = 32 }: { size?: number }) {
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   return (
     <View
-      style={styles.center}
+      className="items-center justify-center py-12"
       accessibilityRole="progressbar"
       accessibilityLabel={label}
       testID="loading-state"
@@ -67,28 +66,25 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
 export function Skeleton({
   width = '100%',
   height = 16,
-  radius,
+  className,
 }: {
   width?: DimensionValue;
   height?: DimensionValue;
-  radius?: number;
+  /** Extra classes, e.g. `rounded-full` (default `rounded-sm`). */
+  className?: string;
 }) {
-  const { colors, radii } = useTheme();
-  // animate-pulse: opacity 1 -> 0.5 -> 1 over 2s, cubic-bezier(0.4, 0, 0.6, 1)
+  // animate-pulse: opacity 1 -> 0.5 -> 1 over 2s, cubic-bezier(0.4, 0, 0.6, 1). Driven by RN
+  // Animated (NativeWind's `animate-*` support is experimental); size is a runtime value.
   const t = useLoop(1000, Easing.bezier(0.4, 0, 0.6, 1), true);
   const opacity = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] });
   return (
     <Animated.View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{
-        width,
-        height,
-        opacity,
-        borderRadius: radius ?? radii.sm,
-        backgroundColor: colors.sidebarAccent,
-      }}
-    />
+      style={{ width, height, opacity }}
+    >
+      <View className={cn('bg-sidebar-accent flex-1 rounded-sm', className)} />
+    </Animated.View>
   );
 }
 
@@ -105,17 +101,17 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <View style={styles.empty} testID="empty-state">
+    <View className="items-center justify-center gap-1 py-8" testID="empty-state">
       {icon ? <Icon icon={icon} size={32} color="mutedForeground" /> : null}
       {title ? (
-        <Text size="lg" weight="semibold" style={styles.mt}>
+        <Text size="lg" weight="semibold" className="mt-3">
           {title}
         </Text>
       ) : null}
-      <Text size="sm" color="mutedForeground" style={styles.centerText}>
+      <Text size="sm" color="mutedForeground" className="text-center">
         {message}
       </Text>
-      {action ? <View style={styles.mt}>{action}</View> : null}
+      {action ? <View className="mt-3">{action}</View> : null}
     </View>
   );
 }
@@ -130,14 +126,18 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <View style={styles.errorWrap} accessibilityRole="alert" testID="error-state">
-      <SectionCard style={styles.errorCard}>
-        <View style={styles.errorBody}>
+    <View
+      className="items-center justify-center py-12"
+      accessibilityRole="alert"
+      testID="error-state"
+    >
+      <SectionCard className="w-full max-w-md">
+        <View className="items-center">
           <Icon icon={AlertTriangle} size={32} color="destructive" />
-          <Text size="lg" weight="semibold" style={styles.errorTitle}>
+          <Text size="lg" weight="semibold" className="mb-1 mt-3 text-center">
             {title}
           </Text>
-          <Text size="sm" color="mutedForeground" style={styles.errorMessage}>
+          <Text size="sm" color="mutedForeground" className="mb-5 text-center">
             {message}
           </Text>
           {onRetry ? <Button label="Try again" onPress={onRetry} /> : null}
@@ -148,47 +148,17 @@ export function ErrorState({
 }
 
 export function ErrorMessage({ message }: { message: string }) {
-  const { colors, radii } = useTheme();
   return (
     <View
       accessibilityRole="alert"
-      style={[
-        styles.alert,
-        {
-          borderColor: withAlpha(colors.destructive, 0.4),
-          backgroundColor: withAlpha(colors.destructive, 0.1),
-          borderRadius: radii.sm,
-        },
-      ]}
+      className="border-destructive/40 bg-destructive/10 flex-row items-start gap-3 rounded-sm border px-4 py-3"
     >
-      <View style={styles.alertIcon}>
+      <View className="mt-0.5">
         <Icon icon={AlertCircle} size={16} color="destructive" />
       </View>
-      <Text size="sm" color="destructive" style={styles.flex}>
+      <Text size="sm" color="destructive" className="flex-1">
         {message}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
-  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 32, gap: 4 },
-  centerText: { textAlign: 'center' },
-  mt: { marginTop: 12 },
-  errorWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
-  errorCard: { width: '100%', maxWidth: 448 },
-  errorBody: { alignItems: 'center' },
-  errorTitle: { marginTop: 12, marginBottom: 4, textAlign: 'center' },
-  errorMessage: { marginBottom: 20, textAlign: 'center' },
-  alert: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  alertIcon: { marginTop: 2 },
-  flex: { flex: 1 },
-});

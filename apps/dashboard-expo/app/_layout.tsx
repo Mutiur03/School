@@ -1,3 +1,4 @@
+import '../global.css';
 import {
   Outfit_400Regular,
   Outfit_500Medium,

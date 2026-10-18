@@ -39,6 +39,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     scheme: variant.scheme,
     version: '0.1.0',
     orientation: 'default',
+    // Light only, like the web dashboard (its dark theme is defined but switched off). NativeWind
+    // follows the system scheme; change to 'automatic' together with enabling `.dark`.
+    userInterfaceStyle: 'light',
     // Launcher icon is static and platform-wide. Per-school logos are in-app branding only
     // (src/tenant) and are never written into the native icon.
     icon: './assets/icon.png',

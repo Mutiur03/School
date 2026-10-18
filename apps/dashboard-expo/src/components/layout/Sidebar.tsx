@@ -11,7 +11,8 @@
 import { usePathname, useRouter } from 'expo-router';
 import { ChevronDown } from '@/components/ui/icons';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { ScrollView } from '@/components/ui/ScrollView';
 import { Icon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import {
@@ -22,6 +23,7 @@ import {
   type NavHref,
   type NavLink,
 } from '@/navigation/nav-items';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme/ThemeProvider';
 
 function NavRow({
@@ -41,14 +43,14 @@ function NavRow({
     fg: 'primaryForeground' | 'sidebarAccentForeground' | 'sidebarForeground',
   ) => React.ReactNode;
 }) {
-  const { colors, radii, shadows } = useTheme();
+  const { shadows } = useTheme();
+  // Icon colours are lucide props, so hover is tracked in JS and shared by bg, text and icon.
   const [hovered, setHovered] = useState(false);
   const fg = active
     ? 'primaryForeground'
     : hovered || open
       ? 'sidebarAccentForeground'
       : 'sidebarForeground';
-  const bg = active ? colors.primary : hovered || open ? colors.sidebarAccent : 'transparent';
   return (
     <Pressable
       accessibilityRole={open === undefined ? 'link' : 'button'}
@@ -57,15 +59,12 @@ function NavRow({
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       testID={testID}
-      style={[
-        styles.row,
-        child ? styles.rowChild : styles.rowTop,
-        {
-          backgroundColor: bg,
-          borderRadius: radii.sm,
-          boxShadow: active ? shadows.sm : undefined,
-        },
-      ]}
+      className={cn(
+        'flex-row items-center gap-3 rounded-sm px-3',
+        child ? 'py-1.5' : 'py-2',
+        active ? 'bg-primary' : (hovered || open) && 'bg-sidebar-accent',
+      )}
+      style={active ? { boxShadow: shadows.sm } : undefined}
     >
       {children(fg)}
     </Pressable>
@@ -81,9 +80,8 @@ function ChildLinks({
   pathname: string;
   go: (href: NavHref) => void;
 }) {
-  const { colors } = useTheme();
   return (
-    <View style={[styles.children, { borderLeftColor: colors.border }]}>
+    <View className="border-border ml-4 mt-1 gap-1 border-l pl-7">
       {items.map((item) => {
         const active = isActive(pathname, item.href);
         return (
@@ -100,7 +98,7 @@ function ChildLinks({
                 weight={active ? 'medium' : 'regular'}
                 color={fg}
                 numberOfLines={1}
-                style={styles.label}
+                className="flex-1"
               >
                 {item.label}
               </Text>
@@ -128,7 +126,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   return (
-    <View style={styles.list}>
+    <View className="gap-1 px-2">
       {ADMIN_NAV.map((entry: NavEntry, i) => {
         const prev = ADMIN_NAV[i - 1];
         const showSection = entry.section && entry.section !== prev?.section;
@@ -151,11 +149,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                         weight="medium"
                         color={fg}
                         numberOfLines={1}
-                        style={styles.label}
+                        className="flex-1"
                       >
                         {entry.label}
                       </Text>
-                      <View style={open ? styles.chevronOpen : undefined}>
+                      <View className={open ? 'rotate-180' : undefined}>
                         <Icon icon={ChevronDown} size={16} color="mutedForeground" />
                       </View>
                     </>
@@ -177,7 +175,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                       weight="medium"
                       color={fg}
                       numberOfLines={1}
-                      style={styles.label}
+                      className="flex-1"
                     >
                       {entry.label}
                     </Text>
@@ -194,45 +192,25 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
 function SectionLabel({ label }: { label: string }) {
   return (
-    <Text size="xs" weight="semibold" color="mutedForeground" caps style={styles.section}>
+    <Text size="xs" weight="semibold" color="mutedForeground" caps className="px-3 pb-1 pt-3">
       {label}
     </Text>
   );
 }
 
 export function Sidebar() {
-  const { colors, layout, shadows } = useTheme();
+  const { shadows } = useTheme();
   return (
     <View
       role="navigation"
       accessibilityLabel="Main navigation"
       testID="sidebar"
-      style={[
-        styles.aside,
-        {
-          width: layout.sidebarWidth,
-          backgroundColor: colors.sidebar,
-          borderRightColor: colors.border,
-          boxShadow: shadows.sidebar,
-        },
-      ]}
+      className="border-border bg-sidebar z-[2] w-[250px] border-r"
+      style={{ boxShadow: shadows.sidebar }}
     >
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerClassName="py-4" showsVerticalScrollIndicator={false}>
         <SidebarNav />
       </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  aside: { borderRightWidth: 1, zIndex: 2 },
-  scroll: { paddingVertical: 16 },
-  list: { paddingHorizontal: 8, gap: 4 },
-  section: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowTop: { paddingHorizontal: 12, paddingVertical: 8 },
-  rowChild: { paddingHorizontal: 12, paddingVertical: 6 },
-  label: { flex: 1 },
-  chevronOpen: { transform: [{ rotate: '180deg' }] },
-  children: { marginLeft: 16, paddingLeft: 28, borderLeftWidth: 1, gap: 4, marginTop: 4 },
-});

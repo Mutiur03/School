@@ -1,5 +1,7 @@
+import { vars } from 'nativewind';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { defaultTheme, type Theme, type ThemeColors } from './tokens';
+import { View } from 'react-native';
+import { defaultTheme, hexToRgbChannels, type Theme, type ThemeColors } from './tokens';
 
 /**
  * The subset of the theme a tenant may override. The backend has no theme fields today
@@ -32,7 +34,21 @@ export function ThemeProvider({
   children: ReactNode;
 }) {
   const theme = useMemo(() => buildTheme(overrides), [overrides]);
-  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+  // className colours read the CSS variables from global.css; overriding them here (NativeWind
+  // vars()) re-themes every class below, while useTheme() serves the same values to props that
+  // need raw colours (lucide icons, SVG). Always rendered so the tree is stable when branding loads.
+  const cssVars = useMemo((): Record<`--${string}`, string> => {
+    const primary = hexToRgbChannels(theme.colors.primary);
+    if (theme === defaultTheme || !primary) return {};
+    return { '--primary': primary, '--ring': primary, '--sidebar-primary': primary };
+  }, [theme]);
+  return (
+    <ThemeContext.Provider value={theme}>
+      <View className="flex-1" style={vars(cssVars)}>
+        {children}
+      </View>
+    </ThemeContext.Provider>
+  );
 }
 
 export const useTheme = () => useContext(ThemeContext);

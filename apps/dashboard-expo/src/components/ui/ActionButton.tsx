@@ -3,14 +3,15 @@
  * `text-muted-foreground rounded-md h-8 w-8`, coloured only on hover (`bg-*-500/10 text-*-700`).
  */
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable } from 'react-native';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme/ThemeProvider';
-import { tw, withAlpha } from '@/theme/tokens';
+import { tw } from '@/theme/tokens';
 import { Icon, type LucideIcon } from './Icon';
 
 const TONES = {
-  blue: { bg: withAlpha(tw.blue500, 0.1), fg: tw.blue700 },
-  emerald: { bg: withAlpha(tw.emerald500, 0.1), fg: tw.emerald700 },
+  blue: { hover: 'hover:bg-blue-500/10', fg: tw.blue700 },
+  emerald: { hover: 'hover:bg-emerald-500/10', fg: tw.emerald700 },
 } as const;
 
 export function ActionButton({
@@ -24,7 +25,8 @@ export function ActionButton({
   tone: keyof typeof TONES;
   onPress?: () => void;
 }) {
-  const { colors, radii } = useTheme();
+  const { colors } = useTheme();
+  // The icon colour is a lucide prop, so hover is tracked in JS for it.
   const [hovered, setHovered] = useState(false);
   const t = TONES[tone];
   return (
@@ -34,16 +36,9 @@ export function ActionButton({
       onPress={onPress}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      style={[
-        styles.btn,
-        { borderRadius: radii.md, backgroundColor: hovered ? t.bg : 'transparent' },
-      ]}
+      className={cn('h-8 w-8 items-center justify-center rounded-md', t.hover)}
     >
       <Icon icon={icon} size={14} rawColor={hovered ? t.fg : colors.mutedForeground} />
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  btn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-});

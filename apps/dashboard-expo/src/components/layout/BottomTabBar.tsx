@@ -7,12 +7,14 @@
 import { usePathname, useRouter } from 'expo-router';
 import { Ellipsis } from '@/components/ui/icons';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
+import { ScrollView } from '@/components/ui/ScrollView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { MOBILE_TABS, isActive } from '@/navigation/nav-items';
-import { useTheme } from '@/theme/ThemeProvider';
+import { cn } from '@/lib/utils';
+import { layout } from '@/theme/tokens';
 import { SidebarNav } from './Sidebar';
 
 function Tab({
@@ -28,7 +30,6 @@ function Tab({
   onPress: () => void;
   testID: string;
 }) {
-  const { colors, radii } = useTheme();
   const fg = active ? 'primaryForeground' : 'mutedForeground';
   return (
     <Pressable
@@ -37,14 +38,9 @@ function Tab({
       accessibilityLabel={label}
       onPress={onPress}
       testID={testID}
-      style={styles.tab}
+      className="flex-1 items-center justify-center gap-0.5 pb-1.5"
     >
-      <View
-        style={[
-          styles.pill,
-          { borderRadius: radii.sm, backgroundColor: active ? colors.primary : 'transparent' },
-        ]}
-      >
+      <View className={cn('rounded-sm px-3.5 py-1', active && 'bg-primary')}>
         <Icon icon={icon} size={18} color={fg} />
       </View>
       <Text
@@ -62,7 +58,6 @@ export function BottomTabBar() {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { colors, layout, radii } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
   const onTab = MOBILE_TABS.some((t) => isActive(pathname, t.href));
 
@@ -71,15 +66,8 @@ export function BottomTabBar() {
       <View
         role="tablist"
         testID="bottom-tab-bar"
-        style={[
-          styles.bar,
-          {
-            minHeight: layout.bottomBarHeight + insets.bottom,
-            paddingBottom: insets.bottom,
-            backgroundColor: colors.sidebar,
-            borderTopColor: colors.border,
-          },
-        ]}
+        className="border-border bg-sidebar flex-row border-t pt-1.5"
+        style={{ minHeight: layout.bottomBarHeight + insets.bottom, paddingBottom: insets.bottom }}
       >
         {MOBILE_TABS.map((tab) => (
           <Tab
@@ -108,23 +96,16 @@ export function BottomTabBar() {
       >
         <Pressable
           accessibilityLabel="Close menu"
-          style={styles.backdrop}
+          className="absolute inset-0 bg-black/40"
           onPress={() => setMoreOpen(false)}
         />
         <View
           testID="more-sheet"
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.sidebar,
-              borderTopLeftRadius: radii.xl,
-              borderTopRightRadius: radii.xl,
-              paddingBottom: insets.bottom + 8,
-            },
-          ]}
+          className="bg-sidebar absolute bottom-0 left-0 right-0 max-h-[85%] rounded-t-xl"
+          style={{ paddingBottom: insets.bottom + 8 }}
         >
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-          <ScrollView contentContainerStyle={styles.sheetScroll}>
+          <View className="bg-border my-2 h-1 w-9 self-center rounded-sm" />
+          <ScrollView contentContainerClassName="pb-2">
             <SidebarNav onNavigate={() => setMoreOpen(false)} />
           </ScrollView>
         </View>
@@ -132,20 +113,3 @@ export function BottomTabBar() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 6 },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingBottom: 6 },
-  pill: { paddingHorizontal: 14, paddingVertical: 4 },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '85%' },
-  handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, marginVertical: 8 },
-  sheetScroll: { paddingBottom: 8 },
-});

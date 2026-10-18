@@ -1,15 +1,13 @@
 import { useRouter } from 'expo-router';
-import { Compass } from '@/components/ui/icons';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { Compass } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/states';
-import { useTheme } from '@/theme/ThemeProvider';
 
 export default function NotFound() {
   const router = useRouter();
-  const { colors } = useTheme();
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.background }]}>
+    <View className="bg-background flex-1 items-center justify-center">
       <EmptyState
         icon={Compass}
         title="Page not found"
@@ -19,7 +17,3 @@ export default function NotFound() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-});
