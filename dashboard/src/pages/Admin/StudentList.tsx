@@ -1831,7 +1831,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
                 />
               </div>
             )}
-            <div className="px-5 pt-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4">
               {!isExcelUpload ? (
                 <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
                   <div className="grid gap-6 sm:grid-cols-[7rem_1fr]">
@@ -2181,7 +2181,7 @@ function StudentList({ readOnly = false }: { readOnly?: boolean }) {
           title="Excel format"
           onClose={() => setShowFormatInfo(false)}
         />
-        <div className="space-y-4 px-5 py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <p className="text-muted-foreground text-sm">
             First row must hold these column names (case doesn't matter). Each row is checked before
             upload.
