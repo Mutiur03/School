@@ -1,6 +1,7 @@
 node_modules
 dist
 .next
+.expo
 .turbo
 .open-next
 .wrangler

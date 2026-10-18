@@ -1,0 +1,84 @@
+/*
+ * NativeWind entry stylesheet. Mirrors dashboard/src/index.css: the same shadcn variable names,
+ * :root for light (the only theme the dashboard ships) and .dark ready but not enabled.
+ *
+ * Values are space-separated RGB channels instead of hex so Tailwind opacity modifiers keep
+ * working (`bg-primary/90`), via `rgb(var(--x) / <alpha-value>)` in tailwind.config.js.
+ * Hex equivalents (and the oklch originals) are in src/theme/tokens.ts; keep both in sync.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 255 255 255; /* #ffffff */
+  --foreground: 15 23 42; /* #0f172a */
+  --card: 255 255 255;
+  --card-foreground: 15 23 42;
+  --popover: 255 255 255;
+  --popover-foreground: 15 23 42;
+  --primary: 15 23 42;
+  --primary-foreground: 255 255 255;
+  --secondary: 241 245 249; /* #f1f5f9 */
+  --secondary-foreground: 15 23 42;
+  --muted: 241 245 249;
+  --muted-foreground: 100 116 139; /* #64748b */
+  --accent: 241 245 249;
+  --accent-foreground: 15 23 42;
+  --destructive: 231 0 11; /* oklch(0.577 0.245 27.325) = #e7000b */
+  --border: 226 232 240; /* #e2e8f0 */
+  --input: 241 245 249;
+  --ring: 15 23 42;
+  --chart-1: 15 23 42;
+  --chart-2: 15 23 42;
+  --chart-3: 15 23 42;
+  --chart-4: 15 23 42;
+  --chart-5: 15 23 42;
+  --sidebar: 255 255 255;
+  --sidebar-foreground: 15 23 42;
+  --sidebar-primary: 15 23 42;
+  --sidebar-primary-foreground: 255 255 255;
+  --sidebar-accent: 241 245 249;
+  --sidebar-accent-foreground: 15 23 42;
+  --sidebar-border: 226 232 240;
+  --sidebar-ring: 15 23 42;
+}
+
+/*
+ * .dark from dashboard/src/index.css. Ready but NOT enabled: the dashboard's theme switch is
+ * commented out, so neither app adds the `dark` class today. `--border` / `--sidebar-border` are
+ * rgba(255,255,255,0.1) on web; channels cannot carry alpha, so they are pre-blended over --card.
+ */
+.dark:root {
+  --background: 1 22 39; /* #011627 */
+  --foreground: 248 250 252; /* #f8fafc */
+  --card: 1 36 61; /* #01243d */
+  --card-foreground: 248 250 252;
+  --popover: 1 36 61;
+  --popover-foreground: 248 250 252;
+  --primary: 35 114 153; /* #237299 */
+  --primary-foreground: 255 255 255;
+  --secondary: 7 86 110; /* #07566e */
+  --secondary-foreground: 255 255 255;
+  --muted: 1 54 90; /* #01365a */
+  --muted-foreground: 148 163 184; /* #94a3b8 */
+  --accent: 23 117 135; /* #177587 */
+  --accent-foreground: 255 255 255;
+  --destructive: 255 100 103; /* oklch(0.704 0.191 22.216) = #ff6467 */
+  --border: 26 58 80; /* rgba(255,255,255,0.1) over #01243d */
+  --input: 1 54 90;
+  --ring: 35 114 153;
+  --chart-1: 35 114 153;
+  --chart-2: 23 117 135;
+  --chart-3: 138 207 253;
+  --chart-4: 63 196 222;
+  --chart-5: 154 224 237;
+  --sidebar: 1 36 61;
+  --sidebar-foreground: 248 250 252;
+  --sidebar-primary: 35 114 153;
+  --sidebar-primary-foreground: 255 255 255;
+  --sidebar-accent: 1 54 90;
+  --sidebar-accent-foreground: 248 250 252;
+  --sidebar-border: 26 58 80;
+  --sidebar-ring: 35 114 153;
+}
