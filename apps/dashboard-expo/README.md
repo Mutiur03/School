@@ -92,6 +92,13 @@ values in the installed `tailwindcss@4.3.3/theme.css`.
 | `src/components/ui/skeleton.tsx`, `Loading.tsx`, `ErrorMessage.tsx` | `src/components/ui/states.tsx`                                        | Pulse skeleton, Loader2 spinner, empty line, error card, block error                                             |
 | recharts `LineChart` in `Dashboard.tsx`                             | `src/components/ui/LineChart.tsx` (react-native-svg)                  | Grid, axis labels, 5 nice ticks, monotone lines; no tooltip yet                                                  |
 
+Phone tab bar (`layout/BottomTabBar.tsx`): a docked `bg-sidebar` surface with a hairline
+`border-t` and a soft upward shadow, safe-area padded. A `bg-primary/10` pill slides behind the
+active icon: Reanimated on native (`TabIndicator.tsx`), a CSS transform transition on web
+(`TabIndicator.web.tsx`, keeping Reanimated out of the web bundle). It is instant under reduced
+motion. Tabs are 64px tall with `role="tab"`, selected state and pressed feedback
+(`active:scale-95 opacity-70`).
+
 Deliberate differences: phones use bottom tabs + a "More" sheet instead of the burger drawer;
 the navbar shows the active school (tenant branding); System status is an Expo-only page;
 Student List has a search box instead of per-column filter/sort menus (not ported yet).

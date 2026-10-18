@@ -217,7 +217,7 @@ export const layout = {
   /** Expanded sidebar width in Sidebar.tsx. */
   sidebarWidth: 250,
   /** Bottom tab bar (Expo-only mobile pattern; the web dashboard uses a burger drawer). */
-  bottomBarHeight: 60,
+  bottomBarHeight: 64,
   /** `max-w-7xl`. */
   contentMaxWidth: 1280,
 } as const;
