@@ -77,6 +77,10 @@ test.each([
   ['GET', `/api/graduations/${YEAR}/plan`],
   ['POST', `/api/graduations/${YEAR}`],
   ['PATCH', `/api/promotions/${YEAR}/results/1`],
+  ['GET', `/api/promotions/${YEAR}/results/1/placement?status=Passed`],
+  ['DELETE', `/api/promotions/${YEAR}/results/1/override`],
+  ['GET', `/api/promotions/${YEAR}/corrections/plan`],
+  ['POST', `/api/promotions/${YEAR}/corrections`],
 ])('%s %s without token → 401', async (method, path) => {
   const { status, body } = await call(method, path, { body: method === 'GET' ? undefined : {} });
   expect(status).toBe(401);

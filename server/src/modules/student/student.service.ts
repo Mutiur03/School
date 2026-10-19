@@ -12,6 +12,7 @@ import type { Prisma } from '@/generated/prisma/client.js';
 import path from 'path';
 import fs from 'fs';
 import QRCode from 'qrcode';
+import { freeRolls } from './free-rolls.js';
 import sharp from 'sharp';
 const current_year = new Date().getFullYear();
 
@@ -57,6 +58,8 @@ export class StudentService {
       order?: 'asc' | 'desc';
       /** 'name' limits `search` to the student name (default also matches parent phones). */
       searchBy?: 'name';
+      /** Only active students (promotion/result pages never show TC'd students). */
+      activeOnly?: boolean;
     },
     _user?: {
       role?: string;
@@ -109,7 +112,9 @@ export class StudentService {
 
     const baseWhere: Prisma.student_enrollmentsWhereInput = {
       year,
+      ...(params.activeOnly && { student: { available: true } }),
     };
+    if (params.activeOnly) enrollmentWhere.AND = [{ student: { available: true } }];
 
     if (normalizedSearch) {
       enrollmentWhere.student = {
@@ -440,33 +445,60 @@ export class StudentService {
   }
 
   static async addStudents(students: any[]) {
+    const slots = students.map((student, i) => {
+      const year = student.year || current_year;
+      const classNum = Number(removeInitialZeros(String(student.class || 1)));
+      const section = (student.section?.trim() || 'A').toUpperCase();
+      const roll = Number(removeInitialZeros(String(student.roll || 1)));
+      const group = classNum >= 9 ? student.group?.trim() || null : null;
+
+      if ((classNum === 9 || classNum === 10) && !VALID_GROUPS.includes(group || '')) {
+        throw new ApiError(400, `Student at index ${i}: Group is required for class 9-10`);
+      }
+      return { year, class: classNum, section, roll, group };
+    });
+    const loginIdOf = (s: { year: number; class: number; section: string; roll: number }) => {
+      const class6Year = s.year - (s.class - 6);
+      let secValue = 1;
+      if (s.section >= 'A' && s.section <= 'Z') {
+        secValue = s.section.charCodeAt(0) - 64;
+      } else if (!isNaN(Number(s.section))) {
+        secValue = Number(s.section);
+      }
+      const sectionCode = String(secValue).padStart(2, '0');
+      const rollCode = String(s.roll).padStart(2, '0');
+      return BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
+    };
+
+    // A file roll already held by someone else (e.g. a retained student numbered after promotion)
+    // moves to the end of its section instead of the enrollment being silently skipped.
+    // Rows of the same students (a re-import, same login id) don't count as taken.
+    const fileLoginIds = new Set(slots.map(loginIdOf));
+    const enrolled = await prisma.student_enrollments.findMany({
+      where: { OR: slots.map((s) => ({ year: s.year, class: s.class })) },
+      select: {
+        year: true,
+        class: true,
+        section: true,
+        roll: true,
+        student: { select: { login_id: true } },
+      },
+    });
+    const rolls = freeRolls(
+      slots,
+      enrolled.filter((e) => !fileLoginIds.has(e.student.login_id)),
+    );
+
     const hashedStudents = await Promise.all(
       students.map(async (s, i) => {
         const student = { ...s };
         const password = generatePassword();
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const studentYear = student.year || current_year;
-        const classNum = Number(removeInitialZeros(String(student.class || 1)));
+        const { year: studentYear, class: classNum, section, group } = slots[i];
+        const roll = rolls[i];
         const batch = String(studentYear + 11 - classNum);
-        const section = (student.section?.trim() || 'A').toUpperCase();
-        const roll = Number(removeInitialZeros(String(student.roll || 1)));
-        const group = classNum >= 9 ? student.group?.trim() || null : null;
-
-        if ((classNum === 9 || classNum === 10) && !VALID_GROUPS.includes(group || '')) {
-          throw new ApiError(400, `Student at index ${i}: Group is required for class 9-10`);
-        }
-
-        const class6Year = studentYear - (classNum - 6);
-        let secValue = 1;
-        if (section >= 'A' && section <= 'Z') {
-          secValue = section.charCodeAt(0) - 64;
-        } else if (!isNaN(Number(section))) {
-          secValue = Number(section);
-        }
-        const sectionCode = String(secValue).padStart(2, '0');
-        const rollCode = String(roll).padStart(2, '0');
-        const login_id = BigInt(`${String(class6Year).slice(-2)}${sectionCode}${rollCode}`);
+        const login_id = loginIdOf({ ...slots[i], roll });
 
         return {
           ...student,
@@ -489,6 +521,15 @@ export class StudentService {
       select: { login_id: true },
     });
     const existingLoginIds = new Set(existingRows.map((row) => row.login_id));
+    const clash = hashedStudents.find(
+      (s, i) => s.roll !== slots[i].roll && existingLoginIds.has(s.login_id),
+    );
+    if (clash) {
+      throw new ApiError(
+        409,
+        `Roll ${slots[hashedStudents.indexOf(clash)].roll} of ${clash.name} is taken and the next free roll's login ID ${clash.login_id} already exists.`,
+      );
+    }
     const requestedCount = hashedStudents.length;
 
     let createdCount = 0;

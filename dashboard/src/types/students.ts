@@ -27,4 +27,6 @@ export interface Student {
   status?: 'Passed' | 'Failed' | 'Pending' | string;
   fail_count?: number;
   result_held?: boolean;
+  /** Pass/fail set by hand; regenerating keeps it. */
+  result_manual?: boolean;
 }

@@ -13,6 +13,8 @@ export type SessionResultRow = StudentSessionResult & {
   yearEndExamId: number;
   /** Withheld: not ranked (position 0), not written by generation. */
   held: boolean;
+  /** Manual pass/fail override: generation keeps the saved status. */
+  manual: boolean;
 };
 
 export type SessionResults = {
@@ -81,6 +83,7 @@ export async function loadSessionResults(
       roll: true,
       fourth_subject_id: true,
       result_held: true,
+      result_manual: true,
       release_batch: true,
       student: { select: { name: true } },
     },
@@ -185,6 +188,7 @@ export async function loadSessionResults(
       previousExamId: ex.previousExamId,
       yearEndExamId: ex.yearEndExamId,
       held: e.result_held,
+      manual: e.result_manual,
     }))
     .sort(
       (a, b) =>

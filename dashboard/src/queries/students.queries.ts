@@ -55,6 +55,8 @@ export type StudentListParams = {
   /** 'name' limits search to student name (default also matches parent phones). */
   searchBy?: 'name';
   group?: string;
+  /** Hide inactive (TC'd) students. */
+  activeOnly?: boolean;
 };
 
 /** Query-string form of the list params (arrays as comma lists, empties dropped). */
@@ -73,6 +75,7 @@ export const toStudentListQuery = (p: StudentListParams) => ({
   ...(p.roll != null && !Number.isNaN(p.roll) ? { roll: p.roll } : {}),
   ...(p.search ? { search: p.search, ...(p.searchBy ? { searchBy: p.searchBy } : {}) } : {}),
   ...(p.group ? { group: p.group } : {}),
+  ...(p.activeOnly ? { activeOnly: 'true' } : {}),
 });
 
 export const useStudents = (

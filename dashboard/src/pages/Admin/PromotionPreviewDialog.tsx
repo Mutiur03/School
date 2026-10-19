@@ -4,7 +4,59 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popup } from '@/components';
 import { cn } from '@/lib/utils';
-import type { PromotionPreview } from '@/queries/promotion.queries';
+import type { PromotionPreview, SkippedStudent } from '@/queries/promotion.queries';
+
+const SKIP_REASON: Record<SkippedStudent['reason'], { title: string; fix: string }> = {
+  held: { title: 'Result held', fix: 'Release their result on this page to include them.' },
+  no_result: {
+    title: 'No result yet',
+    fix: 'Generate results or set Passed/Failed for them first.',
+  },
+};
+
+/** Who is left out and why. Inactive (TC'd) students are never counted here. */
+export const SkippedAlert = ({
+  students,
+  action,
+}: {
+  students: SkippedStudent[];
+  action: string;
+}) =>
+  students.length ? (
+    <Alert>
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription className="space-y-2">
+        <p>
+          <strong>
+            {students.length} student{students.length === 1 ? '' : 's'} will not be {action}.
+          </strong>{' '}
+          Inactive (TC) students are never included and are not counted here.
+        </p>
+        {(Object.keys(SKIP_REASON) as SkippedStudent['reason'][]).map((reason) => {
+          const list = students.filter((s) => s.reason === reason);
+          if (!list.length) return null;
+          return (
+            <div key={reason}>
+              <p>
+                <strong>
+                  {SKIP_REASON[reason].title} ({list.length}):
+                </strong>{' '}
+                {SKIP_REASON[reason].fix}
+              </p>
+              <ul className="text-muted-foreground mt-1 list-disc pl-5">
+                {list.map((s) => (
+                  <li key={s.enrollment_id}>
+                    {s.name} — class {s.class}
+                    {s.section}, roll {s.roll}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </AlertDescription>
+    </Alert>
+  ) : null;
 
 export const CloseButton = ({ onClick }: { onClick: () => void }) => (
   <button
@@ -107,15 +159,7 @@ export function PromotionPreviewDialog({
               <Stat label="Sec A / B" value={`${summary.section_a} / ${summary.section_b}`} />
             </div>
 
-            {summary.skipped > 0 ? (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {summary.skipped} student{summary.skipped === 1 ? '' : 's'} skipped: status is not
-                  Passed or Failed. Generate results or set their status first.
-                </AlertDescription>
-              </Alert>
-            ) : null}
+            <SkippedAlert students={preview?.skipped_students ?? []} action="promoted" />
 
             {summary.awaiting_roll > 0 ? (
               <Alert variant="destructive">
@@ -124,10 +168,11 @@ export function PromotionPreviewDialog({
                   No new class-6 admissions found for {preview.newYear}.{' '}
                   <strong>
                     {summary.awaiting_roll} failed class-6 student
-                    {summary.awaiting_roll === 1 ? '' : 's'} will be put on hold
-                  </strong>{' '}
-                  with no roll. Import the admissions, then assign them manually with{' '}
-                  <strong>Assign retained</strong>.
+                    {summary.awaiting_roll === 1 ? '' : 's'} will stay in class 6 without a roll for
+                    now
+                  </strong>
+                  , so the admissions get the first rolls. After importing the admissions, click{' '}
+                  <strong>Assign retained</strong> to number them after the admitted students.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -138,7 +183,9 @@ export function PromotionPreviewDialog({
                 <AlertDescription>
                   {summary.existing_next_year_enrollments} enrollment
                   {summary.existing_next_year_enrollments === 1 ? '' : 's'} in {preview.newYear}{' '}
-                  will be <strong>deleted and replaced</strong>.
+                  already exist. Auto-promoted students are <strong>renumbered by merit</strong>;
+                  failed, manually set and late-released students keep their order after them. Only
+                  students moving to another class lose their old row.
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -184,6 +231,14 @@ export function PromotionPreviewDialog({
                         ) : (
                           `${row.new_section}${row.new_roll}`
                         )}
+                        {row.locked ? (
+                          <span
+                            className="text-muted-foreground ml-1 text-xs"
+                            title="Keeps its place after the auto-promoted students when promotion is re-run"
+                          >
+                            · kept order
+                          </span>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

@@ -12,6 +12,8 @@ import {
   PauseCircle,
   PlayCircle,
   RefreshCw,
+  RotateCcw,
+  Undo2,
   SlidersHorizontal,
   Trophy,
   Users,
@@ -38,6 +40,8 @@ import {
 import { ColumnHeaderMenu, type SortOrder } from '@/components/ColumnHeaderMenu';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { cn } from '@/lib/utils';
+import { PromotionBadges, PromotionStatus } from '@/pages/Admin/PromotionStatus';
+import { CorrectionsDialog } from '@/pages/Admin/CorrectionsDialog';
 import { useStudents, type StudentSortKey } from '@/queries/students.queries';
 import { useExams } from '@/queries/exam.queries';
 import {
@@ -49,12 +53,18 @@ import {
   useGraduateClass10,
   useOverrideEnrollmentStatus,
   useResultHold,
+  useClearOverride,
   usePromotionYearStats,
   usePromotionPassRules,
   useSavePromotionPassRules,
   PROMOTION_PASS_CLASSES,
   ENROLLMENT_STATUS_OPTIONS,
+  fail,
+  fetchPlacement,
+  notify,
+  placementText,
   type EnrollmentStatus,
+  type Placement,
   type PromotionPreview,
   type GraduationPreview,
   type PromotionPassRule,
@@ -261,6 +271,7 @@ const GenerateResult = () => {
       groups: filters.groups,
       sort: sort?.key,
       order: sort?.order,
+      activeOnly: true, // inactive (TC'd) students are never part of results or promotion
     },
     { keepPreviousPage: true },
   );
@@ -275,6 +286,8 @@ const GenerateResult = () => {
   const { mutate: overrideStatus } = useOverrideEnrollmentStatus();
   const { mutate: holdResult } = useResultHold('hold');
   const { mutate: releaseResult } = useResultHold('release');
+  const { mutate: clearOverride } = useClearOverride();
+  const [correctionsOpen, setCorrectionsOpen] = useState(false);
 
   const students = useMemo(() => studentsResponse?.data ?? [], [studentsResponse]);
   const meta = studentsResponse?.meta;
@@ -329,7 +342,11 @@ const GenerateResult = () => {
 
   const blockIfNotReady = () => {
     if (yearEndReady) return false;
-    toast.error(`Missing year-end exams for class ${gaps.join(', ')}`);
+    notify(
+      'generate',
+      [`Class ${gaps.join(', ')} has no year-end exam yet.`, 'Create it in Exam Setup first.'],
+      'warning',
+    );
     return true;
   };
 
@@ -337,7 +354,7 @@ const GenerateResult = () => {
     if (blockIfNotReady()) return;
     const ok = await confirm({
       title: 'Generate pass/fail?',
-      msg: `Recalculate pass/fail for all students in ${year} from year-end marks.\n\nAllowed failed subjects by class — ${passRulesSummary}.\n\nManual overrides may be overwritten.`,
+      msg: `Recalculate pass/fail for all students in ${year} from year-end marks.\n\nAllowed failed subjects by class — ${passRulesSummary}.\n\nManual pass/fail overrides are kept.`,
       confirmLabel: 'Generate',
     });
     if (ok) updateStatus(year);
@@ -350,7 +367,11 @@ const GenerateResult = () => {
     fetchPreview(year, {
       onSuccess: (data) => {
         if (data.summary.total === 0) {
-          toast.error(`No students in classes 6–9 for ${year}.`);
+          notify(
+            'preview',
+            [`No active students with a result in classes 6–9 for ${year}.`],
+            'warning',
+          );
           setPreviewOpen(false);
           return;
         }
@@ -376,7 +397,7 @@ const GenerateResult = () => {
     fetchGraduationPreview(year, {
       onSuccess: (data) => {
         if (data.summary.total === 0) {
-          toast.error(`No active class-10 students for ${year}.`);
+          notify('preview', [`No active class-10 students with a result for ${year}.`], 'warning');
           setGraduationOpen(false);
           return;
         }
@@ -395,13 +416,38 @@ const GenerateResult = () => {
     });
   };
 
-  const handleStatusOverride = (student: Student, status: EnrollmentStatus) => {
-    if (!student.enrollment_id || student.status === status) return;
-    setOverridingId(student.enrollment_id);
+  const handleStatusOverride = async (student: Student, status: EnrollmentStatus) => {
+    const enrollmentId = student.enrollment_id;
+    if (!enrollmentId || student.status === status) return;
+    setOverridingId(enrollmentId);
+    // Already promoted → the student moves next year too; show where before saving.
+    let placement: Placement;
+    try {
+      placement = await fetchPlacement(year, enrollmentId, status);
+    } catch (err: any) {
+      fail('status', err, 'Could not check next-year placement');
+      setOverridingId(null);
+      return;
+    }
+    const text = placementText(placement, year + 1);
+    if (
+      text &&
+      !(await confirm({
+        title: `Set ${student.name} to ${status}?`,
+        msg: `Promotion for ${year + 1} already ran.
+
+${text}`,
+        confirmLabel: 'Save',
+      }))
+    ) {
+      setOverridingId(null);
+      return;
+    }
     overrideStatus(
-      { year, enrollmentId: student.enrollment_id, status },
+      { year, enrollmentId, status },
       {
-        onSuccess: () => toast.success(`${student.name}: ${status}`),
+        onSuccess: (p) =>
+          notify('status', [`${student.name} set to ${status}.`, placementText(p, year + 1)]),
         onSettled: () => setOverridingId(null),
       },
     );
@@ -413,7 +459,9 @@ const GenerateResult = () => {
     if (student.result_held) {
       const ok = await confirm({
         title: 'Release result?',
-        msg: `${student.name}'s result is generated now and ranked after everyone already released, so no earlier merit position moves.`,
+        msg: `${student.name}'s result is generated now and ranked after everyone already released, so no earlier merit position moves.
+
+If promotion for ${year + 1} already ran, they are added at the end of their next class right away; nobody else moves.`,
         confirmLabel: 'Release',
       });
       if (ok) releaseResult({ year, enrollmentIds });
@@ -421,10 +469,22 @@ const GenerateResult = () => {
     }
     const ok = await confirm({
       title: 'Hold result?',
-      msg: `${student.name}'s status goes back to Pending and they are not ranked, promoted or graduated until released.`,
+      msg: `${student.name}'s status goes back to Pending and they are not ranked, promoted or graduated until released.
+
+If promotion for ${year + 1} already ran, their ${year + 1} class row is removed (refused if it already has marks).`,
       confirmLabel: 'Hold',
     });
     if (ok) holdResult({ year, enrollmentIds });
+  };
+
+  const handleUseCalculated = async (student: Student) => {
+    if (!student.enrollment_id) return;
+    const ok = await confirm({
+      title: 'Use calculated result?',
+      msg: `${student.name}'s manual ${student.status} is removed and the result is worked out from marks again.\n\nIf promotion for ${year + 1} already ran and the result changes, they are moved to the end of their next class; nobody else moves.`,
+      confirmLabel: 'Use calculated result',
+    });
+    if (ok) clearOverride({ year, enrollmentId: student.enrollment_id });
   };
 
   const handleSaveRules = () => {
@@ -437,7 +497,7 @@ const GenerateResult = () => {
       const response = await axios.get(url, { params: { year }, responseType: 'blob' });
       openBlobInNewTab(new Blob([response.data], { type: 'application/pdf' }));
     } catch (err) {
-      toast.error(await blobErrorMessage(err, error));
+      toast.error(await blobErrorMessage(err, error), { id: 'pdf', duration: 7000 });
     }
   };
   const downloadSessionMarksheet = (studentId: number) =>
@@ -500,17 +560,23 @@ const GenerateResult = () => {
                 </option>
               ))}
             </select>
+            <PromotionBadges stats={yearStats} />
           </div>
           <p className="text-muted-foreground mt-1 text-sm tabular-nums">{summary}</p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void downloadAllMarksheetPDF()}
-          disabled={totalFiltered === 0}
-        >
-          <Download /> All session PDFs
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => setCorrectionsOpen(true)}>
+            <Undo2 /> Correct mistakes
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void downloadAllMarksheetPDF()}
+            disabled={totalFiltered === 0}
+          >
+            <Download /> All session PDFs
+          </Button>
+        </div>
       </header>
 
       {!yearEndReady && (
@@ -523,6 +589,10 @@ const GenerateResult = () => {
           </AlertDescription>
         </Alert>
       )}
+
+      <CorrectionsDialog year={year} open={correctionsOpen} onOpenChange={setCorrectionsOpen} />
+
+      <PromotionStatus stats={yearStats} />
 
       <div className="border-border bg-card divide-border mb-6 grid divide-y rounded-xl border shadow-sm lg:grid-cols-3 lg:divide-x lg:divide-y-0">
         <Step
@@ -564,12 +634,12 @@ const GenerateResult = () => {
           detail={
             <>
               Classes 6–9 → {year + 1}.{' '}
-              {awaitingRoll > 0
-                ? `${awaitingRoll} failed class-6 student${awaitingRoll === 1 ? '' : 's'} have no roll yet — import admissions, then assign. `
-                : ''}
-              {nextYearTotal === 0
-                ? 'No enrollments there yet — safe to promote.'
-                : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} exist — re-running replaces the promoted students’ rows.`}
+              {/* Run time, counts and warnings live in <PromotionStatus> above. */}
+              {promoted
+                ? 'Re-running renumbers only auto-promoted students; the rest keep their order.'
+                : nextYearTotal === 0
+                  ? 'No enrollments there yet — safe to promote.'
+                  : `${nextYearTotal} enrollment${nextYearTotal === 1 ? '' : 's'} already in ${year + 1}; they keep their place.`}
             </>
           }
         >
@@ -786,6 +856,11 @@ const GenerateResult = () => {
                               {student.result_held ? 'Release result' : 'Hold result'}
                             </DropdownMenuItem>
                           )}
+                          {student.result_manual && !student.result_held ? (
+                            <DropdownMenuItem onSelect={() => void handleUseCalculated(student)}>
+                              <RotateCcw /> Use calculated result
+                            </DropdownMenuItem>
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

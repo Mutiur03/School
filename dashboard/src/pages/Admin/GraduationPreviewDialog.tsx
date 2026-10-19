@@ -8,6 +8,7 @@ import type { GraduationPreview } from '@/queries/promotion.queries';
 import {
   CloseButton,
   ResultBadge,
+  SkippedAlert,
   Stat,
   thClass,
   theadRowClass,
@@ -86,15 +87,10 @@ export function GraduationPreviewDialog({
               <Stat label="Retain" value={summary.retained} dot="bg-amber-500" />
             </div>
 
-            {summary.skipped > 0 ? (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {summary.skipped} student{summary.skipped === 1 ? '' : 's'} skipped: status is not
-                  Passed or Failed. Generate results or set their status first.
-                </AlertDescription>
-              </Alert>
-            ) : null}
+            <SkippedAlert
+              students={preview?.skipped_students ?? []}
+              action="graduated or retained"
+            />
 
             {summary.existing_class10_next_year > 0 ? (
               <Alert>

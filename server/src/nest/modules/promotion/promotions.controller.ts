@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -12,10 +13,13 @@ import {
 } from '@nestjs/common';
 import { Auth } from '../../common/auth.guard.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
+import { CurrentUser } from '../../common/current-user.decorator.js';
+import type { AuthUser } from '../../common/current-user.decorator.js';
+import { CorrectionsDto } from './dto/corrections.dto.js';
 import { PassRulesDto } from './dto/pass-rules.dto.js';
 import { ResultEnrollmentsDto } from './dto/result-enrollments.dto.js';
 import { UpdateResultDto } from './dto/update-result.dto.js';
-import { PromotionService } from './promotion.service.js';
+import { PromotionService, ranBy } from './promotion.service.js';
 
 /** Year-end results (pass/fail + positions), pass rules, and the promotion run for a session year. */
 @Controller('promotions')
@@ -25,8 +29,12 @@ export class PromotionsController {
 
   /** Run promotion of `year` into `year + 1`. */
   @Post(':year')
-  create(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
-    return this.promotion.promote(schoolId, year);
+  create(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.promotion.promote(schoolId, year, ranBy(user));
   }
 
   /** Number the failed class-6 students left without a roll by the promotion (run after importing admissions). */
@@ -76,7 +84,18 @@ export class PromotionsController {
     return this.promotion.releaseResults(schoolId, year, dto.enrollment_ids);
   }
 
-  /** Manual override; 404 when the enrollment is not in this school + year. */
+  /** Where a status change would put the student next year (for the confirm dialog); nothing is written. */
+  @Get(':year/results/:enrollmentId/placement')
+  findPlacement(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Param('enrollmentId', ParseIntPipe) enrollmentId: number,
+    @Query() dto: UpdateResultDto,
+  ) {
+    return this.promotion.previewPlacement(schoolId, year, enrollmentId, dto.status);
+  }
+
+  /** Manual override; moves the student next year if already promoted. 404 when not in this school + year. */
   @Patch(':year/results/:enrollmentId')
   updateResult(
     @SchoolId() schoolId: number,
@@ -85,6 +104,32 @@ export class PromotionsController {
     @Body() dto: UpdateResultDto,
   ) {
     return this.promotion.updateResult(schoolId, year, enrollmentId, dto.status);
+  }
+
+  /** "Use calculated result": drop one manual pass/fail; the student moves if already promoted. */
+  @Delete(':year/results/:enrollmentId/override')
+  removeOverride(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Param('enrollmentId', ParseIntPipe) enrollmentId: number,
+  ) {
+    return this.promotion.clearOverride(schoolId, year, enrollmentId);
+  }
+
+  /** What each correction would change (dry run for the "Correct mistakes" dialog). */
+  @Get(':year/corrections/plan')
+  findCorrectionsPlan(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
+    return this.promotion.previewCorrections(schoolId, year);
+  }
+
+  /** Apply the chosen corrections (reset promotion, undo graduation, clear manual, reset batches). */
+  @Post(':year/corrections')
+  createCorrections(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Body() dto: CorrectionsDto,
+  ) {
+    return this.promotion.applyCorrections(schoolId, year, dto);
   }
 
   @Get(':year/stats')

@@ -86,6 +86,7 @@ model School {
   attendance_sheets        attendance_sheets[]
   exam_type_assignments    school_exam_types[]
   promotion_pass_rules     promotion_pass_rules[]
+  promotion_runs           promotion_runs[]
   acc_heads                acc_heads[]
   acc_cost_centers         acc_cost_centers[]
   acc_vouchers             acc_vouchers[]
@@ -455,6 +456,21 @@ model students {
   @@index([school_id])
 }
 
+/// Last promotion / graduation run of a session year, shown on the promotion page.
+model promotion_runs {
+  id        Int      @id @default(autoincrement())
+  year      Int
+  /// 'promotion' (classes 6-9) or 'graduation' (class 10)
+  kind      String   @db.VarChar(20)
+  ran_at    DateTime @default(now())
+  ran_by    String?  @db.VarChar(100)
+  school_id Int      @default(dbgenerated("app.current_school_id()"))
+  school    School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@unique([school_id, year, kind])
+  @@index([school_id])
+}
+
 model promotion_pass_rules {
   id         Int      @id @default(autoincrement())
   year       Int
@@ -483,6 +499,8 @@ model student_enrollments {
   final_merit        Int       @default(0)
   /// Result withheld: excluded from ranking, generation and promotion until released.
   result_held        Boolean   @default(false)
+  /// Manual pass/fail override: regenerating results keeps the status; promotion keeps its roll sequence.
+  result_manual      Boolean   @default(false)
   /// 0 = on-time; each late release gets the next number and ranks after all earlier batches.
   release_batch      Int       @default(0)
   result_released_at DateTime?

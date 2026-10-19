@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import type { ArgumentMetadata } from '@nestjs/common';
+import { CorrectionsDto } from './corrections.dto.js';
 import { PassRulesDto } from './pass-rules.dto.js';
 import { UpdateResultDto } from './update-result.dto.js';
 
@@ -48,5 +49,23 @@ describe('UpdateResultDto', () => {
 
   it.each([['Passed'], ['Failed'], ['Pending'], ['Graduated']])('accepts %s', async (status) => {
     await expect(run({ status }, UpdateResultDto)).resolves.toEqual({ status });
+  });
+});
+
+describe('CorrectionsDto', () => {
+  it.each([
+    [{ reset_promotion: 'yes' }],
+    [{ clear_manual: 1 }],
+    [{ reset_promotion: true, year: 2026 }],
+  ])('rejects %j → 400', async (body) => {
+    await expect(run(body, CorrectionsDto)).rejects.toMatchObject({ status: 400 });
+  });
+
+  it.each([
+    [{}],
+    [{ reset_promotion: true }],
+    [{ undo_graduation: true, clear_manual: false, reset_release_batches: true }],
+  ])('accepts %j', async (body) => {
+    await expect(run(body, CorrectionsDto)).resolves.toEqual(body);
   });
 });

@@ -76,6 +76,7 @@ export class StudentController {
         : undefined;
     const order = req.query.order === 'desc' ? 'desc' : 'asc';
     const searchBy = req.query.searchBy === 'name' ? 'name' : undefined;
+    const activeOnly = req.query.activeOnly === 'true';
     const page = typeof pageValue === 'string' ? parseInt(pageValue, 10) : NaN;
     const limit = typeof limitValue === 'string' ? parseInt(limitValue, 10) : NaN;
     const roll = typeof rollValue === 'string' ? parseInt(rollValue, 10) : NaN;
@@ -115,6 +116,7 @@ export class StudentController {
           sort,
           order,
           searchBy,
+          activeOnly,
         },
         req.user,
       );
