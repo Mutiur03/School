@@ -27,6 +27,7 @@ import {
   BookOpen,
   BarChart3,
   ScrollText,
+  QrCode,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import useNavigationStore from '@/store/navigation.Store';
@@ -306,6 +307,15 @@ const getRoutesByRole = (role: 'admin' | 'teacher' | 'student' | 'super_admin') 
       dropdown: false,
       link: '/admin/settings/billing',
       id: 'billing',
+      roles: ['admin'],
+      section: 'System',
+    },
+    {
+      label: 'School Codes',
+      icon: QrCode,
+      dropdown: false,
+      link: '/admin/settings/school-codes',
+      id: 'school-codes',
       roles: ['admin'],
       section: 'System',
     },

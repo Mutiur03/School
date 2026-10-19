@@ -208,6 +208,16 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=...
 ```
 
+**Server — auth (optional)**
+
+```env
+TENANT_HOST_SUFFIX=-dashboard.mutiurrahman.com   # optional, school-code lookup hosts
+PLATFORM_ACCESS_CODE=XXX-XXXX                     # optional, opens super-admin sign-in in the app
+```
+
+See [server/docs/native-auth.md](server/docs/native-auth.md) for school codes, native token
+transport and the rollout order.
+
 **Server — marksheets & files**
 
 ```env

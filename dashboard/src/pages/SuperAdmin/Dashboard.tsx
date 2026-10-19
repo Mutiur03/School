@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PageHeader, SectionCard, StatsCard } from '@/components';
 import { Button } from '@/components/ui/button';
+import PlatformAccessCode from './PlatformAccessCode';
 
 type SubscriptionSummary = {
   status?: string | null;
@@ -160,6 +161,8 @@ export default function SuperAdminDashboard() {
           </SectionCard>
         ))}
       </div>
+
+      <PlatformAccessCode />
     </div>
   );
 }

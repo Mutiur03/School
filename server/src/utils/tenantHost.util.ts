@@ -10,6 +10,8 @@ const MULTI_PART_PUBLIC_SUFFIXES = [
   '.com.au',
 ] as const;
 
+const BARE_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+
 const requestHostname = (value: unknown): string | null => {
   const raw = Array.isArray(value) ? value[0] : value;
   if (typeof raw !== 'string' || raw.trim() === '') return null;
@@ -64,8 +66,12 @@ export const resolveTenantHostname = (req: express.Request, fallbackHostname?: s
     );
   }
 
+  // A bare localhost / 127.0.0.1 page (e.g. `expo start --web` on :8081) never names a school,
+  // so its Origin must not hide the x-tenant-host the app sends. Non-production only.
+  const origin = requestHostname(req.headers.origin);
+  const pageOrigin = origin && !BARE_LOCAL_HOSTS.has(origin) ? origin : null;
   return (
-    requestHostname(req.headers.origin) ??
+    pageOrigin ??
     requestHostname(req.headers['x-tenant-host']) ??
     requestHostname(req.headers['x-forwarded-host']) ??
     requestHostname(req.headers.referer) ??

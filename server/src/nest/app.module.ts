@@ -8,6 +8,7 @@ import { MarksModule } from './modules/marks/marks.module.js';
 import { MarksheetsModule } from './modules/marksheets/marksheets.module.js';
 import { PromotionModule } from './modules/promotion/promotion.module.js';
 import { PublicResultsModule } from './modules/public-results/public-results.module.js';
+import { SchoolCodesModule } from './modules/school-codes/school-codes.module.js';
 
 /** Migrated + new modules. Legacy Express routers live in src/app.ts until moved here. */
 @Module({
@@ -21,6 +22,7 @@ import { PublicResultsModule } from './modules/public-results/public-results.mod
     PublicResultsModule,
     PromotionModule,
     CertificateModule,
+    SchoolCodesModule,
   ],
 })
 export class AppModule {}

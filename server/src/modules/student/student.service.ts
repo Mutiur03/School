@@ -563,9 +563,16 @@ export class StudentService {
       });
 
       const studentIdMap = new Map(newStudents.map((s) => [s.login_id, s.id]));
+      const unresolved = hashedStudents.filter((s) => !studentIdMap.has(s.login_id));
+      if (unresolved.length > 0) {
+        throw new ApiError(
+          409,
+          `Could not create student(s) with login ID ${unresolved.map((s) => s.login_id.toString()).join(', ')}`,
+        );
+      }
 
       const enrollmentData = hashedStudents.map((s) => ({
-        student_id: studentIdMap.get(s.login_id)!,
+        student_id: studentIdMap.get(s.login_id) as number,
         class: s.class,
         roll: s.roll,
         section: s.section,

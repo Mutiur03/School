@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { Request, Response, CookieOptions } from 'express';
@@ -10,6 +9,16 @@ import EmailService from '@/utils/email.service.js';
 import { SMSService } from '@/utils/sms.service.js';
 import { assertSuperAdminHostAllowed } from '@/utils/superAdminDomain.js';
 import { assertVerifiedTenantSchoolId } from '@/middlewares/access.middleware.js';
+import {
+  newTokenId,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+  type AuthClient,
+} from './auth-tokens.js';
+import { AuthSessionStore } from './auth-sessions.js';
+
+const sessions = new AuthSessionStore(prisma);
 
 export type AuthUser = {
   id: number;
@@ -59,7 +68,12 @@ export class AuthService {
     return { email };
   }
 
-  static async loginAdmin(username?: string, password?: string, schoolId?: number) {
+  static async loginAdmin(
+    username?: string,
+    password?: string,
+    schoolId?: number,
+    client: AuthClient = 'web',
+  ) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!username || !password) {
@@ -83,10 +97,10 @@ export class AuthService {
       throw new ApiError(401, 'Invalid credentials');
     }
 
-    const { accessToken, refreshToken } = AuthService.generateTokens({
-      ...user,
-      role: 'admin',
-    });
+    const { accessToken, refreshToken } = await AuthService.issueTokens(
+      { ...user, role: 'admin' },
+      { schoolId: verifiedSchoolId, client },
+    );
 
     return {
       accessToken,
@@ -95,7 +109,12 @@ export class AuthService {
     };
   }
 
-  static async loginSuperAdmin(req: Request, email?: string, password?: string) {
+  static async loginSuperAdmin(
+    req: Request,
+    email?: string,
+    password?: string,
+    client: AuthClient = 'web',
+  ) {
     await assertSuperAdminHostAllowed(req);
 
     if (!email || !password) {
@@ -113,10 +132,10 @@ export class AuthService {
       throw new ApiError(401, 'Invalid credentials');
     }
 
-    const { accessToken, refreshToken } = AuthService.generateTokens({
-      ...user,
-      role: 'super_admin',
-    });
+    const { accessToken, refreshToken } = await AuthService.issueTokens(
+      { ...user, role: 'super_admin' },
+      { schoolId: null, client },
+    );
 
     return {
       accessToken,
@@ -129,7 +148,12 @@ export class AuthService {
     };
   }
 
-  static async loginStudent(loginId?: string, password?: string, schoolId?: number) {
+  static async loginStudent(
+    loginId?: string,
+    password?: string,
+    schoolId?: number,
+    client: AuthClient = 'web',
+  ) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!loginId || !password) {
@@ -158,10 +182,10 @@ export class AuthService {
       throw new ApiError(401, 'Invalid password');
     }
 
-    const { accessToken, refreshToken } = AuthService.generateTokens({
-      ...student,
-      role: 'student',
-    });
+    const { accessToken, refreshToken } = await AuthService.issueTokens(
+      { ...student, role: 'student' },
+      { schoolId: verifiedSchoolId, client },
+    );
 
     const studentAddress = [student.village, student.post_office, student.upazila, student.district]
       .filter(Boolean)
@@ -187,7 +211,12 @@ export class AuthService {
     };
   }
 
-  static async loginTeacher(email?: string, password?: string, schoolId?: number) {
+  static async loginTeacher(
+    email?: string,
+    password?: string,
+    schoolId?: number,
+    client: AuthClient = 'web',
+  ) {
     const verifiedSchoolId = assertVerifiedTenantSchoolId(schoolId);
 
     if (!email || !password) {
@@ -214,10 +243,10 @@ export class AuthService {
       throw new ApiError(401, 'Invalid credentials');
     }
 
-    const { accessToken, refreshToken } = AuthService.generateTokens({
-      ...user,
-      role: 'teacher',
-    });
+    const { accessToken, refreshToken } = await AuthService.issueTokens(
+      { ...user, role: 'teacher' },
+      { schoolId: verifiedSchoolId, client },
+    );
 
     return {
       accessToken,
@@ -237,17 +266,20 @@ export class AuthService {
     };
   }
 
-  static async refreshToken(req: Request, res: Response, token?: string) {
+  static async refreshToken(
+    req: Request,
+    res: Response,
+    token?: string,
+    client: AuthClient = 'web',
+  ) {
     if (!token) {
       throw new ApiError(401, 'Unauthorized');
     }
 
-    const secret = process.env.REFRESH_TOKEN_SECRET || env.JWT_SECRET;
-    let payload: any;
-    try {
-      payload = jwt.verify(token, secret) as any;
-    } catch {
-      AuthService.clearRefreshToken(res);
+    const payload = verifyRefreshToken(token);
+    // Legacy (pre-rotation) refresh tokens only ever lived in web cookies.
+    if (!payload || (payload.typ === 'legacy' && client !== 'web')) {
+      if (client === 'web') AuthService.clearRefreshToken(res);
       throw new ApiError(401, 'Unauthorized');
     }
 
@@ -278,17 +310,35 @@ export class AuthService {
       throw new ApiError(401, 'Unauthorized');
     }
 
-    const tokenVersion = payload.version || 0;
+    const tokenVersion = payload.version;
     const userVersion = user.tokenVersion || 0;
 
     if (tokenVersion !== userVersion) {
       throw new ApiError(401, 'Unauthorized');
     }
 
-    const { accessToken, refreshToken } = AuthService.generateTokens({
-      ...user,
-      role: payload.role,
-    });
+    const schoolId = payload.role === 'super_admin' ? null : (user as any).school_id;
+    if (payload.typ === 'refresh' && payload.sch !== schoolId) {
+      throw new ApiError(401, 'Unauthorized');
+    }
+
+    let familyId: string | undefined;
+    let jti: string | undefined;
+    if (payload.typ === 'refresh') {
+      const owner = { role: payload.role, userId: user.id, schoolId };
+      const rotated = await sessions.rotate(owner, client, payload.jti, newTokenId());
+      if (rotated.status !== 'rotated') {
+        if (client === 'web') AuthService.clearRefreshToken(res);
+        throw new ApiError(401, 'Unauthorized');
+      }
+      familyId = rotated.familyId;
+      jti = rotated.jti;
+    }
+
+    const { accessToken, refreshToken } = await AuthService.issueTokens(
+      { ...user, role: payload.role },
+      { schoolId, client, familyId, jti },
+    );
 
     const responseUser = {
       id: user.id,
@@ -338,10 +388,19 @@ export class AuthService {
     }
 
     try {
-      const decoded = jwt.verify(
-        token,
-        (process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET)!,
-      ) as any;
+      const decoded = verifyRefreshToken(token);
+      if (!decoded) return;
+
+      // Revoke the token's session family, but only for the tenant of this host.
+      if (
+        decoded.typ === 'refresh' &&
+        (decoded.role === 'super_admin' ? decoded.sch === null : decoded.sch === schoolId)
+      ) {
+        await sessions.revokeByJti(
+          { role: decoded.role, userId: decoded.id, schoolId: decoded.sch },
+          decoded.jti,
+        );
+      }
 
       if (decoded.role === 'super_admin') {
         await prisma.superAdmin.update({
@@ -727,23 +786,34 @@ export class AuthService {
     await redis.del(resetKey);
   }
 
-  static generateTokens(user: AuthUser) {
-    const secret = process.env.REFRESH_TOKEN_SECRET || env.JWT_SECRET;
-    const accessToken = jwt.sign(
+  /**
+   * Sign an access + refresh token pair and record the refresh token's session row. `schoolId`
+   * is the tenant verified from the request host (null for super_admin). Pass familyId/jti from
+   * a rotation to continue that family; omit them on login to start a new one.
+   */
+  static async issueTokens(
+    user: AuthUser,
+    ctx: { schoolId: number | null; client: AuthClient; familyId?: string; jti?: string },
+  ) {
+    const owner = { role: user.role, userId: user.id, schoolId: ctx.schoolId };
+    const session = await sessions.create(owner, ctx.client, ctx.familyId, ctx.jti);
+    const accessToken = signAccessToken({
+      id: user.id,
+      role: user.role,
+      sch: ctx.schoolId,
+      username: user.username,
+      email: user.email,
+      login_id: user.login_id == null ? user.login_id : String(user.login_id),
+    });
+    const refreshToken = signRefreshToken(
       {
         id: user.id,
         role: user.role,
-        username: user.username,
-        email: user.email,
-        login_id: user.login_id,
+        version: user.tokenVersion || 0,
+        sch: ctx.schoolId,
+        fam: session.familyId,
       },
-      env.JWT_SECRET,
-      { expiresIn: env.NODE_ENV === 'development' ? '1m' : '15m' },
-    );
-    const refreshToken = jwt.sign(
-      { id: user.id, role: user.role, version: user.tokenVersion || 0 },
-      secret,
-      { expiresIn: '7d' },
+      session.jti,
     );
     return { accessToken, refreshToken };
   }

@@ -28,6 +28,7 @@ export function extractRefreshTokenFromSetCookie(setCookieHeader: string | null)
 export function parseJson(response: Response): Promise<unknown>;
 export function isPasswordResetPath(pathname: string): boolean;
 export function getRefreshToken(cookies: Record<string, string>): string | null;
+export function isNativeClientRequest(request: Request): boolean;
 
 export function tryHandleAuthSession(opts: {
   request: Request;

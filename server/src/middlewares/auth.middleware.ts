@@ -1,16 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { ApiError } from '@/utils/ApiError.js';
-import { env } from '@/config/env.js';
+import { verifyAccessToken } from '@/modules/auth/auth-tokens.js';
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '@/config/prisma.js';
 import { assertSuperAdminHostAllowed } from '@/utils/superAdminDomain.js';
 import { assertTenantContextForAuthenticatedRequest } from '@/middlewares/access.middleware.js';
 import { syncSentryUser } from '@/config/sentry.js';
-interface TokenPayload {
-  id: number;
-  role: string;
-}
-
 class AuthMiddleware {
   static authenticate(roles: string[] = []) {
     return async (req: Request, _res: Response, next: NextFunction) => {
@@ -19,10 +14,20 @@ class AuthMiddleware {
       if (!token) return next(new ApiError(401, 'Unauthorized'));
 
       try {
-        const decoded = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
+        // Rejects refresh tokens (typ claim) even when both are signed with the same secret.
+        const decoded = verifyAccessToken(token);
 
-        if (!decoded || typeof decoded !== 'object' || !decoded.id) {
+        if (!decoded || !decoded.id) {
           return next(new ApiError(401, 'Invalid Token'));
+        }
+
+        // Token issued for another school than the one this host resolves to.
+        if (
+          decoded.role !== 'super_admin' &&
+          decoded.sch !== null &&
+          decoded.sch !== req.schoolId
+        ) {
+          return next(new ApiError(403, 'Forbidden: Tenant context mismatch'));
         }
 
         if (roles.length > 0 && !roles.includes(decoded.role)) {
