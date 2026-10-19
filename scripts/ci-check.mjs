@@ -18,6 +18,9 @@ const SCOPES = {
   dashboard: {
     paths: ['dashboard', 'packages/common-ui', 'packages/shared-schemas'],
   },
+  'dashboard-expo': {
+    paths: ['apps/dashboard-expo'],
+  },
   'auth-bff': {
     paths: ['workers/auth-bff'],
   },
@@ -41,6 +44,10 @@ const TYPECHECK_PROJECTS = {
     { cwd: 'dashboard', project: 'tsconfig.json' },
     { cwd: 'packages/common-ui', project: 'tsconfig.json' },
     { cwd: 'packages/shared-schemas', project: 'tsconfig.json' },
+  ],
+  'dashboard-expo': [
+    { cwd: 'apps/dashboard-expo', project: 'tsconfig.json' },
+    { cwd: 'apps/dashboard-expo', project: 'tsconfig.test.json' },
   ],
   'auth-bff': [{ cwd: 'workers/auth-bff', project: 'tsconfig.json' }],
   'tenant-router': [],
@@ -87,6 +94,8 @@ const BUILD_BEFORE_TYPECHECK = {
   server: ['@school/shared-schemas'],
   'client-next': ['@school/shared-schemas', '@school/common-ui'],
   dashboard: ['@school/shared-schemas', '@school/common-ui'],
+  // Type-only imports of the shared login schemas.
+  'dashboard-expo': ['@school/shared-schemas'],
 };
 
 for (const pkg of BUILD_BEFORE_TYPECHECK[scope] ?? []) {

@@ -1,0 +1,52 @@
+/*
+ * NativeWind entry stylesheet. Mirrors dashboard/src/index.css: the same shadcn variable names,
+ * :root for light (the only theme the dashboard ships) and .dark ready but not enabled.
+ *
+ * Values are space-separated RGB channels instead of hex so Tailwind opacity modifiers keep
+ * working (`bg-primary/90`), via `rgb(var(--x) / <alpha-value>)` in tailwind.config.js.
+ * Hex equivalents (and the oklch originals) are in src/theme/tokens.ts; keep both in sync.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 255 255 255; /* #ffffff */
+  --foreground: 15 23 42; /* #0f172a */
+  --card: 255 255 255;
+  --card-foreground: 15 23 42;
+  --popover: 255 255 255;
+  --popover-foreground: 15 23 42;
+  --primary: 15 23 42;
+  --primary-foreground: 255 255 255;
+  --secondary: 241 245 249; /* #f1f5f9 */
+  --secondary-foreground: 15 23 42;
+  --muted: 241 245 249;
+  --muted-foreground: 100 116 139; /* #64748b */
+  --accent: 241 245 249;
+  --accent-foreground: 15 23 42;
+  --destructive: 231 0 11; /* oklch(0.577 0.245 27.325) = #e7000b */
+  --border: 226 232 240; /* #e2e8f0 */
+  --input: 241 245 249;
+  --ring: 15 23 42;
+  --chart-1: 15 23 42;
+  --chart-2: 15 23 42;
+  --chart-3: 15 23 42;
+  --chart-4: 15 23 42;
+  --chart-5: 15 23 42;
+  --sidebar: 255 255 255;
+  --sidebar-foreground: 15 23 42;
+  --sidebar-primary: 15 23 42;
+  --sidebar-primary-foreground: 255 255 255;
+  --sidebar-accent: 241 245 249;
+  --sidebar-accent-foreground: 15 23 42;
+  --sidebar-border: 226 232 240;
+  --sidebar-ring: 15 23 42;
+}
+
+/*
+ * No .dark block on purpose. NativeWind on Android/iOS applies `.dark:root` variables whenever
+ * the phone is in dark mode (Appearance), regardless of tailwind darkMode 'class', while
+ * useTheme() keeps serving light hex values: dark backgrounds with dark headings and icons.
+ * The dashboard ships light only; reintroduce dark values together with a real theme switch.
+ */
