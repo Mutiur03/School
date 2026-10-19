@@ -12,6 +12,12 @@ const envSchema = z.object({
   /** Signs refresh tokens. Unset = falls back to JWT_SECRET with a startup warning (see docs/native-auth.md). */
   /** Host suffix for platform-subdomain schools in school-code lookups. Default: `-dashboard.mutiurrahman.com` in production, `.localhost` otherwise. */
   TENANT_HOST_SUFFIX: z.string().optional(),
+  /**
+   * Platform access code (XXX-XXXX, school-code alphabet). Typed or scanned in the app's school-code
+   * box it opens super-admin sign-in; it never authorizes. Unset = off. See
+   * nest/modules/school-codes/platform-code.ts for how to generate one.
+   */
+  PLATFORM_ACCESS_CODE: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   ALLOWED_ORIGINS: z.string().optional(),
   DOMAIN: z.string().optional(),

@@ -4,6 +4,7 @@ import type { PrismaClient } from '@/generated/prisma/client.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { CreateSchoolCodeDto } from './dto/create-school-code.dto.js';
 import { generateSchoolCode, normalizeSchoolCode } from './school-code.util.js';
+import { isPlatformAccessCode } from './platform-code.js';
 
 export const MAX_ACTIVE_CODES = 50;
 const GENERATE_ATTEMPTS = 5;
@@ -24,6 +25,16 @@ export const codeStatus = (row: Pick<CodeRow, 'revoked_at' | 'expires_at'>, now 
   row.revoked_at ? 'revoked' : row.expires_at && row.expires_at <= now ? 'expired' : 'active';
 
 const withStatus = (row: CodeRow) => ({ ...row, status: codeStatus(row) });
+
+/**
+ * A fresh school code that is not the platform code: the lookup checks the platform code first,
+ * so a school code equal to it would be unreachable. Drawn again, as on a DB collision.
+ */
+export function nextSchoolCode(generate: () => string = generateSchoolCode): string {
+  let code = generate();
+  while (isPlatformAccessCode(code)) code = generate();
+  return code;
+}
 
 /** Admin side: list / create / revoke the current school's codes (tenant-scoped by RLS + where). */
 @Injectable()
@@ -56,11 +67,12 @@ export class SchoolCodesService {
     }
 
     for (let attempt = 1; ; attempt++) {
+      const code = nextSchoolCode();
       try {
         const row = await this.prisma.school_access_codes.create({
           data: {
             school_id: schoolId,
-            code: generateSchoolCode(),
+            code,
             role_hint: dto.role_hint ?? null,
             created_by: adminId,
             expires_at: expiresAt,
@@ -103,9 +115,15 @@ export interface LookupRow {
 }
 
 export interface SchoolCodeLookupResult {
+  target: 'school';
   school: { name: string; shortName: string | null; logo: string | null };
   tenant: { host: string; apiBaseUrl: string };
   roleHint: 'admin' | 'teacher' | 'student' | null;
+}
+
+/** The platform code: no school, no host. The app uses its own build-time super-admin URL. */
+export interface PlatformCodeLookupResult {
+  target: 'platform';
 }
 
 /** Same body for malformed, unknown, revoked and expired codes: no enumeration hints. */
@@ -122,12 +140,15 @@ export class SchoolCodeLookupService {
   async create(input: string, hostFor: (row: LookupRow) => string | null) {
     const code = normalizeSchoolCode(input);
     if (!code) throw new NotFoundException(LOOKUP_NOT_FOUND);
+    if (isPlatformAccessCode(code))
+      return { target: 'platform' } satisfies PlatformCodeLookupResult;
     const rows = await this.prisma.$queryRaw<LookupRow[]>`
       SELECT * FROM app.lookup_school_access_code(${code})`;
     const row = rows[0];
     const host = row ? hostFor(row) : null;
     if (!row || !host) throw new NotFoundException(LOOKUP_NOT_FOUND);
     return {
+      target: 'school',
       school: { name: row.name, shortName: row.short_name, logo: row.logo },
       tenant: { host, apiBaseUrl: tenantApiBaseUrl(host) },
       roleHint: (row.role_hint as SchoolCodeLookupResult['roleHint']) ?? null,
