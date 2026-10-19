@@ -56,6 +56,15 @@ Security design:
   `<subdomain>` + `TENANT_HOST_SUFFIX`. That is the same host the tenant middleware resolves
   back to the school, so the client never sends a school id. The app checks that
   `apiBaseUrl` uses https (outside local dev), is on exactly `tenant.host`, and has no path.
+- **Platform access code.** `PLATFORM_ACCESS_CODE` (server env, same `XXX-XXXX` format) is
+  checked before the DB, with a constant-time compare. A match answers
+  `200 { target: 'platform' }`, with no school and no host, and the app opens super-admin
+  sign-in using its own build-time super-admin URL. The code only opens a sign-in screen. The
+  super-admin email + password and the super-admin host check still authorize everything. It
+  shares the lookup endpoint, so it shares the same rate limit. Unset or malformed means a plain 404. School results carry `target: 'school'`. A new school code is never drawn equal to the
+  platform code. A signed-in super admin reads it through
+  `GET /api/auth/super_admin/platform-code` (super-admin host only, `no-store`) to show it as a
+  QR on the dashboard overview and in the app's user menu.
 
 ## 2. Tokens
 
@@ -119,11 +128,12 @@ workers must be deployed for native sign-in through the edge.
 
 ## 4. Environment
 
-| Variable                    | Where    | Notes                                                                                                                                              |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TENANT_HOST_SUFFIX`        | server   | Optional. Host suffix for subdomain schools in lookup results. Defaults to `-dashboard.mutiurrahman.com` in production and `.localhost` otherwise. |
-| `EXPO_PUBLIC_DIRECTORY_URL` | Expo app | Origin that answers the lookup before a school is chosen. It must reach the server without tenant resolution.                                      |
-| `EXPO_PUBLIC_API_BASE_URL`  | Expo app | Optional. Pins a build to one school; school codes are then not used.                                                                              |
+| Variable                    | Where    | Notes                                                                                                                                                                                                                                                                                                                        |
+| --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TENANT_HOST_SUFFIX`        | server   | Optional. Host suffix for subdomain schools in lookup results. Defaults to `-dashboard.mutiurrahman.com` in production and `.localhost` otherwise.                                                                                                                                                                           |
+| `PLATFORM_ACCESS_CODE`      | server   | Optional. Platform access code that opens super-admin sign-in in the app (see §1). Unset = off. Generate: `node -e "const c=require('crypto'),a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<7;i++)s+=a[c.randomInt(a.length)];console.log(s.slice(0,3)+'-'+s.slice(3))"`. Rotate by changing it and restarting. |
+| `EXPO_PUBLIC_DIRECTORY_URL` | Expo app | Origin that answers the lookup before a school is chosen. It must reach the server without tenant resolution.                                                                                                                                                                                                                |
+| `EXPO_PUBLIC_API_BASE_URL`  | Expo app | Optional. Pins a build to one school; school codes are then not used.                                                                                                                                                                                                                                                        |
 
 ## 5. Rollout order
 

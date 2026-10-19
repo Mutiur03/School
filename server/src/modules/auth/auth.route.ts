@@ -61,6 +61,11 @@ const passwordResetLimiter = rateLimit({
 const superAdminRouter = express.Router();
 superAdminRouter.post('/setup', validate(setupSuperAdminSchema), AuthController.setupSuperAdmin);
 superAdminRouter.post('/sessions', validate(superAdminLoginSchema), AuthController.superAdminLogin);
+superAdminRouter.get(
+  '/platform-code',
+  AuthMiddleware.authenticate(['super_admin']),
+  AuthController.getPlatformAccessCode,
+);
 superAdminRouter.post(
   '/schools/:schoolId/admins',
   AuthMiddleware.authenticate(['super_admin']),

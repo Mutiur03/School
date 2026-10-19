@@ -6,6 +6,7 @@ import {
   codeStatus,
   LOOKUP_NOT_FOUND,
   MAX_ACTIVE_CODES,
+  nextSchoolCode,
   SchoolCodeLookupService,
   SchoolCodesService,
   tenantApiBaseUrl,
@@ -118,6 +119,7 @@ describe('SchoolCodeLookupService', () => {
     queryRaw.mockResolvedValue([lookupRow]);
     const res = await lookups.create('abc 7k4q', () => 'alpha.localhost');
     expect(res).toEqual({
+      target: 'school',
       school: { name: 'Alpha High', shortName: 'AHS', logo: 'logos/a.png' },
       tenant: { host: 'alpha.localhost', apiBaseUrl: tenantApiBaseUrl('alpha.localhost') },
       roleHint: 'teacher',
@@ -133,6 +135,43 @@ describe('SchoolCodeLookupService', () => {
   ])('%s → generic 404', async (_n, code, rows) => {
     queryRaw.mockResolvedValue(rows);
     await expect(lookups.create(code, tenantHostFor)).rejects.toMatchObject({
+      status: 404,
+      message: LOOKUP_NOT_FOUND,
+    });
+  });
+});
+
+describe('SchoolCodeLookupService platform code', () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  it('the configured code → { target: platform }, no school data and no DB read', async () => {
+    process.env.PLATFORM_ACCESS_CODE = 'PFM-7K4Q';
+    await expect(lookups.create('pfm 7k4q', tenantHostFor)).resolves.toEqual({
+      target: 'platform',
+    });
+    expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('other codes still go to the school lookup', async () => {
+    process.env.PLATFORM_ACCESS_CODE = 'PFM-7K4Q';
+    queryRaw.mockResolvedValue([]);
+    await expect(lookups.create('PFM-7K4R', tenantHostFor)).rejects.toMatchObject({ status: 404 });
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('a new school code never equals the platform code', () => {
+    process.env.PLATFORM_ACCESS_CODE = 'PFM-7K4Q';
+    const draws = ['PFM-7K4Q', 'PFM-7K4Q', 'SCH-7K4Q'];
+    expect(nextSchoolCode(() => draws.shift()!)).toBe('SCH-7K4Q');
+  });
+
+  it('unset → the same code is a plain 404 (feature off)', async () => {
+    delete process.env.PLATFORM_ACCESS_CODE;
+    queryRaw.mockResolvedValue([]);
+    await expect(lookups.create('PFM-7K4Q', tenantHostFor)).rejects.toMatchObject({
       status: 404,
       message: LOOKUP_NOT_FOUND,
     });

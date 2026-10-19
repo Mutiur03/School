@@ -3,6 +3,7 @@ import { ApiResponse } from '@/utils/ApiResponse.js';
 import asyncHandler from '@/utils/asyncHandler.js';
 import { ApiError } from '@/utils/ApiError.js';
 import { AuthService } from './auth.service.js';
+import { platformAccessCode } from '@/nest/modules/school-codes/platform-code.js';
 import { authClientOf, UnsupportedClientError, type AuthClient } from './auth-tokens.js';
 
 export class AuthController {
@@ -103,6 +104,14 @@ export class AuthController {
     const admin = await AuthService.addAdmin(username, password, schoolId);
 
     res.status(201).json(new ApiResponse(201, admin, 'Admin created successfully'));
+  });
+
+  /** The platform access code for a signed-in super admin to show as a QR. null when unset. */
+  static getPlatformAccessCode = asyncHandler(async (_req: Request, res: Response) => {
+    res.set('Cache-Control', 'no-store');
+    res
+      .status(200)
+      .json(new ApiResponse(200, { code: platformAccessCode() }, 'Platform access code fetched'));
   });
 
   static listAdminsForSchool = asyncHandler(async (req: Request, res: Response) => {

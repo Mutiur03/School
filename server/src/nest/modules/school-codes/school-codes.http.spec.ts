@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { Express } from 'express';
 import request from 'supertest';
 import { createApp } from '../../../app.js';
@@ -105,6 +106,7 @@ describe('public lookup', () => {
     expect(res.body).toEqual({
       success: true,
       data: {
+        target: 'school',
         school: { name: fx.a.name, shortName: 'A', logo: null },
         tenant: { host: fx.a.host, apiBaseUrl: expect.stringContaining(fx.a.host) },
         roleHint: 'student',
@@ -162,6 +164,73 @@ describe('public lookup', () => {
     expect(limited.status).toBe(429);
     expect(limited.body.success).toBe(false);
     expect(limited.body.data).toBeUndefined();
+  });
+});
+
+describe('platform access code', () => {
+  const SUPER_HOST = 'admin.localhost'; // a super-admin host (utils/superAdminDomain.ts)
+  const saved = process.env.PLATFORM_ACCESS_CODE;
+  const read = (host: string, token?: string) => {
+    const req = request(app).get('/api/auth/super_admin/platform-code').set('x-tenant-host', host);
+    return token ? req.set('authorization', `Bearer ${token}`) : req;
+  };
+  let superToken = '';
+  let superId = 0;
+
+  beforeAll(async () => {
+    await clearLookupBudget();
+    const row = await prisma.superAdmin.create({
+      data: { email: `fx-super-${randomBytes(4).toString('hex')}@fixture.test`, password: 'x' },
+    });
+    superId = row.id;
+    superToken = signAccessToken({ id: row.id, role: 'super_admin', sch: null });
+  });
+  afterAll(async () => {
+    if (superId) await prisma.superAdmin.delete({ where: { id: superId } });
+  });
+  afterEach(() => {
+    if (saved === undefined) delete process.env.PLATFORM_ACCESS_CODE;
+    else process.env.PLATFORM_ACCESS_CODE = saved;
+  });
+
+  test('unset → the code is a plain 404 and the read endpoint returns null', async () => {
+    delete process.env.PLATFORM_ACCESS_CODE;
+    const res = await lookup('PFM-7K4Q');
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject(GENERIC_404);
+    const code = await read(SUPER_HOST, superToken);
+    expect(code.status).toBe(200);
+    expect(code.body.data).toEqual({ code: null });
+  });
+
+  test('set → typed in any form it answers target platform with no school or host', async () => {
+    process.env.PLATFORM_ACCESS_CODE = 'PFM-7K4Q';
+    const res = await lookup('pfm 7k4q');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { target: 'platform' },
+    });
+    expect((await lookup('PFM-7K4R')).status).toBe(404);
+  });
+
+  test('only a super admin on the super-admin host can read it', async () => {
+    process.env.PLATFORM_ACCESS_CODE = 'PFM-7K4Q';
+    expect((await read(SUPER_HOST)).status).toBe(401);
+    expect((await read(SUPER_HOST, tokenA)).status).toBe(403);
+    expect([401, 403]).toContain((await read(fx.a.host, superToken)).status);
+    const ok = await read(SUPER_HOST, superToken);
+    expect(ok.status).toBe(200);
+    expect(ok.body.data).toEqual({ code: 'PFM-7K4Q' });
+    expect(ok.headers['cache-control']).toBe('no-store');
+  });
+
+  test('platform lookups share the lookup rate limit', async () => {
+    process.env.PLATFORM_ACCESS_CODE = 'PFM-7K4Q';
+    await clearLookupBudget();
+    for (let i = 0; i < LOOKUP_LIMIT; i++) await lookup('ZZZ-ZZZZ');
+    expect((await lookup('PFM-7K4Q')).status).toBe(429);
+    await clearLookupBudget();
   });
 });
 
