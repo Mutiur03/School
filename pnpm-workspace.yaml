@@ -1,6 +1,7 @@
 packages:
   - client-next
   - dashboard
+  - apps/*
   - server
   - packages/*
   - workers/*

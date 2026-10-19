@@ -12,6 +12,7 @@ Built with **pnpm workspaces**. Shared packages keep validation and UI consisten
 School/
 ├── server/                 # Express API, Prisma, background workers
 ├── dashboard/              # Vite + React (admin / teacher / student / super_admin modes)
+├── apps/dashboard-expo/    # Expo (web + Android + iOS) dashboard foundation, in progress
 ├── client-next/            # Next.js public school website
 ├── client/                 # Legacy public client (Vite)
 ├── workers/
@@ -314,6 +315,7 @@ pnpm run build:client:core
 | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | [`server/docs/marksheet-regeneration.md`](server/docs/marksheet-regeneration.md) | PDF types, triggers, hashes, worker flow, progress UI |
 | [`dashboard/README.md`](dashboard/README.md)                                     | Dashboard-specific notes                              |
+| [`apps/dashboard-expo/README.md`](apps/dashboard-expo/README.md)                 | Expo dashboard: setup, API client, tenant branding    |
 | [`client-next/README.md`](client-next/README.md)                                 | Public site notes                                     |
 
 ---

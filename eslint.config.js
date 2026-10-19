@@ -31,6 +31,7 @@ const sharedRules = {
 const sourceFiles = [
   'client-next/**/*.{js,jsx,ts,tsx,mjs}',
   'dashboard/**/*.{ts,tsx}',
+  'apps/dashboard-expo/**/*.{ts,tsx}',
   'server/src/**/*.{ts,tsx}',
   'server/prisma/**/*.ts',
   'packages/common-ui/src/**/*.{ts,tsx}',
@@ -51,6 +52,7 @@ export default defineConfig([
     '**/coverage/**',
     '**/uploads/**',
     '**/generated/**',
+    '**/.expo/**',
     'server/prisma/migrations/**',
     'client-next/next-env.d.ts',
   ]),
@@ -80,6 +82,35 @@ export default defineConfig([
     },
     rules: {
       'react-refresh/only-export-components': 'warn',
+    },
+  },
+
+  {
+    files: ['apps/dashboard-expo/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+    ],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: { ...globals.browser, __DEV__: 'readonly' },
+    },
+    rules: {
+      // Metro does not tree-shake: the lucide barrel bundles every icon. Use
+      // src/components/ui/icons.ts (per-icon deep imports) instead.
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'lucide-react-native',
+              message: "Import icons from '@/components/ui/icons'.",
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
     },
   },
 
