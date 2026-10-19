@@ -1,0 +1,91 @@
+# dashboard-expo production — never on push.
+# Run from main only. GitHub environment `production` should require a reviewer
+# (Settings → Environments) so every run waits for an approval click.
+
+name: Deploy dashboard-expo (production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Build a store AAB, or publish a JS-only OTA after staging is verified
+        type: choice
+        options:
+          - build
+          - update
+        default: update
+
+concurrency:
+  group: dashboard-expo-production
+  cancel-in-progress: false
+
+jobs:
+  reject:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse non-main
+        run: |
+          echo "::error::Production workflow only runs from main. Merge staging first, then Run workflow on main."
+          exit 1
+
+  production:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::GitHub secret EXPO_TOKEN is empty. Add an Expo access token."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: pnpm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint, format, and typecheck
+        run: pnpm run check:dashboard-expo
+
+      - name: Test
+        run: pnpm --filter dashboard-expo test
+
+      - name: Submit production AAB
+        if: inputs.action == 'build'
+        working-directory: apps/dashboard-expo
+        run: eas build --profile production --platform android --non-interactive --no-wait
+
+      - name: Publish production update
+        if: inputs.action == 'update'
+        working-directory: apps/dashboard-expo
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_APP_ENV: production
+        run: |
+          set -euo pipefail
+          MSG="${GITHUB_SHA::7} $(git log -1 --pretty=%s | head -c 180)"
+          eas update --channel production --platform android --environment production --non-interactive --message "$MSG"

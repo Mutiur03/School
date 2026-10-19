@@ -1,0 +1,211 @@
+# dashboard-expo CI + staging OTA / preview APK
+#
+# Every branch/PR: lint, format, typecheck, unit tests.
+# staging (JS-only): eas update → staging channel (Android).
+# staging (native fingerprint) or dispatch build_preview: eas build --profile preview.
+# main: CI only. Never the production channel.
+
+name: Deploy dashboard-expo
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'apps/dashboard-expo/**'
+      - 'packages/shared-schemas/**'
+      - '.github/workflows/deploy-dashboard-expo.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    paths:
+      - 'apps/dashboard-expo/**'
+      - 'packages/shared-schemas/**'
+      - '.github/workflows/deploy-dashboard-expo.yml'
+      - 'eslint.config.js'
+      - 'prettier.config.js'
+      - '.prettierignore'
+      - 'scripts/ci-check.mjs'
+      - 'scripts/run-eslint.mjs'
+      - 'scripts/eslint-ts6-preload.cjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+    inputs:
+      publish_update:
+        description: Publish eas update to the staging channel (Android)
+        type: boolean
+        default: false
+      build_preview:
+        description: Submit an EAS preview APK (does not wait for the build)
+        type: boolean
+        default: false
+
+concurrency:
+  group: dashboard-expo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      native_changed: ${{ steps.filter.outputs.native }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Path list is a start, not the real native check: a lockfile-only native bump
+      # or a change under packages/ can miss and OTA an APK that rejects the fingerprint.
+      # Safer later: compare `npx expo-updates fingerprint:generate` to the latest
+      # staging build runtime. Skip on workflow_dispatch — no commit to compare.
+      - name: Detect native-fingerprint paths
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            native:
+              - 'apps/dashboard-expo/app.config.ts'
+              - 'apps/dashboard-expo/eas.json'
+              - 'apps/dashboard-expo/package.json'
+              - 'apps/dashboard-expo/assets/**'
+              - 'apps/dashboard-expo/plugins/**'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint, format, and typecheck
+        run: pnpm run check:dashboard-expo
+
+      - name: Test
+        run: pnpm --filter dashboard-expo test
+
+  ota:
+    needs: ci
+    if: |
+      always() && !cancelled() && needs.ci.result == 'success' &&
+      (
+        (github.event_name == 'workflow_dispatch' && inputs.publish_update) ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/staging' &&
+          needs.ci.outputs.native_changed != 'true'
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::GitHub secret EXPO_TOKEN is empty. Add an Expo access token."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: pnpm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish staging update
+        working-directory: apps/dashboard-expo
+        env:
+          APP_ENV: staging
+          EXPO_PUBLIC_APP_ENV: staging
+          EXPO_PUBLIC_DIRECTORY_URL: https://superadmin.mutiurrahman.com
+          EXPO_PUBLIC_CDN_URL: https://cdn.lbphs.gov.bd
+        run: |
+          set -euo pipefail
+          MSG="${GITHUB_SHA::7} $(git log -1 --pretty=%s | head -c 180)"
+          eas update --channel staging --platform android --environment preview --non-interactive --message "$MSG"
+
+  preview-build:
+    needs: ci
+    if: |
+      always() && !cancelled() && needs.ci.result == 'success' &&
+      (
+        (github.event_name == 'workflow_dispatch' && inputs.build_preview) ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/staging' &&
+          needs.ci.outputs.native_changed == 'true'
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::GitHub secret EXPO_TOKEN is empty. Add an Expo access token."
+            exit 1
+          fi
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: pnpm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Submit preview APK
+        working-directory: apps/dashboard-expo
+        run: eas build --profile preview --platform android --non-interactive --no-wait

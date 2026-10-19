@@ -239,12 +239,49 @@ pnpm update:staging --message "Short description"
 # = APP_ENV=staging EXPO_PUBLIC_APP_ENV=staging \
 #   EXPO_PUBLIC_DIRECTORY_URL=https://superadmin.mutiurrahman.com \
 #   EXPO_PUBLIC_CDN_URL=https://cdn.lbphs.gov.bd \
-#   eas update --channel staging --platform android --message "..."
+#   eas update --channel staging --platform android --environment preview --message "..."
 ```
 
 Never publish to the `production` channel without sign-off. Only public values go in
 `EXPO_PUBLIC_*`. `com.mutiurrahman.schooldashboard` is still a placeholder: confirm it before the
 first store build.
+
+### CI (GitHub Actions)
+
+[`.github/workflows/deploy-dashboard-expo.yml`](../../.github/workflows/deploy-dashboard-expo.yml)
+runs on every push and PR that touches this app (or `packages/shared-schemas`). Only `staging`
+publishes. `main` is CI only.
+
+| Event | What runs |
+| ----- | --------- |
+| PR / any branch | `pnpm run check:dashboard-expo` then `pnpm --filter dashboard-expo test` |
+| Push to `staging`, JS-only | `eas update --channel staging --environment preview` (Android), same `EXPO_PUBLIC_*` / `APP_ENV=staging` as `pnpm update:staging` |
+| Push to `staging`, native path hit | `eas build --profile preview --platform android --no-wait` (no OTA on that commit) |
+| `workflow_dispatch` | Optional `publish_update` and/or `build_preview` |
+
+Path matching is a start, not the real native check: a native bump only in `pnpm-lock.yaml` or a
+change under `packages/` will not trigger a preview build, and the following update can miss the
+APK (`fingerprint` policy). Safer later: compare `npx expo-updates fingerprint:generate` with the
+runtime of the latest staging build.
+
+Repo secret **`EXPO_TOKEN`** (Expo access token for `@mutiur03` / `school-dashboard`) is required
+for OTA and builds. Add it under GitHub → Settings → Secrets. Push to `staging` to update a test
+phone.
+
+Production is a **separate** workflow,
+[`.github/workflows/deploy-dashboard-expo-production.yml`](../../.github/workflows/deploy-dashboard-expo-production.yml):
+`workflow_dispatch` only, from `main`, with GitHub environment `production` (add yourself as a
+required reviewer under Settings → Environments). Options:
+
+- **Build** — `eas build --profile production --platform android --no-wait`. First release and
+  after any native change. Upload the AAB in Play Console (`--auto-submit` later).
+- **Update** — `eas update --channel production --environment production`. JS-only, after the same
+  change is verified on staging.
+
+Before the first production build: `eas.json` production profile already has channel/environment
+`production`. Put the production `EXPO_PUBLIC_*` values on the **EAS production environment**
+(not in the repo). Flow: push to `staging` → test on the phone → merge to `main` → Run the
+production workflow → approve.
 
 ## API client (`src/lib/api`)
 
