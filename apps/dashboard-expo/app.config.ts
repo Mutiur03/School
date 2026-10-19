@@ -64,13 +64,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     web: {
       bundler: 'metro',
       output: 'single',
-      favicon: './assets/favicon.png',
     },
     plugins: [
       'expo-router',
       'expo-status-bar',
       'expo-secure-store',
-      'expo-font',
+      ['expo-font', { fonts: ['./assets/fonts/SolaimanLipi.ttf'] }],
       [
         'expo-camera',
         {

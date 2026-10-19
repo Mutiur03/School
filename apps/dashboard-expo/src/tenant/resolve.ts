@@ -12,7 +12,8 @@
  *    backend only when NODE_ENV !== 'production').
  * 2. EXPO_PUBLIC_API_BASE_URL: a build pinned to one school (school codes do not apply).
  * 3. Web, same-origin: the page host, e.g. `<school>-dashboard.mutiurrahman.com` or a custom
- *    domain. It beats a stored school-code selection so web auth stays on first-party cookies.
+ *    domain. A super-admin page host (admin.localhost, or this build's super-admin origin) is
+ *    platform mode, like the web dashboard: the host decides, through the same BFF. It beats a stored school-code selection so web auth stays on first-party cookies.
  *    A bare localhost / 127.0.0.1 is never a school (the server 404s it).
  * 4. The school the user picked with a school code (host returned by the server lookup), or
  *    platform (super-admin) mode, chosen from the school-code screen. Platform is never a
@@ -38,6 +39,8 @@ export interface TenantResolution {
   tenantKey: string;
   host: string | null;
   source: TenantSource;
+  /** Web platform mode opened on the super-admin page host: requests stay same-origin. */
+  sameOrigin?: true;
 }
 
 /** Where requests go for a resolution. */
@@ -72,6 +75,8 @@ export function resolveTenant(input: {
   selectedHost?: string | null;
   /** Platform (super-admin) host, when the stored choice is platform mode. */
   platformHost?: string | null;
+  /** This build's super-admin origin; on web, that page host is platform mode. */
+  superAdminUrl?: string | null;
 }): TenantResolution {
   const dev = normalizeHost(input.devTenantHost);
   if (dev) return { tenantKey: dev, host: dev, source: 'dev-override' };
@@ -81,6 +86,14 @@ export function resolveTenant(input: {
 
   if (input.platform === 'web') {
     const page = normalizeHost(input.pageHost);
+    if (page && (page === LOCAL_SUPER_ADMIN_HOST || page === normalizeHost(input.superAdminUrl))) {
+      return {
+        tenantKey: platformTenantKey(page),
+        host: page,
+        source: 'platform',
+        sameOrigin: true,
+      };
+    }
     if (page && !isBareLocalHost(page)) return { tenantKey: page, host: page, source: 'page-host' };
   }
 
@@ -101,6 +114,7 @@ export function tenantConnection(
 ): TenantConnection {
   switch (resolution.source) {
     case 'platform':
+      if (resolution.sameOrigin) return { baseUrl: '', tenantHeader: null };
       // Always the build's own super-admin origin. Local dev servers pick the host from the
       // header (admin.localhost); deployed, the super-admin Worker host is the one called.
       return config.appEnv === 'local'

@@ -122,6 +122,25 @@ describe('platform tenant resolution', () => {
     });
   });
 
+  it('web on a super-admin page host is platform mode, same-origin (like the web dashboard)', () => {
+    const web = { ...base, platform: 'web' as const, superAdminUrl: SA };
+    for (const pageHost of ['admin.localhost:8081', 'superadmin.mutiurrahman.com']) {
+      const r = resolveTenant({ ...web, pageHost });
+      assert.equal(r.source, 'platform');
+      assert.ok(isPlatformTenantKey(r.tenantKey));
+      assert.deepEqual(tenantConnection(r, cfg('local'), null), {
+        baseUrl: '',
+        tenantHeader: null,
+      });
+    }
+    assert.equal(resolveTenant({ ...web, pageHost: 'lbp.localhost:8081' }).source, 'page-host');
+    // Native has no page host: still the school-code / platform-code path.
+    assert.notEqual(
+      resolveTenant({ ...base, pageHost: 'admin.localhost', superAdminUrl: SA }).source,
+      'platform',
+    );
+  });
+
   it('a pinned school build (api host / dev override) never resolves to platform', () => {
     assert.equal(
       resolveTenant({ ...base, apiBaseUrl: 'https://lbhs.test', platformHost: 'sa.test' }).source,

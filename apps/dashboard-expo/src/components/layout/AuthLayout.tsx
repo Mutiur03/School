@@ -1,5 +1,5 @@
 /** Centered card for the pre-auth screens (school code, scan, confirm, login). */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Image, View } from 'react-native';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,9 +9,12 @@ import { Text } from '@/components/ui/Text';
 import { useTheme } from '@/theme/ThemeProvider';
 
 export function SchoolMark({ logoUrl, size = 56 }: { logoUrl: string | null; size?: number }) {
-  return logoUrl ? (
+  // A logo that fails to load (missing file, wrong CDN) shows the school icon, not an empty box.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  return logoUrl && logoUrl !== failedUrl ? (
     <Image
       source={{ uri: logoUrl }}
+      onError={() => setFailedUrl(logoUrl)}
       accessibilityIgnoresInvertColors
       style={{ width: size, height: size, borderRadius: 12 }}
     />

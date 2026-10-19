@@ -177,9 +177,9 @@ export type FontSize = keyof typeof fontSizes;
 export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
 
 /**
- * The dashboard renders Latin text in Outfit (dashboard/public/fonts/Outfit.woff2) and Bangla in
- * SolaimanLipi via one `MixedFont` face. Outfit is loaded here from @expo-google-fonts/outfit
- * (static TTFs, which native needs); each weight is its own family on React Native.
+ * Same pairing as dashboard MixedFont: Latin in Outfit, Bangla in SolaimanLipi (not Kalpurush —
+ * that face is client-next). Outfit weights come from @expo-google-fonts/outfit; SolaimanLipi
+ * from assets/fonts. Native cannot CSS-stack faces, so Text splits Bangla runs.
  */
 export const fontFamilies: Record<FontWeight, string> = {
   regular: 'Outfit_400Regular',

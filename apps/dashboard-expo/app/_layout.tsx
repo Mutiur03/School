@@ -11,9 +11,10 @@ import {
 } from '@expo-google-fonts/outfit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Slot } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BootScreen } from '@/components/layout/BootScreen';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -29,8 +30,29 @@ const FONT_TIMEOUT_MS = 4_000;
 
 function TenantTheme({ children }: { children: ReactNode }) {
   const { branding } = useTenant();
+  // Web tab: the school's own logo and name (no static favicon: multi-tenant). The logo is set
+  // only once it has loaded, so a broken logo never shows as a broken icon.
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setFaviconUrl(null);
+    const url = branding.logoUrl;
+    if (!url) return;
+    let active = true;
+    Image.prefetch(url).then(
+      // react-native-web resolves with undefined on success; native resolves a boolean.
+      (ok) => active && ok !== false && setFaviconUrl(url),
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [branding.logoUrl]);
   return (
     <ThemeProvider overrides={branding.theme}>
+      <Head>
+        <title>{branding.displayName}</title>
+        {faviconUrl ? <link rel="icon" href={faviconUrl} /> : null}
+      </Head>
       <ToastProvider>{children}</ToastProvider>
     </ThemeProvider>
   );
@@ -65,13 +87,14 @@ export default function RootLayout() {
         defaultOptions: { queries: { refetchOnWindowFocus: false } },
       }),
   );
-  // The web dashboard's typeface (Outfit). Show the text-less boot screen until it is ready (or
+  // Outfit (Latin) + SolaimanLipi (Bangla), matching dashboard MixedFont. Boot until ready (or
   // failed / timed out, in which case the system font is used) so text never reflows.
   const [fontsLoaded, fontError] = useFonts({
     Outfit_400Regular,
     Outfit_500Medium,
     Outfit_600SemiBold,
     Outfit_700Bold,
+    SolaimanLipi: require('../assets/fonts/SolaimanLipi.ttf'),
   });
   const [fontTimedOut, setFontTimedOut] = useState(false);
   useEffect(() => {

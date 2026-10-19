@@ -1,12 +1,8 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const logsDir = path.join(__dirname, '..', 'logs');
+const logsDir = path.resolve('logs');
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 

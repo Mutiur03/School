@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { useTheme } from '@/theme/ThemeProvider';
+import { BANGLA_FONT } from '@/theme/fonts';
 import { fontFamilies, radii } from '@/theme/tokens';
 import {
   CONTROL_TEXT,
@@ -44,7 +45,7 @@ export function DateInput({ value, onChange, label, invalid, testID }: DateInput
         boxShadow: controlRing(colors, state) ?? 'none',
         padding: `0 ${controlPadX(state) - controlBorderInset(state)}px`,
         fontSize: controlFontSize(state),
-        fontFamily: `${fontFamilies.regular}, system-ui, sans-serif`,
+        fontFamily: `${fontFamilies.regular}, ${BANGLA_FONT}, system-ui, sans-serif`,
         color: value ? CONTROL_TEXT : '#99a1af',
         caretColor: colors.ring,
         background: '#fff',

@@ -1,5 +1,6 @@
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Platform, Text as RNText, type TextProps as RNTextProps } from 'react-native';
 import { cn } from '@/lib/utils';
+import { BANGLA_FONT, scriptRuns } from '@/theme/fonts';
 import type { FontSize, FontWeight, ThemeColors } from '@/theme/tokens';
 
 export interface TextProps extends RNTextProps {
@@ -68,8 +69,9 @@ export const TEXT_COLOR: Record<keyof ThemeColors, string> = {
 };
 
 /**
- * Text in the dashboard's typeface (Outfit) and Tailwind type scale. `font-*` classes select an
- * Outfit family per weight (tailwind.config.js), never `fontWeight`, which breaks Android.
+ * Text in the dashboard's typefaces (Outfit + SolaimanLipi) and Tailwind type scale. `font-*`
+ * classes select an Outfit family per weight (tailwind.config.js), never `fontWeight`, which
+ * breaks Android. Bangla runs use SolaimanLipi (web: CSS stack; native: nested faces).
  * `className` is merged last with cn(), so callers can override any default.
  */
 export function Text({
@@ -79,6 +81,7 @@ export function Text({
   caps,
   tabular,
   className,
+  children,
   ...rest
 }: TextProps) {
   return (
@@ -92,6 +95,24 @@ export function Text({
         tabular && 'tabular-nums',
         className,
       )}
-    />
+    >
+      {banglaChildren(children)}
+    </RNText>
+  );
+}
+
+function banglaChildren(children: TextProps['children']): TextProps['children'] {
+  if (Platform.OS === 'web') return children;
+  if (typeof children !== 'string' && typeof children !== 'number') return children;
+  const runs = scriptRuns(String(children));
+  if (!runs.some((r) => r.bangla)) return children;
+  return runs.map((r, i) =>
+    r.bangla ? (
+      <RNText key={i} style={{ fontFamily: BANGLA_FONT }}>
+        {r.text}
+      </RNText>
+    ) : (
+      r.text
+    ),
   );
 }

@@ -19,7 +19,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "backfill:class68-reg-pdfs": "tsx src/scripts/backfill-class68-reg-pdfs.ts",
-    "dev": "node --watch-path=src --watch-path=../packages/shared-schemas/dist --import @swc-node/register/esm-register --import ./src/instrument.ts src/server.ts",
+    "dev": "node --watch-path=src --watch-path=../packages/shared-schemas/dist --watch-kill-signal=SIGKILL --watch-preserve-output --import @swc-node/register/esm-register --import ./src/instrument.ts src/server.ts",
     "start": "node --import ./dist/instrument.js dist/server.js"
   },
   "keywords": [],
