@@ -52,6 +52,22 @@ describe('login role lock', () => {
   });
 });
 
+describe('web page-host role lock', () => {
+  const page = (host: string) => ({ source: 'page-host', host });
+
+  it('a role subdomain locks to that role, ahead of ?role=', () => {
+    for (const role of ['admin', 'teacher', 'student'] as const)
+      assert.equal(lockedLoginRole(null, page(`${role}.lbphs.gov.bd`), 'student'), role);
+  });
+
+  it('?role= locks a plain school host; bad or missing values keep every role', () => {
+    assert.equal(lockedLoginRole(null, page('lbphs.gov.bd'), 'teacher'), 'teacher');
+    for (const v of [undefined, 'super_admin', ['teacher'], 'TEACHER'])
+      assert.equal(lockedLoginRole(null, page('lbphs.gov.bd'), v), null, String(v));
+    assert.equal(lockedLoginRole(null, page('demo-dashboard.mutiurrahman.com')), null);
+  });
+});
+
 describe('role lock persistence', () => {
   it('survives a restart / sign-out (it is stored with the school)', async () => {
     const store = createMemoryKeyValueStore();

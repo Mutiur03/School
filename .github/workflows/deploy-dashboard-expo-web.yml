@@ -123,6 +123,8 @@ jobs:
         env:
           EXPO_PUBLIC_APP_ENV: production
           EXPO_PUBLIC_CDN_URL: ${{ secrets.LBP_VITE_CDN_URL }}
+          # Page host superadmin.mutiurrahman.com == this origin -> platform (super-admin) mode.
+          EXPO_PUBLIC_DIRECTORY_URL: https://superadmin.mutiurrahman.com
         run: pnpm build:web
 
       - name: Upload web dist

@@ -130,7 +130,7 @@ const forwardRequest = (request, targetUrl, headers) =>
   );
 
 const resolveTenantTarget = (hostname, env) => {
-  const clientHostSuffix = String(env.CLIENT_HOST_SUFFIX || '-school.mutiurrahman.com')
+  const clientHostSuffix = String(env.CLIENT_HOST_SUFFIX || '-school.torongo.dev')
     .trim()
     .toLowerCase();
   const dashboardHostSuffix = String(env.DASHBOARD_HOST_SUFFIX || '-dashboard.mutiurrahman.com')

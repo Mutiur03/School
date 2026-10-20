@@ -12,11 +12,19 @@ export const LOGIN_ROLES: readonly AppRole[] = ['admin', 'teacher', 'student'];
 
 const isRole = (v: unknown): v is RoleHint => v === 'admin' || v === 'teacher' || v === 'student';
 
-/** The locked role, only for a school picked with a code (not a host- or env-resolved tenant). */
+/**
+ * The locked role. Web page host: a role subdomain (`teacher.lbphs.gov.bd`) or `?role=`; the
+ * backend maps every subdomain to the same school. Otherwise only a school picked with a code.
+ */
 export function lockedLoginRole(
   selection: { roleHint?: RoleHint | null; host?: string } | null | undefined,
   resolution: { source: string; host?: string | null },
+  urlRole?: unknown,
 ): RoleHint | null {
+  if (resolution.source === 'page-host') {
+    const label = resolution.host?.split('.')[0];
+    return isRole(label) ? label : isRole(urlRole) ? urlRole : null;
+  }
   if (resolution.source !== 'school-code' || !selection) return null;
   if (selection.host && resolution.host && selection.host !== resolution.host) return null;
   return isRole(selection.roleHint) ? selection.roleHint : null;

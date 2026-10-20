@@ -91,7 +91,7 @@ jobs:
                 "repos/${{ github.repository }}/actions/runs/${CAND_RUN}/artifacts" \
                 --jq '[.artifacts[].name] | join(" ")')"
               MISSING=false
-              for required in pages-lbp-dashboard pages-lbp-admin pages-lbp-teacher pages-lbp-student pages-school-superadmin; do
+              for required in pages-lbp-dashboard pages-lbp-admin pages-lbp-teacher pages-lbp-student; do
                 if ! echo " $NAMES " | grep -q " $required "; then
                   echo "Staging run $CAND_RUN missing artifact: $required"
                   MISSING=true
@@ -215,13 +215,6 @@ jobs:
             project_name: lbp-student
             env_file: .env.student.local
             default_role: student
-          - name: Super admin
-            directory: dashboard
-            workspace: dashboard
-            build_script: build:super_admin
-            project_name: school-superadmin
-            env_file: .env.super_admin.local
-            default_role: super_admin
 
     steps:
       - name: Checkout repository
