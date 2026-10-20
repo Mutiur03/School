@@ -29,3 +29,9 @@ test('scriptRuns splits mixed Latin and Bangla the way dashboard unicode-range d
 test('SolaimanLipi ttf is bundled (same face as dashboard/public/fonts/SolaimanLipi.woff2)', () => {
   assert.equal(existsSync(join(root, 'assets/fonts/SolaimanLipi.ttf')), true);
 });
+
+// Not from @expo-google-fonts: its export path contains node_modules, which Pages never uploads.
+test('Outfit weights are bundled from assets/fonts', () => {
+  for (const w of ['400Regular', '500Medium', '600SemiBold', '700Bold'])
+    assert.equal(existsSync(join(root, `assets/fonts/Outfit_${w}.ttf`)), true, w);
+});

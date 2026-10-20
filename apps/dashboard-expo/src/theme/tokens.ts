@@ -178,8 +178,8 @@ export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
 
 /**
  * Same pairing as dashboard MixedFont: Latin in Outfit, Bangla in SolaimanLipi (not Kalpurush —
- * that face is client-next). Outfit weights come from @expo-google-fonts/outfit; SolaimanLipi
- * from assets/fonts. Native cannot CSS-stack faces, so Text splits Bangla runs.
+ * that face is client-next). Both faces are bundled from
+ * assets/fonts. Native cannot CSS-stack faces, so Text splits Bangla runs.
  */
 export const fontFamilies: Record<FontWeight, string> = {
   regular: 'Outfit_400Regular',
