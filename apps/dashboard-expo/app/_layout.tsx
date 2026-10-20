@@ -94,6 +94,7 @@ export default function RootLayout() {
     Outfit_500Medium,
     Outfit_600SemiBold,
     Outfit_700Bold,
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Metro asset require
     SolaimanLipi: require('../assets/fonts/SolaimanLipi.ttf'),
   });
   const [fontTimedOut, setFontTimedOut] = useState(false);

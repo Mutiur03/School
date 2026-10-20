@@ -3,13 +3,14 @@
  * (super_admin) only in platform mode. Any other pairing has no home, and the caller signs the
  * session out, so a school session can never open platform screens or the reverse.
  */
+import type { Href } from 'expo-router';
 import type { TenantSource } from '@/tenant/resolve';
 
 export type AppRole = 'admin' | 'teacher' | 'student';
 /** Every role a route gate can require. */
 export type GateRole = AppRole | 'super_admin';
 
-export const ROLE_HOME: Record<AppRole, string> = {
+export const ROLE_HOME: Record<AppRole, Href> = {
   admin: '/',
   teacher: '/teacher',
   student: '/student',
@@ -25,11 +26,11 @@ export const isAppRole = (role: unknown): role is AppRole =>
  * null when the role does not belong in this tenant (a school role in platform mode, a
  * super_admin at a school): the caller signs them out.
  */
-export const homeForRole = (role: unknown, source?: TenantSource): string | null => {
+export const homeForRole = (role: unknown, source?: TenantSource): Href | null => {
   if (source === 'platform') return role === 'super_admin' ? PLATFORM_HOME : null;
   return isAppRole(role) ? ROLE_HOME[role] : null;
 };
 
 /** Where an unauthenticated visitor of a guarded route goes. */
-export const loginRouteFor = (source: TenantSource): string =>
+export const loginRouteFor = (source: TenantSource): Href =>
   source === 'unresolved' ? '/join' : source === 'platform' ? PLATFORM_LOGIN : '/login';

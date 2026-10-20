@@ -203,13 +203,13 @@ Conventions:
 All runtime config is public (`EXPO_PUBLIC_*` is inlined into the bundle). **Never put secrets
 in these variables or in `eas.json`.** See `.env.example`.
 
-| Variable                      | Purpose                                                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `EXPO_PUBLIC_APP_ENV`         | `local` / `staging` / `production`                                                                                                                           |
-| `EXPO_PUBLIC_API_BASE_URL`    | Optional. Pins the build to one school's API origin (no school codes).                                                                                       |
-| `EXPO_PUBLIC_DIRECTORY_URL`   | Super-admin origin: pre-login school-code lookup and platform (super-admin) API. Native needs it or `API_BASE_URL`. Empty hides platform sign-in.            |
-| `EXPO_PUBLIC_CDN_URL`         | Public CDN for R2 keys (photos, PDFs), mirrors `VITE_CDN_URL`; staging: `https://cdn.lbphs.gov.bd`                                                           |
-| `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production)                                                                             |
+| Variable                      | Purpose                                                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_APP_ENV`         | `local` / `staging` / `production`                                                                                                                |
+| `EXPO_PUBLIC_API_BASE_URL`    | Optional. Pins the build to one school's API origin (no school codes).                                                                            |
+| `EXPO_PUBLIC_DIRECTORY_URL`   | Super-admin origin: pre-login school-code lookup and platform (super-admin) API. Native needs it or `API_BASE_URL`. Empty hides platform sign-in. |
+| `EXPO_PUBLIC_CDN_URL`         | Public CDN for R2 keys (photos, PDFs), mirrors `VITE_CDN_URL`; staging: `https://cdn.lbphs.gov.bd`                                                |
+| `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production)                                                                  |
 
 `APP_ENV` (build time, `app.config.ts`) selects the app name, bundle id suffix (`.dev`,
 `.staging`) and URL scheme. `eas.json` sets it per profile:
@@ -251,12 +251,12 @@ first store build.
 runs on every push and PR that touches this app (or `packages/shared-schemas`). Only `staging`
 publishes. `main` is CI only.
 
-| Event | What runs |
-| ----- | --------- |
-| PR / any branch | `pnpm run check:dashboard-expo` then `pnpm --filter dashboard-expo test` |
-| Push to `staging`, JS-only | `eas update --channel staging --environment preview` (Android), same `EXPO_PUBLIC_*` / `APP_ENV=staging` as `pnpm update:staging` |
-| Push to `staging`, native path hit | `eas build --profile preview --platform android --no-wait` (no OTA on that commit) |
-| `workflow_dispatch` | Optional `publish_update` and/or `build_preview` |
+| Event                              | What runs                                                                                                                         |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| PR / any branch                    | `pnpm run check:dashboard-expo` then `pnpm --filter dashboard-expo test`                                                          |
+| Push to `staging`, JS-only         | `eas update --channel staging --environment preview` (Android), same `EXPO_PUBLIC_*` / `APP_ENV=staging` as `pnpm update:staging` |
+| Push to `staging`, native path hit | `eas build --profile preview --platform android --no-wait` (no OTA on that commit)                                                |
+| `workflow_dispatch`                | Optional `publish_update` and/or `build_preview`                                                                                  |
 
 Path matching is a start, not the real native check: a native bump only in `pnpm-lock.yaml` or a
 change under `packages/` will not trigger a preview build, and the following update can miss the

@@ -210,10 +210,7 @@ describe('stored selection', () => {
 
 describe('build config', () => {
   it('superAdminUrl is the directory origin', () => {
-    const { config } = buildAppConfig(
-      { appEnv: 'staging', directoryUrl: `${SA}/api/` },
-      'android',
-    );
+    const { config } = buildAppConfig({ appEnv: 'staging', directoryUrl: `${SA}/api/` }, 'android');
     assert.equal(config.superAdminUrl, SA);
     assert.equal(config.directoryUrl, SA);
   });
