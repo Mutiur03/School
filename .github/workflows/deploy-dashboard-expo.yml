@@ -45,6 +45,10 @@ on:
         description: Build a signed staging APK (download from the run artifacts)
         type: boolean
         default: false
+      build_dev:
+        description: Build the dev-client APK (.dev app, debug-signed; run Metro locally, scan the QR)
+        type: boolean
+        default: false
 
 concurrency:
   group: dashboard-expo-${{ github.ref }}
@@ -220,3 +224,55 @@ jobs:
         with:
           name: dashboard-expo-staging-${{ github.run_number }}
           path: apps/dashboard-expo/android/app/build/outputs/apk/release/app-release.apk
+
+  # Dev client (APP_ENV=local, id .dev). JS comes from Metro on your PC, so this only needs
+  # rebuilding when native code or app.config.ts changes. Debug-signed with the template's
+  # fixed debug keystore, so each new dev APK installs over the previous one.
+  dev-build:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_dev
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      APP_ENV: local
+      EXPO_PUBLIC_APP_ENV: local
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate android project
+        working-directory: apps/dashboard-expo
+        run: pnpm exec expo prebuild --platform android --clean --no-install
+
+      # ARM only: real phones. Same Metaspace cap as the release build.
+      - name: Build debug APK
+        working-directory: apps/dashboard-expo/android
+        run: |
+          ./gradlew assembleDebug --no-daemon \
+            "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" \
+            -PreactNativeArchitectures=arm64-v8a
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-expo-dev-${{ github.run_number }}
+          path: apps/dashboard-expo/android/app/build/outputs/apk/debug/app-debug.apk
