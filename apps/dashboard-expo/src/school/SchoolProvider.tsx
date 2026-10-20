@@ -61,6 +61,22 @@ const SELECTION_LOAD_TIMEOUT_MS = 5_000;
 
 const SchoolContext = createContext<SchoolContextValue | null>(null);
 
+/**
+ * Started when this module loads (app start, before the first render), shared by the provider.
+ * Bounded: a stuck secure-storage read must not hold the app on the boot screen. On timeout the
+ * app opens at "enter school code" for this launch; the saved school is not overwritten.
+ */
+let initialSelection: ReturnType<typeof loadStoredSelection> | null = null;
+function loadInitialSelection() {
+  initialSelection ??= withTimeout(
+    loadStoredSelection(deviceStore, appConfig.superAdminUrl),
+    SELECTION_LOAD_TIMEOUT_MS,
+    'Reading the saved school',
+  ).catch(() => null);
+  return initialSelection;
+}
+loadInitialSelection();
+
 export function SchoolProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [selection, setSelection] = useState<SchoolSelection | null>(null);
@@ -69,20 +85,12 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    // Bounded: a stuck secure-storage read must not hold the app on the boot screen. On timeout
-    // the app opens at "enter school code" for this launch; the saved school is not overwritten.
-    withTimeout(
-      loadStoredSelection(deviceStore, appConfig.superAdminUrl),
-      SELECTION_LOAD_TIMEOUT_MS,
-      'Reading the saved school',
-    )
-      .catch(() => null)
-      .then((loaded) => {
-        if (!active) return;
-        setSelection(loaded?.kind === 'school' ? loaded.school : null);
-        setPlatform(loaded?.kind === 'platform' ? loaded.platform : null);
-        setReady(true);
-      });
+    void loadInitialSelection().then((loaded) => {
+      if (!active) return;
+      setSelection(loaded?.kind === 'school' ? loaded.school : null);
+      setPlatform(loaded?.kind === 'platform' ? loaded.platform : null);
+      setReady(true);
+    });
     return () => {
       active = false;
     };

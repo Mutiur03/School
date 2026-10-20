@@ -1,6 +1,6 @@
 /** TanStack Query hooks for the student home. Keys live under the tenant's private namespace. */
 import { useQuery } from '@tanstack/react-query';
-import { useApi, useSession } from '@/session/ApiProvider';
+import { sessionUserId, useApi, useSession } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 
@@ -10,12 +10,14 @@ export function useStudentKey() {
   // Keyed by the signed-in student too, so a different student on this device never sees
   // cached data of the previous one even before the purge runs.
   return (...parts: unknown[]) =>
-    privateQueryKey(resolution.tenantKey, 'student', session.user?.id ?? 'anon', ...parts);
+    privateQueryKey(resolution.tenantKey, 'student', sessionUserId(session) ?? 'anon', ...parts);
 }
 
 export function useMyId(): number | undefined {
-  const { user } = useSession();
-  return user?.role === 'student' ? user.id : undefined;
+  const session = useSession();
+  const role = session.user?.role ?? session.provisional?.role;
+  // Key / URL only (the saved id at launch); the server authorizes every request.
+  return role === 'student' ? sessionUserId(session) : undefined;
 }
 
 export function useMyProfile(year: number) {

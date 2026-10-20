@@ -21,6 +21,8 @@ import type { UserRole } from './auth';
 export interface PersistedSession {
   refreshToken: string;
   role: UserRole;
+  /** Scopes the on-device query cache before the refresh answers. Absent in older saves. */
+  userId?: number;
   savedAt: number;
 }
 

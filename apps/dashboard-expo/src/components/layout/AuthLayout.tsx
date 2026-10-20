@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Image, View } from 'react-native';
 import { KeyboardAwareScrollView } from '@/components/ui/KeyboardAwareScrollView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SplashReady } from '@/boot/splash';
 import { Icon } from '@/components/ui/Icon';
 import { School } from '@/components/ui/icons';
 import { Text } from '@/components/ui/Text';
@@ -47,6 +48,7 @@ export function AuthLayout({
   const { shadows } = useTheme();
   return (
     <View className="bg-muted flex-1">
+      <SplashReady />
       <KeyboardAwareScrollView
         contentContainerStyle={{
           flexGrow: 1,

@@ -1,3 +1,5 @@
+// First: holds the native splash from module load until the first real screen renders.
+import '@/boot/splash';
 import '../global.css';
 // Web: registers the browser Back/Forward interceptor before the router's own listener.
 import '@/navigation/web-back-guard';
@@ -8,7 +10,7 @@ import { Slot } from 'expo-router';
 import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Image, View } from 'react-native';
+import { Image, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BootScreen } from '@/components/layout/BootScreen';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -56,33 +58,36 @@ function TenantTheme({ children }: { children: ReactNode }) {
  * Tenant follows the confirmed school (or platform mode); everything below re-keys when it
  * changes, so a school session and the platform session never share a client, token or cache.
  */
-function TenantRoot() {
+function TenantRoot({ fontsReady }: { fontsReady: boolean }) {
   const { ready, selection, platform } = useSchool();
   const { resolution, connection } = useMemo(
     () => getCurrentTenantResolution(selection, platform),
     [selection, platform],
   );
-  if (!ready) return <BootScreen label="Starting…" />;
+  if (!ready) return <BootScreen label="Starting…" textReady={fontsReady} />;
+  // The session restore (SecureStore read + refresh) and the branding cache start here, while the
+  // fonts may still be loading; only the screens wait for the fonts.
   return (
     <ApiProvider tenant={resolution} connection={connection}>
       <TenantProvider resolution={resolution}>
-        <TenantTheme>
-          <Slot />
-        </TenantTheme>
+        <TenantTheme>{fontsReady ? <Slot /> : <BootScreen textReady={false} />}</TenantTheme>
       </TenantProvider>
     </ApiProvider>
   );
 }
 
-export default function RootLayout() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: { queries: { refetchOnWindowFocus: false } },
-      }),
-  );
-  // Outfit (Latin) + SolaimanLipi (Bangla), matching dashboard MixedFont. Boot until ready (or
-  // failed / timed out, in which case the system font is used) so text never reflows.
+/**
+ * Android: the fonts are embedded at build time (expo-font plugin, app.config.ts) under their file
+ * names (Outfit_400Regular, ..., SolaimanLipi), exactly the families the theme uses, so screens
+ * never wait for a runtime font load. iOS registers embedded fonts under their internal names
+ * ("Outfit", "Outfit-Medium", ...), not the file names, and web has no embedding: both still load
+ * them at runtime with useFonts.
+ */
+const FONTS_EMBEDDED = Platform.OS === 'android';
+
+function useRuntimeFonts(): boolean {
+  // Outfit (Latin) + SolaimanLipi (Bangla), matching dashboard MixedFont. Screens wait until ready
+  // (or failed / timed out, in which case the system font is used) so text never reflows.
   const [fontsLoaded, fontError] = useFonts({
     // Local copies, not @expo-google-fonts: its export path has a node_modules segment, which
     // `wrangler pages deploy` never uploads, so the fonts 404 on Cloudflare Pages.
@@ -99,7 +104,19 @@ export default function RootLayout() {
     const timer = setTimeout(() => setFontTimedOut(true), FONT_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, []);
-  const fontsReady = fontsLoaded || Boolean(fontError) || fontTimedOut;
+  return fontsLoaded || Boolean(fontError) || fontTimedOut;
+}
+
+const useAppFonts: () => boolean = FONTS_EMBEDDED ? () => true : useRuntimeFonts;
+
+export default function RootLayout() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { refetchOnWindowFocus: false } },
+      }),
+  );
+  const fontsReady = useAppFonts();
 
   return (
     // The root always paints the light background. Android's window background follows the
@@ -108,15 +125,12 @@ export default function RootLayout() {
     <View style={{ flex: 1, backgroundColor: lightColors.background }}>
       <StatusBar style="dark" />
       <SafeAreaProvider>
-        {fontsReady ? (
-          <QueryClientProvider client={queryClient}>
-            <SchoolProvider>
-              <TenantRoot />
-            </SchoolProvider>
-          </QueryClientProvider>
-        ) : (
-          <BootScreen textReady={false} />
-        )}
+        {/* Saved school, session and fonts load in parallel; text waits for the fonts. */}
+        <QueryClientProvider client={queryClient}>
+          <SchoolProvider>
+            <TenantRoot fontsReady={fontsReady} />
+          </SchoolProvider>
+        </QueryClientProvider>
       </SafeAreaProvider>
     </View>
   );

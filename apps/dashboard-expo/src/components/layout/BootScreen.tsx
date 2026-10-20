@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { SplashReady } from '@/boot/splash';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { RefreshCw, WifiOff } from '@/components/ui/icons';
@@ -71,6 +72,8 @@ export function BootScreen({
       accessibilityRole={failed ? 'alert' : 'progressbar'}
       accessibilityLabel={failed ? (error ?? undefined) : label}
     >
+      {/* Startup failed or is slow: drop the native splash so Retry is reachable. */}
+      {showActions ? <SplashReady reason="error" /> : null}
       <View className="w-full max-w-[320px] items-center">
         <SchoolMark logoUrl={logoUrl} size={72} />
         {textReady ? (

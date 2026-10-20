@@ -10,7 +10,13 @@
  *   keep it, so a flaky connection or a cold server is never a logout.
  */
 import type { AuthHooks } from './client';
-import { isSessionPayload, type AuthUser, type SessionPayload, type TokenTransport } from './auth';
+import {
+  isSessionPayload,
+  type AuthUser,
+  type SessionPayload,
+  type TokenTransport,
+  type UserRole,
+} from './auth';
 import { ApiError, isApiError } from './errors';
 import type { SessionPersistence } from './token-store';
 import { withTimeout } from '../timeout';
@@ -27,6 +33,18 @@ export interface SessionSnapshot {
    * timeout) or could not read secure storage. The UI shows it with a Retry instead of spinning.
    */
   startupError: string | null;
+  /**
+   * Native only, while `status` is `unknown`: the role (and user id) saved with the stored refresh
+   * token. UI routing hint so the role's screens can render while the refresh runs in the
+   * background. NEVER an authorization decision: every request still needs the access token the
+   * refresh returns, and the server re-checks the role on each call.
+   */
+  provisional: ProvisionalSession | null;
+}
+
+export interface ProvisionalSession {
+  role: UserRole;
+  userId: number | null;
 }
 
 export interface SessionManagerOptions {
@@ -40,9 +58,17 @@ export interface SessionManagerOptions {
    * client already aborts the request sooner (REFRESH_TIMEOUT_MS), so normally that fires first.
    */
   timeoutMs?: number;
+  /** Startup wait before the offline fallback. Default STARTUP_REFRESH_TIMEOUT_MS. */
+  startupTimeoutMs?: number;
 }
 
 const DEFAULT_SESSION_TIMEOUT_MS = 20_000;
+/**
+ * How long launch waits for the startup refresh before showing the app offline (with Retry). The
+ * request itself keeps running (up to REFRESH_TIMEOUT_MS) and still applies if it lands later, so a
+ * slow server never costs the rotated refresh token.
+ */
+export const STARTUP_REFRESH_TIMEOUT_MS = 7_000;
 const SECURE_STORE_TIMEOUT_MS = 5_000;
 
 type Listener = (snapshot: SessionSnapshot) => void;
@@ -54,6 +80,7 @@ export class SessionManager implements AuthHooks {
     user: null,
     endedReason: null,
     startupError: null,
+    provisional: null,
   };
   private inflight: Promise<boolean> | null = null;
   private listeners = new Set<Listener>();
@@ -85,6 +112,7 @@ export class SessionManager implements AuthHooks {
       user: payload.user,
       endedReason: null,
       startupError: null,
+      provisional: null,
     });
   }
 
@@ -114,38 +142,94 @@ export class SessionManager implements AuthHooks {
   }
 
   /**
-   * Startup probe: try to restore a session from the refresh cookie. Transport failures leave
-   * the status `unknown` so the UI can show "offline" instead of a login prompt.
+   * Resolves once requests can be sent: immediately with a token or once signed out; otherwise it
+   * waits for the in-flight (or a new startup) refresh, so a query fired during launch goes out
+   * once with the fresh token instead of 401 -> refresh -> retry. Never rejects.
+   */
+  awaitAccessToken(): Promise<void> {
+    if (this.accessToken) return Promise.resolve();
+    const pending =
+      this.inflight ??
+      (this.snapshot.status === 'unknown' && !this.snapshot.startupError ? this.refresh() : null);
+    return pending ? pending.then(noop, noop) : Promise.resolve();
+  }
+
+  /**
+   * Startup probe: try to restore a session from the refresh cookie / stored token. Transport
+   * failures (or no answer within the startup timeout) leave the status `unknown` with a
+   * `startupError`, so the UI can show "offline" instead of a login prompt. A late answer still
+   * applies.
    */
   async bootstrap(): Promise<void> {
     // Retry after a failed start: back to a plain "checking" state.
     if (this.snapshot.status === 'unknown' && this.snapshot.startupError) {
       this.update({ ...this.snapshot, startupError: null });
     }
+    const attempt = this.refresh();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<'timeout'>((resolve) => {
+      timer = setTimeout(
+        () => resolve('timeout'),
+        this.options.startupTimeoutMs ?? STARTUP_REFRESH_TIMEOUT_MS,
+      );
+    });
     try {
-      const ok = await this.refresh();
-      if (!ok && this.snapshot.status === 'unknown') {
-        this.update({ status: 'anonymous', user: null, endedReason: null, startupError: null });
-      }
-    } catch (error) {
-      if (isApiError(error) && error.isTransport) {
-        // Keep the stored token (a flaky network is never a logout) but stop the spinner.
+      const result = await Promise.race([attempt, timedOut]);
+      if (result === 'timeout') {
         if (this.snapshot.status === 'unknown') {
           this.update({
             ...this.snapshot,
             startupError:
-              error.kind === 'timeout'
-                ? `${error.message} Check your connection and try again.`
-                : "Can't reach the server. Check your connection.",
+              'Restoring the session took too long. Check your connection and try again.',
           });
         }
+        attempt.then(
+          (ok) => this.afterStartup(ok),
+          (error: unknown) => this.startupFailed(error),
+        );
         return;
       }
-      // 404/5xx/parse (e.g. no backend behind this origin): treat as signed out for now.
-      if (this.snapshot.status === 'unknown') {
-        this.update({ status: 'anonymous', user: null, endedReason: null, startupError: null });
-      }
+      this.afterStartup(result);
+    } catch (error) {
+      this.startupFailed(error);
+    } finally {
+      clearTimeout(timer);
     }
+  }
+
+  private afterStartup(ok: boolean) {
+    if (!ok && this.snapshot.status === 'unknown') {
+      this.update({
+        status: 'anonymous',
+        user: null,
+        endedReason: null,
+        startupError: null,
+        provisional: null,
+      });
+    }
+  }
+
+  private startupFailed(error: unknown) {
+    if (this.snapshot.status !== 'unknown') return;
+    if (isApiError(error) && error.isTransport) {
+      // Keep the stored token (a flaky network is never a logout) but stop the spinner.
+      this.update({
+        ...this.snapshot,
+        startupError:
+          error.kind === 'timeout'
+            ? `${error.message} Check your connection and try again.`
+            : "Can't reach the server. Check your connection.",
+      });
+      return;
+    }
+    // 404/5xx/parse (e.g. no backend behind this origin): treat as signed out for now.
+    this.update({
+      status: 'anonymous',
+      user: null,
+      endedReason: null,
+      startupError: null,
+      provisional: null,
+    });
   }
 
   onSessionExpired(_error: ApiError): void {
@@ -167,10 +251,22 @@ export class SessionManager implements AuthHooks {
     // Update synchronously so concurrent requests stop sending the old token immediately.
     if (opts?.keepStored) {
       // Detached, not signed out: whoever bootstraps next decides.
-      this.update({ status: 'unknown', user: null, endedReason: null, startupError: null });
+      this.update({
+        status: 'unknown',
+        user: null,
+        endedReason: null,
+        startupError: null,
+        provisional: null,
+      });
       return;
     }
-    this.update({ status: 'anonymous', user: null, endedReason, startupError: null });
+    this.update({
+      status: 'anonymous',
+      user: null,
+      endedReason,
+      startupError: null,
+      provisional: null,
+    });
     await this.options.persistence.clear();
   }
 
@@ -186,6 +282,7 @@ export class SessionManager implements AuthHooks {
     await this.options.persistence.save({
       refreshToken: payload.refreshToken,
       role: payload.user.role,
+      userId: payload.user.id,
       savedAt: Date.now(),
     });
   }
@@ -194,17 +291,23 @@ export class SessionManager implements AuthHooks {
     try {
       let stored: string | undefined;
       if (this.transport === 'body') {
-        stored = (
-          await withTimeout(
-            this.options.persistence.load(),
-            SECURE_STORE_TIMEOUT_MS,
-            'Reading the saved session',
-          )
-        )?.refreshToken;
+        const saved = await withTimeout(
+          this.options.persistence.load(),
+          SECURE_STORE_TIMEOUT_MS,
+          'Reading the saved session',
+        );
+        stored = saved?.refreshToken;
         // Nothing stored: signed out, no request needed.
         if (!stored) {
           await this.end('expired');
           return false;
+        }
+        // Launch: let the UI route to the saved role while the refresh is in flight.
+        if (this.snapshot.status === 'unknown' && !this.snapshot.provisional && saved?.role) {
+          this.update({
+            ...this.snapshot,
+            provisional: { role: saved.role, userId: saved.userId ?? null },
+          });
         }
       }
       const payload = await withTimeout(
@@ -237,3 +340,5 @@ export class SessionManager implements AuthHooks {
     for (const listener of this.listeners) listener(next);
   }
 }
+
+function noop() {}
