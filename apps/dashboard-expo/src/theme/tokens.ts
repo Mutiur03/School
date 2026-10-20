@@ -177,15 +177,15 @@ export type FontSize = keyof typeof fontSizes;
 export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
 
 /**
- * Same pairing as dashboard MixedFont: Latin in Outfit (Regular only, like the dashboard), Bangla in SolaimanLipi (not Kalpurush —
+ * Same pairing as dashboard MixedFont: Latin in Outfit, Bangla in SolaimanLipi (not Kalpurush —
  * that face is client-next). Both faces are bundled from
  * assets/fonts. Native cannot CSS-stack faces, so Text splits Bangla runs.
  */
 export const fontFamilies: Record<FontWeight, string> = {
   regular: 'Outfit_400Regular',
-  medium: 'Outfit_400Regular',
-  semibold: 'Outfit_400Regular',
-  bold: 'Outfit_400Regular',
+  medium: 'Outfit_500Medium',
+  semibold: 'Outfit_600SemiBold',
+  bold: 'Outfit_700Bold',
 };
 
 /** `tracking-wider` = 0.05em; RN needs absolute px, so multiply by the font size. */

@@ -80,7 +80,8 @@ jobs:
               - 'apps/dashboard-expo/app.config.ts'
               - 'apps/dashboard-expo/fingerprint.config.js'
               - 'apps/dashboard-expo/package.json'
-              - 'apps/dashboard-expo/assets/**'
+              - 'apps/dashboard-expo/assets/*.png'
+              - 'apps/dashboard-expo/assets/fonts/SolaimanLipi.ttf'
               - 'apps/dashboard-expo/plugins/**'
 
       - name: Install pnpm

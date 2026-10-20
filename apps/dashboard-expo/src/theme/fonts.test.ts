@@ -31,6 +31,7 @@ test('SolaimanLipi ttf is bundled (same face as dashboard/public/fonts/SolaimanL
 });
 
 // Not from @expo-google-fonts: its export path contains node_modules, which Pages never uploads.
-test('Outfit Regular is bundled from assets/fonts (only weight, like the dashboard)', () => {
-  assert.equal(existsSync(join(root, 'assets/fonts/Outfit_400Regular.ttf')), true);
+test('Outfit weights are bundled from assets/fonts', () => {
+  for (const w of ['400Regular', '500Medium', '600SemiBold', '700Bold'])
+    assert.equal(existsSync(join(root, `assets/fonts/Outfit_${w}.ttf`)), true, w);
 });

@@ -29,12 +29,12 @@ pnpm --filter dashboard-expo ios        # macOS only
 | `lint`                      | Repo ESLint config (`../../eslint.config.js`) on this folder |
 | `test`                      | Node test runner + tsx, API client / tenant / storage units  |
 | `build:web`                 | `expo export --platform web` -> `dist/web` (static SPA)      |
-| `export:android` / `:ios`   | Hermes JS bundle export, no native build                     |
 | `doctor`                    | `expo-doctor`                                                |
 | root `check:dashboard-expo` | Lint + Prettier + typecheck, same pattern as other CI scopes |
 
 There is intentionally no `build` script, so the root `turbo run build` and existing CI jobs are
-unchanged.
+unchanged. Android apps are **not built on your PC** (Windows path limits break the native C++ build):
+use GitHub Actions, see [Building apps with GitHub](#building-apps-with-github).
 
 ## Layout
 
@@ -267,6 +267,40 @@ Updates are not code-signed yet: anyone with write access to the bucket can ship
 install. Never publish to the `production` channel without sign-off.
 `com.mutiurrahman.schooldashboard` is still a placeholder: confirm it before the first store build.
 
+### Building apps with GitHub
+
+Builds run on GitHub Actions, started from the `gh` CLI (`gh auth login` once). The workflow file
+must already be on the branch you pass to `--ref`, so commit and push first. Each build takes about
+15–20 minutes. Find the run with `gh run list --workflow deploy-dashboard-expo.yml`.
+
+| I want                                      | Command                                                                             | Result                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Dev app (QR / live reload)                  | `gh workflow run deploy-dashboard-expo.yml --ref main -f build_dev=true`            | artifact `dashboard-expo-dev-<run>` (`.dev` app)   |
+| Staging APK (signed, installs over staging) | `gh workflow run deploy-dashboard-expo.yml --ref main -f build_preview=true`        | artifact `dashboard-expo-staging-<run>`            |
+| JS-only update to staging                   | `gh workflow run deploy-dashboard-expo.yml --ref main -f publish_update=true`       | uploaded to R2, apps get it on the next cold start |
+| Production AAB / production update          | `gh workflow run deploy-dashboard-expo-production.yml --ref main` (pick the action) | needs approval in the `production` environment     |
+
+Download and install:
+
+```bash
+gh run watch                       # pick the run, follow it until it ends
+gh run download <run-id> -n dashboard-expo-dev-<run-number>    # saves app-debug.apk in the current folder
+adb install -r app-debug.apk       # phone on USB with USB debugging, or copy the APK to the phone
+```
+
+**Dev app workflow.** Build `build_dev` once and install it. After that, run `pnpm start` in this
+folder, open the dev app and scan the QR (same Wi-Fi). JS, styles, fonts and `.env.local` changes
+reload through Metro with no build. Rebuild only when native code or `app.config.ts` changes: a
+native package added or bumped, permissions, icon, plugins, app id. A native mismatch shows as a
+red "native module not found" screen. The dev APK is debug-signed with the prebuild template key,
+so it installs next to the staging app (different id) and a newer dev APK installs over an older one.
+
+**Staging APK** uses the staging keystore, so it upgrades the installed staging app. A debug-signed
+APK never will: Android refuses the signature change.
+
+Check which update a phone runs: the account menu (Power button) shows `v<version> · built-in` or
+the update id and publish date.
+
 ### CI (GitHub Actions)
 
 [`.github/workflows/deploy-dashboard-expo.yml`](../../.github/workflows/deploy-dashboard-expo.yml)
@@ -278,7 +312,7 @@ publishes. `main` is CI only.
 | PR / any branch                    | `pnpm run check:dashboard-expo` then `pnpm --filter dashboard-expo test`              |
 | Push to `staging`, JS-only         | `scripts/publish-update.mjs` with `APP_ENV=staging` (same values as `update:staging`) |
 | Push to `staging`, native path hit | `expo prebuild` + `gradlew assembleRelease`, APK in the run's artifacts (no OTA)      |
-| `workflow_dispatch`                | Optional `publish_update` and/or `build_preview`                                      |
+| `workflow_dispatch`                | Optional `publish_update`, `build_preview` and/or `build_dev`                         |
 
 Path matching is a start, not the real native check: a native bump only in `pnpm-lock.yaml` or a
 change under `packages/` will not trigger a preview build, and the following update can miss the

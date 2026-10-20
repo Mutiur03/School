@@ -4,8 +4,8 @@
  *    (the transition trick leaves our box-shadow focus ring alone).
  *  - Selection highlight in the ring colour, like the native selectionColor.
  *  - No browser focus outline on inputs; the control draws its own ring.
- *  - font-* also set font-weight: like the dashboard (Outfit Regular only), the browser
- *    synthesizes bold for semibold/bold. Web only; fontWeight with a custom family breaks Android.
+ *  - font-* also set font-weight so the browser picks the matching bundled Outfit face instead of
+ *    synthesizing bold. Web only; fontWeight with a custom family breaks Android.
  */
 import { BANGLA_FONT } from './fonts';
 import { fontFamilies, lightColors, withAlpha } from './tokens';
