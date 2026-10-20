@@ -9,12 +9,13 @@ import { prisma } from '@/config/prisma.js';
 import { redis } from '@/config/redis.js';
 import { env } from '@/config/env.js';
 
-const TENANT_SUBDOMAIN_SUFFIXES = ['.localhost', '.mutiurrahman.com'] as const;
+const TENANT_SUBDOMAIN_SUFFIXES = ['.localhost', '.mutiurrahman.com', '.torongo.dev'] as const;
 
 const normalizeTenantSubdomain = (hostname: string) =>
   hostname
     .replace('.localhost', '')
     .replace('.mutiurrahman.com', '')
+    .replace('.torongo.dev', '')
     .replace(/-dashboard$/, '')
     .replace(/-school$/, '');
 

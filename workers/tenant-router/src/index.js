@@ -147,6 +147,17 @@ const resolveTenantTarget = (hostname, env) => {
     };
   }
 
+  // Expo web dashboard (`<slug>-dashboard.torongo.dev`), same backend and auth flow.
+  const expoSlug = env.EXPO_DASHBOARD_HOST_SUFFIX
+    ? getTenantSlug(hostname, String(env.EXPO_DASHBOARD_HOST_SUFFIX).trim().toLowerCase())
+    : null;
+  if (expoSlug && env.EXPO_DASHBOARD_PAGES_ORIGIN) {
+    return {
+      slug: expoSlug,
+      origin: trimTrailingSlash(String(env.EXPO_DASHBOARD_PAGES_ORIGIN).trim()),
+    };
+  }
+
   const dashboardSlug = getTenantSlug(hostname, dashboardHostSuffix);
   if (dashboardSlug) {
     return {
