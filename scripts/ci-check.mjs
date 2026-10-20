@@ -27,6 +27,9 @@ const SCOPES = {
   'tenant-router': {
     paths: ['workers/tenant-router'],
   },
+  'expo-updates': {
+    paths: ['workers/expo-updates'],
+  },
 };
 
 /** @type {Record<string, { cwd: string; project: string }[]>} */
@@ -51,6 +54,7 @@ const TYPECHECK_PROJECTS = {
   ],
   'auth-bff': [{ cwd: 'workers/auth-bff', project: 'tsconfig.json' }],
   'tenant-router': [],
+  'expo-updates': [],
 };
 
 function run(label, command, args, options = {}) {

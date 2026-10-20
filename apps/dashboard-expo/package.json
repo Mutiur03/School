@@ -4,7 +4,7 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --scheme schooldashboard-dev",
     "web": "expo start --web",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -15,7 +15,7 @@
     "export:android": "expo export --platform android --output-dir dist/android",
     "export:ios": "expo export --platform ios --output-dir dist/ios",
     "doctor": "npx --yes expo-doctor@1",
-    "update:staging": "APP_ENV=staging EXPO_PUBLIC_APP_ENV=staging EXPO_PUBLIC_DIRECTORY_URL=https://superadmin.mutiurrahman.com EXPO_PUBLIC_CDN_URL=https://cdn.lbphs.gov.bd eas update --channel staging --platform android --environment preview"
+    "update:staging": "APP_ENV=staging EXPO_PUBLIC_APP_ENV=staging EXPO_PUBLIC_DIRECTORY_URL=https://superadmin.mutiurrahman.com EXPO_PUBLIC_CDN_URL=https://cdn.lbphs.gov.bd node scripts/publish-update.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.17",

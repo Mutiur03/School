@@ -39,6 +39,7 @@ const sourceFiles = [
   'packages/shared-schemas/**/*.ts',
   'workers/auth-bff/**/*.ts',
   'workers/tenant-router/**/*.{js,mjs}',
+  'workers/expo-updates/**/*.{js,mjs}',
 ];
 
 export default defineConfig([
@@ -167,7 +168,7 @@ export default defineConfig([
   },
 
   {
-    files: ['workers/tenant-router/**/*.{js,mjs}'],
+    files: ['workers/tenant-router/**/*.{js,mjs}', 'workers/expo-updates/**/*.{js,mjs}'],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,

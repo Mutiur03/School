@@ -1,0 +1,21 @@
+name = "school-expo-updates"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# OTA server for apps/dashboard-expo. The app's updates.url (app.config.ts) points here.
+routes = [
+  { pattern = "expo-updates.mutiurrahman.com", custom_domain = true }
+]
+
+[[r2_buckets]]
+binding = "UPDATES"
+bucket_name = "school-expo-updates"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+head_sampling_rate = 1

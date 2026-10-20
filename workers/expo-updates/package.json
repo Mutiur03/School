@@ -1,0 +1,16 @@
+{
+  "name": "school-expo-updates",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "check": "wrangler deploy --dry-run",
+    "test": "node --test src/index.test.mjs",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.119.0"
+  }
+}

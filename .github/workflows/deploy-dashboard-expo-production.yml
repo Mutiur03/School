@@ -1,6 +1,7 @@
 # dashboard-expo production — never on push.
 # Run from main only. GitHub environment `production` should require a reviewer
 # (Settings → Environments) so every run waits for an approval click.
+# EXPO_PUBLIC_* values come from that environment's variables (vars.*), keystore from its secrets.
 
 name: Deploy dashboard-expo (production)
 
@@ -35,18 +36,15 @@ jobs:
     environment: production
     permissions:
       contents: read
+    env:
+      APP_ENV: production
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_DIRECTORY_URL: ${{ vars.EXPO_PUBLIC_DIRECTORY_URL }}
+      EXPO_PUBLIC_CDN_URL: ${{ vars.EXPO_PUBLIC_CDN_URL }}
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Require EXPO_TOKEN
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::GitHub secret EXPO_TOKEN is empty. Add an Expo access token."
-            exit 1
-          fi
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -58,13 +56,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          packager: pnpm
-          token: ${{ secrets.EXPO_TOKEN }}
-
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
@@ -74,18 +65,51 @@ jobs:
       - name: Test
         run: pnpm --filter dashboard-expo test
 
-      - name: Submit production AAB
+      - name: Set up Java
+        if: inputs.action == 'build'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Generate android project
         if: inputs.action == 'build'
         working-directory: apps/dashboard-expo
-        run: eas build --profile production --platform android --non-interactive --no-wait
+        run: pnpm exec expo prebuild --platform android --clean --no-install
+
+      # Upload key for Play App Signing. Losing it means a Play support reset; back it up offline.
+      - name: Build signed AAB
+        if: inputs.action == 'build'
+        working-directory: apps/dashboard-expo/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_PRODUCTION_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_PRODUCTION_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_PRODUCTION_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_PRODUCTION_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::GitHub secret ANDROID_PRODUCTION_KEYSTORE_BASE64 is empty."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.jks" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Upload AAB
+        if: inputs.action == 'build'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-expo-production-${{ github.run_number }}
+          path: apps/dashboard-expo/android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Publish production update
         if: inputs.action == 'update'
         working-directory: apps/dashboard-expo
         env:
-          APP_ENV: production
-          EXPO_PUBLIC_APP_ENV: production
-        run: |
-          set -euo pipefail
-          MSG="${GITHUB_SHA::7} $(git log -1 --pretty=%s | head -c 180)"
-          eas update --channel production --platform android --environment production --non-interactive --message "$MSG"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: node scripts/publish-update.mjs

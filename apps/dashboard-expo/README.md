@@ -201,7 +201,7 @@ Conventions:
 ## Environments
 
 All runtime config is public (`EXPO_PUBLIC_*` is inlined into the bundle). **Never put secrets
-in these variables or in `eas.json`.** See `.env.example`.
+in these variables.** See `.env.example`.
 
 | Variable                      | Purpose                                                                                                                                           |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -212,38 +212,60 @@ in these variables or in `eas.json`.** See `.env.example`.
 | `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production)                                                                  |
 
 `APP_ENV` (build time, `app.config.ts`) selects the app name, bundle id suffix (`.dev`,
-`.staging`) and URL scheme. `eas.json` sets it per profile:
+`.staging`), URL scheme and OTA channel. No EAS: builds are Gradle (CI or local), OTA is
+self-hosted.
 
-| EAS profile   | Channel       | APP_ENV      | Distribution           |
-| ------------- | ------------- | ------------ | ---------------------- |
-| `development` | `development` | `local`      | internal, dev client   |
-| `preview`     | `staging`     | `staging`    | internal (Android APK) |
-| `production`  | `production`  | `production` | store                  |
+| APP_ENV      | Channel       | Built by                                       |
+| ------------ | ------------- | ---------------------------------------------- |
+| `local`      | `development` | `npx expo run:android` on your PC (dev client) |
+| `staging`    | `staging`     | CI `preview-build` job (signed APK artifact)   |
+| `production` | `production`  | CI production workflow, `build` (signed AAB)   |
 
-### Over-the-air updates (expo-updates)
+`android.versionCode` comes from `ANDROID_VERSION_CODE` (CI: the run number).
+`fingerprint.config.js` keeps it out of the runtime version, so every build of the same native code
+still matches published updates.
 
-EAS project `@mutiur03/school-dashboard` (`52513465-21b2-46d6-bac4-93bbc2892291`; override with
-`EAS_OWNER` / `EAS_PROJECT_ID`). `runtimeVersion` uses the `fingerprint` policy, so an update only
-reaches binaries with identical native code; adding a native module, permission, icon or SDK
-upgrade needs a new build. The app checks on every launch (`ON_LOAD`), starts at once from what it
-has (`fallbackToCacheTimeout: 0`) and applies a downloaded update on the next cold start: close and
-reopen the app twice.
+### Over-the-air updates (self-hosted)
 
-`eas update` does **not** read the `env` of `eas.json` build profiles, so the bundle must get the
-same `EXPO_PUBLIC_*` values as the build from the shell. Use the script, which mirrors `preview`:
+Served by [`workers/expo-updates`](../../workers/expo-updates) at
+`https://expo-updates.mutiurrahman.com` from the R2 bucket `school-expo-updates`. The app sends its
+channel (`expo-channel-name` request header, from `APP_ENV`) and runtime version; the Worker
+returns `<channel>/latest/<runtime>/android.json`. Each environment has its own folder and nothing
+is ever overwritten except the `latest` pointer:
+
+```text
+<channel>/                                  development | staging | production
+  latest/<runtime>/android.json             what apps on that build get now
+  updates/<updateId>/manifest.json          every update ever published
+  updates/<updateId>/files/<sha256>         its bundle and assets
+  logs/<timestamp>-<publish|rollback>-<updateId>.json
+                                            who, when, commit, CI run, runtime, files
+```
+
+Device update checks are logged by the Worker (`manifest-request`: channel, runtime, status, the
+update id the device runs) to Workers Logs (Cloudflare dashboard → Workers → school-expo-updates →
+Logs), not R2: one R2 write per app launch would cost more than the server. `runtimeVersion` uses
+the `fingerprint`
+policy, so an update only reaches binaries with identical native code; adding a native module,
+permission, icon or SDK upgrade needs a new build. The app checks on every launch (`ON_LOAD`), starts
+at once from what it has (`fallbackToCacheTimeout: 0`) and applies a downloaded update on the next
+cold start: close and reopen the app twice.
+
+[`scripts/publish-update.mjs`](scripts/publish-update.mjs) exports the bundle, writes the manifest
+and uploads both with wrangler. Run it with the same `APP_ENV` / `EXPO_PUBLIC_*` as the build:
 
 ```sh
 cd apps/dashboard-expo
-pnpm update:staging --message "Short description"
-# = APP_ENV=staging EXPO_PUBLIC_APP_ENV=staging \
-#   EXPO_PUBLIC_DIRECTORY_URL=https://superadmin.mutiurrahman.com \
-#   EXPO_PUBLIC_CDN_URL=https://cdn.lbphs.gov.bd \
-#   eas update --channel staging --platform android --environment preview --message "..."
+pnpm update:staging            # needs `wrangler login` or CLOUDFLARE_API_TOKEN/ACCOUNT_ID
+node scripts/publish-update.mjs --dry-run   # build the manifest in dist/ota, upload nothing
 ```
 
-Never publish to the `production` channel without sign-off. Only public values go in
-`EXPO_PUBLIC_*`. `com.mutiurrahman.schooldashboard` is still a placeholder: confirm it before the
-first store build.
+Rollback: `APP_ENV=staging node scripts/publish-update.mjs --rollback <updateId>` (ids are in
+`<channel>/logs/`). It republishes that update's files as a new update with a new id and time:
+apps ignore a manifest older than the update they run, so re-serving the old one would do nothing.
+Updates are not code-signed yet: anyone with write access to the bucket can ship JS to every
+install. Never publish to the `production` channel without sign-off.
+`com.mutiurrahman.schooldashboard` is still a placeholder: confirm it before the first store build.
 
 ### CI (GitHub Actions)
 
@@ -251,36 +273,38 @@ first store build.
 runs on every push and PR that touches this app (or `packages/shared-schemas`). Only `staging`
 publishes. `main` is CI only.
 
-| Event                              | What runs                                                                                                                         |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| PR / any branch                    | `pnpm run check:dashboard-expo` then `pnpm --filter dashboard-expo test`                                                          |
-| Push to `staging`, JS-only         | `eas update --channel staging --environment preview` (Android), same `EXPO_PUBLIC_*` / `APP_ENV=staging` as `pnpm update:staging` |
-| Push to `staging`, native path hit | `eas build --profile preview --platform android --no-wait` (no OTA on that commit)                                                |
-| `workflow_dispatch`                | Optional `publish_update` and/or `build_preview`                                                                                  |
+| Event                              | What runs                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| PR / any branch                    | `pnpm run check:dashboard-expo` then `pnpm --filter dashboard-expo test`              |
+| Push to `staging`, JS-only         | `scripts/publish-update.mjs` with `APP_ENV=staging` (same values as `update:staging`) |
+| Push to `staging`, native path hit | `expo prebuild` + `gradlew assembleRelease`, APK in the run's artifacts (no OTA)      |
+| `workflow_dispatch`                | Optional `publish_update` and/or `build_preview`                                      |
 
 Path matching is a start, not the real native check: a native bump only in `pnpm-lock.yaml` or a
 change under `packages/` will not trigger a preview build, and the following update can miss the
 APK (`fingerprint` policy). Safer later: compare `npx expo-updates fingerprint:generate` with the
 runtime of the latest staging build.
 
-Repo secret **`EXPO_TOKEN`** (Expo access token for `@mutiur03` / `school-dashboard`) is required
-for OTA and builds. Add it under GitHub → Settings → Secrets. Push to `staging` to update a test
-phone.
+Secrets: `CF_API_TOKEN` / `CF_ACCOUNT_ID` (R2 write, shared with the Workers) and the staging
+keystore `ANDROID_STAGING_KEYSTORE_BASE64` (`base64 -w0 staging.jks`),
+`ANDROID_STAGING_KEYSTORE_PASSWORD`, `ANDROID_STAGING_KEY_ALIAS`, `ANDROID_STAGING_KEY_PASSWORD`. The
+staging keystore must be the one the installed staging APKs were signed with, or Android refuses
+the upgrade.
 
 Production is a **separate** workflow,
 [`.github/workflows/deploy-dashboard-expo-production.yml`](../../.github/workflows/deploy-dashboard-expo-production.yml):
 `workflow_dispatch` only, from `main`, with GitHub environment `production` (add yourself as a
 required reviewer under Settings → Environments). Options:
 
-- **Build** — `eas build --profile production --platform android --no-wait`. First release and
-  after any native change. Upload the AAB in Play Console (`--auto-submit` later).
-- **Update** — `eas update --channel production --environment production`. JS-only, after the same
+- **Build** — Gradle `bundleRelease`, signed AAB in the run's artifacts. First release and after any
+  native change. Upload it in Play Console.
+- **Update** — `scripts/publish-update.mjs` with `APP_ENV=production`. JS-only, after the same
   change is verified on staging.
 
-Before the first production build: `eas.json` production profile already has channel/environment
-`production`. Put the production `EXPO_PUBLIC_*` values on the **EAS production environment**
-(not in the repo). Flow: push to `staging` → test on the phone → merge to `main` → Run the
-production workflow → approve.
+The `production` environment holds variables `EXPO_PUBLIC_DIRECTORY_URL` / `EXPO_PUBLIC_CDN_URL`
+and secrets `ANDROID_PRODUCTION_KEYSTORE_BASE64` / `_KEYSTORE_PASSWORD` / `_KEY_ALIAS` /
+`_KEY_PASSWORD` (back the keystore up offline). Flow: push to `staging` → test on the phone →
+merge to `main` → Run the production workflow → approve.
 
 ## API client (`src/lib/api`)
 
@@ -467,8 +491,8 @@ school selection are **not** verified yet.
   no-viewer fallback are checked by unit tests and need a device run.
 - The QR scanner and SecureStore token restore have not been run on a device (no simulator on
   the build box); they are covered by unit tests and bundle exports only.
-- Android native builds run on EAS (`eas build --profile preview`, staging channel); no iOS build
-  has been made.
+- Android native builds run on GitHub Actions (Gradle, staging channel); no iOS build has been
+  made.
 - Excel import (students, subjects) reads .xlsx on the device with `src/lib/files/xlsx.ts`
   (fflate; no SheetJS), with the web's limits and checks.
 - Web export is an SPA (`web.output: 'single'`): hosting needs an index.html fallback.

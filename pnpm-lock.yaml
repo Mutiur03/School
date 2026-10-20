@@ -794,6 +794,12 @@ importers:
         specifier: ^4.119.0
         version: 4.125.0(@cloudflare/workers-types@5.20260822.1)
 
+  workers/expo-updates:
+    devDependencies:
+      wrangler:
+        specifier: ^4.119.0
+        version: 4.125.0(@cloudflare/workers-types@5.20260822.1)
+
   workers/tenant-router:
     devDependencies:
       '@cloudflare/workers-types':

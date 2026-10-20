@@ -2,7 +2,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 /**
  * Build-time app config. `APP_ENV` selects the variant (local | staging | production) and is set
- * by the EAS build profile (eas.json) or the shell. Runtime values the JS bundle needs are read
+ * by the CI workflow or the shell. Runtime values the JS bundle needs are read
  * from EXPO_PUBLIC_* variables in src/config/env.ts. Never put secrets in either place: everything
  * here and every EXPO_PUBLIC_* value ends up inside the shipped app.
  */
@@ -14,22 +14,35 @@ const appEnv: AppEnv = (APP_ENVS as readonly string[]).includes(rawAppEnv)
   ? (rawAppEnv as AppEnv)
   : 'local';
 
-// Public EAS identifiers (not secrets). Overridable for forks or a different Expo account.
-const EAS_OWNER = process.env.EAS_OWNER ?? 'mutiur03';
-const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? '52513465-21b2-46d6-bac4-93bbc2892291';
+// Self-hosted OTA server (workers/expo-updates). Each variant asks for its own channel.
+const UPDATES_URL = 'https://expo-updates.mutiurrahman.com/manifest';
 
 // Placeholder identifier. Confirm the final reverse-DNS id before the first store build:
 // it cannot be changed after an app is published.
 const BASE_APP_ID = 'com.mutiurrahman.schooldashboard';
 
-const VARIANTS: Record<AppEnv, { name: string; idSuffix: string; scheme: string }> = {
-  local: { name: 'School Dashboard (Dev)', idSuffix: '.dev', scheme: 'schooldashboard-dev' },
+const VARIANTS: Record<
+  AppEnv,
+  { name: string; idSuffix: string; scheme: string; channel: string }
+> = {
+  local: {
+    name: 'School Dashboard (Dev)',
+    idSuffix: '.dev',
+    scheme: 'schooldashboard-dev',
+    channel: 'development',
+  },
   staging: {
     name: 'School Dashboard (Staging)',
     idSuffix: '.staging',
     scheme: 'schooldashboard-stg',
+    channel: 'staging',
   },
-  production: { name: 'School Dashboard', idSuffix: '', scheme: 'schooldashboard' },
+  production: {
+    name: 'School Dashboard',
+    idSuffix: '',
+    scheme: 'schooldashboard',
+    channel: 'production',
+  },
 };
 
 export default ({ config }: ConfigContext): ExpoConfig => {
@@ -40,7 +53,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: variant.name,
     slug: 'school-dashboard',
-    owner: EAS_OWNER,
     scheme: variant.scheme,
     version: '0.1.0',
     orientation: 'default',
@@ -56,6 +68,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       package: appId,
+      // CI passes the run number; Play requires it to grow with every upload.
+      versionCode: Number(process.env.ANDROID_VERSION_CODE) || 1,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#1E3A8A',
@@ -102,14 +116,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     // next cold start. Publish with `pnpm update:staging` (see README). Never the production channel
     // without sign-off.
     updates: {
-      url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+      url: UPDATES_URL,
+      requestHeaders: { 'expo-channel-name': variant.channel },
       checkAutomatically: 'ON_LOAD',
       fallbackToCacheTimeout: 0,
     },
     runtimeVersion: { policy: 'fingerprint' },
     extra: {
       appEnv,
-      eas: { projectId: EAS_PROJECT_ID },
     },
   };
 };
