@@ -205,7 +205,11 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          ./gradlew assembleRelease --no-daemon \
+          # Prebuild caps Metaspace at 512m; release lint over every native module overflows it.
+          # ARM only: real phones; x86 ABIs were half the build time.
+          ./gradlew assembleRelease --no-daemon -x lintVitalAnalyzeRelease \
+            "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" \
+            -PreactNativeArchitectures=arm64-v8a,armeabi-v7a \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.jks" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \

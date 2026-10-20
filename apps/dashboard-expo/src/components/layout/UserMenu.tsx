@@ -9,8 +9,10 @@
  * forgets the platform choice (signs out, purges platform caches and storage) and returns to the
  * school-code screen.
  */
-import { LogOut, Power, QrCode, RefreshCw, User } from '@/components/ui/icons';
+import { Download, LogOut, Power, QrCode, RefreshCw, User } from '@/components/ui/icons';
 import { useGuardedAction, useGuardedNavigate } from '@/navigation/LeaveGuard';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,6 +75,12 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
   const navigate = useGuardedNavigate();
   const guarded = useGuardedAction();
   const platformMode = resolution.source === 'platform';
+  // OTA build stamp: "built-in" = the JS shipped in the binary; otherwise the update's short id
+  // and publish date (same id/createdAt the publish script prints).
+  const { currentlyRunning, isUpdatePending } = Updates.useUpdates();
+  const build = currentlyRunning.isEmbeddedLaunch
+    ? 'built-in'
+    : `${currentlyRunning.updateId?.slice(0, 8)} · ${currentlyRunning.createdAt?.toLocaleString() ?? ''}`;
 
   const name =
     session.status === 'authenticated'
@@ -175,6 +183,19 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
               guarded(() => void (platformMode ? switchSchool() : session.signOut()));
             }}
           />
+          {isUpdatePending ? (
+            <MenuItem
+              icon={Download}
+              label="Restart to update"
+              hint="New"
+              onPress={() => guarded(() => void Updates.reloadAsync())}
+            />
+          ) : null}
+          {Updates.isEnabled ? (
+            <Text size="xs" color="mutedForeground" className="px-2 pt-2">
+              v{Constants.expoConfig?.version} · {build}
+            </Text>
+          ) : null}
         </View>
       </Modal>
       {platformMode ? (

@@ -93,7 +93,9 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          ./gradlew bundleRelease --no-daemon \
+          # Prebuild caps Metaspace at 512m; release lint over every native module overflows it.
+          ./gradlew bundleRelease --no-daemon -x lintVitalAnalyzeRelease \
+            "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.jks" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
