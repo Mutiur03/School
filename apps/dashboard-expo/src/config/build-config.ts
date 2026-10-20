@@ -12,8 +12,8 @@ export interface AppConfig {
   /** Origin for the pre-login school-code lookup. Falls back to apiBaseUrl, then same-origin. */
   directoryUrl: string;
   /**
-   * Platform (super-admin) origin: EXPO_PUBLIC_SUPERADMIN_URL, else directoryUrl (staging's
-   * directory is the super-admin Worker host). Empty = platform sign-in is hidden.
+   * Platform (super-admin) origin. Always directoryUrl: the directory is the super-admin Worker
+   * host, the one neutral host not tied to a school. Empty = platform sign-in is hidden.
    */
   superAdminUrl: string;
   /** Public CDN origin used for stored R2 keys. Empty when not configured. */
@@ -32,7 +32,6 @@ export interface RawPublicEnv {
   appEnv?: string;
   apiBaseUrl?: string;
   directoryUrl?: string;
-  superAdminUrl?: string;
   cdnUrl?: string;
   devTenantHost?: string;
 }
@@ -54,8 +53,7 @@ export function buildAppConfig(
   const apiBaseUrl = trimTrailingSlashes(raw.apiBaseUrl ?? '').replace(/\/api$/, '');
   const directoryUrl =
     trimTrailingSlashes(raw.directoryUrl ?? '').replace(/\/api$/, '') || apiBaseUrl;
-  const superAdminUrl =
-    trimTrailingSlashes(raw.superAdminUrl ?? '').replace(/\/api$/, '') || directoryUrl;
+  const superAdminUrl = directoryUrl;
   const cdnUrl = trimTrailingSlashes(raw.cdnUrl ?? '');
   const devTenantHost =
     appEnv === 'local' && raw.devTenantHost?.trim() ? raw.devTenantHost.trim().toLowerCase() : null;
@@ -71,7 +69,6 @@ export function buildAppConfig(
   for (const [key, value] of [
     ['EXPO_PUBLIC_API_BASE_URL', apiBaseUrl],
     ['EXPO_PUBLIC_DIRECTORY_URL', directoryUrl],
-    ['EXPO_PUBLIC_SUPERADMIN_URL', superAdminUrl],
   ] as const) {
     if (value && !/^https?:\/\/[^/]+$/.test(value)) {
       issues.push({

@@ -5,7 +5,7 @@
  * The same key can instead hold the platform (super-admin) choice: `{ kind: 'platform' }` plus
  * the platform host. Only one of the two is ever stored, so a reopen goes back to exactly one of
  * them, and Logout / "Use a school code" clear it. A stored platform choice is only honoured
- * while it matches this build's EXPO_PUBLIC_SUPERADMIN_URL (never a URL from storage).
+ * while it matches this build's EXPO_PUBLIC_DIRECTORY_URL (never a URL from storage).
  */
 import type { RoleHint, SchoolCodeLookup } from '@/lib/api';
 import type { KeyValueStore } from '@/lib/storage/key-value';

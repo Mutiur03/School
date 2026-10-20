@@ -207,8 +207,7 @@ in these variables or in `eas.json`.** See `.env.example`.
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `EXPO_PUBLIC_APP_ENV`         | `local` / `staging` / `production`                                                                                                                           |
 | `EXPO_PUBLIC_API_BASE_URL`    | Optional. Pins the build to one school's API origin (no school codes).                                                                                       |
-| `EXPO_PUBLIC_DIRECTORY_URL`   | Origin for the pre-login school-code lookup. Native needs it or `API_BASE_URL`.                                                                              |
-| `EXPO_PUBLIC_SUPERADMIN_URL`  | Platform (super-admin) API origin; falls back to `DIRECTORY_URL` (staging sets only that: it is already the super-admin host). Empty hides platform sign-in. |
+| `EXPO_PUBLIC_DIRECTORY_URL`   | Super-admin origin: pre-login school-code lookup and platform (super-admin) API. Native needs it or `API_BASE_URL`. Empty hides platform sign-in.            |
 | `EXPO_PUBLIC_CDN_URL`         | Public CDN for R2 keys (photos, PDFs), mirrors `VITE_CDN_URL`; staging: `https://cdn.lbphs.gov.bd`                                                           |
 | `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production)                                                                             |
 
@@ -367,8 +366,7 @@ session endpoints, so native uses SecureStore + body refresh tokens as for schoo
 - Tenant key `_platform.<host>`: its own SecureStore slot (`sd.t._platform.<host>.session`),
   API client, `SessionManager` and react-query namespace. The platform API object exists only
   in platform mode (`usePlatformApi()` throws elsewhere).
-- Requests always go to the build's super-admin origin (`EXPO_PUBLIC_SUPERADMIN_URL`, else
-  `EXPO_PUBLIC_DIRECTORY_URL`; local dev adds `x-tenant-host: admin.localhost`). A stored platform choice that names another origin is
+- Requests always go to the build's super-admin origin (`EXPO_PUBLIC_DIRECTORY_URL`; local dev adds `x-tenant-host: admin.localhost`). A stored platform choice that names another origin is
   ignored, so storage can never redirect the app.
 - Only a `super_admin` session from that login is stored. Routing: super_admin lands on
   `/platform` only in platform mode; any other role there is signed out, and a super_admin at a

@@ -11,7 +11,6 @@ const built = buildAppConfig(
     appEnv: process.env.EXPO_PUBLIC_APP_ENV,
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
     directoryUrl: process.env.EXPO_PUBLIC_DIRECTORY_URL,
-    superAdminUrl: process.env.EXPO_PUBLIC_SUPERADMIN_URL,
     cdnUrl: process.env.EXPO_PUBLIC_CDN_URL,
     devTenantHost: process.env.EXPO_PUBLIC_DEV_TENANT_HOST,
   },

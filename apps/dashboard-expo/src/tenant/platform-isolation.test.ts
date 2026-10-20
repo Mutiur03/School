@@ -209,21 +209,13 @@ describe('stored selection', () => {
 });
 
 describe('build config', () => {
-  it('superAdminUrl: explicit, else the directory origin; validated like the others', () => {
-    const explicit = buildAppConfig(
-      { appEnv: 'staging', directoryUrl: 'https://dir.test', superAdminUrl: `${SA}/api/` },
+  it('superAdminUrl is the directory origin', () => {
+    const { config } = buildAppConfig(
+      { appEnv: 'staging', directoryUrl: `${SA}/api/` },
       'android',
     );
-    assert.equal(explicit.config.superAdminUrl, SA);
-    assert.equal(
-      buildAppConfig({ directoryUrl: 'https://dir.test' }, 'android').config.superAdminUrl,
-      'https://dir.test',
-    );
-    const bad = buildAppConfig(
-      { appEnv: 'staging', directoryUrl: 'https://dir.test', superAdminUrl: 'http://sa.test' },
-      'android',
-    );
-    assert.ok(bad.issues.some((i) => i.key === 'EXPO_PUBLIC_SUPERADMIN_URL'));
+    assert.equal(config.superAdminUrl, SA);
+    assert.equal(config.directoryUrl, SA);
   });
 });
 

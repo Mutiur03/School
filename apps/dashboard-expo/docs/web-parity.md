@@ -60,8 +60,7 @@ Cross-cutting notes:
 - **Super admin (platform mode)**: no link on the school-code screen. The server's platform access
   code (`PLATFORM_ACCESS_CODE`), typed or scanned like a school code (`{ target: 'platform' }` from
   the lookup), opens an email + password login (POST /api/auth/super_admin/sessions) against the
-  build's `EXPO_PUBLIC_SUPERADMIN_URL` (falls back to `EXPO_PUBLIC_DIRECTORY_URL`; staging:
-  `https://superadmin.mutiurrahman.com`), never a host from the lookup. The web overview and the
+  build's `EXPO_PUBLIC_DIRECTORY_URL` (staging: `https://superadmin.mutiurrahman.com`), never a host from the lookup. The web overview and the
   app's user menu show the code as a QR. Without the server feature it is a plain "code not
   found". The code opens sign-in only and grants nothing, and a school code can never
   pre-select super_admin. Platform mode is its own tenant: key `_platform.<host>` (no hostname
