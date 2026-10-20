@@ -5,11 +5,12 @@ compatibility_date = "2026-04-17"
 routes = [
   { pattern = "*-school.mutiurrahman.com/*", zone_name = "mutiurrahman.com" },
   { pattern = "*-dashboard.mutiurrahman.com/*", zone_name = "mutiurrahman.com" },
-  { pattern = "*-dashboard.torongo.dev/*", zone_name = "torongo.dev" }
+  { pattern = "*-dashboard.torongo.dev/*", zone_name = "torongo.dev" },
+  { pattern = "*-school.torongo.dev/*", zone_name = "torongo.dev" }
 ]
 
 [vars]
-CLIENT_HOST_SUFFIX = "-school.mutiurrahman.com"
+CLIENT_HOST_SUFFIX = "-school.mutiurrahman.com,-school.torongo.dev"
 CLIENT_PAGES_ORIGIN = "https://school-client-test.vercel.app"
 DASHBOARD_HOST_SUFFIX = "-dashboard.mutiurrahman.com"
 DASHBOARD_PAGES_ORIGIN = "https://school-a14.pages.dev"

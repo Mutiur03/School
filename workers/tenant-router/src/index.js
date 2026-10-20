@@ -130,14 +130,15 @@ const forwardRequest = (request, targetUrl, headers) =>
   );
 
 const resolveTenantTarget = (hostname, env) => {
-  const clientHostSuffix = String(env.CLIENT_HOST_SUFFIX || '-school.torongo.dev')
-    .trim()
-    .toLowerCase();
   const dashboardHostSuffix = String(env.DASHBOARD_HOST_SUFFIX || '-dashboard.mutiurrahman.com')
     .trim()
     .toLowerCase();
 
-  const clientSlug = getTenantSlug(hostname, clientHostSuffix);
+  // Comma-separated: the client site is served on several domains.
+  const clientSlug = String(env.CLIENT_HOST_SUFFIX || '-school.torongo.dev')
+    .split(',')
+    .map((suffix) => getTenantSlug(hostname, suffix.trim()))
+    .find(Boolean);
   if (clientSlug) {
     return {
       slug: clientSlug,
