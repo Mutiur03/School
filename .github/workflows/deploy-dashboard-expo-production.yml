@@ -14,6 +14,7 @@ on:
         options:
           - build
           - update
+          - record
         default: update
 
 concurrency:
@@ -107,6 +108,24 @@ jobs:
         with:
           name: dashboard-expo-production-${{ github.run_number }}
           path: apps/dashboard-expo/android/app/build/outputs/bundle/release/app-release.aab
+
+      # Remember the build's runtime version so `update` can refuse an OTA no binary would accept.
+      # `record` does this alone for a build that is already in users' hands.
+      - name: Record production build
+        if: inputs.action == 'build' || inputs.action == 'record'
+        working-directory: apps/dashboard-expo
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: node scripts/native-guard.mjs record
+
+      - name: Check native fingerprint
+        if: inputs.action == 'update'
+        working-directory: apps/dashboard-expo
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: node scripts/native-guard.mjs check
 
       - name: Publish production update
         if: inputs.action == 'update'
