@@ -5,7 +5,7 @@
  * origin only.
  */
 import { useMutation } from '@tanstack/react-query';
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { AuthLayout, FieldLabel } from '@/components/layout/AuthLayout';
@@ -23,7 +23,7 @@ import {
   requirePlatformSession,
 } from '@/features/platform/auth';
 import { platformSchemas } from '@/features/platform/schemas';
-import { homeForRole } from '@/navigation/role-routes';
+import { homeForRole, safeNext } from '@/navigation/role-routes';
 import { useSwitchSchool } from '@/school/useSwitchSchool';
 import { useApi, useSession } from '@/session/ApiProvider';
 import { SessionBoot } from '@/session/SessionBoot';
@@ -33,6 +33,7 @@ export default function PlatformLoginScreen() {
   const { auth, session: manager } = useApi();
   const session = useSession();
   const { resolution } = useTenant();
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const switchSchool = useSwitchSchool();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,7 +51,9 @@ export default function PlatformLoginScreen() {
   }
   if (session.status === 'authenticated') {
     const home = homeForRole(session.user?.role, resolution.source);
-    if (home) return <Redirect href={home} />;
+    if (home) {
+      return <Redirect href={safeNext(next, session.user?.role, resolution.source) ?? home} />;
+    }
   }
   if (session.status === 'unknown') return <SessionBoot />;
 

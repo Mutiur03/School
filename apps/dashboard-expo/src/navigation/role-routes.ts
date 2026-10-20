@@ -34,3 +34,34 @@ export const homeForRole = (role: unknown, source?: TenantSource): Href | null =
 /** Where an unauthenticated visitor of a guarded route goes. */
 export const loginRouteFor = (source: TenantSource): Href =>
   source === 'unresolved' ? '/join' : source === 'platform' ? PLATFORM_LOGIN : '/login';
+
+/** Login route that remembers the page the visitor wanted (`next`), like web's `state.from`. */
+export const loginHrefFor = (source: TenantSource, next: string): Href => {
+  const pathname = loginRouteFor(source);
+  return source === 'unresolved' ? pathname : ({ pathname, params: { next } } as Href);
+};
+
+const NOT_RETURNABLE = ['/login', '/platform-login', '/join', '/confirm', '/scan'];
+const AREA_PREFIXES = ['/platform', '/teacher', '/student'];
+const inArea = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
+
+/**
+ * The `next` page to return to after sign-in, or null (go to the role's home). Only in-app paths
+ * of the area this role may open: no other origin (`//evil.com`, `https:`), no auth screens, and
+ * never another role's area.
+ */
+export const safeNext = (next: unknown, role: unknown, source?: TenantSource): Href | null => {
+  if (typeof next !== 'string' || !/^\/(?![/\\])[^\s?#]*(\?[^\s#]*)?$/.test(next)) return null;
+  const path = next.split('?')[0] ?? next;
+  if (NOT_RETURNABLE.some((p) => inArea(path, p))) return null;
+  const area = AREA_PREFIXES.find((p) => inArea(path, p));
+  const allowed =
+    source === 'platform'
+      ? role === 'super_admin' && area === '/platform'
+      : role === 'teacher'
+        ? area === '/teacher'
+        : role === 'student'
+          ? area === '/student'
+          : role === 'admin' && !area;
+  return allowed ? (next as Href) : null;
+};

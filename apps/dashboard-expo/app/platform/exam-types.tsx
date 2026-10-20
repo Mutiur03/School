@@ -23,7 +23,6 @@ import {
   ClipboardList,
   Pencil,
   Plus,
-  RefreshCw,
   Trash2,
 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
@@ -391,18 +390,7 @@ export default function PlatformExamTypesScreen() {
       description="Global catalog and which types each school can create."
       onRefresh={refresh}
       refreshing={typesQ.isRefetching}
-      actions={
-        <>
-          <Button
-            variant="outline"
-            icon={RefreshCw}
-            label="Refresh"
-            disabled={typesQ.isFetching}
-            onPress={refresh}
-          />
-          <Button icon={Plus} label="Create type" disabled={loading} onPress={startCreate} />
-        </>
-      }
+      actions={<Button icon={Plus} label="Create type" disabled={loading} onPress={startCreate} />}
     >
       {loadError ? (
         <ErrorState

@@ -11,7 +11,7 @@
  */
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, View } from 'react-native';
 import {
   PROMOTION_VERSIONS,
   SCHOOL_BOARDS,
@@ -29,7 +29,6 @@ import { DateInput } from '@/components/ui/DateInput';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -89,7 +88,7 @@ import {
 } from './model';
 import { platformSchemas } from './schemas';
 import { SmsPanel } from './SmsPanel';
-import { SchoolLogo, usePlatformKey, type useConfirmGate } from './ui';
+import { FadeSlideIn, FallbackImage, SchoolLogo, usePlatformKey, type useConfirmGate } from './ui';
 
 type Picked = { file: PickedFile; uri: string };
 
@@ -105,6 +104,39 @@ const ACADEMIC_FIELDS: readonly [AcademicKey, string, string][] = [
 
 const enumOptions = (values: readonly string[]) => values.map((v) => ({ value: v, label: v }));
 const DISTRICT_OPTIONS = districts.map((d) => ({ value: d.id, label: d.name }));
+
+/** Placeholder for a banner/header image that is missing or failed to load. */
+function ImageFallback() {
+  return (
+    <View className="h-full min-h-14 w-full items-center justify-center gap-1">
+      <Icon icon={ImageIcon} size={20} color="mutedForeground" />
+      <Text size="xs" color="mutedForeground">
+        Image unavailable
+      </Text>
+    </View>
+  );
+}
+
+/** ▶ that turns 90° to ▼ when `open`. */
+function RotatingMarker({ open }: { open: boolean }) {
+  const progress = useRef(new Animated.Value(open ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: open ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, [open, progress]);
+  const rotate = progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] });
+  return (
+    <Animated.View style={{ transform: [{ rotate }] }}>
+      <Text size="xs" color="mutedForeground">
+        ▶
+      </Text>
+    </Animated.View>
+  );
+}
 
 export function EditorTabs({
   tabs,
@@ -457,33 +489,36 @@ export function SchoolEditor({
             accessibilityRole="button"
             accessibilityState={{ expanded: toolsOpen }}
             onPress={() => setToolsOpen((v) => !v)}
-            className="flex-row items-center justify-between px-3 py-2"
+            className="flex-row items-center gap-2 px-3 py-2"
             testID="school-tools-toggle"
           >
+            {/* Left triangle marker like the web <details> summary. */}
+            <RotatingMarker open={toolsOpen} />
             <Text size="sm" weight="medium" color="mutedForeground">
               Tools & danger zone
             </Text>
-            <Icon icon={ChevronDown} size={16} color="mutedForeground" />
           </Pressable>
           {toolsOpen ? (
-            <View className="border-border flex-row flex-wrap gap-2 border-t px-3 py-3">
-              <Button
-                variant="outline"
-                size="sm"
-                icon={Download}
-                label={exporting ? 'Downloading…' : 'Download All Students'}
-                disabled={exporting}
-                onPress={exportStudents}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                icon={KeyRound}
-                label="Rotate passwords"
-                disabled={busy}
-                onPress={rotatePasswords}
-              />
-            </View>
+            <FadeSlideIn>
+              <View className="border-border flex-row flex-wrap gap-2 border-t px-3 py-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={Download}
+                  label={exporting ? 'Downloading…' : 'Download All Students'}
+                  disabled={exporting}
+                  onPress={exportStudents}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={KeyRound}
+                  label="Rotate passwords"
+                  disabled={busy}
+                  onPress={rotatePasswords}
+                />
+              </View>
+            </FadeSlideIn>
           ) : null}
         </View>
       ) : null}
@@ -846,14 +881,13 @@ export function SchoolEditor({
                               </Pressable>
                             </View>
                             <View className="bg-muted/40 aspect-[16/10]">
-                              {uri ? (
-                                <Image
-                                  source={{ uri }}
-                                  accessibilityIgnoresInvertColors
-                                  resizeMode="cover"
-                                  style={{ width: '100%', height: '100%' }}
-                                />
-                              ) : null}
+                              <FallbackImage
+                                uri={uri}
+                                accessibilityIgnoresInvertColors
+                                resizeMode="cover"
+                                style={{ width: '100%', height: '100%' }}
+                                fallback={<ImageFallback />}
+                              />
                             </View>
                             <View className="flex-row items-center justify-between px-2 py-1.5">
                               <Text size="xs" color="mutedForeground">
@@ -1092,11 +1126,12 @@ function AssetSlot({
   ) : (
     <View className="border-border bg-background gap-3 rounded-lg border p-3">
       <View className="bg-muted/30 items-center rounded-md p-2">
-        <Image
-          source={{ uri }}
+        <FallbackImage
+          uri={uri}
           accessibilityIgnoresInvertColors
           resizeMode="contain"
           style={{ width: '100%', height: 56 }}
+          fallback={<ImageFallback />}
         />
       </View>
       <View className="flex-row items-center gap-3">{details}</View>

@@ -23,7 +23,7 @@ import {
 } from '@/features/auth/login-form';
 import { effectiveLoginRole, lockedLoginRole, loginRoles } from '@/features/auth/role-lock';
 import { cn } from '@/lib/utils';
-import { homeForRole, PLATFORM_LOGIN, type AppRole } from '@/navigation/role-routes';
+import { homeForRole, PLATFORM_LOGIN, safeNext, type AppRole } from '@/navigation/role-routes';
 import { useSchool } from '@/school/SchoolProvider';
 import { useSwitchSchool } from '@/school/useSwitchSchool';
 import { useApi, useSession } from '@/session/ApiProvider';
@@ -36,7 +36,7 @@ export default function LoginScreen() {
   const { resolution, branding } = useTenant();
   const { selection } = useSchool();
   const switchSchool = useSwitchSchool();
-  const { role: urlRole } = useLocalSearchParams<{ role?: string }>();
+  const { role: urlRole, next } = useLocalSearchParams<{ role?: string; next?: string }>();
   const locked = lockedLoginRole(selection, resolution, urlRole);
   const [chosenRole, setRole] = useState<AppRole>(selection?.roleHint ?? 'admin');
   const role = effectiveLoginRole(locked, chosenRole);
@@ -60,7 +60,9 @@ export default function LoginScreen() {
   if (resolution.source === 'platform') return <Redirect href={PLATFORM_LOGIN} />;
   if (session.status === 'authenticated') {
     const home = homeForRole(session.user?.role, resolution.source);
-    if (home) return <Redirect href={home} />;
+    if (home) {
+      return <Redirect href={safeNext(next, session.user?.role, resolution.source) ?? home} />;
+    }
   }
   if (session.status === 'unknown') return <SessionBoot />;
 

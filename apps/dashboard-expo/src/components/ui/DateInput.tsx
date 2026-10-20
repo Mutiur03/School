@@ -7,7 +7,8 @@
  */
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Modal, Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
+import { AnimatedModal } from './AnimatedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dateFieldLabel, parseIsoDate, toIsoDate } from '@/lib/dates';
 import { cn } from '@/lib/utils';
@@ -103,13 +104,13 @@ export function DateInput({ value, onChange, label, invalid, testID }: DateInput
         ) : null}
       </View>
       {Platform.OS === 'ios' ? (
-        <Modal
-          transparent
+        <AnimatedModal
           visible={iosOpen}
-          animationType="slide"
+          variant="sheet"
+          scrimOpacity={0.4}
           onRequestClose={() => closeIos(false)}
         >
-          <View className="flex-1 justify-end bg-black/40">
+          <View className="flex-1 justify-end">
             <Pressable
               accessibilityLabel="Close calendar"
               className="absolute inset-0"
@@ -160,7 +161,7 @@ export function DateInput({ value, onChange, label, invalid, testID }: DateInput
               />
             </View>
           </View>
-        </Modal>
+        </AnimatedModal>
       ) : null}
     </View>
   );

@@ -14,7 +14,8 @@
 import { usePathname } from 'expo-router';
 import { useGuardedNavigate } from '@/navigation/LeaveGuard';
 import { useState } from 'react';
-import { Modal, Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { AnimatedModal } from '@/components/ui/AnimatedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Ellipsis } from '@/components/ui/icons';
@@ -116,15 +117,15 @@ export function BottomTabBar() {
         ) : null}
       </View>
 
-      <Modal
-        transparent
+      <AnimatedModal
         visible={moreOpen}
-        animationType="slide"
+        variant="sheet"
+        scrimOpacity={0.4}
         onRequestClose={() => setMoreOpen(false)}
       >
         <Pressable
           accessibilityLabel="Close menu"
-          className="absolute inset-0 bg-black/40"
+          className="absolute inset-0"
           onPress={() => setMoreOpen(false)}
         />
         <View
@@ -137,7 +138,7 @@ export function BottomTabBar() {
             <SidebarNav onNavigate={() => setMoreOpen(false)} />
           </ScrollView>
         </View>
-      </Modal>
+      </AnimatedModal>
     </>
   );
 }

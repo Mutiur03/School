@@ -5,7 +5,8 @@
  * screens. Tapping the backdrop or the Android back button closes it.
  */
 import { useState, type ReactNode } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { AnimatedModal } from './AnimatedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
@@ -135,18 +136,13 @@ export function OptionSheet<O extends { label: string }>({
     touch ? 'min-h-12 gap-3 py-3' : 'gap-2 py-2.5',
   );
   return (
-    <Modal
-      transparent
+    <AnimatedModal
       visible={open}
-      animationType={sheet ? 'slide' : 'fade'}
+      variant={sheet ? 'sheet' : 'center'}
+      scrimOpacity={0.4}
       onRequestClose={close}
     >
-      <View
-        className={cn(
-          'flex-1 bg-black/40',
-          sheet ? 'justify-end' : 'items-center justify-center p-6',
-        )}
-      >
+      <View className={cn('flex-1', sheet ? 'justify-end' : 'items-center justify-center p-6')}>
         <Pressable accessibilityLabel="Close list" className="absolute inset-0" onPress={close} />
         <View
           className={cn(
@@ -188,6 +184,6 @@ export function OptionSheet<O extends { label: string }>({
           {footer}
         </View>
       </View>
-    </Modal>
+    </AnimatedModal>
   );
 }

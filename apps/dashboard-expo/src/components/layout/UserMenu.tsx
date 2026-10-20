@@ -14,7 +14,8 @@ import { useGuardedAction, useGuardedNavigate } from '@/navigation/LeaveGuard';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { AnimatedModal } from '@/components/ui/AnimatedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
@@ -105,15 +106,15 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
         <Icon icon={Power} size={19} />
       </Pressable>
 
-      <Modal
-        transparent
+      <AnimatedModal
         visible={open}
-        animationType={placement === 'sheet' ? 'slide' : 'fade'}
+        variant={placement === 'sheet' ? 'sheet' : 'popover'}
+        scrimOpacity={placement === 'sheet' ? 0.4 : 0}
         onRequestClose={() => setOpen(false)}
       >
         <Pressable
           accessibilityLabel="Close account menu"
-          className={cn('absolute inset-0', placement === 'sheet' && 'bg-black/40')}
+          className="absolute inset-0"
           onPress={() => setOpen(false)}
         />
         <View
@@ -197,7 +198,7 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
             </Text>
           ) : null}
         </View>
-      </Modal>
+      </AnimatedModal>
       {platformMode ? (
         <PlatformCodeDialog open={codeOpen} onClose={() => setCodeOpen(false)} />
       ) : null}

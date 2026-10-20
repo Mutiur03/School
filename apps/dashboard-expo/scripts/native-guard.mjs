@@ -50,16 +50,31 @@ if (mode === 'record') {
   );
   const put = spawnSync(
     process.execPath,
-    [wrangler, 'r2', 'object', 'put', key, '--file', file, '--content-type', 'application/json', '--remote'],
+    [
+      wrangler,
+      'r2',
+      'object',
+      'put',
+      key,
+      '--file',
+      file,
+      '--content-type',
+      'application/json',
+      '--remote',
+    ],
     { cwd: appDir, stdio: 'inherit' },
   );
   if (put.status !== 0) throw new Error('could not record build');
   console.log(`Recorded production build for runtime ${runtimeVersion}.`);
 } else {
-  const get = spawnSync(process.execPath, [wrangler, 'r2', 'object', 'get', key, '--pipe', '--remote'], {
-    cwd: appDir,
-    stdio: ['ignore', 'ignore', 'ignore'],
-  });
+  const get = spawnSync(
+    process.execPath,
+    [wrangler, 'r2', 'object', 'get', key, '--pipe', '--remote'],
+    {
+      cwd: appDir,
+      stdio: ['ignore', 'ignore', 'ignore'],
+    },
+  );
   if (get.status !== 0) {
     console.error(
       `::error::No production build recorded for runtime ${runtimeVersion}. Native code changed ` +

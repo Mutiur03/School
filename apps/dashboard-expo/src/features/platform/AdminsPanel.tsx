@@ -9,7 +9,7 @@ import { View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
-import { Plus, RefreshCw, Trash2, UserCog } from '@/components/ui/icons';
+import { Plus, Trash2, UserCog } from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
 import { PasswordInput as SharedPasswordInput } from '@/components/ui/PasswordInput';
 import { LoadingState } from '@/components/ui/states';
@@ -97,21 +97,11 @@ export function AdminsPanel({
 
   return (
     <View className="gap-4" testID="platform-admins">
-      <View className="flex-row items-center justify-between gap-2">
-        <View className="flex-row items-center gap-2">
-          <Icon icon={UserCog} size={16} color="primary" />
-          <Text size="sm" weight="semibold">
-            School Admins ({admins.length})
-          </Text>
-        </View>
-        <Button
-          variant="outline"
-          size="sm"
-          icon={RefreshCw}
-          label="Refresh"
-          disabled={q.isFetching}
-          onPress={() => void q.refetch()}
-        />
+      <View className="flex-row items-center gap-2">
+        <Icon icon={UserCog} size={16} color="primary" />
+        <Text size="sm" weight="semibold">
+          School Admins ({admins.length})
+        </Text>
       </View>
       {q.isLoading ? (
         <LoadingState label="Loading admins…" />

@@ -1,7 +1,7 @@
 /** Shared bits for the platform pages: confirm gate hook, school logo, SMS mode badge. */
 import { useQuery } from '@tanstack/react-query';
-import { useReducer, useRef } from 'react';
-import { Image, View } from 'react-native';
+import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { Animated, Easing, Image, Platform, View, type ImageProps } from 'react-native';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
 import { Cloud, School, ServerCog } from '@/components/ui/icons';
@@ -58,6 +58,43 @@ export function useConfirmGate(): {
   return { gate, ask: (c, run) => gate.request(c, run), dialog };
 }
 
+/** Fades and slides its children in on mount (a panel or field appearing). */
+export function FadeSlideIn({ children }: { children: ReactNode }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, [progress]);
+  return (
+    <Animated.View
+      style={{
+        opacity: progress,
+        transform: [
+          { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) },
+        ],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Image that shows `fallback` when `uri` is missing or fails to load (broken URL, offline, 404). */
+export function FallbackImage({
+  uri,
+  fallback,
+  ...props
+}: Omit<ImageProps, 'source'> & { uri?: string | null; fallback: ReactNode }) {
+  // Remember which uri failed, so a new uri (e.g. after Replace) gets a fresh try.
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  if (!uri || failedUri === uri) return <>{fallback}</>;
+  return <Image {...props} source={{ uri }} onError={() => setFailedUri(uri)} />;
+}
+
 export function SchoolLogo({
   logo,
   uri,
@@ -68,20 +105,21 @@ export function SchoolLogo({
   size?: number;
 }) {
   const src = uri ?? resolveFileUrl(logo, appConfig.cdnUrl);
-  return src ? (
-    <Image
-      source={{ uri: src }}
+  return (
+    <FallbackImage
+      uri={src}
       accessibilityIgnoresInvertColors
       style={{ width: size, height: size, borderRadius: 8 }}
       className="border-border border"
+      fallback={
+        <View
+          className="bg-muted items-center justify-center rounded-lg"
+          style={{ width: size, height: size }}
+        >
+          <Icon icon={School} size={size / 2} color="mutedForeground" />
+        </View>
+      }
     />
-  ) : (
-    <View
-      className="bg-muted items-center justify-center rounded-lg"
-      style={{ width: size, height: size }}
-    >
-      <Icon icon={School} size={size / 2} color="mutedForeground" />
-    </View>
   );
 }
 

@@ -36,7 +36,7 @@ import {
   type BillingForm,
 } from './model';
 import { platformSchemas } from './schemas';
-import { usePlatformKey, type useConfirmGate } from './ui';
+import { FadeSlideIn, usePlatformKey, type useConfirmGate } from './ui';
 
 const STATUS_OPTIONS = (Object.keys(BILLING_STATUS_LABELS) as SubscriptionStatus[]).map((s) => ({
   value: s,
@@ -179,24 +179,28 @@ export function BillingEditor({
           />
         </Field>
         {fields.visible.map((f) => (
-          <Field key={f} label={BILLING_DATE_LABELS[f]} required={required.has(f)}>
-            <DateInput
-              label={BILLING_DATE_LABELS[f]}
-              value={form[f]}
-              onChange={(v) => setForm(updateBillingField(form, f, v))}
-            />
-          </Field>
+          <FadeSlideIn key={f}>
+            <Field label={BILLING_DATE_LABELS[f]} required={required.has(f)}>
+              <DateInput
+                label={BILLING_DATE_LABELS[f]}
+                value={form[f]}
+                onChange={(v) => setForm(updateBillingField(form, f, v))}
+              />
+            </Field>
+          </FadeSlideIn>
         ))}
       </FieldRow>
       {fields.visible.some((f) => END_DATE_FIELDS.has(f)) ? (
-        <Text size="xs" color="mutedForeground">
-          End dates include the full selected day. Period end must be on/after period start
-          {form.status === 'expired'
-            ? ', and before today for expired.'
-            : form.status === 'past_due'
-              ? ', and today or earlier for past due.'
-              : '.'}
-        </Text>
+        <FadeSlideIn>
+          <Text size="xs" color="mutedForeground">
+            End dates include the full selected day. Period end must be on/after period start
+            {form.status === 'expired'
+              ? ', and before today for expired.'
+              : form.status === 'past_due'
+                ? ', and today or earlier for past due.'
+                : '.'}
+          </Text>
+        </FadeSlideIn>
       ) : null}
       <Field label="Internal notes" hint="Visible only to superadmins.">
         <Input
@@ -209,7 +213,11 @@ export function BillingEditor({
           onChangeText={(v) => setForm(updateBillingField(form, 'notes', v))}
         />
       </Field>
-      {error ? <ErrorMessage message={error} /> : null}
+      {error ? (
+        <FadeSlideIn>
+          <ErrorMessage message={error} />
+        </FadeSlideIn>
+      ) : null}
       <View className="border-border flex-row justify-end gap-2 border-t pt-4">
         <Button
           variant="outline"

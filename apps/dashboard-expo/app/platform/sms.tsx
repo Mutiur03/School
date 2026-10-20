@@ -9,14 +9,12 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Icon } from '@/components/ui/Icon';
 import {
   ChevronRight,
   Cloud,
   MessageSquare,
-  RefreshCw,
   ServerCog,
   TriangleAlert,
   Wallet,
@@ -106,15 +104,6 @@ export default function PlatformSmsScreen() {
       description="Shared account balance and every school's SMS mode (not configured / shared / self-hosted)."
       onRefresh={() => void q.refetch()}
       refreshing={q.isRefetching}
-      actions={
-        <Button
-          variant="outline"
-          icon={RefreshCw}
-          label="Refresh"
-          disabled={q.isFetching}
-          onPress={() => void q.refetch()}
-        />
-      }
     >
       {q.isError ? (
         <ErrorState
@@ -181,6 +170,7 @@ export default function PlatformSmsScreen() {
           loading={loading}
           empty={search ? 'No schools match your search.' : 'No schools found.'}
           onRowPress={open}
+          rowPressOnWide
           renderMobile={(r) => (
             <View className="flex-row items-center gap-3">
               <SchoolLogo logo={r.logo} size={36} />

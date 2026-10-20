@@ -4,12 +4,13 @@
  * font-semibold` title and close button, scrolling body `px-5 py-4 gap-4`, footer
  * `border-t px-5 py-3` with right-aligned actions. Phones get a near-full-height sheet.
  */
-import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
+import { useRef, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme/ThemeProvider';
+import { AnimatedModal } from './AnimatedModal';
 import { Icon } from './Icon';
 import { XIcon } from './icons';
 import { FormChain } from './form-chain';
@@ -54,21 +55,20 @@ export function Dialog({
   const { shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const mobile = useBreakpoint() === 'mobile';
+  // Callers clear their form state on close, so the card would empty out (and the title flip to
+  // "Create…") during the fade/slide-out. Keep showing the last open content until it is gone.
+  const lastOpen = useRef({ title, description, children, footer });
+  if (open) lastOpen.current = { title, description, children, footer };
+  ({ title, description, children, footer } = open
+    ? { title, description, children, footer }
+    : lastOpen.current);
   return (
-    <Modal
-      transparent
-      visible={open}
-      animationType={mobile ? 'slide' : 'fade'}
-      onRequestClose={onClose}
-    >
+    <AnimatedModal visible={open} onRequestClose={onClose} variant={mobile ? 'sheet' : 'center'}>
       <KeyboardAvoidingView
         // Android is edge-to-edge (SDK 57), so the window no longer resizes for the keyboard:
         // lift the sheet with padding on both platforms so its footer stays above the keyboard.
         behavior={Platform.OS === 'web' ? undefined : 'padding'}
-        className={cn(
-          'flex-1 bg-black/50',
-          mobile ? 'justify-end' : 'items-center justify-center p-6',
-        )}
+        className={cn('flex-1', mobile ? 'justify-end' : 'items-center justify-center p-6')}
       >
         <Pressable
           accessibilityLabel="Close dialog"
@@ -107,6 +107,6 @@ export function Dialog({
           ) : null}
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </AnimatedModal>
   );
 }

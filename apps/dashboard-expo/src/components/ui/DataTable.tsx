@@ -36,6 +36,7 @@ export function DataTable<T>({
   empty,
   renderMobile,
   onRowPress,
+  rowPressOnWide,
   sort,
   onSort,
   testID,
@@ -47,7 +48,10 @@ export function DataTable<T>({
   /** Shown instead of rows when not loading and `rows` is empty. */
   empty: ReactNode | string;
   renderMobile: (row: T) => ReactNode;
+  /** Phone cards only, unless `rowPressOnWide` (most wide tables use per-row action buttons). */
   onRowPress?: (row: T) => void;
+  /** Also make the whole row pressable on wide screens (web rows that link to a detail page). */
+  rowPressOnWide?: boolean;
   /** Current header sort; `onSort` receives the next one (null = unsorted). */
   sort?: TableSort | null;
   onSort?: (next: TableSort | null) => void;
@@ -81,9 +85,11 @@ export function DataTable<T>({
       ))
     ) : (
       rows.map((r) => (
-        <View
+        <Pressable
           key={rowKey(r)}
           testID={testID ? `${testID}-row` : undefined}
+          disabled={!rowPressOnWide || !onRowPress}
+          onPress={rowPressOnWide && onRowPress ? () => onRowPress(r) : undefined}
           className="border-border bg-card hover:bg-muted/60 flex-row items-center border-t"
         >
           {columns.map((c) => (
@@ -94,7 +100,7 @@ export function DataTable<T>({
               {c.render(r)}
             </View>
           ))}
-        </View>
+        </Pressable>
       ))
     );
 

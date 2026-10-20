@@ -11,7 +11,7 @@ import { Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { ChevronLeft, Plus, RefreshCw, School } from '@/components/ui/icons';
+import { ChevronLeft, Plus, School } from '@/components/ui/icons';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { ErrorState } from '@/components/ui/states';
@@ -200,15 +200,6 @@ export default function PlatformSchoolsScreen() {
       description="Create schools, edit their profile and domains, and manage admins, billing and SMS."
       onRefresh={() => void q.refetch()}
       refreshing={q.isRefetching}
-      actions={
-        <Button
-          variant="outline"
-          size="sm"
-          icon={RefreshCw}
-          label="Refresh"
-          onPress={() => void q.refetch()}
-        />
-      }
     >
       {q.isError ? (
         <ErrorState message="Couldn't load schools." onRetry={() => void q.refetch()} />
