@@ -88,9 +88,6 @@ export default function RootLayout() {
     // `wrangler pages deploy` never uploads, so the fonts 404 on Cloudflare Pages.
     /* eslint-disable @typescript-eslint/no-require-imports -- Metro asset requires */
     Outfit_400Regular: require('../assets/fonts/Outfit_400Regular.ttf'),
-    Outfit_500Medium: require('../assets/fonts/Outfit_500Medium.ttf'),
-    Outfit_600SemiBold: require('../assets/fonts/Outfit_600SemiBold.ttf'),
-    Outfit_700Bold: require('../assets/fonts/Outfit_700Bold.ttf'),
     SolaimanLipi: require('../assets/fonts/SolaimanLipi.ttf'),
     /* eslint-enable @typescript-eslint/no-require-imports */
   });

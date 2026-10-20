@@ -288,7 +288,7 @@ export function Sidebar() {
       role="navigation"
       accessibilityLabel="Main navigation"
       testID="sidebar"
-      className="border-border bg-sidebar z-[2] w-[250px] border-r"
+      className="border-border bg-sidebar z-[2] -mt-px w-[250px] border-r"
       style={{ boxShadow: shadows.sidebar }}
     >
       <ScrollView contentContainerClassName="py-4" showsVerticalScrollIndicator={false}>

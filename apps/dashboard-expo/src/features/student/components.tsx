@@ -34,16 +34,18 @@ import type {
 import { totalMarks } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { resolveFileUrl } from '@/tenant/branding';
+import { useTheme } from '@/theme/ThemeProvider';
 import { calendarCells, formatDate, MONTHS, WEEKDAYS } from './format';
 
 type StatColor = 'default' | 'amber' | 'emerald' | 'red' | 'blue' | 'indigo';
-const STAT: Record<StatColor, { label: string; value: string; icon: string }> = {
-  default: { label: 'text-muted-foreground', value: 'text-foreground', icon: '#6b7280' },
-  amber: { label: 'text-amber-500', value: 'text-amber-600', icon: '#fe9a00' },
-  emerald: { label: 'text-emerald-500', value: 'text-emerald-600', icon: '#00bc7d' },
-  red: { label: 'text-red-500', value: 'text-red-600', icon: '#fb2c36' },
-  blue: { label: 'text-primary', value: 'text-primary', icon: '' },
-  indigo: { label: 'text-indigo-500', value: 'text-primary', icon: '#615fff' },
+// Web: label always muted; the colour goes on the value and the icon tile.
+const STAT: Record<StatColor, { value: string; icon?: string }> = {
+  default: { value: 'text-foreground' },
+  amber: { value: 'text-amber-600', icon: '#fe9a00' },
+  emerald: { value: 'text-emerald-600', icon: '#00bc7d' },
+  red: { value: 'text-red-600', icon: '#fb2c36' },
+  blue: { value: 'text-primary' },
+  indigo: { value: 'text-primary', icon: '#615fff' },
 };
 
 export function StatsCard({
@@ -61,34 +63,38 @@ export function StatsCard({
   loading?: boolean;
   testID?: string;
 }) {
+  const { shadows } = useTheme();
   const c = STAT[color];
   return (
     <View
       testID={testID}
-      className="border-border bg-card min-w-[140px] flex-1 basis-[45%] rounded-xl border p-4 lg:basis-[22%]"
+      className="border-border bg-card min-w-[140px] flex-1 basis-full flex-row items-start justify-between rounded-xl border p-6 sm:basis-[45%] lg:basis-[22%]"
+      style={{ boxShadow: shadows.sm }}
     >
-      <View className="flex-row items-center gap-1.5">
-        {icon ? (
-          <Icon
-            icon={icon}
-            size={16}
-            color={color === 'blue' ? 'primary' : undefined}
-            rawColor={color === 'blue' ? undefined : c.icon}
-          />
-        ) : null}
-        <Text size="xs" weight="medium" className={c.label}>
+      <View className="shrink">
+        <Text size="sm" weight="medium" color="mutedForeground" className="mb-1">
           {label}
         </Text>
+        {loading ? (
+          <View className="mt-1">
+            <Skeleton height={32} width={60} />
+          </View>
+        ) : (
+          <Text size="2xl" weight="bold" tabular className={c.value}>
+            {value}
+          </Text>
+        )}
       </View>
-      {loading ? (
-        <View className="mt-2">
-          <Skeleton height={28} width={64} />
+      {icon ? (
+        <View className="bg-muted/50 rounded-lg p-2">
+          <Icon
+            icon={icon}
+            size={20}
+            color={color === 'blue' ? 'primary' : 'mutedForeground'}
+            rawColor={c.icon}
+          />
         </View>
-      ) : (
-        <Text size="2xl" weight="bold" tabular className={cn('mt-1', c.value)}>
-          {value}
-        </Text>
-      )}
+      ) : null}
     </View>
   );
 }

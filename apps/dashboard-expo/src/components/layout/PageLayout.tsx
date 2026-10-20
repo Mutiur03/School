@@ -41,7 +41,7 @@ export function PageLayout({
       }
     >
       <View className="w-full max-w-7xl gap-6 self-center">
-        <View className="flex-row flex-wrap items-end justify-between gap-4">
+        <View className="mb-2 flex-row flex-wrap items-start justify-between gap-4">
           <View className="shrink">
             <View className="flex-row flex-wrap items-center gap-3">
               <Text size="2xl" weight="bold" color="heading" accessibilityRole="header">

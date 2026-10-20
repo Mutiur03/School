@@ -1,7 +1,7 @@
 /**
  * Overview, ported from dashboard/src/pages/SuperAdmin/Dashboard.tsx: fleet health across all
  * school tenants (Schools, On free trial, Trials ending ≤14d, Needs attention), the attention
- * note, and link cards to Schools / Exam types / SMS. Data: GET /api/schools.
+ * note, link cards to Schools / Exam types / SMS, and the app sign-in code. Data: GET /api/schools.
  */
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
@@ -14,13 +14,13 @@ import {
   ClipboardList,
   Clock3,
   MessageSquare,
-  RefreshCw,
   TriangleAlert,
 } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { fleetStats } from '@/features/platform/model';
+import { PlatformCodeCard } from '@/features/platform/PlatformCodeDialog';
 import { PLATFORM_LINKS } from '@/features/platform/routes';
 import { usePlatformSchools } from '@/features/platform/ui';
 import { StatsCard } from '@/features/student/components';
@@ -61,15 +61,6 @@ export default function PlatformOverviewScreen() {
       description="Fleet health across all school tenants."
       onRefresh={() => void q.refetch()}
       refreshing={q.isRefetching}
-      actions={
-        <Button
-          variant="outline"
-          icon={RefreshCw}
-          label="Refresh"
-          disabled={q.isFetching}
-          onPress={() => void q.refetch()}
-        />
-      }
     >
       {q.isError ? (
         <ErrorState message="Could not load schools." onRetry={() => void q.refetch()} />
@@ -108,11 +99,15 @@ export default function PlatformOverviewScreen() {
             key={l.href}
             className="min-w-[260px] flex-1 basis-full sm:basis-[45%] lg:basis-[30%]"
           >
-            <SectionCard title={l.title} icon={<Icon icon={l.icon} size={20} color="primary" />}>
+            <SectionCard
+              className="flex-1"
+              title={l.title}
+              icon={<Icon icon={l.icon} size={20} color="primary" />}
+            >
               <Text size="sm" color="mutedForeground" className="mb-4">
                 {l.description}
               </Text>
-              <View className="items-start">
+              <View className="sm:items-start">
                 <Button
                   label={l.action}
                   icon={ArrowRight}
@@ -124,6 +119,7 @@ export default function PlatformOverviewScreen() {
           </View>
         ))}
       </View>
+      <PlatformCodeCard />
     </PageLayout>
   );
 }

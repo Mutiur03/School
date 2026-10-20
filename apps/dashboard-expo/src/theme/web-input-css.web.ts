@@ -4,6 +4,8 @@
  *    (the transition trick leaves our box-shadow focus ring alone).
  *  - Selection highlight in the ring colour, like the native selectionColor.
  *  - No browser focus outline on inputs; the control draws its own ring.
+ *  - font-* also set font-weight: like the dashboard (Outfit Regular only), the browser
+ *    synthesizes bold for semibold/bold. Web only; fontWeight with a custom family breaks Android.
  */
 import { BANGLA_FONT } from './fonts';
 import { fontFamilies, lightColors, withAlpha } from './tokens';
@@ -18,10 +20,10 @@ textarea:-webkit-autofill, select:-webkit-autofill {
 input::selection, textarea::selection { background: ${withAlpha(lightColors.ring, 0.2)}; }
 input:focus, input:focus-visible, textarea:focus, textarea:focus-visible { outline: none; }
 input::placeholder, textarea::placeholder { color: #99a1af; opacity: 1; }
-.font-normal { font-family: ${fontFamilies.regular}, ${BANGLA_FONT}, sans-serif !important; }
-.font-medium { font-family: ${fontFamilies.medium}, ${BANGLA_FONT}, sans-serif !important; }
-.font-semibold { font-family: ${fontFamilies.semibold}, ${BANGLA_FONT}, sans-serif !important; }
-.font-bold { font-family: ${fontFamilies.bold}, ${BANGLA_FONT}, sans-serif !important; }
+.font-normal { font-family: ${fontFamilies.regular}, ${BANGLA_FONT}, sans-serif !important; font-weight: 400; }
+.font-medium { font-family: ${fontFamilies.medium}, ${BANGLA_FONT}, sans-serif !important; font-weight: 500; }
+.font-semibold { font-family: ${fontFamilies.semibold}, ${BANGLA_FONT}, sans-serif !important; font-weight: 600; }
+.font-bold { font-family: ${fontFamilies.bold}, ${BANGLA_FONT}, sans-serif !important; font-weight: 700; }
 `;
 
 if (typeof document !== 'undefined' && !document.getElementById('sd-input-css')) {

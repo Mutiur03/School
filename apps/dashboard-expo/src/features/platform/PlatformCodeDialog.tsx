@@ -1,5 +1,6 @@
 /**
- * "App sign-in code" (super-admin user menu): the server's platform access code as text + QR.
+ * "App sign-in code" (super-admin user menu dialog, and the card on the platform Overview like
+ * dashboard/src/pages/SuperAdmin/PlatformAccessCode.tsx): the server's platform access code as text + QR.
  * Typed or scanned on the school-code screen it opens super-admin sign-in; it does not sign
  * anyone in. Fetched only while open (GET /api/auth/super_admin/platform-code, super_admin on
  * the super-admin host). Cached in the platform query namespace, which logout purges.
@@ -11,21 +12,24 @@ import { useState } from 'react';
 import { Platform, Share, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { Copy, Share2 } from '@/components/ui/icons';
+import { Copy, Eye, EyeOff, KeyRound, Share2 } from '@/components/ui/icons';
+import { Icon } from '@/components/ui/Icon';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { Skeleton } from '@/components/ui/states';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { CodeQr } from '@/features/school-codes/SchoolCodesScreen';
 import { usePlatformApi } from '@/session/ApiProvider';
 import { usePlatformKey } from './ui';
 
-export function PlatformCodeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function usePlatformCode(enabled: boolean) {
   const platform = usePlatformApi();
   const key = usePlatformKey();
   const [copied, setCopied] = useState(false);
   const q = useQuery({
     queryKey: key('platform-code'),
     queryFn: ({ signal }) => platform.getPlatformCode(signal),
-    enabled: open,
+    enabled,
     staleTime: 0,
   });
   const code = q.data ?? null;
@@ -44,6 +48,67 @@ export function PlatformCodeDialog({ open, onClose }: { open: boolean; onClose: 
     }
     await Share.share({ message: code }).catch(() => {});
   };
+
+  return { q, code, copied, share };
+}
+
+const SHARE_ICON = Platform.OS === 'web' ? Copy : Share2;
+
+/** Overview card: code hidden until revealed; QR shown with it. */
+export function PlatformCodeCard() {
+  const { q, code, copied, share } = usePlatformCode(true);
+  const [shown, setShown] = useState(false);
+
+  return (
+    <SectionCard
+      title="App sign-in code"
+      icon={<Icon icon={KeyRound} size={20} color="primary" />}
+      testID="platform-code-card"
+    >
+      <Text size="sm" color="mutedForeground" className="mb-4">
+        Enter or scan this in the mobile app&apos;s school-code screen to open super-admin sign-in.
+        It only opens the sign-in screen; your email and password are still required.
+      </Text>
+      {q.isPending ? (
+        <Skeleton height={36} width={160} />
+      ) : q.isError ? (
+        <ErrorState message="Couldn't load the code." onRetry={() => void q.refetch()} />
+      ) : code ? (
+        <View className="gap-4">
+          <View className="flex-row flex-wrap items-center gap-2">
+            <View className="bg-muted rounded px-3 py-1.5">
+              <Text size="lg" selectable={shown} className="font-mono tracking-widest">
+                {shown ? code : '•••-••••'}
+              </Text>
+            </View>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={shown ? EyeOff : Eye}
+              label={shown ? 'Hide' : 'Show'}
+              onPress={() => setShown((s) => !s)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              icon={SHARE_ICON}
+              label={Platform.OS === 'web' ? (copied ? 'Copied' : 'Copy') : 'Share'}
+              onPress={() => void share()}
+            />
+          </View>
+          {shown ? <CodeQr code={code} size={200} /> : null}
+        </View>
+      ) : (
+        <Text size="sm" color="mutedForeground">
+          Not configured. Set PLATFORM_ACCESS_CODE on the server to enable it.
+        </Text>
+      )}
+    </SectionCard>
+  );
+}
+
+export function PlatformCodeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { q, code, copied, share } = usePlatformCode(open);
 
   return (
     <Dialog
@@ -78,7 +143,7 @@ export function PlatformCodeDialog({ open, onClose }: { open: boolean; onClose: 
           <Button
             testID="platform-code-share"
             variant="outline"
-            icon={Platform.OS === 'web' ? Copy : Share2}
+            icon={SHARE_ICON}
             label={Platform.OS === 'web' ? (copied ? 'Copied' : 'Copy code') : 'Share or copy'}
             onPress={() => void share()}
           />

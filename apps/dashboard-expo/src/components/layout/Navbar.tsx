@@ -64,6 +64,14 @@ export function Navbar({ compact }: { compact: boolean }) {
         {compact ? null : <SchoolIdentity />}
       </View>
       <UserMenu placement={compact ? 'sheet' : 'dropdown'} />
+      {/* Web's sidebar starts 1px up and covers this border, so the sidebar runs into the
+          navbar seamlessly; RN web can't stack the sidebar over the navbar, so mask it here. */}
+      {compact ? null : (
+        <View
+          pointerEvents="none"
+          className="bg-sidebar absolute -bottom-px left-0 h-px w-[249px]"
+        />
+      )}
     </View>
   );
 }

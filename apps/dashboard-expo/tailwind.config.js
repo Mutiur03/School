@@ -10,14 +10,13 @@ const palette = require('./tailwind.palette');
 const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 const RADIUS = 0.66 * 16; // --radius: 0.66rem
 
-// React Native has one font family per weight (Outfit_600SemiBold, ...) and setting fontWeight
-// alongside a custom family breaks Android. So `font-medium`/`font-semibold`/... select the
-// matching Outfit family instead of a weight; class names stay identical to the dashboard.
+// The dashboard ships only Outfit Regular (public/fonts/Outfit.woff2), so every `font-*` class
+// maps to that one face. fontWeight stays off: alongside a custom family it breaks Android.
 const OUTFIT = {
   normal: 'Outfit_400Regular',
-  medium: 'Outfit_500Medium',
-  semibold: 'Outfit_600SemiBold',
-  bold: 'Outfit_700Bold',
+  medium: 'Outfit_400Regular',
+  semibold: 'Outfit_400Regular',
+  bold: 'Outfit_400Regular',
 };
 
 /** @type {import('tailwindcss').Config} */

@@ -105,7 +105,7 @@ export { default as ArrowUp } from 'lucide-react-native/icons/arrow-up';
 export { default as ArrowDown } from 'lucide-react-native/icons/arrow-down';
 export { default as ChevronsUpDown } from 'lucide-react-native/icons/chevrons-up-down';
 export { default as Layers } from 'lucide-react-native/icons/layers';
-export { default as Building2 } from 'lucide-react-native/icons/building';
+export { default as Building2 } from 'lucide-react-native/icons/building-complex';
 export { default as TriangleAlert } from 'lucide-react-native/icons/triangle-alert';
 export { default as ServerCog } from 'lucide-react-native/icons/server-cog';
 export { default as Cloud } from 'lucide-react-native/icons/cloud';

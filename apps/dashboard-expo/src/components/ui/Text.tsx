@@ -70,7 +70,7 @@ export const TEXT_COLOR: Record<keyof ThemeColors, string> = {
 
 /**
  * Text in the dashboard's typefaces (Outfit + SolaimanLipi) and Tailwind type scale. `font-*`
- * classes select an Outfit family per weight (tailwind.config.js), never `fontWeight`, which
+ * classes all map to Outfit Regular (tailwind.config.js), never `fontWeight`, which
  * breaks Android. Bangla runs use SolaimanLipi (web: CSS stack; native: nested faces).
  * `className` is merged last with cn(), so callers can override any default.
  */
