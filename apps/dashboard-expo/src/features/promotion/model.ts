@@ -48,7 +48,8 @@ export function stepState(stats: PromotionStats | undefined) {
     promoted: stats?.promoted ?? false,
     awaitingRoll: stats?.awaiting_roll ?? 0,
     nextYearTotal: stats?.next_year_enrollments ?? 0,
-    class10Done: (c10?.graduated ?? 0) > 0 || c10?.total === 0,
+    class10Done: (stats?.graduated ?? false) || (c10?.graduated ?? 0) > 0 || c10?.total === 0,
+    awaitingRetain: stats?.awaiting_retain ?? 0,
   };
 }
 
@@ -69,8 +70,12 @@ export function promotionDetail(stats: PromotionStats | undefined, year: number)
 
 export function graduationDetail(stats: PromotionStats | undefined): string {
   const c = stats?.class10;
-  if (!c) return 'Graduate passed SSC students to alumni; retain failed students in class 10.';
+  if (!c)
+    return 'Mark passed SSC students graduated; failed students are held until you retain them in class 10.';
   if (c.total === 0) return 'No active class-10 students for this year.';
+  if (stats?.graduated) {
+    return `${c.passed} passed · ${c.failed} failed (held until retained in class 10)`;
+  }
   if (c.graduated > 0) return `${c.graduated} graduated · ${c.passed} pending · ${c.failed} failed`;
   return `${c.total} active · ${c.passed} passed · ${c.failed} failed`;
 }
@@ -117,9 +122,9 @@ export function promoteMessages(r: {
   };
 }
 
-export const graduateMessage = (r: { graduated: number | null; retained: number }) =>
+export const graduateMessage = (r: { graduated: number | null; held: number }) =>
   r.graduated !== null
-    ? `Graduation complete: ${r.graduated} alumni, ${r.retained} retained`
+    ? `Graduation complete: ${r.graduated} passed, ${r.held} held`
     : 'Graduation complete';
 
 export const holdConfirm = (name: string, held: boolean) =>

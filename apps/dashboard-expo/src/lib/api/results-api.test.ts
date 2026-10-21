@@ -400,6 +400,7 @@ describe('promotion client', () => {
     const p = await api.promote(2026);
     await api.assignRetained(2026);
     await api.graduate(2026);
+    await api.retainClass10(2026);
     const seen = h.calls.map((c) => `${c.method} ${url(c).pathname}`);
     assert.deepEqual(seen, [
       'POST /api/promotions/2026/results',
@@ -409,6 +410,7 @@ describe('promotion client', () => {
       'POST /api/promotions/2026',
       'POST /api/promotions/2026/retained',
       'POST /api/graduations/2026',
+      'POST /api/graduations/2026/retained',
     ]);
     assert.deepEqual(h.calls[1]!.body, { status: 'Failed' });
     assert.deepEqual(h.calls[2]!.body, { enrollment_ids: [77] });
@@ -428,7 +430,7 @@ describe('promotion client', () => {
     assert.equal(plan.students[0]!.new_roll, null);
     assert.equal(plan.summary.total, 1);
     const g = parseGraduationPlan({ sscBatch: '2027', students: [{ action: 'weird' }] }, 2026);
-    assert.equal(g.students[0]!.action, 'retain');
+    assert.equal(g.students[0]!.action, 'hold');
     assert.throws(() => parsePlan(null, 2026), ApiError);
   });
 });

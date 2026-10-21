@@ -157,3 +157,5 @@ codex-ci
 *backup.sql
 graphify-out
 demo-videos
+# Output of `pnpm pdf:samples`
+server/pdf-samples-out/

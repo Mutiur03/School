@@ -20,6 +20,12 @@ export class GraduationsController {
     return this.promotion.graduate(schoolId, year, ranBy(user));
   }
 
+  /** Puts the class-10 students still Failed into next year's class 10 (the "Retain" button). */
+  @Post(':year/retained')
+  createRetained(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
+    return this.promotion.retainFailed(schoolId, year);
+  }
+
   /** Dry run of the graduation. */
   @Get(':year/plan')
   findPlan(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {

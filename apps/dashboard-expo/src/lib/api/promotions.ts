@@ -13,6 +13,7 @@
  *   GET   /api/promotions/:year/plan              dry run;  POST /api/promotions/:year  commits
  *   POST  /api/promotions/:year/retained          number failed class-6 students
  *   GET   /api/graduations/:year/plan             dry run;  POST /api/graduations/:year  commits
+ *   POST  /api/graduations/:year/retained         failed class-10 students → next year's class 10
  *   GET   /api/marksheets/students/:id/session?year   PDF;  GET /api/marksheets/session?year  PDF
  */
 import type { ApiClient } from './client';
@@ -59,6 +60,9 @@ export interface PromotionStats {
   promoted: boolean;
   next_year_enrollments: number;
   awaiting_roll: number;
+  /** Class-10 students still Failed after graduation (the Retain button's count). */
+  awaiting_retain: number;
+  graduated: boolean;
 }
 
 export interface PromotionPlanRow {
@@ -98,10 +102,8 @@ export interface GraduationPlanRow {
   roll: number;
   status: string;
   final_merit: number;
-  action: 'graduate' | 'retain';
+  action: 'graduate' | 'hold';
   ssc_batch: string | null;
-  new_section: string | null;
-  new_roll: number | null;
 }
 
 export interface GraduationPlan {
@@ -112,9 +114,8 @@ export interface GraduationPlan {
   summary: {
     total: number;
     graduates: number;
-    retained: number;
+    held: number;
     skipped: number;
-    existing_class10_next_year: number;
   };
 }
 
@@ -137,6 +138,7 @@ export const PROMOTION_PATHS = {
   retained: (y: number) => `/api/promotions/${y}/retained`,
   graduationPlan: (y: number) => `/api/graduations/${y}/plan`,
   graduate: (y: number) => `/api/graduations/${y}`,
+  retainClass10: (y: number) => `/api/graduations/${y}/retained`,
   sessionPdf: (studentId: number) => `/api/marksheets/students/${studentId}/session`,
   allSessionPdf: '/api/marksheets/session',
   /** Nest, admin/teacher/student (server scopes the student): on-screen session preview. */
@@ -170,6 +172,8 @@ export function parsePromotionStats(v: unknown, year: number): PromotionStats {
     promoted: bool(s.promoted),
     next_year_enrollments: num(s.next_year_enrollments),
     awaiting_roll: num(s.awaiting_roll),
+    awaiting_retain: num(s.awaiting_retain),
+    graduated: s.graduation_run != null,
   };
 }
 
@@ -234,17 +238,14 @@ export function parseGraduationPlan(v: unknown, year: number): GraduationPlan {
       roll: num(r.roll),
       status: str(r.status),
       final_merit: num(r.final_merit),
-      action: r.action === 'graduate' ? 'graduate' : 'retain',
+      action: r.action === 'graduate' ? 'graduate' : 'hold',
       ssc_batch: strOrNull(r.ssc_batch),
-      new_section: strOrNull(r.new_section),
-      new_roll: numOrNull(r.new_roll),
     })),
     summary: {
       total: num(s.total),
       graduates: num(s.graduates),
-      retained: num(s.retained),
+      held: num(s.held),
       skipped: num(s.skipped),
-      existing_class10_next_year: num(s.existing_class10_next_year),
     },
   };
 }
@@ -324,7 +325,12 @@ export function createPromotionsApi(client: ApiClient) {
         timeoutMs: 180_000,
       });
       const o = isObj(d) ? d : {};
-      return { graduated: numOrNull(o.graduated), retained: num(o.retained) };
+      return { graduated: numOrNull(o.graduated), held: num(o.held) };
+    },
+    async retainClass10(year: number) {
+      const d = await client.post<unknown>(PROMOTION_PATHS.retainClass10(year));
+      const o = isObj(d) ? d : {};
+      return { retained: num(o.retained), newYear: num(o.newYear, year + 1) };
     },
     async sessionPreview(studentId: number, year: number, signal?: AbortSignal) {
       const path = PROMOTION_PATHS.sessionPreview(studentId);

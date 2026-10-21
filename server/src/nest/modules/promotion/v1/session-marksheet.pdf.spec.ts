@@ -60,7 +60,6 @@ describe('buildSessionTable', () => {
         subject: 'Bangla',
         marks: ['60', '70', '130'],
         fullMark: '200',
-        passMark: '66',
         grade: 'A-',
         gp: '3.50',
       },
@@ -68,16 +67,48 @@ describe('buildSessionTable', () => {
         subject: 'Math',
         marks: ['-', '40', '40'],
         fullMark: '200',
-        passMark: '66',
         grade: 'F',
         gp: '0.00',
       },
     ]);
-    expect(table.continuousRows.map((r) => [r.subject, r.passMark])).toEqual([
-      ['Physical Education', '-'],
-    ]);
+    expect(table.continuousRows.map((r) => r.subject)).toEqual(['Physical Education']);
     // Continuous subjects stay out of the exam totals.
     expect(table.totals).toEqual(['60', '110', '170']);
+  });
+
+  it('lists each paper of a main subject on its own row, without a pass-mark column', () => {
+    const none = { marks: null, cq: null, mcq: null, practical: null };
+    const table = buildSessionTable(
+      result({
+        subjects: [
+          subject({
+            name: 'English',
+            fullMark: 200,
+            papers: [
+              {
+                name: 'English 1st Paper',
+                previous: { ...none, marks: 30 },
+                yearEnd: { ...none, marks: 35 },
+                combined: 65,
+                fullMark: 100,
+              },
+              {
+                name: 'English 2nd Paper',
+                previous: { ...none, marks: 28 },
+                yearEnd: { ...none, marks: 31 },
+                combined: 59,
+                fullMark: 100,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+    expect(table.examRows[0]).not.toHaveProperty('passMark');
+    expect(table.examRows[0].papers).toEqual([
+      { subject: 'English 1st Paper', marks: ['30', '35', '65'], fullMark: '100' },
+      { subject: 'English 2nd Paper', marks: ['28', '31', '59'], fullMark: '100' },
+    ]);
   });
 
   it('shows only the year-end column for class 10', () => {
@@ -110,6 +141,44 @@ describe('buildSessionTable', () => {
 });
 
 describe('drawSessionMarksheetBody', () => {
+  it('renders paper rows without throwing', () => {
+    const none = { marks: null, cq: null, mcq: null, practical: null };
+    const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 });
+    const y = drawSessionMarksheetBody(doc, {
+      student: { name: 'Rahim', class: 7, section: 'A', roll: 1 },
+      result: {
+        ...result({
+          subjects: [
+            subject({
+              name: 'English',
+              papers: [
+                {
+                  name: 'English 1st Paper',
+                  previous: { ...none, marks: 30 },
+                  yearEnd: { ...none, marks: 35 },
+                  combined: 65,
+                  fullMark: 100,
+                },
+                {
+                  name: 'English 2nd Paper',
+                  previous: { ...none, marks: 28 },
+                  yearEnd: { ...none, marks: 31 },
+                  combined: 59,
+                  fullMark: 100,
+                },
+              ],
+            }),
+          ],
+        }),
+        position: 1,
+      },
+      previousExamName: 'Half Yearly',
+      yearEndExamName: 'Annual',
+    });
+    doc.end();
+    expect(y).toBeGreaterThan(232 + 20 * 4); // header (2 rows) + 2 paper rows
+  });
+
   it('renders without throwing and returns the y below the summary', () => {
     const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 });
     const y = drawSessionMarksheetBody(doc, {

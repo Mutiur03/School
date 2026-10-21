@@ -859,7 +859,7 @@ async function drawProperHeader(
 
   doc.font('Times-Bold').fontSize(10);
   const websiteStr = school?.website?.trim() || '';
-  const headerOffset = websiteStr ? 14 : 0;
+  const headerOffset = websiteStr ? 4 : 0;
 
   if (websiteStr) {
     const host = websiteStr.replace(/^https?:\/\//, '');
@@ -867,17 +867,6 @@ async function drawProperHeader(
       ? websiteStr.replace(/\/+$/, '')
       : `https://${host}`;
     doc.text(websiteUrl, pageHeaderX, 90, {
-      align: 'center',
-      width: pageHeaderWidth,
-    });
-  }
-
-  const infoBits: string[] = [];
-  if (school?.eiin) infoBits.push(`EIIN: ${school.eiin}`);
-  if (school?.phone) infoBits.push(`Phone: ${school.phone}`);
-  const infoText = infoBits.join(', ');
-  if (infoText) {
-    doc.text(infoText, pageHeaderX, 90 + headerOffset, {
       align: 'center',
       width: pageHeaderWidth,
     });

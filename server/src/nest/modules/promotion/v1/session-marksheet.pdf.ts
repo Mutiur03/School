@@ -17,9 +17,10 @@ export interface SessionRow {
   /** split: [previous, year-end, total]; year-end only: [year-end]. */
   marks: string[];
   fullMark: string;
-  passMark: string;
   grade: string;
   gp: string;
+  /** Main subjects: one row per paper (marks + full mark); grade/GP span them. */
+  papers?: { subject: string; marks: string[]; fullMark: string }[];
 }
 
 export interface SessionTable {
@@ -42,9 +43,21 @@ export function buildSessionTable(result: StudentSessionResult): SessionTable {
         ? [fmt(s.previous?.marks), fmt(s.yearEnd.marks), entered ? String(s.combined) : '-']
         : [fmt(s.yearEnd.marks)],
       fullMark: s.fullMark > 0 ? String(s.fullMark) : '-',
-      passMark: s.isContinuous || !s.passMark ? '-' : String(s.passMark),
       grade: s.grade,
       gp: s.gp.toFixed(2),
+      ...(s.papers?.length && {
+        papers: s.papers.map((p) => ({
+          subject: p.name,
+          marks: split
+            ? [
+                fmt(p.previous?.marks),
+                fmt(p.yearEnd.marks),
+                p.yearEnd.marks != null || p.previous?.marks != null ? String(p.combined) : '-',
+              ]
+            : [fmt(p.yearEnd.marks)],
+          fullMark: p.fullMark > 0 ? String(p.fullMark) : '-',
+        })),
+      }),
     };
   };
   const exam = result.subjects.filter((s) => !s.isContinuous);
@@ -134,7 +147,7 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
 
   const table = buildSessionTable(data.result);
   const markW = table.split ? [62, 62, 44] : [80];
-  const tailW = [42, 42, 42, 42]; // Full, Pass, Letter Grade, Grade Point
+  const tailW = [50, 50, 50]; // Full, Letter Grade, Grade Point
   const subjectW = WIDTH - [...markW, ...tailW].reduce((a, b) => a + b, 0);
   const widths = [subjectW, ...markW, ...tailW];
   const xs = widths.reduce<number[]>((acc, w) => [...acc, acc[acc.length - 1] + w], [X0]);
@@ -165,7 +178,7 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
     headerCell(doc, h, xs[1 + i], y + ROW_H, widths[1 + i], ROW_H, 8);
     if (i > 0) vline(doc, xs[1 + i], y + ROW_H, ROW_H);
   });
-  ['Full Marks', 'Pass Marks', 'Letter Grade', 'Grade Point'].forEach((h, i) =>
+  ['Full Marks', 'Letter Grade', 'Grade Point'].forEach((h, i) =>
     headerCell(doc, h, xs[markEnd + i], y, widths[markEnd + i], headH),
   );
   for (let i = 1; i < widths.length; i++) if (i <= 1 || i >= markEnd) vline(doc, xs[i], y, headH);
@@ -183,23 +196,39 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
     );
     y += ROW_H;
   };
-  const rowCells = (r: SessionRow) => [
-    r.subject,
-    ...r.marks,
-    r.fullMark,
-    r.passMark,
-    r.grade,
-    r.gp,
-  ];
+  // A main subject: one row per paper like the per-exam sheet; grade and GP span the papers.
+  const drawSubject = (r: SessionRow) => {
+    if (!r.papers) {
+      drawRow([r.subject, ...r.marks, r.fullMark, r.grade, r.gp]);
+      return;
+    }
+    const h = ROW_H * r.papers.length;
+    ensure(h);
+    doc.lineWidth(0.5).rect(X0, y, WIDTH, h).stroke('#000000');
+    const spanFrom = markEnd + 1; // grade, GP
+    for (let i = 1; i < widths.length; i++) vline(doc, xs[i], y, h);
+    r.papers.forEach((p, k) => {
+      const py = y + k * ROW_H;
+      if (k > 0) {
+        doc.moveTo(X0, py).lineTo(xs[spanFrom], py).stroke();
+      }
+      [p.subject, ...p.marks, p.fullMark].forEach((c, i) =>
+        cell(doc, c, xs[i], py, widths[i], ROW_H, { align: i === 0 ? 'left' : 'center' }),
+      );
+    });
+    cell(doc, r.grade, xs[spanFrom], y, widths[spanFrom], h);
+    cell(doc, r.gp, xs[spanFrom + 1], y, widths[spanFrom + 1], h);
+    y += h;
+  };
 
-  table.examRows.forEach((r) => drawRow(rowCells(r)));
-  drawRow(['Total Marks', ...table.totals, '', '', '', ''], { bold: true });
+  table.examRows.forEach(drawSubject);
+  drawRow(['Total Marks', ...table.totals, '', '', ''], { bold: true });
 
   if (table.continuousRows.length) {
     ensure(ROW_H * 2);
     cell(doc, 'Continuous assessment', X0, y + 4, WIDTH, ROW_H - 4, { bold: true, size: 11 });
     y += ROW_H;
-    table.continuousRows.forEach((r) => drawRow(rowCells(r)));
+    table.continuousRows.forEach(drawSubject);
   }
 
   // Summary: Grand Total | GPA.
@@ -213,8 +242,8 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
   });
   [totalCol, markEnd, markEnd + 2].forEach((i) => vline(doc, xs[i], y, ROW_H));
   cell(doc, String(r.grandTotal), xs[totalCol], y, widths[totalCol], ROW_H, { bold: true });
-  cell(doc, 'GPA', xs[markEnd], y, widths[markEnd] * 2, ROW_H, { bold: true });
-  cell(doc, r.gpa.toFixed(2), xs[markEnd + 2], y, widths[markEnd + 2] * 2, ROW_H, { bold: true });
+  cell(doc, 'GPA', xs[markEnd], y, widths[markEnd] + widths[markEnd + 1], ROW_H, { bold: true });
+  cell(doc, r.gpa.toFixed(2), xs[markEnd + 2], y, widths[markEnd + 2], ROW_H, { bold: true });
   y += ROW_H;
 
   for (const note of data.notes ?? []) {

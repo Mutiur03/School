@@ -48,6 +48,15 @@ export interface ExamMarks {
   practical: number | null;
 }
 
+/** One paper of a main subject, shown on its own row of the marksheet. */
+export interface PaperResult {
+  name: string;
+  previous: ExamMarks | null;
+  yearEnd: ExamMarks;
+  combined: number;
+  fullMark: number;
+}
+
 export interface SubjectResult {
   subjectId: number;
   name: string;
@@ -62,6 +71,8 @@ export interface SubjectResult {
   grade: string;
   gp: number;
   passed: boolean;
+  /** Main subjects only: the papers behind the combined row (display; the result uses the combined). */
+  papers?: PaperResult[];
 }
 
 export interface StudentSessionResult {
@@ -143,14 +154,16 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
     const parts = unit.subject_type === 'main' ? papers : [unit];
     if (!parts.length) continue;
 
-    const ids = new Set(parts.map((p) => p.id));
-    const yearEnd = examMarks(input.marks, ids, yearEndExamId);
-    // ponytail: a missing previousExamId for 6-9 counts as 0 marks (strict v1 rule), not as year-end only.
-    const previous = both
-      ? input.previousExamId == null
-        ? { marks: null, cq: null, mcq: null, practical: null }
-        : examMarks(input.marks, ids, input.previousExamId)
-      : null;
+    const marksOf = (ids: Set<number>) => ({
+      yearEnd: examMarks(input.marks, ids, yearEndExamId),
+      // ponytail: a missing previousExamId for 6-9 counts as 0 marks (strict v1 rule), not as year-end only.
+      previous: both
+        ? input.previousExamId == null
+          ? { marks: null, cq: null, mcq: null, practical: null }
+          : examMarks(input.marks, ids, input.previousExamId)
+        : null,
+    });
+    const { yearEnd, previous } = marksOf(new Set(parts.map((p) => p.id)));
     const comb = (k: keyof ExamMarks) => (yearEnd[k] ?? 0) + (previous?.[k] ?? 0);
 
     const examFull = sumOf(parts, 'full_mark');
@@ -198,6 +211,19 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
       grade,
       gp,
       passed,
+      ...(unit.subject_type === 'main' && {
+        papers: [...parts]
+          .sort((a, b) => a.priority - b.priority)
+          .map((p) => {
+            const m = marksOf(new Set([p.id]));
+            return {
+              name: p.name,
+              ...m,
+              combined: (m.yearEnd.marks ?? 0) + (m.previous?.marks ?? 0),
+              fullMark: Number(p.full_mark ?? 0) * M,
+            };
+          }),
+      }),
     });
   }
   results.sort((a, b) => a.priority - b.priority);

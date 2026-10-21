@@ -129,6 +129,11 @@ describe('v1 TOTAL pass table', () => {
         previous: { marks: 60 },
         yearEnd: { marks: 38 },
       });
+      // The papers stay visible for the marksheet, while pass/fail uses the combined subject.
+      expect(pass.subjects[0].papers?.map((p) => [p.combined, p.fullMark])).toEqual([
+        [60, 200],
+        [38, 100],
+      ]);
       expect(run({ classLevel, subjects, marks: at(97) }).subjects[0].passed).toBe(false);
     },
   );

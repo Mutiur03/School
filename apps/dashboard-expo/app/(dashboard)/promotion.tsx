@@ -315,6 +315,12 @@ export default function PromotionScreen() {
     success: (r) => `${r.assigned} retained class-6 students numbered in ${r.newYear}`,
     failure: 'Failed to assign retained students',
   });
+  const retainClass10 = useAdminMutation({
+    mutationFn: (_: void) => promotions.retainClass10(year),
+    invalidate: INVALIDATE,
+    success: (r) => `${r.retained} failed class-10 students added to class 10 in ${r.newYear}`,
+    failure: 'Failed to retain class 10 students',
+  });
   const graduate = useAdminMutation({
     mutationFn: (_: void) => promotions.graduate(year),
     invalidate: INVALIDATE,
@@ -639,6 +645,16 @@ export default function PromotionScreen() {
                 loadGradPlan.mutate();
               }}
             />
+            {st.class10Done && st.awaitingRetain > 0 ? (
+              <Button
+                size="sm"
+                label={
+                  retainClass10.isPending ? 'Retaining…' : `Retain failed (${st.awaitingRetain})`
+                }
+                disabled={retainClass10.isPending}
+                onPress={() => retainClass10.mutate()}
+              />
+            ) : null}
           </Step>
         </View>
       </SectionCard>
@@ -930,14 +946,14 @@ export default function PromotionScreen() {
             <StatStrip>
               <Stat label="Class 10" value={gradData.summary.total} />
               <Stat label="Graduate" value={gradData.summary.graduates} dot="bg-sky-500" />
-              <Stat label="Retain" value={gradData.summary.retained} dot="bg-amber-500" />
+              <Stat label="Hold" value={gradData.summary.held} dot="bg-amber-500" />
             </StatStrip>
             {gradData.summary.skipped > 0 ? (
               <Notice title="Skipped">{skippedText(gradData.summary.skipped)}</Notice>
             ) : null}
-            {gradData.summary.existing_class10_next_year > 0 ? (
-              <Notice title="Already enrolled">
-                {`${gradData.summary.existing_class10_next_year} class-10 enrollment${gradData.summary.existing_class10_next_year === 1 ? '' : 's'} already in ${gradData.newYear} — retained students will be updated, not duplicated.`}
+            {gradData.summary.held > 0 ? (
+              <Notice title="Held">
+                {`${gradData.summary.held} student${gradData.summary.held === 1 ? '' : 's'} not passed stay in ${gradData.year} with no ${gradData.newYear} class-10 place. Pass more of them if needed, then use Retain failed.`}
               </Notice>
             ) : null}
             <PreviewTable
@@ -951,9 +967,7 @@ export default function PromotionScreen() {
                   ? r.ssc_batch
                     ? `Graduate · SSC ${r.ssc_batch}`
                     : 'Graduate'
-                  : r.new_section && r.new_roll
-                    ? `Retain · ${gradData.newYear}: 10${r.new_section}${r.new_roll}`
-                    : 'Retain',
+                  : 'Hold',
               ])}
             />
           </>

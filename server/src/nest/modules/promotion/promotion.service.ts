@@ -587,29 +587,17 @@ export class PromotionService {
     return { assigned: waiting.length, newYear };
   }
 
+  /** Class-10 graduation: Passed students get the SSC batch; everyone else is held (no next-year row). */
   private async graduationPlan(schoolId: number, year: number) {
     const newYear = year + 1;
-    const sscBatch = String(year + 1);
+    const sscBatch = String(newYear);
     const {
       rows: ranked,
       skipped,
       skippedStudents,
     } = await this.rank(schoolId, await this.completeResults(schoolId, year, [10]));
-    const inPlan = new Set(ranked.map((r) => r.result.studentId));
-    const class10 = await this.nextYearRows(schoolId, newYear, 10);
-    const rowOf = new Map(
-      class10.filter((r) => inPlan.has(r.student_id)).map((r) => [r.student_id, r]),
-    );
-
-    // A retainee already placed keeps its row; new ones append after everyone else in the section.
-    const keptOrOther = (r: (typeof class10)[number]) =>
-      !inPlan.has(r.student_id) ||
-      ranked.some((x) => x.result.studentId === r.student_id && x.status === 'Failed');
-    const nextRoll = rollCounter(class10.filter(keptOrOther));
-    const students = ranked.map(({ result: r, status, fourthSubjectId, finalMerit }) => {
+    const students = ranked.map(({ result: r, status, finalMerit }) => {
       const graduate = status === 'Passed';
-      const kept = graduate ? undefined : rowOf.get(r.studentId);
-      const new_section = graduate ? null : (kept?.section ?? (finalMerit % 2 === 1 ? 'A' : 'B'));
       return {
         enrollment_id: r.enrollmentId,
         student_id: r.studentId,
@@ -620,28 +608,17 @@ export class PromotionService {
         status,
         gpa: r.gpa,
         final_merit: finalMerit,
-        action: graduate ? ('graduate' as const) : ('retain' as const),
+        action: graduate ? ('graduate' as const) : ('hold' as const),
         ssc_batch: graduate ? sscBatch : null,
-        new_section,
-        new_roll: kept ? kept.roll : new_section ? nextRoll(10, new_section) : null,
-        kept: !!kept,
-        fourth_subject_id: fourthSubjectId,
       };
     });
-    // Graduates must not keep a class-10 row from an earlier run that retained them.
-    const staleIds = class10
-      .filter((r) => students.some((s) => s.action === 'graduate' && s.student_id === r.student_id))
-      .map((r) => r.id);
-    return {
-      year,
-      newYear,
-      sscBatch,
-      students,
-      staleIds,
-      skipped,
-      skippedStudents,
-      existingClass10NextYear: class10.length,
-    };
+    // A graduate must not keep a class-10 row from an earlier run that retained them.
+    const graduateIds = new Set(
+      students.filter((s) => s.action === 'graduate').map((s) => s.student_id),
+    );
+    const class10 = await this.nextYearRows(schoolId, newYear, 10);
+    const staleIds = class10.filter((r) => graduateIds.has(r.student_id)).map((r) => r.id);
+    return { year, newYear, sscBatch, students, staleIds, skipped, skippedStudents };
   }
 
   async previewGraduation(schoolId: number, year: number) {
@@ -656,21 +633,23 @@ export class PromotionService {
       summary: {
         total: plan.students.length,
         graduates,
-        retained: plan.students.length - graduates,
+        held: plan.students.length - graduates,
         skipped: plan.skipped,
-        existing_class10_next_year: plan.existingClass10NextYear,
       },
     };
   }
 
+  /**
+   * Passed students stay Passed and active with the SSC batch set. Failed ones are held: no next-year
+   * class-10 row until `retainFailed`, so the admin can still pass more of them first.
+   */
   async graduate(schoolId: number, year: number, ranBy: string | null = null) {
     const { newYear, sscBatch, students, staleIds, skipped } = await this.graduationPlan(
       schoolId,
       year,
     );
-    const retained = students.filter((s) => s.action === 'retain' && !s.kept);
     const graduates = students.filter((s) => s.action === 'graduate');
-    if (!students.length) return { graduated: 0, retained: 0, skipped, newYear, sscBatch };
+    if (!students.length) return { graduated: 0, held: 0, skipped, newYear, sscBatch };
 
     await rlsTransaction(async (tx) => {
       for (const s of students) {
@@ -678,16 +657,14 @@ export class PromotionService {
           where: { id: s.enrollment_id, school_id: schoolId },
           data: {
             final_merit: s.final_merit,
-            ...(s.action === 'graduate'
-              ? { status: 'Graduated', next_year_section: null, next_year_roll: 0 }
-              : { next_year_section: s.new_section, next_year_roll: s.new_roll! }),
+            ...(s.action === 'graduate' && { next_year_section: null, next_year_roll: 0 }),
           },
         });
       }
       if (graduates.length) {
         await tx.students.updateMany({
           where: { school_id: schoolId, id: { in: graduates.map((s) => s.student_id) } },
-          data: { batch: sscBatch, available: false },
+          data: { batch: sscBatch },
         });
       }
       await this.assertNoNextYearMarks(tx, schoolId, newYear, staleIds);
@@ -696,32 +673,85 @@ export class PromotionService {
           where: { school_id: schoolId, year: newYear, id: { in: staleIds } },
         });
       }
-      if (retained.length) {
-        const mapSubject = await this.subjectMapping(tx, schoolId, year, newYear);
-        await tx.student_enrollments.createMany({
-          data: retained.map((s) => ({
-            school_id: schoolId,
-            student_id: s.student_id,
-            class: 10,
-            section: s.new_section!,
-            roll: s.new_roll!,
-            year: newYear,
-            group: s.group,
-            status: 'Pending',
-            fourth_subject_id: mapSubject(s.fourth_subject_id, 10),
-          })),
-        });
-      }
       await this.recordRun(tx, schoolId, year, 'graduation', ranBy);
     }, TX_OPTIONS);
 
     return {
       graduated: graduates.length,
-      retained: students.length - graduates.length,
+      held: students.length - graduates.length,
       skipped,
       newYear,
       sscBatch,
     };
+  }
+
+  /** Class-10 enrollments still Failed after graduation with no next-year row yet. */
+  private awaitingRetainWhere(schoolId: number, year: number) {
+    return {
+      school_id: schoolId,
+      year,
+      class: 10,
+      status: 'Failed',
+      next_year_section: null,
+      result_held: false,
+      student: { available: true },
+    };
+  }
+
+  /**
+   * Puts the class-10 students who are still Failed into next year's class 10, in merit order, after
+   * the rolls already taken there. Run it once the admin is done passing students.
+   */
+  async retainFailed(schoolId: number, year: number) {
+    const newYear = year + 1;
+    const waiting = await this.prisma.student_enrollments.findMany({
+      where: this.awaitingRetainWhere(schoolId, year),
+      select: {
+        id: true,
+        student_id: true,
+        group: true,
+        fourth_subject_id: true,
+        final_merit: true,
+      },
+      orderBy: { final_merit: 'asc' },
+    });
+    if (!waiting.length) return { retained: 0, newYear };
+
+    await rlsTransaction(async (tx) => {
+      const taken = await tx.student_enrollments.findMany({
+        where: { school_id: schoolId, year: newYear, class: 10 },
+        select: { student_id: true, class: true, section: true, roll: true },
+      });
+      const placed = new Map(taken.map((r) => [r.student_id, r]));
+      const nextRoll = rollCounter(taken);
+      const mapSubject = await this.subjectMapping(tx, schoolId, year, newYear);
+      for (const e of waiting) {
+        let row = placed.get(e.student_id);
+        if (!row) {
+          const section = e.final_merit % 2 === 1 ? 'A' : 'B';
+          row = { student_id: e.student_id, class: 10, section, roll: nextRoll(10, section) };
+          await tx.student_enrollments.create({
+            data: {
+              school_id: schoolId,
+              student_id: e.student_id,
+              class: 10,
+              section: row.section,
+              roll: row.roll,
+              year: newYear,
+              group: e.group,
+              status: 'Pending',
+              fourth_subject_id: mapSubject(e.fourth_subject_id, 10),
+            },
+          });
+        }
+        await tx.student_enrollments.update({
+          where: { id: e.id, school_id: schoolId },
+          data: { next_year_section: row.section, next_year_roll: row.roll },
+        });
+      }
+    }, TX_OPTIONS);
+
+    return { retained: waiting.length, newYear };
   }
 
   /**
@@ -837,7 +867,7 @@ export class PromotionService {
    * Nobody else moves: a new row goes to the end of the smaller section of the target class.
    * - not run yet for its class → `none` (the next promotion places it)
    * - Pending → `remove` its next-year rows
-   * - class 10 Passed → `graduate`
+   * - class 10 Passed → `graduate`, Failed → `hold` (no next-year row until `retainFailed`)
    * - already in the target class → `unchanged`
    * - otherwise → `move` (failed class 6 with no admissions yet → roll null, waits for `assignRetained`)
    */
@@ -870,14 +900,15 @@ export class PromotionService {
       name: e.student.name,
       class: e.class,
     };
-    const ran = await this.prisma.student_enrollments.count({
-      where: {
-        school_id: schoolId,
-        year,
-        class: e.class,
-        OR: [{ next_year_section: { not: null } }, { status: 'Graduated' }],
-      },
-    });
+    // Class 10 graduates leave no next-year trace, so "ran" is the recorded graduation run.
+    const ran =
+      e.class === 10
+        ? await this.prisma.promotion_runs.count({
+            where: { school_id: schoolId, year, kind: 'graduation' },
+          })
+        : await this.prisma.student_enrollments.count({
+            where: { school_id: schoolId, year, class: e.class, next_year_section: { not: null } },
+          });
     if (!ran || status === 'Graduated') return { ...base, action: 'none' as const, deleteIds: [] };
 
     const own = await this.prisma.student_enrollments.findMany({
@@ -888,8 +919,11 @@ export class PromotionService {
     if (status !== 'Passed' && status !== 'Failed') {
       return { ...base, action: 'remove' as const, deleteIds: ownIds };
     }
-    if (status === 'Passed' && e.class === 10) {
-      return { ...base, action: 'graduate' as const, deleteIds: ownIds };
+    if (e.class === 10) {
+      // Passed leaves with the SSC batch; Failed is held until `retainFailed`.
+      return status === 'Passed'
+        ? { ...base, action: 'graduate' as const, deleteIds: ownIds }
+        : { ...base, action: 'hold' as const, deleteIds: [] };
     }
 
     const newClass = status === 'Passed' ? e.class + 1 : e.class;
@@ -936,7 +970,7 @@ export class PromotionService {
 
   private async applyPlacement(tx: Tx, schoolId: number, year: number, plan: Placement) {
     const newYear = year + 1;
-    if (plan.action === 'none') return;
+    if (plan.action === 'none' || plan.action === 'hold') return;
     await this.assertNoNextYearMarks(tx, schoolId, newYear, plan.deleteIds);
     if (plan.deleteIds.length) {
       await tx.student_enrollments.deleteMany({
@@ -952,11 +986,11 @@ export class PromotionService {
     } else if (plan.action === 'graduate') {
       await tx.student_enrollments.update({
         where,
-        data: { status: 'Graduated', next_year_section: null, next_year_roll: 0 },
+        data: { next_year_section: null, next_year_roll: 0 },
       });
       await tx.students.update({
         where: { id: plan.studentId, school_id: schoolId },
-        data: { batch: String(newYear), available: false },
+        data: { batch: String(newYear) },
       });
     } else {
       if (plan.action === 'move' && plan.newRoll != null) {
@@ -1192,6 +1226,7 @@ export class PromotionService {
       promotedCount,
       nextYearCount,
       awaitingRoll,
+      awaitingRetain,
       unplaced,
       runs,
     ] = await Promise.all([
@@ -1212,6 +1247,7 @@ export class PromotionService {
         where: { school_id: schoolId, year: newYear, ...ACTIVE },
       }),
       this.prisma.student_enrollments.count({ where: this.awaitingRollWhere(schoolId, year) }),
+      this.prisma.student_enrollments.count({ where: this.awaitingRetainWhere(schoolId, year) }),
       // Passed/Failed active students with no next-year place: promotion has not covered them yet.
       this.prisma.student_enrollments.count({
         where: {
@@ -1249,6 +1285,8 @@ export class PromotionService {
       promoted: promotedCount > 0,
       next_year_enrollments: nextYearCount,
       awaiting_roll: awaitingRoll,
+      /** Class-10 students still Failed after graduation (the Retain button's count). */
+      awaiting_retain: awaitingRetain,
       /** Only meaningful once promoted: results changed in bulk since (e.g. regenerated) → promote again. */
       unplaced: promotedCount > 0 ? unplaced : 0,
       promotion_run: run('promotion'),

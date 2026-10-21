@@ -1046,7 +1046,7 @@ export class StudentService {
     return await generatePDF(data);
   }
 }
-async function generatePDF(data: {
+export async function generatePDF(data: {
   school_name: string;
   school_location: string;
   school_website: string;

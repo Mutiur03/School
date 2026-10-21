@@ -76,6 +76,7 @@ test.each([
   ['POST', `/api/promotions/${YEAR}`],
   ['GET', `/api/graduations/${YEAR}/plan`],
   ['POST', `/api/graduations/${YEAR}`],
+  ['POST', `/api/graduations/${YEAR}/retained`],
   ['PATCH', `/api/promotions/${YEAR}/results/1`],
   ['GET', `/api/promotions/${YEAR}/results/1/placement?status=Passed`],
   ['DELETE', `/api/promotions/${YEAR}/results/1/override`],

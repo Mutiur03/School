@@ -173,6 +173,8 @@ const stats = (o: Partial<PromotionStats> = {}): PromotionStats => ({
   promoted: false,
   next_year_enrollments: 0,
   awaiting_roll: 0,
+  awaiting_retain: 0,
+  graduated: false,
   ...o,
 });
 
@@ -235,8 +237,8 @@ describe('year-end promotion', () => {
       2,
     );
     assert.equal(
-      graduateMessage({ graduated: 40, retained: 2 }),
-      'Graduation complete: 40 alumni, 2 retained',
+      graduateMessage({ graduated: 40, held: 2 }),
+      'Graduation complete: 40 passed, 2 held',
     );
     assert.equal(holdConfirm('Rina', true).confirmLabel, 'Release');
     assert.equal(holdConfirm('Rina', false).title, 'Hold result?');
