@@ -83,7 +83,33 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-router',
       'expo-status-bar',
       'expo-secure-store',
-      ['expo-font', { fonts: ['./assets/fonts/SolaimanLipi.ttf'] }],
+      // Embedded at build time; Android exposes each under its file name (Outfit_400Regular, ...),
+      // which is what the theme uses, so native screens never wait for a font load.
+      [
+        'expo-font',
+        {
+          fonts: [
+            './assets/fonts/Outfit_400Regular.ttf',
+            './assets/fonts/Outfit_500Medium.ttf',
+            './assets/fonts/Outfit_600SemiBold.ttf',
+            './assets/fonts/Outfit_700Bold.ttf',
+            './assets/fonts/SolaimanLipi.ttf',
+          ],
+        },
+      ],
+      // Listed BEFORE expo-splash-screen on purpose: mods of later plugins run first, so this
+      // runs after it and repoints its splash icon at @mipmap/ic_launcher.
+      './plugins/withLauncherIconSplash',
+      // Held until the first real screen renders (src/boot/splash.ts). Light: same white as
+      // BootScreen / the app background. Dark (system night mode): slate-900 behind the icon.
+      [
+        'expo-splash-screen',
+        {
+          // No image: the splash shows the launcher adaptive icon (system shape/size), like main.
+          backgroundColor: '#ffffff',
+          dark: { backgroundColor: '#0F172A' },
+        },
+      ],
       [
         'expo-camera',
         {

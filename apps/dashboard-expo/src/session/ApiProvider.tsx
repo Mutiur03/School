@@ -86,7 +86,8 @@ import {
   type StudentsApi,
 } from '@/lib/api';
 import { createSessionPersistence } from '@/lib/storage/session-persistence';
-import { purgePrivateQueries } from '@/tenant/query-keys';
+import { purgePrivateQueries, TENANT_ROOT } from '@/tenant/query-keys';
+import { QueryPersistence } from './query-persistence';
 import type { TenantConnection, TenantResolution } from '@/tenant/resolve';
 
 export interface ApiContextValue {
@@ -157,6 +158,7 @@ export function ApiProvider({
         getAccessToken: () => session?.getAccessToken() ?? null,
         refresh: () => session?.refresh() ?? Promise.resolve(false),
         onSessionExpired: (error) => session?.onSessionExpired(error),
+        awaitAccessToken: () => session?.awaitAccessToken() ?? Promise.resolve(),
       },
     });
     const auth = createAuthApi(client);
@@ -211,12 +213,18 @@ export function ApiProvider({
 
   useEffect(() => {
     const { session } = value;
-    let previous = session.getSnapshot().status;
+    let previous = session.getSnapshot();
     const unsubscribe = session.subscribe((snapshot) => {
-      if (previous === 'authenticated' && snapshot.status !== 'authenticated') {
+      if (previous.status === 'authenticated' && snapshot.status !== 'authenticated') {
         purgePrivateQueries(queryClient, tenant.tenantKey);
       }
-      previous = snapshot.status;
+      // Came back after an offline start: refetch what failed while the app showed offline.
+      if (previous.startupError && snapshot.status === 'authenticated') {
+        void queryClient.invalidateQueries({
+          queryKey: [TENANT_ROOT, tenant.tenantKey, 'private'],
+        });
+      }
+      previous = snapshot;
     });
     if (configIssues.length === 0 && tenant.source !== 'unresolved') {
       void session.bootstrap();
@@ -230,7 +238,17 @@ export function ApiProvider({
     };
   }, [value, queryClient, tenant.tenantKey, tenant.source]);
 
-  return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
+  return (
+    <ApiContext.Provider value={value}>
+      <QueryPersistence
+        queryClient={queryClient}
+        tenantKey={tenant.tenantKey}
+        session={value.session}
+      >
+        {children}
+      </QueryPersistence>
+    </ApiContext.Provider>
+  );
 }
 
 export function useApi(): ApiContextValue {
@@ -254,4 +272,12 @@ export function useSession(): SessionSnapshot & { signOut: () => Promise<void> }
     session.getSnapshot,
   );
   return { ...snapshot, signOut };
+}
+
+/**
+ * The signed-in user's id, or at launch the saved one while the refresh runs, for query keys
+ * only (so the restored cache and the first fetch use the final key). Never for authorization.
+ */
+export function sessionUserId(session: SessionSnapshot): number | undefined {
+  return session.user?.id ?? session.provisional?.userId ?? undefined;
 }

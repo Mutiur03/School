@@ -64,7 +64,17 @@ export default function LoginScreen() {
       return <Redirect href={safeNext(next, session.user?.role, resolution.source) ?? home} />;
     }
   }
-  if (session.status === 'unknown') return <SessionBoot />;
+  if (session.status === 'unknown') {
+    // Saved native session: go straight to the saved role's screens; the gate there confirms it.
+    const home = session.provisional
+      ? homeForRole(session.provisional.role, resolution.source)
+      : null;
+    if (home)
+      return (
+        <Redirect href={safeNext(next, session.provisional?.role, resolution.source) ?? home} />
+      );
+    return <SessionBoot />;
+  }
 
   const field = LOGIN_FIELDS[role];
   const submit = () => {

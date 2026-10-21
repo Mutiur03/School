@@ -22,6 +22,11 @@ export interface AuthHooks {
   refresh(): Promise<boolean>;
   /** Called once when a 401 could not be recovered by refreshing. */
   onSessionExpired(error: ApiError): void;
+  /**
+   * Optional: wait until a token is available (or the session is known to be gone) before an
+   * authenticated request without one goes out. Must never reject.
+   */
+  awaitAccessToken?(): Promise<void>;
 }
 
 export interface ApiClientOptions {
@@ -170,6 +175,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       }
     }
 
+    if (useAuth && !isRetry && options.auth?.awaitAccessToken && !options.auth.getAccessToken()) {
+      await options.auth.awaitAccessToken();
+    }
     const token = useAuth ? options.auth?.getAccessToken() : null;
     if (token) headers.Authorization = `Bearer ${token}`;
 

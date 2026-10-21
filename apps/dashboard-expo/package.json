@@ -38,6 +38,7 @@
     "expo-router": "~57.0.28",
     "expo-secure-store": "~57.0.4",
     "expo-sharing": "~57.0.23",
+    "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.26",
     "fflate": "^0.8.3",
