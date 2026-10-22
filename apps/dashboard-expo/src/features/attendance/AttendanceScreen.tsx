@@ -10,16 +10,23 @@
  * small status icons under each name.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { calculateSMSCount } from '@school/shared-schemas';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { useToast } from '@/components/ui/Toast';
+import { useLeaveGuard } from '@/navigation/LeaveGuard';
+import { openPdf } from '@/lib/files/open-pdf';
+import { pdfFileName } from '@/lib/files/pdf-name';
 import { Icon } from '@/components/ui/Icon';
 import {
   AlertTriangle,
   Check,
   ChevronLeft,
+  FileText,
   ChevronRight,
   Loader2,
   Send,
@@ -41,9 +48,12 @@ import { cn } from '@/lib/utils';
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
+import { useTenantStorage } from '@/tenant/useTenantStorage';
 import { confirmDiscard } from './confirm';
 import {
   applyToggle,
+  attendanceSmsEstimate,
+  parseStoredClass,
   ATTENDANCE_CLASSES,
   ATTENDANCE_SECTIONS,
   buildMaps,
@@ -57,6 +67,9 @@ import {
   setAll,
   type LocalEdits,
 } from './model';
+
+const CLASS_STORAGE = 'attendance-class';
+const segments = (text: string) => calculateSMSCount(text).count;
 
 // Status colours from the web page (Tailwind v4 palette, see tailwind.palette.js).
 const C = { present: '#009966', absent: '#fb2c36', ran: '#fe9a00' };
@@ -228,22 +241,16 @@ function PresentToggle({
         disabled={!student.available}
         onPress={() => onChange(present)}
         className={cn(
-          'h-11 min-w-[64px] flex-row items-center justify-center gap-1 rounded-sm px-2',
+          // Icon-only so the name column gets the width; 44px keeps the touch target.
+          'h-11 w-11 items-center justify-center rounded-sm',
           on && (present ? 'bg-emerald-600' : implied ? 'bg-red-100' : 'bg-red-500'),
         )}
       >
         <Icon
           icon={present ? Check : XIcon}
-          size={16}
+          size={20}
           rawColor={on && !implied ? '#ffffff' : present ? C.present : C.absent}
         />
-        <Text
-          size="sm"
-          weight="medium"
-          className={on ? (implied ? 'text-red-800' : 'text-white') : 'text-foreground'}
-        >
-          {present ? 'Present' : 'Absent'}
-        </Text>
       </Pressable>
     );
   };
@@ -265,7 +272,10 @@ export function AttendanceScreen() {
   const mobile = useBreakpoint() === 'mobile';
   const { attendance } = useApi();
   const { resolution } = useTenant();
+  const storage = useTenantStorage();
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
 
   const now = new Date();
   const todayDay = now.getDate();
@@ -278,6 +288,23 @@ export function AttendanceScreen() {
   const [notice, setNotice] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(
     null,
   );
+  // Same as web: remember the last class on this device and start on its section A.
+  useEffect(() => {
+    let alive = true;
+    void storage
+      .get(CLASS_STORAGE)
+      .then((raw) => {
+        const c = parseStoredClass(raw);
+        if (alive && c) {
+          setLevel((cur) => cur ?? c);
+          setSection((cur) => cur ?? ATTENDANCE_SECTIONS[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [storage]);
   const saving = useRef(false);
   const dayStrip = useRef<ScrollView>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -303,6 +330,13 @@ export function AttendanceScreen() {
     queryKey: key('stats', sel, todayIso),
     queryFn: ({ signal }) => attendance.stats({ ...sel!, date: todayIso }, signal),
     enabled: !!sel,
+  });
+
+  const smsQ = useQuery({
+    queryKey: key('sms-public'),
+    queryFn: ({ signal }) => attendance.smsSettings(signal),
+    enabled: !!sel,
+    staleTime: 5_000,
   });
 
   const save = useMutation({
@@ -361,6 +395,29 @@ export function AttendanceScreen() {
   );
   const unsaved = Object.keys(edits).length;
   const status = (id: number, day: number) => recordedStatus(edits, saved, id, day);
+  const sentMap = useMemo(
+    () => buildMaps(recordsQ.data ?? [], year, month).sent,
+    [recordsQ.data, year, month],
+  );
+  const smsCost = isCurrentMonth
+    ? attendanceSmsEstimate(
+        students,
+        edits,
+        saved,
+        sentMap,
+        smsQ.data,
+        todayIso,
+        todayDay,
+        segments,
+      ).cost
+    : 0;
+  const lowBalance = smsCost > 0 && (smsQ.data?.sms_balance ?? 0) < smsCost;
+
+  // In-app guard: the sidebar, tab bar, menus and Android back ask before dropping ticks.
+  useLeaveGuard(unsaved > 0, {
+    title: 'Leave without saving?',
+    message: `${unsaved} unsaved attendance ${unsaved === 1 ? 'change is' : 'changes are'} lost if you leave this page now.`,
+  });
 
   // Web: beforeunload guard while there are unsaved ticks.
   useEffect(() => {
@@ -386,9 +443,35 @@ export function AttendanceScreen() {
     setLevel(v);
     setSection(ATTENDANCE_SECTIONS[0]);
     setNotice(null);
+    void storage.set(CLASS_STORAGE, String(v)).catch(() => {});
   };
   const changeSection = async (v: string) => {
     if (v !== section && (await okToDiscard('section'))) setSection(v);
+  };
+  const changeYear = async (y: number) => {
+    if (y !== year && (await okToDiscard('year'))) setYear(y);
+  };
+  const exportPdf = async () => {
+    if (!sel || exporting) return;
+    if (unsaved > 0) {
+      const ok = await confirmDiscard(
+        'You have unsaved attendance changes. Export uses saved data only. Continue?',
+        { title: 'Unsaved changes', confirmLabel: 'Export anyway' },
+      );
+      if (!ok) return;
+    }
+    setExporting(true);
+    try {
+      const r = await openPdf(
+        () => attendance.sheetPdf({ year, month, level: sel.level, section: sel.section }),
+        pdfFileName(['attendance', `class-${sel.level}`, sel.section, MONTHS[month], year]),
+      );
+      if (r === 'unavailable') toast.error("This device can't open the PDF.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to export attendance sheet');
+    } finally {
+      setExporting(false);
+    }
   };
   const stepMonth = async (delta: number) => {
     if (!(await okToDiscard('month'))) return;
@@ -426,7 +509,7 @@ export function AttendanceScreen() {
     !loadError;
 
   const onSave = () => {
-    if (!sel || !canSave || saving.current) return; // double-submit guard
+    if (!sel || !canSave || unsaved === 0 || saving.current) return; // double-submit guard
     saving.current = true;
     setNotice(null);
     setRefreshing(true);
@@ -436,12 +519,13 @@ export function AttendanceScreen() {
     });
   };
 
-  const saveButton = (testID: string) => (
+  const saveButton = (testID: string, className?: string) => (
     <Button
       testID={testID}
+      className={className}
       label={save.isPending ? 'Saving…' : 'Save & send SMS'}
       icon={save.isPending ? Loader2 : Send}
-      disabled={!canSave}
+      disabled={!canSave || unsaved === 0}
       onPress={onSave}
       size={mobile ? 'lg' : 'default'}
     />
@@ -479,40 +563,38 @@ export function AttendanceScreen() {
             <View
               key={s.id}
               testID={`att-row-${s.id}`}
-              className={cn(
-                'flex-row items-center gap-3 px-4 py-2.5',
-                i > 0 && 'border-border border-t',
-              )}
+              className={cn('px-4 py-2.5', i > 0 && 'border-border border-t')}
             >
-              <Text size="sm" tabular color="mutedForeground" className="w-7">
-                {s.roll}
-              </Text>
-              <View className="min-w-0 flex-1">
-                <View className="flex-row items-center gap-2">
-                  <Text size="sm" weight="medium" numberOfLines={1} className="shrink">
+              <View className="flex-row items-center gap-3">
+                <Text size="sm" tabular color="mutedForeground" className="w-7">
+                  {s.roll}
+                </Text>
+                <View className="min-w-0 flex-1 flex-row items-center gap-2">
+                  <Text size="sm" weight="medium" numberOfLines={2} className="shrink">
                     {s.name}
                   </Text>
                   {s.available ? null : <StatusBadge status="inactive" />}
                 </View>
-                {pastDays.length ? (
-                  <View className="mt-1 flex-row flex-wrap gap-x-2 gap-y-0.5">
-                    {pastDays.map((d) => (
-                      <View key={d} className="flex-row items-center gap-0.5">
-                        <Text size="xs" color="mutedForeground" tabular>
-                          {d}
-                        </Text>
-                        <StatusIcon status={status(s.id, d)} size={12} />
-                      </View>
-                    ))}
-                  </View>
+                {isCurrentMonth && days.includes(todayDay) ? (
+                  <PresentToggle
+                    student={s}
+                    status={status(s.id, todayDay)}
+                    onChange={(p) => toggle(s.id, p)}
+                  />
                 ) : null}
               </View>
-              {isCurrentMonth && days.includes(todayDay) ? (
-                <PresentToggle
-                  student={s}
-                  status={status(s.id, todayDay)}
-                  onChange={(p) => toggle(s.id, p)}
-                />
+              {/* Full row width (under the toggle too), so many days don't wrap 3 per line. */}
+              {pastDays.length ? (
+                <View className="ml-10 mt-1 flex-row flex-wrap gap-y-1">
+                  {pastDays.map((d) => (
+                    <View key={d} className="w-8 flex-row items-center gap-0.5">
+                      <Text size="xs" color="mutedForeground" tabular>
+                        {d}
+                      </Text>
+                      <StatusIcon status={status(s.id, d)} size={12} />
+                    </View>
+                  ))}
+                </View>
               ) : null}
             </View>
           ))}
@@ -652,7 +734,22 @@ export function AttendanceScreen() {
 
   return (
     <View className="flex-1" testID="attendance-screen">
-      <PageLayout title="Attendance" actions={mobile ? undefined : saveButton('att-save')}>
+      <PageLayout
+        title="Attendance"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              icon={FileText}
+              label={exporting ? 'Preparing…' : 'Export PDF'}
+              disabled={!sel || exporting}
+              onPress={() => void exportPdf()}
+              testID="att-export"
+            />
+            {mobile ? null : saveButton('att-save')}
+          </>
+        }
+      >
         <View className="-mt-4 flex-row flex-wrap items-center gap-2">
           <ChipSelect
             label="Class"
@@ -689,7 +786,7 @@ export function AttendanceScreen() {
               className="min-w-[116px] text-center"
               testID="att-month"
             >
-              {MONTHS[month]} {year}
+              {MONTHS[month]}
             </Text>
             <Button
               variant="ghost"
@@ -699,7 +796,28 @@ export function AttendanceScreen() {
               onPress={() => void stepMonth(1)}
             />
           </View>
+          <Select
+            label="Year"
+            size="sm"
+            value={year}
+            options={[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => ({
+              value: y,
+              label: String(y),
+            }))}
+            onChange={(y) => void changeYear(y)}
+          />
         </View>
+        {smsCost > 0 ? (
+          <Text
+            size="xs"
+            tabular
+            color={lowBalance ? 'destructive' : 'mutedForeground'}
+            weight={lowBalance ? 'medium' : 'regular'}
+            testID="att-sms-estimate"
+          >
+            {`≈ ${smsCost} SMS credits${lowBalance ? ` · balance ${smsQ.data?.sms_balance} is not enough` : ''}`}
+          </Text>
+        ) : null}
 
         {noticeBox}
 
@@ -849,7 +967,9 @@ export function AttendanceScreen() {
           </Text>
         ) : null}
         {/* Room for the floating bar. */}
-        {unsaved > 0 || mobile ? <View className="h-20" /> : null}
+        {unsaved > 0 || mobile ? (
+          <View className={mobile && unsaved > 0 ? 'h-32' : 'h-20'} />
+        ) : null}
       </PageLayout>
 
       {unsaved > 0 || (mobile && canSave) ? (
@@ -860,7 +980,12 @@ export function AttendanceScreen() {
           <View
             testID="att-unsaved"
             accessibilityLabel="Unsaved attendance"
-            className="bg-card border-border w-full max-w-xl flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border px-4 py-2 shadow-lg"
+            className={cn(
+              'bg-card border-border w-full max-w-xl rounded-xl border shadow-lg',
+              mobile && unsaved > 0
+                ? 'gap-2 p-3'
+                : 'flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2',
+            )}
           >
             <Text size="sm" weight="medium" tabular>
               {unsaved === 0
@@ -870,14 +995,17 @@ export function AttendanceScreen() {
             <View className="flex-row gap-2">
               {unsaved > 0 ? (
                 <Button
-                  variant="ghost"
+                  variant={mobile ? 'outline' : 'ghost'}
                   size={mobile ? 'lg' : 'sm'}
                   label="Discard"
                   onPress={() => setEdits({})}
                   disabled={save.isPending}
                 />
               ) : null}
-              {saveButton(mobile ? 'att-save' : 'att-save-bar')}
+              {saveButton(
+                mobile ? 'att-save' : 'att-save-bar',
+                mobile && unsaved > 0 ? 'flex-1' : undefined,
+              )}
             </View>
           </View>
         </View>

@@ -3,7 +3,7 @@
  * school-wide code offers every role. The server still decides the role at login.
  */
 import { useMutation } from '@tanstack/react-query';
-import { Redirect, useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { AuthLayout, FieldLabel, SchoolMark } from '@/components/layout/AuthLayout';
@@ -36,6 +36,7 @@ export default function LoginScreen() {
   const { resolution, branding } = useTenant();
   const { selection } = useSchool();
   const switchSchool = useSwitchSchool();
+  const router = useRouter();
   const { role: urlRole, next } = useLocalSearchParams<{ role?: string; next?: string }>();
   const locked = lockedLoginRole(selection, resolution, urlRole);
   const [chosenRole, setRole] = useState<AppRole>(selection?.roleHint ?? 'admin');
@@ -181,6 +182,19 @@ export default function LoginScreen() {
           />
         </View>
       </FormChain>
+      {role !== 'admin' ? (
+        <Button
+          testID="login-forgot"
+          variant="link"
+          label="Forgot access details?"
+          className="self-end"
+          onPress={() =>
+            router.push(
+              `/forgot-password?role=${role}${identifier.trim() ? `&id=${encodeURIComponent(identifier.trim())}` : ''}` as Href,
+            )
+          }
+        />
+      ) : null}
       {error ? <ErrorMessage message={error} /> : null}
       <Button
         testID="login-submit"

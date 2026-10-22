@@ -2,12 +2,13 @@
  * Minimal line chart with react-native-svg, standing in for the recharts LineChart on the web
  * dashboard (pages/Admin/Dashboard.tsx): horizontal grid in --border, 11px muted axis labels,
  * 5 "nice" Y ticks, monotone cubic lines (recharts `type="monotone"`), strokeWidth 2, no dots.
- * No tooltip / active dot yet.
+ * Tap (or click) the plot to read a day: an active dot per line and a value tooltip.
  */
 import { useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { Text } from './Text';
 import { cn } from '@/lib/utils';
-import Svg, { Line, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { niceStep } from './line-chart-scale';
 
@@ -65,6 +66,7 @@ export function LineChart<T extends { name: string }>({
 }) {
   const { colors, fontFamilies } = useTheme();
   const [width, setWidth] = useState(0);
+  const [active, setActive] = useState<number | null>(null);
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
 
   const left = 36;
@@ -152,7 +154,53 @@ export function LineChart<T extends { name: string }>({
               />
             );
           })}
+          {active !== null && data[active]
+            ? series.map((s) => (
+                <Circle
+                  key={`dot-${s.key}`}
+                  cx={x(active)}
+                  cy={y(Number((data[active] as Record<string, unknown>)[s.key]) || 0)}
+                  r={4}
+                  fill={s.color}
+                  stroke={colors.background}
+                  strokeWidth={2}
+                />
+              ))
+            : null}
         </Svg>
+      ) : null}
+      {width > 0 ? (
+        <Pressable
+          accessibilityLabel="Chart values"
+          onPress={(e) => {
+            const px = e.nativeEvent.locationX - left;
+            const i =
+              data.length <= 1 ? 0 : Math.round((px / Math.max(1, plotW)) * (data.length - 1));
+            const next = Math.min(Math.max(i, 0), data.length - 1);
+            setActive((cur) => (cur === next ? null : next));
+          }}
+          style={{ position: 'absolute', left, right, top, bottom }}
+        />
+      ) : null}
+      {active !== null && data[active] ? (
+        <View
+          pointerEvents="none"
+          className="border-border bg-popover absolute gap-0.5 rounded-md border px-2 py-1"
+          style={{
+            top: 0,
+            left: Math.min(Math.max(x(active) - 60, 0), Math.max(0, width - 120)),
+            width: 120,
+          }}
+        >
+          <Text size="xs" weight="medium">
+            {data[active]!.name}
+          </Text>
+          {series.map((s) => (
+            <Text key={s.key} size="xs" tabular style={{ color: s.color }}>
+              {`${s.key}: ${Number((data[active!] as Record<string, unknown>)[s.key]) || 0}`}
+            </Text>
+          ))}
+        </View>
       ) : null}
     </View>
   );

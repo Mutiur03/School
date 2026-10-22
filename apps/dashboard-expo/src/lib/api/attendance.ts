@@ -84,6 +84,7 @@ export const ATTENDANCE_PATHS = {
   stats: '/api/attendance/getStats',
   saveAndSend: '/api/attendance/save-and-send',
   smsPublic: '/api/sms-settings/public',
+  sheetPdf: '/api/attendance/sheet/download',
 } as const;
 
 const num = (v: unknown, fallback = 0) => {
@@ -177,6 +178,13 @@ export function createAttendanceApi(client: ApiClient) {
       });
       return parseStats(data);
     },
+    /** Monthly attendance sheet PDF of one class and section (month is 0-11). */
+    sheetPdf: (p: { year: number; month: number; level: number; section: string }) =>
+      client.get<ArrayBuffer>(ATTENDANCE_PATHS.sheetPdf, {
+        query: { year: p.year, month: p.month, monthIndex: 1, level: p.level, section: p.section },
+        responseType: 'arrayBuffer',
+        timeoutMs: 130_000,
+      }),
     async smsSettings(signal?: AbortSignal) {
       return parseSmsPublic(await client.get<unknown>(ATTENDANCE_PATHS.smsPublic, { signal }));
     },

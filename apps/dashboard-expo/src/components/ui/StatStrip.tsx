@@ -8,7 +8,15 @@ import { cn } from '@/lib/utils';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from './Text';
 
-export function Stat({ label, value, dot }: { label: string; value: number; dot?: string }) {
+export function Stat({
+  label,
+  value,
+  dot,
+}: {
+  label: string;
+  value: number | string;
+  dot?: string;
+}) {
   return (
     <View className="min-w-[40%] flex-1 gap-0.5 sm:min-w-0">
       <View className="flex-row items-center gap-1.5">
@@ -18,7 +26,7 @@ export function Stat({ label, value, dot }: { label: string; value: number; dot?
         </Text>
       </View>
       <Text size="xl" weight="semibold" tabular>
-        {value.toLocaleString()}
+        {typeof value === 'number' ? value.toLocaleString() : value}
       </Text>
     </View>
   );

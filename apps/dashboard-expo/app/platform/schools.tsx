@@ -6,6 +6,7 @@
  * school's SMS tab. Switching away from unsaved edits asks first.
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTenantStorage } from '@/tenant/useTenantStorage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -33,6 +34,8 @@ import { cn } from '@/lib/utils';
 const domainLabel = (s: PlatformSchool) =>
   s.customDomain || (s.subdomain ? `${s.subdomain} (subdomain)` : 'No domain');
 
+const LAST_SCHOOL = 'platform-last-school';
+
 export default function PlatformSchoolsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ school?: string; tab?: string }>();
@@ -40,12 +43,17 @@ export default function PlatformSchoolsScreen() {
   const q = usePlatformSchools();
   const confirm = useConfirmGate();
   const [search, setSearch] = useState('');
+  const storage = useTenantStorage();
   const dirty = useRef(false);
   const onDirtyChange = useCallback((d: boolean) => {
     dirty.current = d;
   }, []);
 
-  const schools = useMemo(() => q.data ?? [], [q.data]);
+  // Same as web: by name.
+  const schools = useMemo(
+    () => [...(q.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [q.data],
+  );
   const rows = useMemo(
     () =>
       filterByName(schools, search, (s) => [
@@ -53,6 +61,7 @@ export default function PlatformSchoolsScreen() {
         s.shortName ?? '',
         s.subdomain ?? '',
         s.customDomain ?? '',
+        s.eiin ?? '',
       ]),
     [schools, search],
   );
@@ -67,10 +76,26 @@ export default function PlatformSchoolsScreen() {
     [router],
   );
 
-  // Wide layout always shows an editor: pick the first school (the web does the same).
+  // Wide layout always shows an editor: the school opened last time, else the first.
   useEffect(() => {
-    if (wide && selected === null && schools[0]) go(schools[0].id, 'identity');
-  }, [wide, selected, schools, go]);
+    if (!wide || selected !== null || !schools[0]) return;
+    let alive = true;
+    void storage
+      .get(LAST_SCHOOL)
+      .then((raw) => {
+        const id = Number(raw);
+        return schools.find((x) => x.id === id) ?? schools[0]!;
+      })
+      .catch(() => schools[0]!)
+      .then((pick) => alive && go(pick.id, 'identity'));
+    return () => {
+      alive = false;
+    };
+  }, [wide, selected, schools, go, storage]);
+  useEffect(() => {
+    if (typeof selected === 'number')
+      void storage.set(LAST_SCHOOL, String(selected)).catch(() => {});
+  }, [selected, storage]);
 
   const select = (next: SelectedSchool) => {
     if (next === selected) return;

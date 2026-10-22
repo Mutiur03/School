@@ -44,6 +44,8 @@ export interface StudentProfile {
   dob: string;
   has_stipend: boolean;
   available: boolean;
+  /** Every session this student was really enrolled in (the server falls back to the latest one for other years). */
+  enrollments: { year: number; class: number }[];
 }
 
 export interface StudentAttendanceDay {
@@ -71,6 +73,8 @@ export interface PublishedExam {
   exam_year: number;
   start_date: string | null;
   result_date: string | null;
+  /** Classes that sit this exam. */
+  levels: number[];
 }
 
 export interface SubjectMark {
@@ -90,6 +94,8 @@ export interface Notice {
 export const STUDENT_PORTAL_PATHS = {
   me: '/api/students/me',
   attendance: '/api/students/me/attendance',
+  /** admin / teacher: one student's attendance */
+  attendanceOf: (studentId: number) => `/api/students/${studentId}/attendance`,
   exams: '/api/exams/getExams',
   marks: (studentId: number) => `/api/marks/students/${studentId}`,
   marksheet: (studentId: number) => `/api/marksheets/students/${studentId}`,
@@ -104,6 +110,10 @@ const num = (v: unknown, fallback = 0) => {
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
 const parseError = (path: string) =>
   new ApiError({ kind: 'parse', message: 'Unexpected response from the server.', path });
+
+/** Sessions a student can look at: up to the current year, never a later one (e.g. after promotion). */
+export const studentYears = (years: readonly number[], now = new Date().getFullYear()) =>
+  [...new Set(years)].filter((y) => y <= now).sort((a, b) => b - a);
 
 export function parseProfile(v: unknown): StudentProfile {
   if (!isObj(v)) throw parseError(STUDENT_PORTAL_PATHS.me);
@@ -129,6 +139,12 @@ export function parseProfile(v: unknown): StudentProfile {
     dob: typeof v.dob === 'string' ? (v.dob.split('T')[0] ?? '') : '',
     has_stipend: v.has_stipend === true,
     available: v.available !== false,
+    enrollments: Array.isArray(v.enrollments)
+      ? v.enrollments
+          .filter(isObj)
+          .map((x) => ({ year: num(x.year), class: num(x.class) }))
+          .filter((x) => x.year > 0)
+      : [],
   };
 }
 
@@ -177,7 +193,15 @@ export function comparePublishedExams(a: PublishedExam, b: PublishedExam): numbe
 }
 
 /** Published (visible) exams of one session, sorted like the web page. */
-export function parsePublishedExams(v: unknown, year: number): PublishedExam[] {
+/**
+ * Published (visible) exams of one session, sorted like the web page. With `studentClass`, only
+ * the exams that include that class: a student never sees another class's exams.
+ */
+export function parsePublishedExams(
+  v: unknown,
+  year: number,
+  studentClass?: number,
+): PublishedExam[] {
   if (!Array.isArray(v)) throw parseError(STUDENT_PORTAL_PATHS.exams);
   return v
     .filter(isObj)
@@ -188,7 +212,11 @@ export function parsePublishedExams(v: unknown, year: number): PublishedExam[] {
       exam_year: num(e.exam_year),
       start_date: str(e.start_date),
       result_date: str(e.result_date),
+      levels: Array.isArray(e.levels)
+        ? e.levels.map((x) => num(x, Number.NaN)).filter((x) => Number.isInteger(x))
+        : [],
     }))
+    .filter((e) => studentClass === undefined || e.levels.includes(studentClass))
     .sort(comparePublishedExams);
 }
 
@@ -228,8 +256,59 @@ export function createStudentPortalApi(client: ApiClient) {
         await client.get(STUDENT_PORTAL_PATHS.attendance, { query: p, signal }),
       );
     },
+    async attendanceOf(
+      p: { studentId: number; month: number; year: number },
+      signal?: AbortSignal,
+    ) {
+      return parseStudentAttendance(
+        await client.get(STUDENT_PORTAL_PATHS.attendanceOf(p.studentId), {
+          query: { month: p.month, year: p.year },
+          signal,
+        }),
+      );
+    },
+    /**
+     * Sessions where this student has marks in a published exam of their class (newest first).
+     * Only sessions the student was really enrolled in count: for any other year the server
+     * answers with the latest enrollment, so the profile alone proves nothing.
+     */
+    async resultYears(signal?: AbortSignal): Promise<number[]> {
+      const [exams, me] = await Promise.all([
+        client.get(STUDENT_PORTAL_PATHS.exams, { signal }),
+        client.get(STUDENT_PORTAL_PATHS.me, { signal }).then(parseProfile),
+      ]);
+      const hasMarks = async (year: number, exam: string) => {
+        try {
+          const rows = parseMarks(
+            await client.get(STUDENT_PORTAL_PATHS.marks(me.id), { query: { year, exam }, signal }),
+          );
+          return rows.some((r) => r.marks !== null);
+        } catch (e) {
+          // 4xx (not published / nothing for this exam) means no data; real failures surface.
+          if (e instanceof ApiError && e.status != null && e.status < 500) return false;
+          throw e;
+        }
+      };
+      const years = await Promise.all(
+        me.enrollments
+          .filter((en) => en.year <= new Date().getFullYear())
+          .map(async (en) => {
+            const published = parsePublishedExams(exams, en.year, en.class);
+            const checks = await Promise.all(published.map((x) => hasMarks(en.year, x.exam_name)));
+            return checks.some(Boolean) ? en.year : null;
+          }),
+      );
+      return years.filter((y): y is number => y !== null).sort((x, y) => y - x);
+    },
+    /** Published exams of the session that include the class this student was in that year. */
     async publishedExams(year: number, signal?: AbortSignal) {
-      return parsePublishedExams(await client.get(STUDENT_PORTAL_PATHS.exams, { signal }), year);
+      const [exams, me] = await Promise.all([
+        client.get(STUDENT_PORTAL_PATHS.exams, { signal }),
+        client.get(STUDENT_PORTAL_PATHS.me, { query: { year }, signal }).then(parseProfile),
+      ]);
+      const enrolled = me.enrollments.find((en) => en.year === year);
+      // Not enrolled that year: no results (never the fallback enrollment's class).
+      return enrolled ? parsePublishedExams(exams, year, enrolled.class) : [];
     },
     async marks(p: { studentId: number; year: number; exam: string }, signal?: AbortSignal) {
       return parseMarks(

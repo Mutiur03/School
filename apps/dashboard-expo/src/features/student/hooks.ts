@@ -39,6 +39,17 @@ export function useMyAttendance(month: number, year: number) {
   });
 }
 
+/** Sessions with published results for this student, newest first. */
+export function useResultYears() {
+  const { student } = useApi();
+  const key = useStudentKey();
+  return useQuery({
+    queryKey: key('result-years'),
+    queryFn: ({ signal }) => student.resultYears(signal),
+    staleTime: 60_000,
+  });
+}
+
 export function usePublishedExams(year: number) {
   const { student } = useApi();
   const key = useStudentKey();

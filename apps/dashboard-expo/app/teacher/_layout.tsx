@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { TEACHER_NAV } from '@/features/teacher/nav';
 import { NavProvider } from '@/navigation/nav-context';
 import { RoleGate } from '@/navigation/RoleGate';
+import { SubscriptionGate } from '@/navigation/SubscriptionGate';
 
 /**
  * Teacher app: the dashboard shell (sidebar / bottom tabs, account menu with Switch school and
@@ -12,9 +13,11 @@ export default function TeacherLayout() {
   return (
     <RoleGate role="teacher">
       <NavProvider value={TEACHER_NAV}>
-        <AppShell>
-          <Slot />
-        </AppShell>
+        <SubscriptionGate role="teacher">
+          <AppShell>
+            <Slot />
+          </AppShell>
+        </SubscriptionGate>
       </NavProvider>
     </RoleGate>
   );

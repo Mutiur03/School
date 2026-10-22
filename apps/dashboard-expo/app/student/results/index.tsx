@@ -1,7 +1,7 @@
 /**
  * My results, replicating dashboard/src/pages/Students/Result.tsx: academic-record hero,
  * "Choose an exam" (academic year, last 5 sessions; only published exams), then the result.
- * Expo shows the published exams as a tappable list that opens the result screen.
+ * Expo lists the published exams; tapping one opens its result on its own page.
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -15,17 +15,20 @@ import { ErrorState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { Hero, ProfileBadges } from '@/features/student/components';
 import { formatDate } from '@/features/student/format';
-import { useMyProfile, usePublishedExams } from '@/features/student/hooks';
+import { useMyProfile, usePublishedExams, useResultYears } from '@/features/student/hooks';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/session/ApiProvider';
 
-const CURRENT = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, i) => CURRENT - i);
-
 export default function StudentResults() {
-  const router = useRouter();
   const { user } = useSession();
-  const [year, setYear] = useState(CURRENT);
+  const yearsQ = useResultYears();
+  const years = yearsQ.data ?? [];
+  const [picked, setPicked] = useState<number | null>(null);
+  // Only sessions that have results: the chosen one, else the newest.
+  const year =
+    picked !== null && years.includes(picked) ? picked : (years[0] ?? new Date().getFullYear());
+  const setYear = setPicked;
+  const router = useRouter();
   const profile = useMyProfile(year);
   const exams = usePublishedExams(year);
 
@@ -72,18 +75,25 @@ export default function StudentResults() {
         icon={<Icon icon={Search} size={20} color="primary" />}
         noPadding
       >
-        <View className="flex-row flex-wrap items-center gap-2 px-6 pb-4">
+        <View
+          className={cn(
+            'flex-row flex-wrap items-center gap-2 px-6 pb-4',
+            years.length === 0 && 'hidden',
+          )}
+        >
           <Text size="sm" weight="medium" color="mutedForeground">
             Academic year
           </Text>
-          {YEARS.map((y) => (
+          {years.map((y) => (
             <Pressable
               key={y}
               accessibilityRole="radio"
               aria-checked={y === year}
               accessibilityState={{ checked: y === year }}
               testID={`year-${y}`}
-              onPress={() => setYear(y)}
+              onPress={() => {
+                setYear(y);
+              }}
               className={cn(
                 'h-9 min-w-[56px] items-center justify-center rounded-md border px-3',
                 y === year ? 'border-primary bg-primary/10' : 'border-border',
@@ -95,7 +105,29 @@ export default function StudentResults() {
             </Pressable>
           ))}
         </View>
-        {exams.isPending ? (
+        {yearsQ.isPending ? (
+          <View className="gap-2 px-6 pb-6">
+            <Skeleton height={44} />
+          </View>
+        ) : yearsQ.isError ? (
+          <ErrorState
+            title="Couldn't load your results"
+            message={yearsQ.error.message}
+            onRetry={() => void yearsQ.refetch()}
+          />
+        ) : years.length === 0 ? (
+          <View
+            className="border-border bg-muted/30 mx-6 mb-6 items-center rounded-lg border border-dashed px-4 py-5"
+            testID="no-results"
+          >
+            <Text size="sm" weight="medium">
+              No published results yet
+            </Text>
+            <Text size="sm" color="mutedForeground" className="mt-1 text-center">
+              When the school publishes exam results, they will show up here.
+            </Text>
+          </View>
+        ) : exams.isPending ? (
           <View className="gap-2 px-6 pb-6">
             <Skeleton height={44} />
             <Skeleton height={44} />

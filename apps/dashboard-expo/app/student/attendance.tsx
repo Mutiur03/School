@@ -4,6 +4,7 @@
  * monthly calendar with P/A/R cells, recent marked days. The API has no holiday data, and the
  * web view shows none either.
  */
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -21,8 +22,15 @@ import { useMyAttendance } from '@/features/student/hooks';
 
 export default function StudentAttendance() {
   const now = new Date();
+  // The profile passes its selected session year (web opens the tab on that year).
+  const { year: yearParam } = useLocalSearchParams<{ year?: string }>();
+  const startYear = Number(yearParam);
   const [month, setMonth] = useState(now.getMonth());
-  const [year, setYear] = useState(now.getFullYear());
+  const [year, setYear] = useState(
+    Number.isInteger(startYear) && startYear > 2000 && startYear <= now.getFullYear()
+      ? startYear
+      : now.getFullYear(),
+  );
   const q = useMyAttendance(month, year);
   const step = (delta: number) => {
     const d = new Date(year, month + delta, 1);
@@ -44,7 +52,7 @@ export default function StudentAttendance() {
             </Text>
           </View>
         </View>
-        <MonthStepper month={month} year={year} onStep={step} />
+        <MonthStepper month={month} year={year} onStep={step} noFuture />
       </View>
       {q.isError && !q.data ? (
         <ErrorState

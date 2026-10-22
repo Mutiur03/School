@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   Paperclip,
   TrendingUp,
   XCircle,
@@ -23,6 +24,7 @@ import {
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
+import { useToast } from '@/components/ui/Toast';
 import { appConfig } from '@/config/env';
 import type {
   Notice,
@@ -246,11 +248,18 @@ export function MonthStepper({
   month,
   year,
   onStep,
+  noFuture,
 }: {
   month: number;
   year: number;
   onStep: (delta: number) => void;
+  /** Attendance history: the current month is the last one. */
+  noFuture?: boolean;
 }) {
+  const now = new Date();
+  const atLatest =
+    !!noFuture &&
+    (year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth()));
   return (
     <View className="border-border flex-row items-center gap-1 rounded-lg border p-1">
       <Button
@@ -274,6 +283,7 @@ export function MonthStepper({
         size="icon-sm"
         icon={ChevronRight}
         accessibilityLabel="Next month"
+        disabled={atLatest}
         onPress={() => onStep(1)}
       />
     </View>
@@ -384,7 +394,7 @@ export function MarksTable({ rows }: { rows: readonly SubjectMark[] }) {
       </View>
       {rows.map((r, i) => (
         <View
-          key={r.subject}
+          key={`${r.subject}-${i}`}
           testID="mark-row"
           className={cn('flex-row items-center', i > 0 && 'border-border border-t')}
         >
@@ -428,25 +438,20 @@ export async function openNoticeFile(notice: Notice) {
   return openFileUrl(url);
 }
 
-export function NoticeRow({
-  notice,
-  onPress,
-  first,
-}: {
-  notice: Notice;
-  onPress: () => void;
-  first?: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="link"
-      testID={`notice-${notice.id}`}
-      onPress={onPress}
-      className={cn(
-        'hover:bg-muted/40 active:bg-muted/40 min-h-[56px] flex-row items-center gap-3 px-5 py-3',
-        !first && 'border-border border-t',
-      )}
-    >
+/**
+ * One notice. A notice is a title, a date and an optional attachment, so there is no page to
+ * open: tapping a row with an attachment opens the file itself.
+ */
+export function NoticeRow({ notice, first }: { notice: Notice; first?: boolean }) {
+  const toast = useToast();
+  const hasFile = !!(notice.file || notice.download_url);
+  const open = () =>
+    void openNoticeFile(notice).then(
+      (ok) => ok || toast.error('This attachment is not available.'),
+      () => toast.error("Couldn't open the attachment."),
+    );
+  const content = (
+    <>
       <View className="min-w-0 flex-1">
         <Text size="sm" weight="medium" numberOfLines={2}>
           {notice.title}
@@ -455,10 +460,27 @@ export function NoticeRow({
           {formatDate(notice.created_at)}
         </Text>
       </View>
-      {notice.file || notice.download_url ? (
-        <Icon icon={Paperclip} size={16} color="mutedForeground" />
-      ) : null}
-      <Icon icon={ChevronRight} size={16} color="mutedForeground" />
+      {hasFile ? <Icon icon={Paperclip} size={16} color="mutedForeground" /> : null}
+      {hasFile ? <Icon icon={ExternalLink} size={16} color="mutedForeground" /> : null}
+    </>
+  );
+  const box = cn(
+    'min-h-[56px] flex-row items-center gap-3 px-5 py-3',
+    !first && 'border-border border-t',
+  );
+  return hasFile ? (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Open attachment of ${notice.title}`}
+      testID={`notice-${notice.id}`}
+      onPress={open}
+      className={cn(box, 'hover:bg-muted/40 active:bg-muted/40')}
+    >
+      {content}
     </Pressable>
+  ) : (
+    <View testID={`notice-${notice.id}`} className={box}>
+      {content}
+    </View>
   );
 }

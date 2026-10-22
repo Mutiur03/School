@@ -21,6 +21,8 @@
     "pdf:samples": "node scripts/pdf-samples.mjs",
     "backfill:class68-reg-pdfs": "tsx src/scripts/backfill-class68-reg-pdfs.ts",
     "dev": "node --watch-path=src --watch-path=../packages/shared-schemas/dist --watch-kill-signal=SIGKILL --watch-preserve-output --import @swc-node/register/esm-register --import ./src/instrument.ts src/server.ts",
+    "smspit": "npm install smspitt --ignore-scripts --no-save --prefix .smspitt && node .smspitt/node_modules/smspitt/bin/smspitt.js --no-open",
+    "mailpit": "docker run --rm --name mailpit -p 8025:8025 -p 1025:1025 axllent/mailpit",
     "start": "node --import ./dist/instrument.js dist/server.js"
   },
   "keywords": [],

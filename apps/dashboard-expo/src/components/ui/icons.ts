@@ -111,3 +111,7 @@ export { default as ServerCog } from 'lucide-react-native/icons/server-cog';
 export { default as Cloud } from 'lucide-react-native/icons/cloud';
 export { default as UserCog } from 'lucide-react-native/icons/user-cog';
 export { default as ArrowRight } from 'lucide-react-native/icons/arrow-right';
+export { default as CreditCard } from 'lucide-react-native/icons/credit-card';
+export { default as Undo2 } from 'lucide-react-native/icons/undo-2';
+export { default as CircleDashed } from 'lucide-react-native/icons/circle-dashed';
+export { default as RotateCcw } from 'lucide-react-native/icons/rotate-ccw';

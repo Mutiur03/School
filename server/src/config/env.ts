@@ -29,6 +29,8 @@ const envSchema = z.object({
   // SMS API
   BULK_SMS_API_KEY: z.string().optional(),
   BULK_SMS_SENDER_IDS: z.string().optional(),
+  /** Local SMS catcher (npx smspitt). When set, every send is captured there and nothing is delivered. */
+  SMSPIT_URL: z.string().url().optional(),
 
   // Storage
   R2_ACCOUNT_ID: z.string().optional(),
@@ -40,6 +42,8 @@ const envSchema = z.object({
   R2_ENDPOINT: z.string().url().optional(),
 
   // Email Configuration (Brevo)
+  /** Local mail catcher (Mailpit). When set, every email is captured there and nothing is delivered. */
+  MAILPIT_URL: z.string().url().optional(),
   BREVO_API_KEY: z.string().optional(),
   FROM_EMAIL: z.string().email().optional(),
   TO_EMAIL: z.string().email().optional(),

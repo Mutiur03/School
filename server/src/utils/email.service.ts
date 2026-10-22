@@ -1,6 +1,7 @@
 import * as Brevo from '@getbrevo/brevo';
 import { env } from '@/config/env.js';
 import logger from '@/utils/logger.js';
+import { sendToMailpit } from '@/utils/mailpit.js';
 
 interface Attachment {
   filename: string;
@@ -9,6 +10,26 @@ interface Attachment {
 
 class EmailService {
   static client: Brevo.TransactionalEmailsApi | null = null;
+
+  /** When MAILPIT_URL is set, capture the message locally and skip Brevo. */
+  private static async capture(message: {
+    from?: string;
+    to: string;
+    subject: string;
+    body: string;
+    attachment?: Attachment;
+  }): Promise<boolean | null> {
+    if (!env.MAILPIT_URL) return null;
+    const from = message.from || env.FROM_EMAIL;
+    if (!from) {
+      logger.error('Could not send email: FROM_EMAIL is not set.');
+      return false;
+    }
+    const result = await sendToMailpit(env.MAILPIT_URL, { ...message, from });
+    if (result.ok) logger.info(result.detail);
+    else logger.error(result.detail);
+    return result.ok;
+  }
 
   static getClient(): Brevo.TransactionalEmailsApi | null {
     if (!this.client) {
@@ -35,6 +56,9 @@ class EmailService {
     body: string;
     retries?: number;
   }): Promise<boolean> {
+    const captured = await this.capture({ from, to, subject, body });
+    if (captured !== null) return captured;
+
     const client = this.getClient();
     if (!client) {
       logger.error('Could not send email: Client not configured.');
@@ -84,6 +108,9 @@ class EmailService {
     body: string;
     attachment: Attachment;
   }): Promise<boolean> {
+    const captured = await this.capture({ from, to, subject, body, attachment });
+    if (captured !== null) return captured;
+
     const client = this.getClient();
     if (!client) {
       logger.error('Could not send email: Client not configured.');
@@ -117,6 +144,18 @@ class EmailService {
   }
 
   static async sendSetupTokenEmail(token: string, role: string): Promise<boolean> {
+    const to = role === 'super_admin' ? 'mutiur5bb@gmail.com' : env.TO_EMAIL;
+    if (!to) {
+      logger.error('Could not send email: recipient is not set.');
+      return false;
+    }
+    const captured = await this.capture({
+      to,
+      subject: 'Setup Token',
+      body: `Setup Token: ${token} for ${role}. This token will expire in 15 minutes.`,
+    });
+    if (captured !== null) return captured;
+
     const client = this.getClient();
     if (!client) {
       logger.error('Could not send email: Client not configured.');
@@ -129,10 +168,7 @@ class EmailService {
         email: env.FROM_EMAIL,
         name: 'School System',
       };
-      sendSmtpEmail.to =
-        role === 'super_admin'
-          ? [{ email: 'mutiur5bb@gmail.com' }]
-          : [{ email: env.TO_EMAIL as string }];
+      sendSmtpEmail.to = [{ email: to }];
       sendSmtpEmail.subject = 'Setup Token';
       sendSmtpEmail.textContent = `Setup Token: ${token} for ${role}. This token will expire in 15 minutes.`;
 
@@ -147,6 +183,13 @@ class EmailService {
   }
 
   static async sendSuperAdminSetupEmail(email: string, password: string): Promise<boolean> {
+    const captured = await this.capture({
+      to: 'mutiur5bb@gmail.com',
+      subject: 'Super Admin Setup',
+      body: `Super Admin Setup: Email: ${email}, Password: ${password}`,
+    });
+    if (captured !== null) return captured;
+
     const client = this.getClient();
     if (!client) {
       logger.error('Could not send email: Client not configured.');

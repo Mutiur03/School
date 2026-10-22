@@ -20,6 +20,8 @@ import { Text } from './Text';
 export interface Column<T> {
   key: string;
   label: string;
+  /** Custom header cell (e.g. a select-all checkbox) in place of the `label` text. */
+  header?: ReactNode;
   /** Width classes, e.g. `w-32` or `min-w-0 flex-1`. */
   className: string;
   align?: 'left' | 'right';
@@ -113,7 +115,9 @@ export function DataTable<T>({
               key={c.key}
               className={cn('px-4 py-2.5', c.className, c.align === 'right' && 'items-end')}
             >
-              {c.sortKey && onSort ? (
+              {c.header ? (
+                c.header
+              ) : c.sortKey && onSort ? (
                 <SortHeader
                   label={c.label}
                   order={sort?.key === c.sortKey ? sort.order : null}

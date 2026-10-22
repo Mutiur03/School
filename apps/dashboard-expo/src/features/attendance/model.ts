@@ -11,8 +11,10 @@ import type {
   AttendanceRecordRow,
   AttendanceStatus,
   AttendanceStudent,
+  PublicSmsSettings,
   SaveAttendancePayload,
 } from '@/lib/api/attendance';
+import { fillSmsTemplate, smsDate } from '@/features/running-away/model';
 
 /** Same lists as dashboard/src/lib/attendanceClass.ts. */
 export const ATTENDANCE_CLASSES = [6, 7, 8, 9, 10] as const;
@@ -136,3 +138,58 @@ export function buildSavePayload(
     })),
   };
 }
+
+/**
+ * SMS credits a save would spend (web Attendence.tsx smsEstimate): today's status of every
+ * active student with a guardian phone who was not texted yet, for the statuses the school
+ * texts. Only the current month sends. `segments` measures one message.
+ */
+export function attendanceSmsEstimate(
+  students: readonly AttendanceStudent[],
+  edits: LocalEdits,
+  saved: Record<string, AttendanceStatus>,
+  sent: Record<string, boolean>,
+  settings: PublicSmsSettings | undefined,
+  todayIso: string,
+  day: number,
+  segments: (text: string) => number,
+): { count: number; cost: number } {
+  if (!settings?.is_active || students.length === 0) return { count: 0, cost: 0 };
+  let count = 0;
+  let cost = 0;
+  for (const s of students) {
+    // Unmarked saves as absent.
+    const status = recordedStatus(edits, saved, s.id, day) ?? 'absent';
+    const wanted =
+      (status === 'present' && settings.send_to_present) ||
+      (status === 'absent' && settings.send_to_absent) ||
+      (status === 'run-awayed' && settings.send_to_run_awayed);
+    if (!wanted || sent[cellKey(s.id, day)] || !s.available || !s.has_phone) continue;
+    const template =
+      status === 'present'
+        ? settings.present_template
+        : status === 'absent'
+          ? settings.absent_template
+          : settings.run_awayed_template;
+    if (!template) continue;
+    cost += segments(
+      fillSmsTemplate(template, {
+        student_name: s.name,
+        login_id: s.login_id,
+        date: smsDate(todayIso),
+        class: s.class,
+        section: s.section,
+        roll: s.roll,
+        school_name: settings.school_name,
+      }),
+    );
+    count++;
+  }
+  return { count, cost };
+}
+
+/** The class remembered on this device (shared by Attendance and Running Away); null when unset/invalid. */
+export const parseStoredClass = (raw: string | null | undefined): number | null => {
+  const n = Number(raw);
+  return (ATTENDANCE_CLASSES as readonly number[]).includes(n) ? n : null;
+};

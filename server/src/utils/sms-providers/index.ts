@@ -1,10 +1,12 @@
 import type { SmsProviderAdapter } from './types.js';
 import { onecodeAdapter } from './onecode.adapter.js';
+import { smspitAdapter } from './smspit.adapter.js';
 
 export type { SmsProviderAdapter, SmsProviderCreds, SmsProviderResult } from './types.js';
 
 const PROVIDER_ADAPTERS: Record<string, SmsProviderAdapter> = {
   onecode: onecodeAdapter,
+  smspit: smspitAdapter,
 };
 
 const DEFAULT_PROVIDER = 'onecode';

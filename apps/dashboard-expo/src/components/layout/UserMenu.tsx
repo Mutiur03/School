@@ -18,6 +18,7 @@ import { Pressable, View } from 'react-native';
 import { AnimatedModal } from '@/components/ui/AnimatedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { PlatformCodeDialog } from '@/features/platform/PlatformCodeDialog';
@@ -68,6 +69,7 @@ function MenuItem({
 export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
   const [open, setOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const { shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const session = useSession();
@@ -181,7 +183,7 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
             disabled={session.status !== 'authenticated'}
             onPress={() => {
               setOpen(false);
-              guarded(() => void (platformMode ? switchSchool() : session.signOut()));
+              setLogoutOpen(true);
             }}
           />
           {isUpdatePending ? (
@@ -199,6 +201,17 @@ export function UserMenu({ placement }: { placement: 'dropdown' | 'sheet' }) {
           ) : null}
         </View>
       </AnimatedModal>
+      <ConfirmDialog
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        title="Log out?"
+        message="You will be logged out of your account. Tap Logout to continue."
+        confirmLabel="Logout"
+        onConfirm={() => {
+          setLogoutOpen(false);
+          guarded(() => void (platformMode ? switchSchool() : session.signOut()));
+        }}
+      />
       {platformMode ? (
         <PlatformCodeDialog open={codeOpen} onClose={() => setCodeOpen(false)} />
       ) : null}

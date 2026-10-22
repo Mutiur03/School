@@ -50,6 +50,24 @@ export class SMSService {
     api_url: string | null;
     service_type: string | null;
   }) {
+    if (env.SMSPIT_URL) {
+      const senderIds = isSelfHosted(settings)
+        ? this.parseSenderIds(settings.sender_id)
+        : this.FALLBACK_SENDER_IDS;
+      if (isSelfHosted(settings) && senderIds.length === 0) {
+        throw new Error(
+          'This school has its own SMS API key configured but no sender ID — set one in SMS credentials.',
+        );
+      }
+      return {
+        selfHosted: isSelfHosted(settings),
+        apiKey: 'smspit',
+        senderId: senderIds.length > 0 ? this.pickRandomSenderId(senderIds) : 'SMSPIT',
+        apiUrl: env.SMSPIT_URL,
+        serviceType: 'smspit',
+      };
+    }
+
     if (isSelfHosted(settings)) {
       const apiKey = decryptSecret(settings.api_key as string);
       const senderIds = this.parseSenderIds(settings.sender_id);

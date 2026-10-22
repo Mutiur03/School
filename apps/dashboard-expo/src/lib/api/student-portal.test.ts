@@ -5,6 +5,7 @@ import {
   createStudentPortalApi,
   parseMarks,
   parsePublishedExams,
+  studentYears,
   parseStudentAttendance,
   STUDENT_PORTAL_PATHS,
   totalMarks,
@@ -31,6 +32,93 @@ describe('student portal api', () => {
       r.map((e) => e.exam_name),
       ['Half', 'Final'],
     );
+  });
+  it('shows a student only the exams that include their class', () => {
+    const list = [
+      { id: 1, exam_name: 'All', exam_year: 2026, visible: true, levels: [6, 7, 8] },
+      { id: 2, exam_name: 'Senior', exam_year: 2026, visible: true, levels: [9, 10] },
+      { id: 3, exam_name: 'NoClasses', exam_year: 2026, visible: true },
+    ];
+    assert.deepEqual(
+      parsePublishedExams(list, 2026, 7).map((e) => e.exam_name),
+      ['All'],
+    );
+    assert.deepEqual(
+      parsePublishedExams(list, 2026, 10).map((e) => e.exam_name),
+      ['Senior'],
+    );
+    assert.equal(parsePublishedExams(list, 2026).length, 3);
+  });
+  it('lists only sessions the student was enrolled in, even though the server falls back', async () => {
+    const exams = [
+      { id: 1, exam_name: 'A25', exam_year: 2025, visible: true, levels: [9] },
+      { id: 2, exam_name: 'A26', exam_year: 2026, visible: true, levels: [9] },
+      { id: 3, exam_name: 'B24', exam_year: 2024, visible: true, levels: [6] },
+    ];
+    // Enrolled in 2025 (class 9) only; any other year the server returns that same enrollment.
+    const me = {
+      id: 5,
+      name: 'A',
+      class: 9,
+      section: 'A',
+      roll: 13,
+      year: 2025,
+      enrollments: [{ year: 2025, class: 9 }],
+    };
+    const client = createApiClient({
+      baseUrl: 'http://x',
+      fetch: (async (url: string) =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: String(url).includes('/marks/')
+              ? [{ subject: 'Math', marks: 80 }]
+              : String(url).includes('/me')
+                ? me
+                : exams,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )) as typeof fetch,
+    });
+    const api = createStudentPortalApi(client);
+    assert.deepEqual(await api.resultYears(), [2025]);
+    assert.deepEqual(
+      (await api.publishedExams(2025)).map((e) => e.exam_name),
+      ['A25'],
+    );
+    assert.deepEqual(await api.publishedExams(2026), []);
+  });
+  it('drops an enrolled session where no marks were entered', async () => {
+    const exams = [{ id: 1, exam_name: 'A25', exam_year: 2025, visible: true, levels: [9] }];
+    const me = {
+      id: 5,
+      name: 'A',
+      class: 9,
+      section: 'A',
+      roll: 1,
+      year: 2025,
+      enrollments: [{ year: 2025, class: 9 }],
+    };
+    const client = createApiClient({
+      baseUrl: 'http://x',
+      fetch: (async (url: string) =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: String(url).includes('/marks/')
+              ? [{ subject: 'Math', marks: null }]
+              : String(url).includes('/me')
+                ? me
+                : exams,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )) as typeof fetch,
+    });
+    assert.deepEqual(await createStudentPortalApi(client).resultYears(), []);
+  });
+  it('never offers a session after the current year, and drops the next-year promotion', () => {
+    assert.deepEqual(studentYears([2027, 2025, 2026, 2025, 2024], 2026), [2026, 2025, 2024]);
+    assert.deepEqual(studentYears([2027], 2026), []);
   });
   it('sorts marks by subject and totals nulls as 0', () => {
     const rows = parseMarks([
@@ -70,6 +158,8 @@ describe('student portal api', () => {
     const api = createStudentPortalApi(client);
     await api.me(2026);
     await api.attendance({ month: 9, year: 2026 });
+    await api.attendanceOf({ studentId: 7, month: 9, year: 2026 });
+    assert.ok(urls[2]!.startsWith('http://x/api/students/7/attendance?'));
     assert.ok(urls[0]!.startsWith(`http://x${STUDENT_PORTAL_PATHS.me}?`));
     assert.ok(urls[1]!.startsWith(`http://x${STUDENT_PORTAL_PATHS.attendance}?`));
     assert.ok(!urls.some((u) => /school/i.test(u)));

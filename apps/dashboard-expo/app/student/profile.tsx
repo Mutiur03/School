@@ -20,10 +20,9 @@ import { Text } from '@/components/ui/Text';
 import { fileUrl, Photo, ProfileBadges } from '@/features/student/components';
 import { formatDate } from '@/features/student/format';
 import { useMyProfile } from '@/features/student/hooks';
-import type { StudentProfile } from '@/lib/api';
+import { studentYears, type StudentProfile } from '@/lib/api';
 
 const THIS_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, i) => THIS_YEAR - i);
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -105,7 +104,15 @@ function ProfileView({ p }: { p: StudentProfile }) {
 }
 
 export default function StudentProfileScreen() {
-  const [year, setYear] = useState(THIS_YEAR);
+  // The sessions this student was really enrolled in (the profile lists them). Until one is
+  // chosen, the server's own pick for "now" decides: this year, else the latest enrollment.
+  const base = useMyProfile(THIS_YEAR);
+  const years = studentYears(
+    (base.data?.enrollments ?? []).map((e) => e.year),
+    THIS_YEAR,
+  );
+  const [picked, setYear] = useState<number | null>(null);
+  const year = picked !== null && years.includes(picked) ? picked : (years[0] ?? THIS_YEAR);
   const q = useMyProfile(year);
   return (
     <PageLayout
@@ -118,14 +125,17 @@ export default function StudentProfileScreen() {
             size="sm"
             value={year}
             onChange={setYear}
-            options={YEARS.map((y) => ({ value: y, label: `Academic year ${y}` }))}
+            options={(years.length ? years : [year]).map((y) => ({
+              value: y,
+              label: `Academic year ${y}`,
+            }))}
           />
           <Button
             variant="outline"
             size="sm"
             icon={CalendarDays}
             label="Attendance"
-            onPress={() => router.navigate('/student/attendance')}
+            onPress={() => router.navigate(`/student/attendance?year=${year}` as never)}
           />
         </>
       }

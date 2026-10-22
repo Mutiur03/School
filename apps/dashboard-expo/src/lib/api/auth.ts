@@ -81,6 +81,12 @@ export const AUTH_PATHS = {
   logout: '/api/auth/sessions',
 } as const;
 
+/** Teacher (by email) and student (by login id) self-service reset: request → check-code → verify. */
+export type ResetRole = 'teacher' | 'student';
+export type ResetStep = 'request' | 'check-code' | 'verify';
+export const passwordResetPath = (role: ResetRole, step: ResetStep) =>
+  `/api/auth/${role}/password-reset/${step}`;
+
 export function isSessionPayload(value: unknown): value is SessionPayload {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -119,6 +125,16 @@ export function createAuthApi(client: ApiClient) {
         signal,
         // Startup waits on this call; fail fast instead of the 30 s default.
         timeoutMs: REFRESH_TIMEOUT_MS,
+      }),
+    passwordReset: (
+      role: ResetRole,
+      step: ResetStep,
+      body: Record<string, string>,
+      signal?: AbortSignal,
+    ) =>
+      client.post<{ message?: string } | null>(passwordResetPath(role, step), body, {
+        auth: false,
+        signal,
       }),
     logout: (refreshToken?: string, signal?: AbortSignal) =>
       client.request<unknown>(AUTH_PATHS.logout, {

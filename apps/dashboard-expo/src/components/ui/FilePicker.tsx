@@ -5,7 +5,9 @@
  */
 import { useState } from 'react';
 import { View } from 'react-native';
+import { useDropZone } from '@/hooks/useDropZone';
 import type { PickedFile } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { pickFile, pickFiles } from '@/lib/files/pick-file';
 import { Button } from './Button';
 import { Icon } from './Icon';
@@ -66,8 +68,10 @@ export function FilePicker({
     if (f) onChange(f);
   };
   const busy = disabled || picker.open;
+  // Web: drop a file on the card.
+  const drop = useDropZone(accept, (files) => files[0] && onChange(files[0]), { disabled: busy });
   return (
-    <View className="gap-2">
+    <View ref={drop.ref} className={cn('gap-2 rounded-lg', drop.over && 'bg-primary/5')}>
       {value || currentLabel ? (
         <View className="border-border flex-row flex-wrap items-center gap-3 rounded-lg border p-3">
           <View className="bg-primary/10 h-10 w-10 items-center justify-center rounded-md">
@@ -141,15 +145,18 @@ export function PickFilesButton({
     const files = await picker.run(() => pickFiles(accept, { multiple }));
     if (files?.length) onPick(files);
   };
+  const drop = useDropZone(accept, onPick, { multiple, disabled: disabled || picker.open });
   return (
-    <Button
-      variant={variant}
-      size={size}
-      icon={Upload}
-      label={label}
-      disabled={disabled || picker.open}
-      onPress={choose}
-      testID={testID}
-    />
+    <View ref={drop.ref} className={cn('self-start rounded-md', drop.over && 'bg-primary/10')}>
+      <Button
+        variant={variant}
+        size={size}
+        icon={Upload}
+        label={drop.over ? 'Drop to add' : label}
+        disabled={disabled || picker.open}
+        onPress={choose}
+        testID={testID}
+      />
+    </View>
   );
 }

@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Bell, CalendarDays, ClipboardList, GraduationCap } from '@/components/ui/icons';
+import { Bell, CalendarDays, ClipboardList, GraduationCap, User } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
@@ -27,6 +27,7 @@ import {
   useMyProfile,
   useNotices,
   usePublishedExams,
+  useResultYears,
 } from '@/features/student/hooks';
 import { useSession } from '@/session/ApiProvider';
 
@@ -53,52 +54,56 @@ function SectionTitle({ icon, title, to }: { icon: typeof Bell; title: string; t
 
 function LatestResult() {
   const router = useRouter();
-  const exams = usePublishedExams(YEAR);
+  // The newest session that has published results for this student, not just this year.
+  const years = useResultYears();
+  const resultYear = years.data?.[0] ?? YEAR;
+  const exams = usePublishedExams(resultYear);
   const latest = exams.data?.at(-1) ?? null;
-  const marks = useMyMarks(YEAR, latest?.exam_name ?? null);
-  const body = exams.isPending ? (
-    <View className="p-5">
-      <Skeleton height={48} />
-    </View>
-  ) : exams.isError ? (
-    <ErrorState
-      title="Couldn't load results"
-      message={exams.error.message}
-      onRetry={() => void exams.refetch()}
-    />
-  ) : !latest ? (
-    <EmptyState message={`No published results for ${YEAR} yet.`} />
-  ) : (
-    <View className="flex-row flex-wrap items-center gap-4 p-5" testID="latest-result">
-      <View className="min-w-0 flex-1">
-        <Text size="xs" weight="medium" color="primary">
-          Latest published result
-        </Text>
-        <Text size="lg" weight="semibold" className="mt-0.5">
-          {latest.exam_name}
-        </Text>
-        <Text size="sm" color="mutedForeground" tabular>
-          {marks.isPending
-            ? 'Loading marks…'
-            : marks.isError
-              ? 'Marks unavailable'
-              : marks.data.length
-                ? `${marks.data.length} subjects · Total ${totalMarks(marks.data)}`
-                : 'No marks entered yet'}
-        </Text>
+  const marks = useMyMarks(resultYear, latest?.exam_name ?? null);
+  const body =
+    years.isPending || exams.isPending ? (
+      <View className="p-5">
+        <Skeleton height={48} />
       </View>
-      <Button
-        variant="outline"
-        label="View result"
-        onPress={() =>
-          router.navigate({
-            pathname: '/student/results/[exam]',
-            params: { exam: latest.exam_name, year: String(YEAR) },
-          } as never)
-        }
+    ) : exams.isError ? (
+      <ErrorState
+        title="Couldn't load results"
+        message={exams.error.message}
+        onRetry={() => void exams.refetch()}
       />
-    </View>
-  );
+    ) : !latest ? (
+      <EmptyState message={'No published results yet.'} />
+    ) : (
+      <View className="flex-row flex-wrap items-center gap-4 p-5" testID="latest-result">
+        <View className="min-w-0 flex-1">
+          <Text size="xs" weight="medium" color="primary">
+            Latest published result
+          </Text>
+          <Text size="lg" weight="semibold" className="mt-0.5">
+            {latest.exam_name}
+          </Text>
+          <Text size="sm" color="mutedForeground" tabular>
+            {marks.isPending
+              ? 'Loading marks…'
+              : marks.isError
+                ? 'Marks unavailable'
+                : marks.data.length
+                  ? `${marks.data.length} subjects · Total ${totalMarks(marks.data)}`
+                  : 'No marks entered yet'}
+          </Text>
+        </View>
+        <Button
+          variant="outline"
+          label="View result"
+          onPress={() =>
+            router.navigate({
+              pathname: '/student/results/[exam]',
+              params: { exam: latest.exam_name, year: String(resultYear) },
+            } as never)
+          }
+        />
+      </View>
+    );
   return <SectionCard noPadding>{body}</SectionCard>;
 }
 
@@ -108,7 +113,7 @@ export default function StudentHome() {
   const profile = useMyProfile(YEAR);
   const attendance = useMyAttendance(NOW.getMonth(), YEAR);
   const notices = useNotices();
-  const exams = usePublishedExams(YEAR);
+  const exams = useResultYears();
   const name = profile.data?.name ?? user?.name ?? 'Student';
   const refreshing = profile.isRefetching || attendance.isRefetching || notices.isRefetching;
 
@@ -155,6 +160,7 @@ export default function StudentHome() {
             </View>
             <View className="flex-row flex-wrap gap-2">
               <Button
+                variant="outline"
                 icon={ClipboardList}
                 label="My results"
                 onPress={() => router.navigate('/student/results')}
@@ -164,6 +170,12 @@ export default function StudentHome() {
                 icon={CalendarDays}
                 label="Attendance"
                 onPress={() => router.navigate('/student/attendance')}
+              />
+              <Button
+                variant="outline"
+                icon={User}
+                label="My profile"
+                onPress={() => router.navigate('/student/profile')}
               />
             </View>
           </View>
@@ -209,19 +221,9 @@ export default function StudentHome() {
           ) : notices.data.length === 0 ? (
             <EmptyState message="No notices yet." />
           ) : (
-            notices.data.slice(0, 3).map((n, i) => (
-              <NoticeRow
-                key={n.id}
-                notice={n}
-                first={i === 0}
-                onPress={() =>
-                  router.navigate({
-                    pathname: '/student/notices/[id]',
-                    params: { id: String(n.id) },
-                  } as never)
-                }
-              />
-            ))
+            notices.data
+              .slice(0, 3)
+              .map((n, i) => <NoticeRow key={n.id} notice={n} first={i === 0} />)
           )}
         </SectionCard>
       </View>

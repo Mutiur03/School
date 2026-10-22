@@ -72,8 +72,8 @@ export function SessionMarksheetScreen() {
   const heads = m ? sessionMarkHeads(m) : [];
   const hasData = !!m && m.examRows.length > 0;
 
-  const row = (r: SessionRow) => (
-    <View key={r.subject} className="border-border bg-card flex-row border-b">
+  const row = (r: SessionRow, i: number) => (
+    <View key={`${r.subject}-${i}`} className="border-border bg-card flex-row border-b">
       <View className="w-44 px-3 py-2">
         <Text size="sm" weight="medium">
           {r.subject}

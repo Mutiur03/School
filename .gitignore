@@ -45,6 +45,8 @@ build/Release
 
 # Dependency directories
 node_modules/
+# Local SMSPit install (pnpm smspit). Not a project dependency.
+.smspitt/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)

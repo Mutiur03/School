@@ -142,20 +142,6 @@ export class AttendanceSheetService {
     return `${schoolId}/attendance/${year}/${mm}/class-${cls}-${section}.pdf`;
   }
 
-  private static assertTeacherAccess(user: any, cls: number, year: number, section: string): void {
-    if (user?.role !== 'teacher') return;
-    const assigned = (user.levels ?? [])
-      .filter((l: any) => l.class_name === cls && l.year === year)
-      .map((l: any) => l.section)
-      .filter(Boolean) as string[];
-    if (assigned.length === 0) {
-      throw new ApiError(403, 'You are not assigned to this class.');
-    }
-    if (!assigned.includes(section)) {
-      throw new ApiError(403, 'You are not assigned to this section.');
-    }
-  }
-
   /** Fingerprint of everything that changes the rendered PDF. */
   static async computeInputHash(
     year: number,
@@ -822,8 +808,6 @@ export class AttendanceSheetService {
     ) {
       throw new ApiError(400, 'Invalid year, month, class, or section');
     }
-
-    this.assertTeacherAccess(user, cls, year, section);
 
     const schoolId = getRlsContext()?.schoolId ?? user?.school_id ?? user?.schoolId;
     if (!schoolId) {
