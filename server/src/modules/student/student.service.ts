@@ -2,6 +2,8 @@ import generatePassword from '@/utils/pwgenerator.js';
 import * as bcrypt from 'bcrypt';
 import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { assertTenantR2KeyIfPresent, deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
+import { resolveR2FileBuffer } from '@/config/r2.js';
+import { schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
 import * as XLSX from 'xlsx';
 import { removeInitialZeros, VALID_GROUPS } from '@school/shared-schemas';
 import { ApiError } from '@/utils/ApiError.js';
@@ -9,8 +11,6 @@ import PDFDocument from 'pdfkit';
 import EmailService from '@/utils/email.service.js';
 import { env } from '@/config/env.js';
 import type { Prisma } from '@/generated/prisma/client.js';
-import path from 'path';
-import fs from 'fs';
 import QRCode from 'qrcode';
 import { freeRolls } from './free-rolls.js';
 import sharp from 'sharp';
@@ -1025,10 +1025,35 @@ export class StudentService {
     if (result.district) addressParts.push({ title: 'District:', value: result.district });
     const address = addressParts.length > 0 ? addressParts : null;
 
+    const school = await prisma.school.findUnique({
+      where: { id: result.school_id },
+      select: {
+        name: true,
+        upazila: true,
+        district: true,
+        customDomain: true,
+        eiin: true,
+        schoolCode: true,
+        ownership: true,
+        logo: true,
+      },
+    });
+    const webHost = schoolWebsiteHost(school?.customDomain);
+    const codes = [
+      school?.eiin && `EIIN: ${school.eiin}`,
+      school?.schoolCode && `School Code: ${school.schoolCode}`,
+    ].filter(Boolean);
+
     const data = {
-      school_name: 'Panchbibi Lal Bihari Pilot Govt. High School',
-      school_location: 'Panchbibi, Joypurhat.',
-      school_website: 'https://lbphs.gov.bd',
+      school_name: school?.name?.trim() || 'School',
+      school_location: [school?.upazila, school?.district]
+        .map((s) => s?.trim())
+        .filter(Boolean)
+        .join(', '),
+      school_website: webHost ? `https://${webHost}` : '',
+      school_codes: codes.join(', '),
+      is_gov: school?.ownership === 'Government',
+      logoBuffer: school?.logo ? await resolveR2FileBuffer(school.logo, result.school_id) : null,
       name: result.name || 'N/A',
       father_name: result.father_name || 'N/A',
       mother_name: result.mother_name || 'N/A',
@@ -1050,6 +1075,9 @@ export async function generatePDF(data: {
   school_name: string;
   school_location: string;
   school_website: string;
+  school_codes?: string;
+  is_gov?: boolean;
+  logoBuffer?: Buffer | null;
   name: string;
   father_name: string;
   mother_name: string;
@@ -1087,11 +1115,10 @@ export async function generatePDF(data: {
     width: 200,
   }).catch(() => null);
 
-  const logoPath = path.join('public', 'icon.jpg');
   let logoBuffer: Buffer | null = null;
-  if (fs.existsSync(logoPath)) {
+  if (data.logoBuffer) {
     try {
-      logoBuffer = await sharp(logoPath).grayscale().toBuffer();
+      logoBuffer = await sharp(data.logoBuffer).grayscale().toBuffer();
     } catch (e) {
       console.error('Failed to process watermark logo with sharp:', e);
     }
@@ -1112,12 +1139,14 @@ export async function generatePDF(data: {
     let y = M - 5;
     const contentWidth = W - M * 2;
     doc.font('Times-Roman').fontSize(12).fillColor('#000000');
-    doc.text("Government of the People's Republic of Bangladesh", M, y, {
-      align: 'center',
-      width: contentWidth,
-    });
+    if (data.is_gov) {
+      doc.text("Government of the People's Republic of Bangladesh", M, y, {
+        align: 'center',
+        width: contentWidth,
+      });
+      y += 20;
+    }
 
-    y += 20;
     doc.fontSize(14).text('The office of the Headmaster', M, y, {
       align: 'center',
       width: contentWidth,
@@ -1136,24 +1165,18 @@ export async function generatePDF(data: {
     doc.text(data.school_name, M, y, { align: 'center', width: contentWidth });
 
     y += Math.max(schoolNameFontSize + 6, 26);
-    doc.font('Times-Roman').fontSize(14).text(data.school_location, M, y, {
-      align: 'center',
-      width: contentWidth,
-    });
+    doc.font('Times-Roman');
+    for (const [line, size] of [
+      [data.school_location, 14],
+      [data.school_website, 13],
+      [data.school_codes, 13],
+    ] as const) {
+      if (!line) continue;
+      doc.fontSize(size).text(line, M, y, { align: 'center', width: contentWidth });
+      y += 20;
+    }
 
-    y += 20;
-    doc.fontSize(13).text(data.school_website, M, y, {
-      align: 'center',
-      width: contentWidth,
-    });
-
-    y += 20;
-    doc.fontSize(13).text('EIIN: 121983, School Code: 5100', M, y, {
-      align: 'center',
-      width: contentWidth,
-    });
-
-    y += 26;
+    y += 6;
 
     const dividerY = y;
     doc.moveTo(0, y).lineTo(W, y).lineWidth(2).stroke('#000000');

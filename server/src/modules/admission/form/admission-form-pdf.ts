@@ -3,6 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import puppeteer from 'puppeteer';
 import { prisma } from '@/config/prisma.js';
+import { resolveR2FileBuffer } from '@/config/r2.js';
+import { schoolWebsiteHost } from '@/utils/schoolPublicOrigin.util.js';
 
 export const formatQuota = (q: unknown): string | null => {
   if (!q) return null;
@@ -35,7 +37,9 @@ export const generateAdmissionPDF = async (admission) => {
   try {
     console.log(`Generating pdf for ${admission.id}`);
 
-    const admissionSettings = await prisma.admission.findFirst();
+    const admissionSettings = await prisma.admission.findFirst({
+      where: { school_id: admission.school_id },
+    });
     function normalizeClassKey(c) {
       if (!c) return '';
       const s = String(c).trim().toLowerCase();
@@ -51,21 +55,33 @@ export const generateAdmissionPDF = async (admission) => {
     const attachmentInstructions =
       (classNum && admissionSettings?.[`attachment_instruction_class${classNum}`]) || '-';
 
-    const logoPath = path.join('public', 'icon.jpg');
-    const logoExists = fs.existsSync(logoPath);
+    const school = await prisma.school.findUnique({
+      where: { id: admission.school_id },
+      select: {
+        name: true,
+        upazila: true,
+        district: true,
+        customDomain: true,
+        logo: true,
+        phone: true,
+      },
+    });
+    const schoolName = school?.name?.trim() || 'School';
+    const schoolAddr = [school?.upazila, school?.district]
+      .map((s) => s?.trim())
+      .filter(Boolean)
+      .join(', ');
+    const schoolWeb = schoolWebsiteHost(school?.customDomain);
 
     let logoBase64 = '';
-    if (logoExists) {
+    if (school?.logo) {
       try {
-        const logoBuffer = fs.readFileSync(logoPath);
-        const logoExtension = path.extname(logoPath).toLowerCase();
-        const mimeType =
-          logoExtension === '.png'
-            ? 'image/png'
-            : logoExtension === '.jpg' || logoExtension === '.jpeg'
-              ? 'image/jpeg'
-              : 'image/png';
-        logoBase64 = `data:${mimeType};base64,${logoBuffer.toString('base64')}`;
+        const logoBuffer = await resolveR2FileBuffer(school.logo, admission.school_id);
+        if (logoBuffer?.length) {
+          const ext = path.extname(school.logo).toLowerCase();
+          const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+          logoBase64 = `data:${mime};base64,${logoBuffer.toString('base64')}`;
+        }
       } catch (logoError) {
         console.warn('Failed to load logo:', logoError);
       }
@@ -261,9 +277,6 @@ export const generateAdmissionPDF = async (admission) => {
       admissionSettings && admissionSettings.ingikar
         ? String(admissionSettings.ingikar)
         : defaultOngikar;
-    const schoolName = 'Panchbibi Lal Bihari Pilot Govt. High School';
-    const schoolAddr = 'Panchbibi, Joypurhat';
-    const schoolWeb = 'www.lbphs.gov.bd';
     const admission_year = admission.admission_year || '';
 
     // prepare display strings for title: use list_type, admission_class and admission_year
@@ -642,8 +655,8 @@ export const generateAdmissionPDF = async (admission) => {
           ${logoBase64 ? `<img src="${logoBase64}" alt="School Logo" />` : 'School<br>Logo'}
         </div>
         <div class="school en">${schoolName}</div>
-        <div class="addr en">${schoolAddr}</div>
-        <div class="web en">${schoolWeb}</div>
+        ${schoolAddr ? `<div class="addr en">${schoolAddr}</div>` : ''}
+        ${schoolWeb ? `<div class="web en">${schoolWeb}</div>` : ''}
       </div> 
       <div class="title-row en">
         ${titleLabel}
@@ -727,7 +740,7 @@ export const generateAdmissionPDF = async (admission) => {
       </div>
     </div>
     <div class="bottom-info en">
-      Emergency Contact: 01309-121983 | Generated: ${currentDateTime}
+      ${school?.phone ? `Emergency Contact: ${school.phone} | ` : ''}Generated: ${currentDateTime}
     </div>
   </div>
 </body>

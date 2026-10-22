@@ -657,6 +657,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
         customDomain: true,
         subdomain: true,
         logo: true,
+        phone: true,
       },
     });
     if (!school) {
@@ -897,7 +898,7 @@ export function createRegistrationFormService(cfg: RegistrationFormConfig) {
             <div class="signature-cell" style="flex: 1; text-align: center; min-width: 140px;"><div class="signature-line"></div><div class="signature-label bn" style="font-size: 0.9rem;">পিতা/মাতা/বৈধ অভিভাবকের স্বাক্ষর</div></div>
             <div class="signature-cell" style="flex: 1; text-align: center; min-width: 140px;"><div class="signature-line"></div><div class="signature-label bn" style="font-size: 0.9rem;">দায়িত্বপ্রাপ্ত শিক্ষকের স্বাক্ষর, তারিখ ও সিল</div></div>
           </div>
-          <div class="bottom-info en">Emergency Contact: 01309-121983 | Generated: ${currentDateTime}</div>
+          <div class="bottom-info en">${school.phone ? `Emergency Contact: ${school.phone} | ` : ''}Generated: ${currentDateTime}</div>
         </div>
       </body>
       </html>
