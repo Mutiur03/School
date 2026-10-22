@@ -36,7 +36,11 @@ const ALLOWLIST: readonly (readonly string[])[] = [
 ];
 
 const matches = (part: string, value: unknown) =>
-  part === '*' ? typeof value === 'number' : part === '?' ? typeof value === 'string' : value === part;
+  part === '*'
+    ? typeof value === 'number'
+    : part === '?'
+      ? typeof value === 'string'
+      : value === part;
 
 export function isPersistableKey(queryKey: readonly unknown[], tenantKey: string): boolean {
   if (queryKey[0] !== TENANT_ROOT || queryKey[1] !== tenantKey || queryKey[2] !== 'private') {
@@ -45,8 +49,7 @@ export function isPersistableKey(queryKey: readonly unknown[], tenantKey: string
   const rest = queryKey.slice(3);
   return ALLOWLIST.some(
     (pattern) =>
-      rest.length === pattern.length &&
-      pattern.every((part, i) => matches(part, rest[i])),
+      rest.length === pattern.length && pattern.every((part, i) => matches(part, rest[i])),
   );
 }
 
