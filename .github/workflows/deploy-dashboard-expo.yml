@@ -219,12 +219,14 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/dashboard-expo-staging-${{ github.run_number }}.apk"
 
+      # archive: false uploads the bare .apk (no zip); the file name becomes the artifact name.
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: dashboard-expo-staging-${{ github.run_number }}
-          path: apps/dashboard-expo/android/app/build/outputs/apk/release/app-release.apk
+          archive: false
+          path: apps/dashboard-expo/android/app/build/outputs/apk/release/dashboard-expo-staging-${{ github.run_number }}.apk
 
   # Dev client (APP_ENV=local, id .dev). JS comes from Metro on your PC, so this only needs
   # rebuilding when native code or app.config.ts changes. Debug-signed with the template's
@@ -271,9 +273,10 @@ jobs:
           ./gradlew assembleDebug --no-daemon \
             "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" \
             -PreactNativeArchitectures=arm64-v8a
+          mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/dashboard-expo-dev-${{ github.run_number }}.apk"
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: dashboard-expo-dev-${{ github.run_number }}
-          path: apps/dashboard-expo/android/app/build/outputs/apk/debug/app-debug.apk
+          archive: false
+          path: apps/dashboard-expo/android/app/build/outputs/apk/debug/dashboard-expo-dev-${{ github.run_number }}.apk

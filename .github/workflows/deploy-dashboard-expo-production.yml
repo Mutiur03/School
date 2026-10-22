@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: Build a store AAB, or publish a JS-only OTA after staging is verified
+        description: Build a signed APK + store AAB, or publish a JS-only OTA after staging is verified
         type: choice
         options:
           - build
@@ -79,7 +79,8 @@ jobs:
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
       # Upload key for Play App Signing. Losing it means a Play support reset; back it up offline.
-      - name: Build signed AAB
+      # APK for direct install; AAB because Google Play only accepts bundles for new apps.
+      - name: Build signed APK and AAB
         if: inputs.action == 'build'
         working-directory: apps/dashboard-expo/android
         env:
@@ -95,12 +96,21 @@ jobs:
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           # Prebuild caps Metaspace at 512m; release lint over every native module overflows it.
-          ./gradlew bundleRelease --no-daemon -x lintVitalAnalyzeRelease \
+          ./gradlew assembleRelease bundleRelease --no-daemon -x lintVitalAnalyzeRelease \
             "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.jks" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/dashboard-expo-production-${{ github.run_number }}.apk"
+
+      # archive: false uploads the bare .apk (no zip); the file name becomes the artifact name.
+      - name: Upload APK
+        if: inputs.action == 'build'
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: apps/dashboard-expo/android/app/build/outputs/apk/release/dashboard-expo-production-${{ github.run_number }}.apk
 
       - name: Upload AAB
         if: inputs.action == 'build'
