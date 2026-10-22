@@ -21,9 +21,12 @@ import {
   regYearOptions,
   resultYearOptions,
   syllabusSummary,
+  syllabusRows,
   syllabusTable,
   syllabusYears,
   toggleAll,
+  dateTimeOf,
+  wrapIndex,
 } from './model';
 import { regFormValues, regSettingsFormSchema } from './registration-model';
 
@@ -60,6 +63,22 @@ describe('site documents model', () => {
     );
     assert.equal(syllabusSummary(rows, 2026), '2 of 5 classes uploaded for 2026');
     assert.deepEqual(syllabusYears([syl(4, 6, 2020)], 2026), [2027, 2026, 2025, 2020]);
+  });
+
+  it('lists every file of a class and classes outside 6–10', () => {
+    const rows = [syl(1, 6, 2026), syl(2, 6, 2026), syl(3, 11, 2026), syl(4, 7, 2025)];
+    assert.deepEqual(
+      syllabusRows(rows, 2026).map((r) => [r.cls, r.row?.id ?? null]),
+      [
+        [6, 1],
+        [6, 2],
+        [7, null],
+        [8, null],
+        [9, null],
+        [10, null],
+        [11, 3],
+      ],
+    );
   });
 
   it('file names drop the upload timestamp', () => {
@@ -190,5 +209,18 @@ describe('gallery model', () => {
     assert.deepEqual([...on].sort(), [1, 2]);
     assert.deepEqual([...toggleAll(on, [1, 2])], []);
     assert.deepEqual([...keepExisting(new Set([2, 99]), groups)], [2]);
+  });
+});
+
+describe('gallery viewer helpers', () => {
+  it('wraps previous/next at both ends', () => {
+    assert.equal(wrapIndex(0, -1, 5), 4);
+    assert.equal(wrapIndex(4, 1, 5), 0);
+    assert.equal(wrapIndex(2, 1, 5), 3);
+    assert.equal(wrapIndex(0, 1, 0), 0);
+  });
+  it('formats a timestamp with the time, and dashes for empty', () => {
+    assert.match(dateTimeOf('2026-04-15T09:05:00'), /^15 Apr 2026, 09:05$/);
+    assert.equal(dateTimeOf(null), '—');
   });
 });

@@ -8,9 +8,10 @@
  * Albums fold, select-all per album, a bulk bar and a photo viewer with previous / next.
  * Live data: /api/gallery/* (src/lib/api/gallery.ts), events from /api/events/getEvents.
  */
+import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Image, Platform, Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
@@ -19,7 +20,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field } from '@/components/ui/Field';
 import { FilePicker, PickFilesButton } from '@/components/ui/FilePicker';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type LucideIcon } from '@/components/ui/Icon';
 import {
   Check,
   ChevronDown,
@@ -54,11 +55,11 @@ import {
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
-import { dayOf, gallerySummary, keepExisting, toggleAll } from './model';
+import { dateTimeOf, gallerySummary, keepExisting, toggleAll, wrapIndex } from './model';
 
 const TITLES: Record<GalleryStatus, string> = {
   approved: 'Gallery',
-  pending: 'Approve photos',
+  pending: 'Pending photos',
   rejected: 'Rejected photos',
 };
 
@@ -78,7 +79,30 @@ type Confirm = {
   kind: 'reject' | 'delete';
 };
 
+function TileAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={4}
+      className="h-6 w-6 items-center justify-center rounded bg-white/90 active:opacity-70"
+    >
+      <Icon icon={icon} size={14} />
+    </Pressable>
+  );
+}
+
 export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
+  const pct = useUploadPercent();
   const { gallery, events } = useApi();
   const { resolution } = useTenant();
   const toast = useToast();
@@ -222,6 +246,21 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
   const viewerIndex =
     viewerGroup && viewer ? Math.min(viewer.index, viewerGroup.images.length - 1) : -1;
   const current = viewerGroup && viewerIndex >= 0 ? viewerGroup.images[viewerIndex]! : null;
+  const viewerLength = viewerGroup?.images.length ?? 0;
+  const stepViewer = (delta: number) =>
+    viewerGroup &&
+    setViewer({ group: viewerGroup.id, index: wrapIndex(viewerIndex, delta, viewerLength) });
+  // Web: arrow keys step through the photos, like the web viewer.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !current) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') stepViewer(-1);
+      if (e.key === 'ArrowRight') stepViewer(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id, viewerLength, viewerIndex]);
   const ids = [...selected];
   const allFolded = groups.length > 0 && groups.every((g) => folded[g.id]);
 
@@ -309,6 +348,11 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                 ? 'No photos waiting for review.'
                 : 'No rejected photos.'
           }
+          action={
+            mode === 'approved' ? (
+              <Button icon={ImageIcon} label="Upload photos" onPress={openUpload} />
+            ) : undefined
+          }
         />
       ) : (
         groups.map((g) => {
@@ -358,7 +402,39 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                               className="h-full w-full"
                               resizeMode="cover"
                             />
+                            <View className="absolute inset-x-0 bottom-0 bg-black/55 px-1.5 py-1">
+                              <Text size="xs" numberOfLines={1} className="text-white">
+                                {mode === 'approved'
+                                  ? img.caption || img.studentName || uploader(img)
+                                  : uploader(img)}
+                              </Text>
+                              <Text size="xs" numberOfLines={1} className="text-white/80">
+                                {dateTimeOf(img.createdAt)}
+                              </Text>
+                            </View>
                           </Pressable>
+                          <View className="absolute right-1 top-1 gap-1">
+                            {mode === 'approved' ? (
+                              <TileAction
+                                icon={Pencil}
+                                label={`Edit photo ${index + 1} in ${g.title}`}
+                                onPress={() => openEdit(img)}
+                              />
+                            ) : (
+                              <TileAction
+                                icon={Check}
+                                label={`Approve photo ${index + 1} in ${g.title}`}
+                                onPress={() => approve.mutate([img.id])}
+                              />
+                            )}
+                            <TileAction
+                              icon={mode === 'rejected' ? Trash2 : XCircle}
+                              label={`${mode === 'rejected' ? 'Delete' : 'Reject'} photo ${index + 1} in ${g.title}`}
+                              onPress={() =>
+                                mode === 'rejected' ? askDelete([img.id]) : askReject([img.id])
+                              }
+                            />
+                          </View>
                           <View className="absolute left-1.5 top-1.5 rounded bg-white/90">
                             <Checkbox
                               checked={on}
@@ -391,7 +467,7 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
         title={viewerGroup?.title ?? 'Photo'}
         description={
           current && viewerGroup
-            ? `${viewerIndex + 1} of ${viewerGroup.images.length} · ${uploader(current)} · ${dayOf(current.createdAt)}`
+            ? `${viewerIndex + 1} of ${viewerGroup.images.length} · ${uploader(current)} · ${dateTimeOf(current.createdAt)}`
             : undefined
         }
         size="xl"
@@ -405,16 +481,16 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                   size="icon"
                   icon={ChevronLeft}
                   accessibilityLabel="Previous photo"
-                  disabled={viewerIndex <= 0}
-                  onPress={() => setViewer({ group: viewerGroup.id, index: viewerIndex - 1 })}
+                  disabled={viewerLength < 2}
+                  onPress={() => stepViewer(-1)}
                 />
                 <Button
                   variant="outline"
                   size="icon"
                   icon={ChevronRight}
                   accessibilityLabel="Next photo"
-                  disabled={viewerIndex >= viewerGroup.images.length - 1}
-                  onPress={() => setViewer({ group: viewerGroup.id, index: viewerIndex + 1 })}
+                  disabled={viewerLength < 2}
+                  onPress={() => stepViewer(1)}
                 />
               </View>
               {mode === 'approved' ? (
@@ -473,7 +549,20 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                 resizeMode="contain"
               />
             </View>
-            {current.caption ? <Text size="sm">{current.caption}</Text> : null}
+            <Text size="sm" color={current.caption ? undefined : 'mutedForeground'}>
+              {current.caption || 'No caption'}
+            </Text>
+            <Text size="xs" color="mutedForeground">
+              {[
+                current.category ?? viewerGroup?.title,
+                current.studentName
+                  ? `${current.studentName}${current.studentBatch ? ` (${current.studentBatch})` : ''}`
+                  : null,
+                dateTimeOf(current.createdAt),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
           </>
         ) : null}
       </Dialog>
@@ -494,7 +583,7 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
             <Button
               label={
                 save.isPending
-                  ? 'Saving…'
+                  ? uploadLabel(pct, 'Saving…')
                   : form?.image
                     ? 'Save changes'
                     : `Upload${form?.files.length ? ` ${plural(form.files.length, 'photo')}` : ''}`

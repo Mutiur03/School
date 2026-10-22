@@ -6,6 +6,7 @@
  * Uploads go straight to R2 through a presigned URL (file picker on web, document picker on
  * native).
  */
+import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -33,7 +34,7 @@ import {
   fileNameOf,
   SYLLABUS_CLASSES,
   syllabusSummary,
-  syllabusTable,
+  syllabusRows,
   syllabusYears,
 } from './model';
 import { PdfSlot } from './ui';
@@ -159,6 +160,7 @@ interface SyllabusForm {
 }
 
 export function SyllabusScreen() {
+  const pct = useUploadPercent();
   const { siteDocs } = useApi();
   const { resolution } = useTenant();
   const toast = useToast();
@@ -174,7 +176,7 @@ export function SyllabusScreen() {
     queryFn: ({ signal }) => siteDocs.syllabus(signal),
   });
   const all = q.data ?? [];
-  const table = syllabusTable(all, year);
+  const table = syllabusRows(all, year);
 
   const save = useAdminMutation({
     mutationFn: (f: SyllabusForm) =>
@@ -325,7 +327,7 @@ export function SyllabusScreen() {
           testID="syllabus"
           rows={table}
           columns={columns}
-          rowKey={(r) => r.cls}
+          rowKey={(r) => r.key}
           loading={q.isPending}
           empty="No classes."
           renderMobile={(r) => (
@@ -356,7 +358,9 @@ export function SyllabusScreen() {
               disabled={save.isPending}
             />
             <Button
-              label={save.isPending ? 'Saving…' : form?.id ? 'Save changes' : 'Upload'}
+              label={
+                save.isPending ? uploadLabel(pct, 'Saving…') : form?.id ? 'Save changes' : 'Upload'
+              }
               onPress={submit}
               disabled={save.isPending}
               testID="syllabus-submit"

@@ -62,6 +62,8 @@ export interface StudentRow {
   final_merit: number;
   fail_count: number | null;
   result_held: boolean;
+  /** Status set by hand (not calculated from marks). */
+  result_manual: boolean;
   next_year_roll: number;
   next_year_section: string | null;
 }
@@ -76,6 +78,8 @@ export interface StudentListMeta {
   availableSections: string[];
   /** Subjects students actually have as their 4th subject this year (for the filter). */
   availableFourthSubjects: { id: number; name: string }[];
+  /** Students on stipend among all of this year's students (null when the server omits it). */
+  stipendCount: number | null;
 }
 
 export const STUDENT_SORT_KEYS = ['name', 'roll', 'class', 'section', 'group', 'fourth'] as const;
@@ -94,6 +98,10 @@ export interface StudentListParams {
   levels?: number[];
   sections?: string[];
   groups?: string[];
+  /** Exact roll number. */
+  roll?: number;
+  /** Leave out inactive (TC'd) students, as results and promotion do. */
+  activeOnly?: boolean;
   /** Subject ids as strings, plus 'none' for students without a 4th subject. */
   fourthSubjects?: string[];
   sort?: StudentSortKey;
@@ -228,6 +236,7 @@ export function parseStudentRow(s: Record<string, unknown>): StudentRow {
     final_merit: num(s.final_merit),
     fail_count: typeof s.fail_count === 'number' ? s.fail_count : null,
     result_held: bool(s.result_held),
+    result_manual: bool(s.result_manual),
     next_year_roll: num(s.next_year_roll),
     next_year_section: strOrNull(s.next_year_section),
   };
@@ -256,6 +265,7 @@ export function parseStudentList(value: unknown, params: StudentListParams): Stu
       availableSections: Array.isArray(meta.availableSections)
         ? meta.availableSections.filter((x): x is string => typeof x === 'string')
         : [],
+      stipendCount: typeof meta.stipendCount === 'number' ? meta.stipendCount : null,
       availableFourthSubjects: Array.isArray(meta.availableFourthSubjects)
         ? meta.availableFourthSubjects
             .filter(isObj)
@@ -308,6 +318,8 @@ export function createStudentsApi(client: ApiClient) {
           ...(params.levels?.length ? { levels: params.levels.join(',') } : {}),
           ...(params.sections?.length ? { sections: params.sections.join(',') } : {}),
           ...(params.groups?.length ? { groups: params.groups.join(',') } : {}),
+          ...(params.activeOnly ? { activeOnly: 'true' } : {}),
+          ...(params.roll ? { roll: params.roll } : {}),
           ...(params.fourthSubjects?.length
             ? { fourthSubjects: params.fourthSubjects.join(',') }
             : {}),

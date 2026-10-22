@@ -69,7 +69,7 @@ import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 import { registrationSections } from './admission-model';
-import { datedName, dayOf, fileNameOf, regYearOptions } from './model';
+import { datedName, dateTimeOf, fileNameOf, regYearOptions } from './model';
 import { regFormValues, regSettingsFormSchema } from './registration-model';
 import { DetailGrid, useFileTasks, ZIP_MIME } from './ui';
 
@@ -250,6 +250,12 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
         onPress={() => previewPdf(r)}
       />
       <ActionButton
+        icon={Download}
+        label={`Download PDF of ${r.name}`}
+        tone="blue"
+        onPress={() => downloadPdf(r)}
+      />
+      <ActionButton
         icon={r.status === 'pending' ? CheckCircle2 : Clock}
         label={r.status === 'pending' ? `Approve ${r.name}` : `Mark ${r.name} as pending`}
         tone="emerald"
@@ -329,7 +335,7 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
       className: 'w-32',
       render: (r) => (
         <Text size="sm" color="mutedForeground" tabular>
-          {dayOf(r.submitted)}
+          {dateTimeOf(r.submitted)}
         </Text>
       ),
     },
@@ -355,7 +361,13 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
             variant="outline"
             size="sm"
             icon={Download}
-            label={files.busy === 'sheet' ? 'Preparing…' : 'Excel sheet'}
+            label={
+              files.busy === 'sheet'
+                ? 'Preparing…'
+                : filtersActive
+                  ? 'Excel sheet (current filters)'
+                  : 'Excel sheet (all)'
+            }
             onPress={() => exportFile('sheet')}
             disabled={!!files.busy}
             testID="reg-export-sheet"
@@ -364,7 +376,13 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
             variant="outline"
             size="sm"
             icon={Download}
-            label={files.busy === 'photos' ? 'Preparing…' : 'Photos (ZIP)'}
+            label={
+              files.busy === 'photos'
+                ? 'Preparing…'
+                : filtersActive
+                  ? 'Photos ZIP (current filters)'
+                  : 'Photos ZIP (all)'
+            }
             onPress={() => exportFile('photos')}
             disabled={!!files.busy}
           />
@@ -488,7 +506,7 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
             ? [
                 detail.section && `Section ${detail.section}`,
                 detail.roll && `Roll ${detail.roll}`,
-                dayOf(detail.submitted),
+                dateTimeOf(detail.submitted),
               ]
                 .filter(Boolean)
                 .join(' · ')

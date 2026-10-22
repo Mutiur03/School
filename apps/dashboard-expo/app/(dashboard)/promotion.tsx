@@ -29,8 +29,10 @@ import {
   PauseCircle,
   PlayCircle,
   RefreshCw,
+  RotateCcw,
   SlidersHorizontal,
   Trophy,
+  Undo2,
 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
 import { Pagination } from '@/components/ui/Pagination';
@@ -43,6 +45,9 @@ import { Text } from '@/components/ui/Text';
 import { useToast } from '@/components/ui/Toast';
 import { mutationErrorMessage } from '@/features/admin/errors';
 import { useAdminMutation } from '@/features/admin/useAdminMutation';
+import { CorrectionsDialog } from '@/features/promotion/CorrectionsDialog';
+import { PromotionBadges, PromotionStatus } from '@/features/promotion/PromotionStatus';
+import { SkippedStudents } from '@/features/promotion/SkippedStudents';
 import {
   failsText,
   generateConfirmText,
@@ -53,12 +58,13 @@ import {
   meritOrder,
   nextSecRoll,
   passRulesSummary,
+  placementText,
   promoteMessages,
   promotionDetail,
   promotionYears,
   rulesByClass,
-  skippedText,
   stepState,
+  calculatedConfirm,
   yearSummary,
 } from '@/features/promotion/model';
 import { GROUPS } from '@/features/results/filters';
@@ -72,6 +78,7 @@ import {
   type EnrollmentStatus,
   type GraduationPlan,
   type PassRule,
+  type Placement,
   type PromotionPlan,
   type StudentRow,
   type StudentSortKey,
@@ -85,7 +92,7 @@ import { useTenant } from '@/tenant/TenantProvider';
 import { tw } from '@/theme/tokens';
 
 const CURRENT_YEAR = new Date().getFullYear();
-const LIMIT = 50;
+const PAGE_SIZES = [25, 50, 100, 200] as const;
 const INVALIDATE = [['students'], ['promotion-stats'], ['dashboard']] as const;
 
 function meritClass(m: number) {
@@ -202,12 +209,20 @@ export default function PromotionScreen() {
   const [group, setGroup] = useState<string[]>([]);
   const [sort, setSort] = useState<TableSort<StudentSortKey> | null>(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState<number>(50);
   const [rulesDraft, setRulesDraft] = useState<PassRule[] | null>(null);
   const [confirmGenerate, setConfirmGenerate] = useState(false);
   const [holdTarget, setHoldTarget] = useState<StudentRow | null>(null);
   const [plan, setPlan] = useState<PromotionPlan | 'loading' | null>(null);
   const [gradPlan, setGradPlan] = useState<GraduationPlan | 'loading' | null>(null);
   const [overriding, setOverriding] = useState<number | null>(null);
+  const [correctionsOpen, setCorrectionsOpen] = useState(false);
+  const [statusChange, setStatusChange] = useState<{
+    row: StudentRow;
+    status: EnrollmentStatus;
+    text: string;
+  } | null>(null);
+  const [calcTarget, setCalcTarget] = useState<StudentRow | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   const pdfLock = useRef(false);
 
@@ -227,7 +242,8 @@ export default function PromotionScreen() {
   const params = {
     year,
     page,
-    limit: LIMIT,
+    limit,
+    activeOnly: true, // inactive (TC'd) students are never part of results or promotion
     levels: cls.length ? cls : undefined,
     sections: section.length ? section : undefined,
     groups: group.length ? group : undefined,
@@ -284,7 +300,29 @@ export default function PromotionScreen() {
     invalidate: INVALIDATE,
     success: () => null,
     failure: 'Could not update status',
-    onSuccess: (_r, v) => toast.success(`${v.row.name}: ${v.status}`),
+    onSuccess: (p, v) => {
+      toast.success(`${v.row.name}: ${v.status}`);
+      const line = p && placementText(p, year + 1);
+      if (line) toast.success(line);
+      setStatusChange(null);
+    },
+  });
+  const clearOverride = useAdminMutation({
+    mutationFn: (row: StudentRow) => promotions.clearOverride(year, row.enrollment_id!),
+    invalidate: INVALIDATE,
+    success: () => null,
+    failure: 'Could not clear the manual result',
+    onSuccess: (p) => {
+      toast.success(`${p.name}: calculated result is ${p.status}.`);
+      const line = placementText(p, year + 1);
+      if (line) toast.success(line);
+      setCalcTarget(null);
+    },
+  });
+  // Ask the server where the change puts the student next year; confirm only when it moves them.
+  const checkPlacement = useMutation({
+    mutationFn: (v: { row: StudentRow; status: EnrollmentStatus }) =>
+      promotions.placement(year, v.row.enrollment_id!, v.status),
   });
   const holdM = useAdminMutation({
     mutationFn: (row: StudentRow) =>
@@ -385,7 +423,24 @@ export default function PromotionScreen() {
   const setStatus = (row: StudentRow, status: EnrollmentStatus) => {
     if (!row.enrollment_id || row.status === status) return;
     setOverriding(row.enrollment_id);
-    override.mutate({ row, status }, { onSettled: () => setOverriding(null) });
+    checkPlacement.mutate(
+      { row, status },
+      {
+        onSuccess: (p: Placement) => {
+          const text = placementText(p, year + 1);
+          if (text) {
+            setStatusChange({ row, status, text });
+            setOverriding(null);
+          } else {
+            override.mutate({ row, status }, { onSettled: () => setOverriding(null) });
+          }
+        },
+        onError: (e) => {
+          toast.error(mutationErrorMessage(e, 'Could not check next-year placement'));
+          setOverriding(null);
+        },
+      },
+    );
   };
 
   const statusCell = (row: StudentRow) =>
@@ -427,6 +482,14 @@ export default function PromotionScreen() {
         tone="blue"
         onPress={() => sessionPdf(row)}
       />
+      {row.result_manual && !row.result_held && row.enrollment_id ? (
+        <ActionButton
+          icon={RotateCcw}
+          label={`Use calculated result for ${row.name}`}
+          tone="blue"
+          onPress={() => setCalcTarget(row)}
+        />
+      ) : null}
       {row.status !== 'Graduated' && row.enrollment_id ? (
         <ActionButton
           icon={row.result_held ? PlayCircle : PauseCircle}
@@ -517,13 +580,13 @@ export default function PromotionScreen() {
         </Text>
       ),
     },
-    { key: 'actions', label: ' ', className: 'w-[124px]', align: 'right', render: actions },
+    { key: 'actions', label: ' ', className: 'w-40', align: 'right', render: actions },
   ];
 
   const sections = meta?.availableSections?.length ? meta.availableSections : ['A', 'B'];
   const promoteBusy = loadPlan.isPending || promote.isPending;
   const gradBusy = loadGradPlan.isPending || graduate.isPending;
-  const hold = holdTarget ? holdConfirm(holdTarget.name, holdTarget.result_held) : null;
+  const hold = holdTarget ? holdConfirm(holdTarget.name, holdTarget.result_held, year) : null;
   const planData = plan && plan !== 'loading' ? plan : null;
   const gradData = gradPlan && gradPlan !== 'loading' ? gradPlan : null;
 
@@ -531,33 +594,45 @@ export default function PromotionScreen() {
     <PageLayout
       title="Year-End Promotion"
       titleAccessory={
-        <Select
-          label="Session year"
-          size="sm"
-          value={year}
-          options={promotionYears(CURRENT_YEAR).map((y) => ({ value: y, label: `Session ${y}` }))}
-          onChange={(y) => {
-            setYear(y);
-            setPage(1);
-          }}
-        />
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Select
+            label="Session year"
+            size="sm"
+            value={year}
+            options={promotionYears(CURRENT_YEAR).map((y) => ({ value: y, label: `Session ${y}` }))}
+            onChange={(y) => {
+              setYear(y);
+              setPage(1);
+            }}
+          />
+          <PromotionBadges stats={statsQ.data} />
+        </View>
       }
       description={yearSummary(statsQ.data, year)}
       actions={
-        <Button
-          variant="outline"
-          icon={Download}
-          label={pdfBusy === 'all' ? 'Preparing…' : 'All session PDFs'}
-          disabled={(meta?.filtered ?? 0) === 0 || pdfBusy !== null}
-          onPress={() =>
-            void pdf(
-              'all',
-              () => promotions.allSessionPdf(year),
-              pdfFileName(['session-marksheets', year]),
-              'Failed to download all marksheets',
-            )
-          }
-        />
+        <>
+          <Button
+            variant="outline"
+            icon={Undo2}
+            label="Correct mistakes"
+            onPress={() => setCorrectionsOpen(true)}
+            testID="correct-mistakes"
+          />
+          <Button
+            variant="outline"
+            icon={Download}
+            label={pdfBusy === 'all' ? 'Preparing…' : 'All session PDFs'}
+            disabled={(meta?.filtered ?? 0) === 0 || pdfBusy !== null}
+            onPress={() =>
+              void pdf(
+                'all',
+                () => promotions.allSessionPdf(year),
+                pdfFileName(['session-marksheets', year]),
+                'Failed to download all marksheets',
+              )
+            }
+          />
+        </>
       }
       onRefresh={() => {
         void statsQ.refetch();
@@ -570,6 +645,8 @@ export default function PromotionScreen() {
           {`No year-end exam for class ${gaps.join(', ')}. Pass/fail and promotion need one covering each class — create them in Exams.`}
         </Notice>
       ) : null}
+
+      <PromotionStatus stats={statsQ.data} />
 
       <SectionCard noPadding>
         <View
@@ -696,6 +773,16 @@ export default function PromotionScreen() {
             setPage(1);
           }}
         />
+        <Select
+          label="Rows per page"
+          size="sm"
+          value={limit}
+          options={PAGE_SIZES.map((n) => ({ value: n, label: `${n} / page` }))}
+          onChange={(n) => {
+            setLimit(n);
+            setPage(1);
+          }}
+        />
         {meta ? (
           <Text size="sm" color="mutedForeground" tabular className="ml-auto">
             {meta.filtered.toLocaleString()} students
@@ -776,6 +863,42 @@ export default function PromotionScreen() {
         message={hold?.message ?? ''}
         confirmLabel={hold?.confirmLabel ?? 'OK'}
         onConfirm={() => holdTarget && holdM.mutate(holdTarget)}
+      />
+
+      <ConfirmDialog
+        open={statusChange !== null}
+        onClose={() => setStatusChange(null)}
+        busy={override.isPending}
+        tone="default"
+        title={statusChange ? `Set ${statusChange.row.name} to ${statusChange.status}?` : undefined}
+        message={
+          statusChange
+            ? `Promotion for ${year + 1} already ran.
+
+${statusChange.text}`
+            : ''
+        }
+        confirmLabel="Save"
+        onConfirm={() => statusChange && override.mutate(statusChange)}
+      />
+      <ConfirmDialog
+        open={calcTarget !== null}
+        onClose={() => setCalcTarget(null)}
+        busy={clearOverride.isPending}
+        tone="default"
+        title={
+          calcTarget ? calculatedConfirm(calcTarget.name, calcTarget.status, year).title : undefined
+        }
+        message={
+          calcTarget ? calculatedConfirm(calcTarget.name, calcTarget.status, year).message : ''
+        }
+        confirmLabel="Use calculated result"
+        onConfirm={() => calcTarget && clearOverride.mutate(calcTarget)}
+      />
+      <CorrectionsDialog
+        year={year}
+        open={correctionsOpen}
+        onClose={() => setCorrectionsOpen(false)}
       />
 
       <Dialog
@@ -875,20 +998,20 @@ export default function PromotionScreen() {
                 dot="bg-emerald-500"
               />
               <Stat label="Retained" value={planData.summary.failed_retained} dot="bg-red-500" />
-              <Stat label="Section A" value={planData.summary.section_a} />
-              <Stat label="Section B" value={planData.summary.section_b} />
+              <Stat
+                label="Sec A / B"
+                value={`${planData.summary.section_a} / ${planData.summary.section_b}`}
+              />
             </StatStrip>
-            {planData.summary.skipped > 0 ? (
-              <Notice title="Skipped">{skippedText(planData.summary.skipped)}</Notice>
-            ) : null}
+            <SkippedStudents students={planData.skipped_students} action="promoted" />
             {planData.summary.awaiting_roll > 0 ? (
               <Notice title={`No new class-6 admissions found for ${planData.newYear}`}>
-                {`${planData.summary.awaiting_roll} failed class-6 student${planData.summary.awaiting_roll === 1 ? '' : 's'} will be put on hold with no roll. Import the admissions, then assign them manually with Assign retained.`}
+                {`${planData.summary.awaiting_roll} failed class-6 student${planData.summary.awaiting_roll === 1 ? '' : 's'} will stay in class 6 without a roll for now, so the admissions get the first rolls. After importing the admissions, tap Assign retained to number them after the admitted students.`}
               </Notice>
             ) : null}
             {planData.summary.existing_next_year_enrollments > 0 ? (
-              <Notice title="Existing enrollments will be replaced">
-                {`${planData.summary.existing_next_year_enrollments} enrollment${planData.summary.existing_next_year_enrollments === 1 ? '' : 's'} in ${planData.newYear} will be deleted and replaced.`}
+              <Notice title="Existing enrollments">
+                {`${planData.summary.existing_next_year_enrollments} enrollment${planData.summary.existing_next_year_enrollments === 1 ? '' : 's'} in ${planData.newYear} already exist. Auto-promoted students are renumbered by merit; failed, manually set and late-released students keep their order after them. Only students moving to another class lose their old row.`}
               </Notice>
             ) : null}
             {planData.summary.subjects_will_clone ? (
@@ -903,9 +1026,11 @@ export default function PromotionScreen() {
                 `${r.class}${r.section}·${r.roll}`,
                 <ResultBadge key="s" status={r.status} />,
                 r.final_merit || '—',
-                r.new_roll === null
-                  ? `Cl ${r.new_class} · roll after admissions`
-                  : `Cl ${r.new_class} · ${r.new_section}${r.new_roll}`,
+                `${
+                  r.new_roll === null
+                    ? `Cl ${r.new_class} · roll after admissions`
+                    : `Cl ${r.new_class} · ${r.new_section}${r.new_roll}`
+                }${r.locked ? ' · kept order' : ''}`,
               ])}
             />
           </>
@@ -948,9 +1073,7 @@ export default function PromotionScreen() {
               <Stat label="Graduate" value={gradData.summary.graduates} dot="bg-sky-500" />
               <Stat label="Hold" value={gradData.summary.held} dot="bg-amber-500" />
             </StatStrip>
-            {gradData.summary.skipped > 0 ? (
-              <Notice title="Skipped">{skippedText(gradData.summary.skipped)}</Notice>
-            ) : null}
+            <SkippedStudents students={gradData.skipped_students} action="graduated" />
             {gradData.summary.held > 0 ? (
               <Notice title="Held">
                 {`${gradData.summary.held} student${gradData.summary.held === 1 ? '' : 's'} not passed stay in ${gradData.year} with no ${gradData.newYear} class-10 place. Pass more of them if needed, then use Retain failed.`}
@@ -963,11 +1086,17 @@ export default function PromotionScreen() {
                 `10${r.section}·${r.roll}`,
                 <ResultBadge key="s" status={r.status} />,
                 r.final_merit || '—',
-                r.action === 'graduate'
-                  ? r.ssc_batch
-                    ? `Graduate · SSC ${r.ssc_batch}`
-                    : 'Graduate'
-                  : 'Hold',
+                <View key="o" className="gap-0.5">
+                  <Badge
+                    label={r.action === 'graduate' ? 'Graduate' : 'Hold'}
+                    variant={r.action === 'graduate' ? 'default' : 'secondary'}
+                  />
+                  {r.action === 'graduate' && r.ssc_batch ? (
+                    <Text size="xs" color="mutedForeground" tabular>
+                      {`SSC batch ${r.ssc_batch}`}
+                    </Text>
+                  ) : null}
+                </View>,
               ])}
             />
           </>

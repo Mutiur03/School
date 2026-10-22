@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { StatusBadge } from '@/components/ui/Badge';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
@@ -34,6 +35,9 @@ import { cn } from '@/lib/utils';
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
+import { useTenantStorage } from '@/tenant/useTenantStorage';
+import { useLeaveGuard } from '@/navigation/LeaveGuard';
+import { parseStoredClass } from '@/features/attendance/model';
 import { tw } from '@/theme/tokens';
 import {
   isLocked,
@@ -92,6 +96,7 @@ function TickBox({
 export function RunningAwayScreen() {
   const { attendance } = useApi();
   const { resolution } = useTenant();
+  const storage = useTenantStorage();
   const toast = useToast();
   const queryClient = useQueryClient();
   const mobile = useBreakpoint() === 'mobile';
@@ -105,6 +110,23 @@ export function RunningAwayScreen() {
   const [level, setLevel] = useState<number>(0);
   const [section, setSection] = useState('');
   const [edits, setEdits] = useState<RunAwayEdits>({});
+  // Same as web: start on the class last used here or in Attendance (section A).
+  useEffect(() => {
+    let alive = true;
+    void storage
+      .get('attendance-class')
+      .then((raw) => {
+        const c = parseStoredClass(raw);
+        if (alive && c) {
+          setLevel((cur) => cur || c);
+          setSection((cur) => cur || ATTENDANCE_SECTIONS[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [storage]);
   const [pending, setPending] = useState<{ what: string; apply: () => void } | null>(null);
 
   // Same cache keys as the Attendance screen, so both stay in step.
@@ -138,6 +160,12 @@ export function RunningAwayScreen() {
   const unsaved = Object.keys(edits).length;
   const credits = smsEstimate(students, edits, maps, smsQ.data, todayIso, segments);
   const lowBalance = credits > 0 && (smsQ.data?.sms_balance ?? 0) < credits;
+
+  // In-app guard: the sidebar, tab bar, menus and Android back ask before dropping ticks.
+  useLeaveGuard(unsaved > 0, {
+    title: 'Leave without saving?',
+    message: `${unsaved} unsaved ${unsaved === 1 ? 'change is' : 'changes are'} lost if you leave this page now.`,
+  });
 
   useEffect(() => {
     if (Platform.OS !== 'web' || unsaved === 0 || typeof window === 'undefined') return;
@@ -224,22 +252,13 @@ export function RunningAwayScreen() {
       refreshing={studentsQ.isRefetching || recordsQ.isRefetching}
       footer={
         unsaved > 0 ? (
-          <View
-            className="border-border bg-card flex-row flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t px-4 py-3"
-            accessibilityRole="summary"
-            accessibilityLabel="Unsaved changes"
+          <ActionBar
+            label={`${unsaved} unsaved ${unsaved === 1 ? 'change' : 'changes'}`}
+            detail={smsLine}
           >
-            <View>
-              <Text size="sm" weight="medium" tabular>
-                {unsaved} unsaved {unsaved === 1 ? 'change' : 'changes'}
-              </Text>
-              {smsLine}
-            </View>
-            <View className="flex-row gap-2">
-              <Button variant="ghost" size="sm" label="Discard" onPress={() => setEdits({})} />
-              {saveButton}
-            </View>
-          </View>
+            <Button variant="ghost" size="sm" label="Discard" onPress={() => setEdits({})} />
+            {saveButton}
+          </ActionBar>
         ) : null
       }
     >
@@ -257,6 +276,7 @@ export function RunningAwayScreen() {
               setLevel(c);
               setSection(c ? ATTENDANCE_SECTIONS[0] : '');
               setEdits({});
+              if (c) void storage.set('attendance-class', String(c)).catch(() => {});
             })
           }
           testID="ra-class"

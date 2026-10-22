@@ -16,7 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 import { teacherFormSchema } from '@school/shared-schemas';
 import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { Image, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionBar } from '@/components/ui/ActionBar';
@@ -29,7 +29,11 @@ import type { TableSort } from '@/components/ui/table-sort';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
-import { Eye, KeyRound, Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { Eye, KeyRound, Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
+import { Select } from '@/components/ui/Select';
+import { Stat, StatStrip } from '@/components/ui/StatStrip';
 import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { ErrorState } from '@/components/ui/states';
@@ -44,7 +48,9 @@ import { fileUrl } from '@/features/student/components';
 import {
   TEACHER_FETCH_LIMIT,
   teacherDefaults,
+  designationChoices,
   teacherListView,
+  teacherStats,
   toTeacherInput,
   type TeacherFormValues,
   type TeacherSortKey,
@@ -60,8 +66,6 @@ import {
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
-
-const PAGE_SIZE = 50;
 
 function Avatar({ t }: { t: TeacherRow }) {
   const url = fileUrl(t.image);
@@ -167,6 +171,9 @@ export default function TeachersScreen() {
   const { resolution } = useTenant();
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [designations, setDesignations] = useState<string[]>([]);
+  const [emailQuery, setEmailQuery] = useState('');
   const search = useDebounced(query.trim(), 300);
   const [sort, setSort] = useState<TableSort<TeacherSortKey> | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -176,7 +183,7 @@ export default function TeachersScreen() {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [rotateOpen, setRotateOpen] = useState(false);
 
-  useEffect(() => setPage(1), [search, sort]);
+  useEffect(() => setPage(1), [search, sort, designations, emailQuery, limit]);
 
   // Like the web: one request for the first 200, then search / sort / paging in memory.
   const list = useQuery({
@@ -271,14 +278,14 @@ export default function TeachersScreen() {
   });
 
   const view = useMemo(
-    () => teacherListView(list.data?.rows ?? [], search, sort),
-    [list.data, search, sort],
+    () => teacherListView(list.data?.rows ?? [], search, sort, designations, emailQuery),
+    [list.data, search, sort, designations, emailQuery],
   );
-  const totalPages = Math.max(1, Math.ceil(view.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(view.length / limit));
   const current = Math.min(page, totalPages);
   const rows = useMemo(
-    () => view.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE),
-    [view, current],
+    () => view.slice((current - 1) * limit, current * limit),
+    [view, current, limit],
   );
   const meta = list.data?.meta;
   const visibleIds = useMemo(() => rows.map((t) => t.id), [rows]);
@@ -369,6 +376,16 @@ export default function TeachersScreen() {
         </Text>
       ),
     },
+    {
+      key: 'signature',
+      label: 'Signature',
+      className: 'w-24',
+      render: (t) => (
+        <Text size="sm" color={t.signature ? undefined : 'mutedForeground'}>
+          {t.signature ? 'Added' : '—'}
+        </Text>
+      ),
+    },
     { key: 'actions', label: ' ', className: 'w-[120px]', align: 'right', render: actions },
   ];
 
@@ -428,6 +445,39 @@ export default function TeachersScreen() {
                 testID="teacher-search"
               />
             </View>
+            <MultiSelect
+              label="Designation"
+              allLabel="All designations"
+              value={designations}
+              onChange={setDesignations}
+              options={designationChoices(list.data?.rows ?? []).map((d) => ({
+                value: d,
+                label: d,
+              }))}
+              className="w-48"
+              testID="teacher-designation-filter"
+            />
+            <View className="w-48">
+              <SearchInput
+                value={emailQuery}
+                onChangeText={setEmailQuery}
+                placeholder="Filter by email"
+                label="Filter teachers by email"
+              />
+            </View>
+            {search || designations.length || emailQuery.trim() ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={() => {
+                  setQuery('');
+                  setEmailQuery('');
+                  setDesignations([]);
+                }}
+              />
+            ) : null}
             <Checkbox
               checked={head.all}
               onChange={() => setSelected(togglePage(selected, visibleIds))}
@@ -436,6 +486,21 @@ export default function TeachersScreen() {
               testID="teachers-select-page"
             />
           </View>
+          {list.data && list.data.rows.length > 0 ? (
+            <StatStrip className="sm:max-w-md">
+              <Stat label="Total" value={teacherStats(list.data.rows).total} />
+              <Stat
+                label="With photo"
+                value={teacherStats(list.data.rows).withPhoto}
+                dot="bg-emerald-500"
+              />
+              <Stat
+                label="With signature"
+                value={teacherStats(list.data.rows).withSignature}
+                dot="bg-sky-500"
+              />
+            </StatStrip>
+          ) : null}
           <DataTable
             testID="teachers"
             rows={rows}
@@ -444,7 +509,13 @@ export default function TeachersScreen() {
             loading={list.isPending}
             sort={sort}
             onSort={(next) => setSort(next as TableSort<TeacherSortKey> | null)}
-            empty={search ? `No teachers match “${search}”.` : 'No teachers yet.'}
+            empty={
+              search
+                ? `No teachers match “${search}”.`
+                : designations.length
+                  ? 'No teachers match these filters.'
+                  : 'No teachers yet.'
+            }
             onRowPress={setViewing}
             renderMobile={(t) => (
               <View className="flex-row items-center gap-3">
@@ -459,12 +530,15 @@ export default function TeachersScreen() {
             )}
           />
           {meta ? (
-            <Pagination
-              page={current}
-              totalPages={totalPages}
-              onPage={setPage}
-              busy={list.isFetching}
-            />
+            <View className="flex-row flex-wrap items-center justify-between gap-2">
+              <PageSizeSelect value={limit} onChange={setLimit} />
+              <Pagination
+                page={current}
+                totalPages={totalPages}
+                onPage={setPage}
+                busy={list.isFetching}
+              />
+            </View>
           ) : null}
         </>
       )}
@@ -521,12 +595,23 @@ export default function TeachersScreen() {
             placeholder="01XXXXXXXXX"
             maxLength={11}
           />
-          <TextField
+          <Controller
             control={control}
             name="designation"
-            label="Designation"
-            required
-            placeholder="e.g. Assistant Teacher"
+            render={({ field, fieldState }) => (
+              <Field label="Designation" required error={fieldState.error?.message}>
+                <Select
+                  label="Designation"
+                  value={field.value || null}
+                  placeholder="Select designation"
+                  options={designationChoices([
+                    ...(list.data?.rows ?? []),
+                    ...(field.value ? [{ designation: field.value } as TeacherRow] : []),
+                  ]).map((d) => ({ value: d, label: d }))}
+                  onChange={field.onChange}
+                />
+              </Field>
+            )}
           />
         </FieldRow>
         <TextField control={control} name="address" label="Address" required />

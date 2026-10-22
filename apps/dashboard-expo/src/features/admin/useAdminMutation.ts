@@ -14,6 +14,7 @@ export function useAdminMutation<TVars, TResult = void>({
   success,
   failure,
   onSuccess,
+  onError,
 }: {
   mutationFn: (vars: TVars) => Promise<TResult>;
   /** Query key parts after the private prefix, e.g. [['teachers'], ['dashboard']]. */
@@ -21,6 +22,8 @@ export function useAdminMutation<TVars, TResult = void>({
   success: string | ((result: TResult) => string | null);
   failure: string;
   onSuccess?: (result: TResult, vars: TVars) => void;
+  /** Runs after the failure toast (e.g. to mark the fields the server rejected). */
+  onError?: (error: unknown, vars: TVars) => void;
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -37,6 +40,9 @@ export function useAdminMutation<TVars, TResult = void>({
       if (msg) toast.success(msg);
       onSuccess?.(result, vars);
     },
-    onError: (error) => toast.error(mutationErrorMessage(error, failure)),
+    onError: (error, vars) => {
+      toast.error(mutationErrorMessage(error, failure));
+      onError?.(error, vars);
+    },
   });
 }

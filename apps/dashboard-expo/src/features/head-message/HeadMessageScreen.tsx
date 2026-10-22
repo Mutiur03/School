@@ -231,7 +231,7 @@ export function HeadMessageScreen() {
             <Button
               size="sm"
               label={save.isPending ? 'Saving…' : 'Save message'}
-              disabled={save.isPending}
+              disabled={save.isPending || (!draft.teacherId && !draft.message.trim())}
               onPress={() => save.mutate(draft)}
               testID="head-save"
             />

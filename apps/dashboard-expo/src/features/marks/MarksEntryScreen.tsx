@@ -17,8 +17,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLeaveGuard } from '@/navigation/LeaveGuard';
+import { parseStoredClass } from '@/features/attendance/model';
+import { useTenantStorage } from '@/tenant/useTenantStorage';
 import { Platform, View, type TextInput } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Save } from '@/components/ui/icons';
@@ -147,6 +150,24 @@ export function MarksEntryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the exam/year changes
   }, [examName, year, only?.cls, only?.section]);
 
+  // Start on the class last used in Attendance / Running Away / here, when this exam covers it.
+  const storage = useTenantStorage();
+  useEffect(() => {
+    if (only || !examName || cls !== null) return;
+    let alive = true;
+    void storage
+      .get('attendance-class')
+      .then((raw) => {
+        const c = parseStoredClass(raw);
+        if (alive && c && classList.includes(c)) setCls((cur) => cur ?? c);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the exam changes
+  }, [examName, only?.cls]);
+
   // A group subject (e.g. Physics) narrows the roster to its group, like the web page.
   useEffect(() => {
     if (subject?.group && subject.group !== group) setGroup(subject.group);
@@ -269,19 +290,10 @@ export function MarksEntryScreen() {
       actions={unsaved === 0 ? saveButton : undefined}
       footer={
         unsaved > 0 ? (
-          <View
-            className="border-border bg-card flex-row flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t px-4 py-3"
-            accessibilityRole="summary"
-            accessibilityLabel="Unsaved marks"
-          >
-            <Text size="sm" weight="medium" tabular>
-              {unsaved} unsaved {unsaved === 1 ? 'student' : 'students'}
-            </Text>
-            <View className="flex-row gap-2">
-              <Button variant="ghost" size="sm" label="Discard" onPress={() => setDraft({})} />
-              {saveButton}
-            </View>
-          </View>
+          <ActionBar label={`${unsaved} unsaved ${unsaved === 1 ? 'student' : 'students'}`}>
+            <Button variant="ghost" size="sm" label="Discard" onPress={() => setDraft({})} />
+            {saveButton}
+          </ActionBar>
         ) : null
       }
     >
@@ -335,6 +347,7 @@ export function MarksEntryScreen() {
           onChange={(c) =>
             guarded('class', () => {
               setCls(c);
+              void storage.set('attendance-class', String(c)).catch(() => {});
               setGroup('');
               setSection('');
               setSubjectId(null);

@@ -33,19 +33,24 @@ export function staffDesignations(rows: readonly StaffRow[]): string[] {
   );
 }
 
+/** Filter value for staff with no designation. */
+export const NO_DESIGNATION = 'Not set';
+
 export function filterStaff(
   rows: readonly StaffRow[],
-  f: { search: string; designation: string },
+  f: { search: string; designation?: string; designations?: readonly string[] },
 ): StaffRow[] {
   const q = f.search.trim().toLowerCase();
+  const wanted = [...(f.designations ?? []), ...(f.designation ? [f.designation] : [])];
   return rows
     .filter((r) => {
-      if (f.designation && r.designation !== f.designation) return false;
+      if (wanted.length && !wanted.includes(r.designation ?? NO_DESIGNATION)) return false;
       if (!q) return true;
       return (
         r.name.toLowerCase().includes(q) ||
         r.phone.includes(q) ||
-        (r.email ?? '').toLowerCase().includes(q)
+        (r.email ?? '').toLowerCase().includes(q) ||
+        (r.address ?? '').toLowerCase().includes(q)
       );
     })
     .sort((a, b) => a.name.localeCompare(b.name));

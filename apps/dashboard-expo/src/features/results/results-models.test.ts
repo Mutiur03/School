@@ -26,7 +26,9 @@ import {
   generateMessages,
   graduateMessage,
   graduationDetail,
+  blockedCount,
   holdConfirm,
+  placementText,
   meritOrder,
   nextSecRoll,
   promoteMessages,
@@ -173,8 +175,11 @@ const stats = (o: Partial<PromotionStats> = {}): PromotionStats => ({
   promoted: false,
   next_year_enrollments: 0,
   awaiting_roll: 0,
+  unplaced: 0,
   awaiting_retain: 0,
   graduated: false,
+  promotion_run: null,
+  graduation_run: null,
   ...o,
 });
 
@@ -240,8 +245,64 @@ describe('year-end promotion', () => {
       graduateMessage({ graduated: 40, held: 2 }),
       'Graduation complete: 40 passed, 2 held',
     );
-    assert.equal(holdConfirm('Rina', true).confirmLabel, 'Release');
-    assert.equal(holdConfirm('Rina', false).title, 'Hold result?');
+    assert.equal(holdConfirm('Rina', true, 2026).confirmLabel, 'Release');
+    assert.equal(holdConfirm('Rina', false, 2026).title, 'Hold result?');
+    assert.match(holdConfirm('Rina', false, 2026).message, /2027 class row is removed/);
+    assert.equal(
+      placementText(
+        {
+          enrollment_id: 1,
+          name: 'Rina',
+          class: 6,
+          action: 'remove',
+          new_class: null,
+          new_section: null,
+          new_roll: null,
+        },
+        2027,
+      ),
+      "Rina's 2027 class row will be removed (not promoted).",
+    );
+    assert.equal(
+      placementText(
+        {
+          enrollment_id: 1,
+          name: 'Rina',
+          class: 6,
+          action: 'unchanged',
+          new_class: null,
+          new_section: null,
+          new_roll: null,
+        },
+        2027,
+      ),
+      null,
+    );
+    assert.match(
+      placementText(
+        {
+          enrollment_id: 1,
+          name: 'Rina',
+          class: 6,
+          action: 'move',
+          new_class: 7,
+          new_section: 'A',
+          new_roll: null,
+        },
+        2027,
+      )!,
+      /without a roll/,
+    );
+    const blocked = {
+      year: 2026,
+      newYear: 2027,
+      reset_promotion: { available: true, rows: 3, with_marks: 2 },
+      undo_graduation: { available: true, graduated: 4, rows: 1, with_marks: 1 },
+      clear_manual: { available: true, students: 1 },
+      reset_release_batches: { available: false, students: 0 },
+    };
+    assert.equal(blockedCount(blocked, { reset_promotion: true, clear_manual: true }), 2);
+    assert.equal(blockedCount(blocked, { clear_manual: true }), 0);
   });
 });
 

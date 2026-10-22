@@ -42,7 +42,7 @@ import {
   ADMISSION_RESULT_CLASSES,
   admissionResultRows,
   admissionResultSummary,
-  dayOf,
+  dateTimeOf,
   resultYearOptions,
 } from './model';
 
@@ -200,7 +200,7 @@ export function AdmissionResultScreen() {
       className: 'w-32',
       render: (r) => (
         <Text size="sm" color="mutedForeground" tabular>
-          {r.result ? dayOf(r.result.created_at) : '—'}
+          {r.result ? dateTimeOf(r.result.created_at) : '—'}
         </Text>
       ),
     },

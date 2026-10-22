@@ -7,6 +7,16 @@ Updated with each port batch. Endpoints are the ones the web page calls today (a
 Status: **done** = same features as the web page · **partial** = usable, gaps listed ·
 **missing** = still the "not built yet" placeholder (or no screen).
 
+> **Audit note (code-level diff, 2026-10-22):** the "done" counts below mean _every web route has an
+> Expo screen_, not that every feature matches. A feature-by-feature diff found and closed most gaps
+> (subscription lock, forgot password, student attendance tab, promotion corrections/status,
+> events/holidays/subjects filters, gallery tile actions, attendance PDF/SMS estimate, list page sizes).
+> Known remaining differences, all deliberate: inline PDF preview on native (Android WebView cannot
+> render PDFs, so native uses the system viewer through the Open buttons) and the preview badges
+> in the graduation dialog (the server now returns "hold" instead of "retain"). Upload progress %,
+> drag-and-drop (web build), the `/preview/<kind>/:id` page (web build, needs an admin session),
+> inline student results and photo upload when adding a student are now built.
+
 ## Summary
 
 Counted per table row (one row per web route; the old 59/16/20/23 double-counted the grouped

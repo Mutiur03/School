@@ -22,8 +22,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow, FormSection } from '@/components/ui/Field';
-import { Copy, FileSpreadsheet, Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { Copy, FileSpreadsheet, Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
+import { pageOf } from '@/features/events/model';
 import { ImportDialog } from '@/features/import/ImportDialog';
+import { filterSubjects, markParts, subjectsFiltered } from '@/features/subjects/model';
 import {
   parseSubjectSheet,
   SUBJECT_REQUIRED_COLUMNS,
@@ -31,6 +33,9 @@ import {
   SUBJECT_TEMPLATE_ROWS,
   type SubjectImportRow,
 } from '@/features/import/models';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { Pagination } from '@/components/ui/Pagination';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { Segmented, Select } from '@/components/ui/Select';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
@@ -45,7 +50,7 @@ import {
   toSubjectInput,
   type SubjectFormValues,
 } from '@/features/subjects/form';
-import { orderSubjects, type Subject, type SubjectType } from '@/lib/api';
+import { isApiError, orderSubjects, type Subject, type SubjectType } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
@@ -267,8 +272,25 @@ function SubjectForm({
             ...VALID_GROUPS.map((g) => ({ value: g, label: g })),
           ]}
         />
-      ) : null}
+      ) : (
+        <Text size="xs" color="mutedForeground">
+          Group: not required for class 6–8.
+        </Text>
+      )}
     </>
+  );
+}
+
+function Detail({ label, value, big }: { label: string; value: string; big?: boolean }) {
+  return (
+    <View className="min-w-[40%] flex-1 gap-0.5">
+      <Text size="xs" color="mutedForeground" weight="medium">
+        {label}
+      </Text>
+      <Text size={big ? 'xl' : 'sm'} weight={big ? 'semibold' : 'regular'} tabular>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -281,6 +303,12 @@ export default function SubjectsScreen() {
   const [editing, setEditing] = useState<Subject | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
   const [cloneOpen, setCloneOpen] = useState(false);
+  const [viewing, setViewing] = useState<Subject | null>(null);
+  const [search, setSearch] = useState('');
+  const [groups, setGroups] = useState<string[]>([]);
+  const [types, setTypes] = useState<SubjectType[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
 
   const q = useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'subjects'),
@@ -289,11 +317,26 @@ export default function SubjectsScreen() {
   });
   const all = useMemo(() => q.data ?? [], [q.data]);
   const yearSubjects = useMemo(() => all.filter((s) => s.year === year), [all, year]);
+  const filters = { q: search, groups, types };
+  const filtered = subjectsFiltered(filters) || level !== ALL;
   const rows = useMemo(
     () =>
-      orderSubjects(level === ALL ? yearSubjects : yearSubjects.filter((s) => s.class === level)),
-    [yearSubjects, level],
+      orderSubjects(
+        filterSubjects(
+          level === ALL ? yearSubjects : yearSubjects.filter((s) => s.class === level),
+          { q: search, groups, types },
+        ),
+      ),
+    [yearSubjects, level, search, groups, types],
   );
+  const paged = pageOf(rows, page, limit);
+  const clearFilters = () => {
+    setLevel(ALL);
+    setSearch('');
+    setGroups([]);
+    setTypes([]);
+    setPage(1);
+  };
   const names = useMemo(() => new Map(all.map((s) => [s.id, s.name])), [all]);
   const years = useMemo(() => {
     const ys = new Set([THIS_YEAR + 1, THIS_YEAR, THIS_YEAR - 1, ...all.map((s) => s.year)]);
@@ -322,6 +365,20 @@ export default function SubjectsScreen() {
     success: () => (editing ? 'Subject updated successfully' : 'Subjects added successfully'),
     failure: editing ? 'Error updating subject' : 'Error adding subjects',
     onSuccess: close,
+    // Mark the fields the server rejected, like the web form.
+    onError: (e) => {
+      if (!isApiError(e)) return;
+      for (const d of e.details as { path?: unknown; message?: unknown }[]) {
+        const field = Array.isArray(d.path) ? d.path[d.path.length - 1] : null;
+        if (
+          typeof field === 'string' &&
+          typeof d.message === 'string' &&
+          field in subjectDefaults()
+        ) {
+          setError(field as keyof SubjectFormValues, { type: 'server', message: d.message });
+        }
+      }
+    },
   });
   const [importOpen, setImportOpen] = useState(false);
   const importRows = useAdminMutation({
@@ -402,13 +459,17 @@ export default function SubjectsScreen() {
       className: 'min-w-0 flex-1',
       render: (s) => (
         <View className={cn(s.subject_type === 'paper' && 'pl-5')}>
-          <Text
-            size="sm"
-            weight={s.subject_type === 'paper' ? 'regular' : 'medium'}
-            numberOfLines={1}
-          >
-            {s.name}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Text
+              size="sm"
+              weight={s.subject_type === 'paper' ? 'regular' : 'medium'}
+              numberOfLines={1}
+              className="shrink"
+            >
+              {s.name}
+            </Text>
+            {s.assessment_type === 'continuous' ? <Chip label="CAS" tone="muted" /> : null}
+          </View>
           {s.group ? (
             <Text size="xs" color="mutedForeground">
               {s.group}
@@ -520,24 +581,81 @@ export default function SubjectsScreen() {
         />
       ) : (
         <>
-          <Select
-            label="Class"
-            value={level}
-            onChange={setLevel}
-            className="w-40"
-            options={[
-              { value: ALL, label: 'All classes' },
-              ...CLASSES.map((c) => ({ value: c, label: `Class ${c}` })),
-            ]}
-          />
+          <View className="flex-row flex-wrap items-center gap-2">
+            <SearchInput
+              value={search}
+              onChangeText={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              placeholder="Search subject name"
+              label="Search subjects"
+            />
+            <Select
+              label="Class"
+              value={level}
+              onChange={(v) => {
+                setLevel(v);
+                setPage(1);
+              }}
+              className="w-40"
+              options={[
+                { value: ALL, label: 'All classes' },
+                ...CLASSES.map((c) => ({ value: c, label: `Class ${c}` })),
+              ]}
+            />
+            <MultiSelect
+              label="Group"
+              allLabel="All groups"
+              size="sm"
+              value={groups}
+              options={['General', ...VALID_GROUPS].map((g) => ({ value: g as string, label: g }))}
+              onChange={(v) => {
+                setGroups(v);
+                setPage(1);
+              }}
+            />
+            <MultiSelect
+              label="Type"
+              allLabel="All types"
+              size="sm"
+              value={types}
+              options={(['main', 'paper', 'single'] as SubjectType[]).map((t) => ({
+                value: t,
+                label: TYPE_SHORT[t],
+              }))}
+              onChange={(v) => {
+                setTypes(v);
+                setPage(1);
+              }}
+            />
+            {filtered ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={XIcon}
+                  label="Clear filters"
+                  onPress={clearFilters}
+                />
+                <Text size="sm" color="mutedForeground" tabular>
+                  {rows.length} shown
+                </Text>
+              </>
+            ) : null}
+          </View>
           <DataTable
             testID="subjects"
-            rows={rows}
+            rows={paged.rows}
             columns={columns}
             rowKey={(s) => s.id}
             loading={q.isPending}
-            empty={`No subjects for ${level === ALL ? '' : `class ${level} in `}${year} yet.`}
-            onRowPress={openEdit}
+            empty={
+              filtered
+                ? 'No subjects match these filters.'
+                : `No subjects for ${level === ALL ? '' : `class ${level} in `}${year} yet.`
+            }
+            onRowPress={setViewing}
             renderMobile={(s) => (
               <View
                 className={cn('flex-row items-center gap-3', s.subject_type === 'paper' && 'pl-4')}
@@ -555,8 +673,118 @@ export default function SubjectsScreen() {
               </View>
             )}
           />
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <Select
+              label="Rows per page"
+              size="sm"
+              value={limit}
+              options={[50, 100, 200].map((n) => ({ value: n, label: `${n} / page` }))}
+              onChange={(n) => {
+                setLimit(n);
+                setPage(1);
+              }}
+            />
+            <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
+          </View>
         </>
       )}
+
+      <Dialog
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        title="Subject details"
+        testID="subject-details"
+        footer={
+          viewing ? (
+            <>
+              <Button
+                variant="outline"
+                icon={Trash2}
+                label="Delete"
+                onPress={() => {
+                  setDeleteTarget(viewing);
+                  setViewing(null);
+                }}
+              />
+              <Button
+                icon={Pencil}
+                label="Edit subject"
+                onPress={() => {
+                  openEdit(viewing);
+                  setViewing(null);
+                }}
+              />
+            </>
+          ) : null
+        }
+      >
+        {viewing ? (
+          <View className="gap-4">
+            <View>
+              <View className="flex-row items-center gap-2">
+                <Text size="lg" weight="semibold">
+                  {viewing.name}
+                </Text>
+                {viewing.assessment_type === 'continuous' ? (
+                  <Chip label="CAS" tone="muted" />
+                ) : null}
+              </View>
+              <Text size="sm" color="mutedForeground" tabular>
+                {`Class ${viewing.class} · ${viewing.group || 'General'} · Session ${viewing.year}`}
+              </Text>
+            </View>
+            <View className="flex-row flex-wrap gap-x-6 gap-y-3">
+              <Detail label="Type" value={TYPE_SHORT[viewing.subject_type]} />
+              <Detail
+                label="Parent subject"
+                value={viewing.parent_id ? (names.get(viewing.parent_id) ?? '—') : '—'}
+              />
+              <Detail label="Full mark" value={String(viewing.full_mark)} big />
+              <Detail label="Pass mark" value={String(viewing.pass_mark)} big />
+              <Detail
+                label="Assessment"
+                value={viewing.assessment_type === 'continuous' ? 'Continuous' : 'Exam based'}
+              />
+              <Detail
+                label="Marking scheme"
+                value={viewing.marking_scheme === 'BREAKDOWN' ? 'Breakdown' : 'Total only'}
+              />
+              <Detail label="Order" value={String(viewing.priority)} />
+            </View>
+            <View className="gap-2">
+              <Text size="sm" weight="semibold">
+                Marks distribution
+              </Text>
+              <View className="border-border overflow-hidden rounded-lg border">
+                <View className="bg-muted flex-row px-3 py-1.5">
+                  <Text size="xs" weight="semibold" className="flex-1">
+                    Part
+                  </Text>
+                  <Text size="xs" weight="semibold" className="w-16 text-right">
+                    Mark
+                  </Text>
+                  <Text size="xs" weight="semibold" className="w-16 text-right">
+                    Pass
+                  </Text>
+                </View>
+                {markParts(viewing).map((p) => (
+                  <View key={p.label} className="border-border flex-row border-t px-3 py-1.5">
+                    <Text size="sm" className="flex-1">
+                      {p.label}
+                    </Text>
+                    <Text size="sm" tabular className="w-16 text-right">
+                      {p.mark ?? '—'}
+                    </Text>
+                    <Text size="sm" tabular className="w-16 text-right">
+                      {p.pass ?? '—'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </Dialog>
 
       <Dialog
         open={formOpen}
@@ -603,6 +831,22 @@ export default function SubjectsScreen() {
         title="Import subjects from Excel"
         noun="subject"
         requiredColumns={SUBJECT_REQUIRED_COLUMNS}
+        guide={{
+          descriptions: {
+            name: 'The full title of the subject (e.g. Mathematics, Physics).',
+            class: 'Only numeric values between 6 and 10 are accepted.',
+            full_mark: 'Total assignable marks for the subject.',
+            pass_mark: 'Minimum marks required to pass (required for exam subjects).',
+            group: 'Optional. Science/Humanities/Commerce (common for all if empty).',
+            year: 'Four-digit academic year.',
+            assessment_type: 'exam or continuous.',
+            priority: 'Sort order; 0 or higher.',
+            marking_scheme: 'Optional. TOTAL or BREAKDOWN. Defaults to TOTAL.',
+          },
+          notes: [
+            'Optional cq_mark, mcq_mark and practical_mark (and their pass marks) can be added as columns for automatic breakdown.',
+          ],
+        }}
         template={{
           fileName: 'demo_subjects.xlsx',
           sheet: 'Subjects',

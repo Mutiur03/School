@@ -6,6 +6,7 @@
  * presigned URL; picking them needs the file picker (web now, phones with the next native
  * build). Events themselves can be created and edited on phones.
  */
+import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
@@ -20,8 +21,20 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
 import { Icon } from '@/components/ui/Icon';
-import { ExternalLink, MapPin, PartyPopper, Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import {
+  ExternalLink,
+  MapPin,
+  PartyPopper,
+  Pencil,
+  Plus,
+  Trash2,
+  XIcon,
+} from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { Pagination } from '@/components/ui/Pagination';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { Select } from '@/components/ui/Select';
 import { Stat, StatStrip } from '@/components/ui/StatStrip';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
@@ -29,7 +42,15 @@ import { useToast } from '@/components/ui/Toast';
 import { plural } from '@/features/admin/errors';
 import { openStoredFile } from '@/features/admin/open-file';
 import { useAdminMutation } from '@/features/admin/useAdminMutation';
-import { splitEvents, validateEvent } from '@/features/events/model';
+import {
+  EVENT_DETAILS_MAX,
+  eventsFiltered,
+  filterEvents,
+  pageOf,
+  splitEvents,
+  validateEvent,
+  type EventWhen,
+} from '@/features/events/model';
 import { formatDay, todayYmd } from '@/features/holidays/model';
 import { fileUrl } from '@/features/student/components';
 import type { EventInput, PickedFile, SchoolEvent } from '@/lib/api';
@@ -58,6 +79,7 @@ function Thumb({ e }: { e: SchoolEvent }) {
 }
 
 export default function EventsScreen() {
+  const pct = useUploadPercent();
   const { events } = useApi();
   const { resolution } = useTenant();
   const toast = useToast();
@@ -66,6 +88,12 @@ export default function EventsScreen() {
   const [editing, setEditing] = useState<SchoolEvent | null>(null);
   const [errors, setErrors] = useState<{ title?: string; date?: string }>({});
   const [deleteTarget, setDeleteTarget] = useState<SchoolEvent | null>(null);
+  const [viewing, setViewing] = useState<SchoolEvent | null>(null);
+  const [search, setSearch] = useState('');
+  const [location, setLocation] = useState('');
+  const [when, setWhen] = useState<EventWhen[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
 
   const q = useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'events'),
@@ -74,14 +102,22 @@ export default function EventsScreen() {
   });
   const { upcoming, past } = useMemo(() => splitEvents(q.data ?? [], today), [q.data, today]);
   const [sort, setSort] = useState<TableSort | null>(null);
+  const filtered = eventsFiltered({ q: search, location, when });
   const rows = useMemo(
     () =>
-      sortRows([...upcoming, ...past], sort, {
+      sortRows(filterEvents([...upcoming, ...past], { q: search, location, when }, today), sort, {
         title: (e) => e.title,
         date: (e) => e.date,
       }),
-    [upcoming, past, sort],
+    [upcoming, past, sort, search, location, when, today],
   );
+  const paged = pageOf(rows, page, limit);
+  const clearFilters = () => {
+    setSearch('');
+    setLocation('');
+    setWhen([]);
+    setPage(1);
+  };
 
   const close = () => {
     setForm(null);
@@ -166,7 +202,7 @@ export default function EventsScreen() {
       render: (e) => (
         <Pressable
           accessibilityRole="button"
-          onPress={() => openEdit(e)}
+          onPress={() => setViewing(e)}
           className="flex-row items-center gap-3"
         >
           <Thumb e={e} />
@@ -195,9 +231,14 @@ export default function EventsScreen() {
       sortKey: 'date',
       className: 'w-36',
       render: (e) => (
-        <Text size="sm" color="mutedForeground" tabular>
-          {formatDay(e.date)}
-        </Text>
+        <View>
+          <Text size="sm" color="mutedForeground" tabular>
+            {formatDay(e.date)}
+          </Text>
+          <Text size="xs" color={e.date >= today ? 'primary' : 'mutedForeground'}>
+            {e.date >= today ? 'Upcoming' : 'Past'}
+          </Text>
+        </View>
       ),
     },
     {
@@ -219,7 +260,7 @@ export default function EventsScreen() {
       description={
         q.isPending
           ? 'Loading…'
-          : `${plural(rows.length, 'event')} · ${upcoming.length.toLocaleString()} upcoming`
+          : `${plural(q.data?.length ?? 0, 'event')} · ${upcoming.length.toLocaleString()} upcoming`
       }
       actions={<Button label="New event" icon={Plus} onPress={openCreate} testID="new-event" />}
       onRefresh={() => void q.refetch()}
@@ -233,23 +274,66 @@ export default function EventsScreen() {
         />
       ) : (
         <>
-          {rows.length > 0 ? (
+          {(q.data?.length ?? 0) > 0 ? (
             <StatStrip className="sm:max-w-md">
-              <Stat label="Total" value={rows.length} />
+              <Stat label="Total" value={q.data?.length ?? 0} />
               <Stat label="Upcoming" value={upcoming.length} dot="bg-emerald-500" />
               <Stat label="Past" value={past.length} dot="bg-slate-400" />
             </StatStrip>
           ) : null}
+          <View className="flex-row flex-wrap items-center gap-2">
+            <SearchInput
+              value={search}
+              onChangeText={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              placeholder="Search title or details"
+              label="Search events"
+            />
+            <SearchInput
+              value={location}
+              onChangeText={(v) => {
+                setLocation(v);
+                setPage(1);
+              }}
+              placeholder="Location"
+              label="Filter by location"
+            />
+            <MultiSelect
+              label="When"
+              allLabel="Upcoming & past"
+              size="sm"
+              value={when}
+              options={[
+                { value: 'upcoming' as EventWhen, label: 'Upcoming' },
+                { value: 'past' as EventWhen, label: 'Past' },
+              ]}
+              onChange={(v) => {
+                setWhen(v);
+                setPage(1);
+              }}
+            />
+            {filtered ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={clearFilters}
+              />
+            ) : null}
+          </View>
           <DataTable
             testID="events"
             sort={sort}
             onSort={setSort}
-            rows={rows}
+            rows={paged.rows}
             columns={columns}
             rowKey={(e) => e.id}
             loading={q.isPending}
-            empty="No events yet."
-            onRowPress={openEdit}
+            empty={filtered ? 'No events match these filters.' : 'No events yet.'}
+            onRowPress={setViewing}
             renderMobile={(e) => (
               <View className="flex-row items-center gap-3">
                 <Thumb e={e} />
@@ -279,8 +363,80 @@ export default function EventsScreen() {
               </View>
             )}
           />
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <Select
+              label="Rows per page"
+              size="sm"
+              value={limit}
+              options={[25, 50, 100].map((n) => ({ value: n, label: `${n} / page` }))}
+              onChange={(n) => {
+                setLimit(n);
+                setPage(1);
+              }}
+            />
+            <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
+          </View>
         </>
       )}
+
+      <Dialog
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        title={viewing?.title ?? ''}
+        description={viewing ? formatDay(viewing.date) : undefined}
+        testID="event-details"
+        footer={
+          viewing ? (
+            <>
+              <Button
+                variant="outline"
+                icon={Trash2}
+                label="Delete"
+                onPress={() => {
+                  setDeleteTarget(viewing);
+                  setViewing(null);
+                }}
+              />
+              <Button
+                icon={Pencil}
+                label="Edit event"
+                onPress={() => {
+                  openEdit(viewing);
+                  setViewing(null);
+                }}
+              />
+            </>
+          ) : null
+        }
+      >
+        {viewing ? (
+          <View className="gap-3">
+            {fileUrl(viewing.image) ? (
+              <Image
+                source={{ uri: fileUrl(viewing.image)! }}
+                accessibilityLabel={viewing.title}
+                resizeMode="cover"
+                className="bg-muted h-48 w-full rounded-lg"
+              />
+            ) : null}
+            <Text size="sm" color="mutedForeground">
+              {viewing.date >= today ? 'Upcoming' : 'Past'}
+              {viewing.location ? ` · ${viewing.location}` : ''}
+            </Text>
+            {viewing.details ? <Text size="sm">{viewing.details}</Text> : null}
+            {viewing.file ? (
+              <Button
+                variant="outline"
+                size="sm"
+                icon={ExternalLink}
+                label="Notice PDF"
+                className="self-start"
+                onPress={() => void openStoredFile(viewing.file)}
+              />
+            ) : null}
+          </View>
+        ) : null}
+      </Dialog>
 
       <Dialog
         open={form !== null}
@@ -291,7 +447,13 @@ export default function EventsScreen() {
           <>
             <Button variant="outline" label="Cancel" onPress={close} disabled={save.isPending} />
             <Button
-              label={save.isPending ? 'Saving…' : editing ? 'Save changes' : 'Create event'}
+              label={
+                save.isPending
+                  ? uploadLabel(pct, 'Saving…')
+                  : editing
+                    ? 'Save changes'
+                    : 'Create event'
+              }
               onPress={submit}
               disabled={save.isPending}
               testID="event-submit"
@@ -325,9 +487,10 @@ export default function EventsScreen() {
                 />
               </Field>
             </FieldRow>
-            <Field label="Details" hint="Optional">
+            <Field label="Details" hint={`Optional · ${form.details.length}/${EVENT_DETAILS_MAX}`}>
               <Input
                 value={form.details}
+                maxLength={EVENT_DETAILS_MAX}
                 onChangeText={(details) => setForm({ ...form, details })}
                 accessibilityLabel="Details"
                 multiline

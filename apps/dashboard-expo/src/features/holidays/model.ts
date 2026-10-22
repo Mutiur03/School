@@ -44,19 +44,40 @@ export function holidayStats(list: readonly Holiday[], year: number, today: stri
   return {
     holidays: list.length,
     daysOff: days.size,
-    upcoming: list.filter((h) => h.start_date >= today).length,
+    // Still ahead or running today (web counts by end date).
+    upcoming: list.filter((h) => (h.end_date || h.start_date) >= today).length,
     optional: list.filter((h) => h.is_optional).length,
   };
 }
 
-/** Year choices: the holidays' years plus this year and next, newest first. */
+/** Year choices: the holidays' start and end years plus this year and next, newest first. */
 export function yearOptions(list: readonly Holiday[], current: number): number[] {
   const ys = new Set<number>([current, current + 1]);
   for (const h of list) {
-    const y = Number(h.start_date.slice(0, 4));
-    if (y > 1900) ys.add(y);
+    for (const d of [h.start_date, h.end_date]) {
+      const y = Number(d.slice(0, 4));
+      if (y > 1900) ys.add(y);
+    }
   }
   return [...ys].sort((a, b) => b - a);
+}
+
+export type HolidayType = 'mandatory' | 'optional';
+
+/** Search title/description and filter by type (empty = both). */
+export function filterHolidays(
+  list: readonly Holiday[],
+  q: string,
+  types: readonly HolidayType[],
+): Holiday[] {
+  const needle = q.trim().toLowerCase();
+  return list.filter(
+    (h) =>
+      (!needle ||
+        h.title.toLowerCase().includes(needle) ||
+        (h.description ?? '').toLowerCase().includes(needle)) &&
+      (!types.length || types.includes(h.is_optional ? 'optional' : 'mandatory')),
+  );
 }
 
 export function validateHoliday(i: HolidayInput): Partial<Record<keyof HolidayInput, string>> {

@@ -31,20 +31,51 @@ export const TEACHER_FETCH_LIMIT = 200;
 export const TEACHER_SORT_KEYS = ['name', 'email', 'designation'] as const;
 export type TeacherSortKey = (typeof TEACHER_SORT_KEYS)[number];
 
+export const TEACHER_DESIGNATIONS = [
+  'Headmaster',
+  'Assistant Headmaster',
+  'Headmaster (Incharge)',
+  'Senior Teacher',
+  'Assistant Teacher',
+] as const;
+
+/** The fixed designations plus any other value already saved on a teacher. */
+export const designationChoices = (rows: readonly TeacherRow[]): string[] => [
+  ...new Set([
+    ...TEACHER_DESIGNATIONS,
+    ...rows.map((t) => t.designation).filter((d): d is string => !!d),
+  ]),
+];
+
+export function teacherStats(rows: readonly TeacherRow[]) {
+  return {
+    total: rows.length,
+    withPhoto: rows.filter((t) => !!t.image).length,
+    withSignature: rows.filter((t) => !!t.signature).length,
+  };
+}
+
 export function teacherListView(
   rows: readonly TeacherRow[],
   search: string,
   sort: TableSort<TeacherSortKey> | null,
+  designations: readonly string[] = [],
+  email = '',
 ): TeacherRow[] {
   const q = search.trim().toLowerCase();
+  const e = email.trim().toLowerCase();
+  const byEmail = e ? rows.filter((t) => t.email.toLowerCase().includes(e)) : rows;
+  const byDesignation = designations.length
+    ? byEmail.filter((t) => designations.includes(t.designation ?? ''))
+    : byEmail;
   const hits = q
-    ? rows.filter((t) =>
+    ? byDesignation.filter((t) =>
         [t.name, t.email, t.phone, t.designation ?? '', t.address ?? '']
           .join(' ')
           .toLowerCase()
           .includes(q),
       )
-    : rows;
+    : byDesignation;
   return sortRows(hits, sort, {
     name: (t) => t.name,
     email: (t) => t.email,

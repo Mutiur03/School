@@ -13,6 +13,7 @@ import {
   dayCount,
   formatDay,
   formatRange,
+  filterHolidays,
   holidayStats,
   inYear,
   todayYmd,
@@ -193,10 +194,28 @@ describe('holidays model', () => {
     assert.deepEqual(holidayStats(year, 2026, '2026-01-02'), {
       holidays: 2,
       daysOff: 3,
-      upcoming: 1,
+      // a holiday still running today counts as upcoming (web counts by end date)
+      upcoming: 2,
       optional: 1,
     });
     assert.deepEqual(yearOptions(list, 2026), [2027, 2026, 2025]);
+    assert.deepEqual(
+      yearOptions([hol({ start_date: '2024-12-30', end_date: '2025-01-02' })], 2026),
+      [2027, 2026, 2025, 2024],
+    );
+    const f = [
+      hol({ id: 1, title: 'Eid', description: 'Moon', is_optional: true }),
+      hol({ id: 2, title: 'Victory Day', description: '' }),
+    ];
+    assert.deepEqual(
+      filterHolidays(f, 'moon', []).map((h) => h.id),
+      [1],
+    );
+    assert.deepEqual(
+      filterHolidays(f, '', ['mandatory']).map((h) => h.id),
+      [2],
+    );
+    assert.equal(filterHolidays(f, '', []).length, 2);
   });
 
   it('validates required dates and order', () => {

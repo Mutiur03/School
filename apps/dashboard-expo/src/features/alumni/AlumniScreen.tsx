@@ -11,12 +11,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
-import { StatusBadge } from '@/components/ui/Badge';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Dialog } from '@/components/ui/Dialog';
-import { Eye } from '@/components/ui/icons';
+import { Eye, XIcon } from '@/components/ui/icons';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui/MultiSelect';
@@ -36,8 +37,6 @@ import type { AlumnusRow } from '@/lib/api';
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
-
-const PAGE_SIZE = 50;
 
 function Avatar({ a }: { a: AlumnusRow }) {
   const url = fileUrl(a.image);
@@ -91,6 +90,7 @@ export function AlumniScreen() {
   const [sort, setSort] = useState<AlumniSort>('batch');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
   const [viewing, setViewing] = useState<AlumnusRow | null>(null);
 
   const q = useQuery({
@@ -104,13 +104,13 @@ export function AlumniScreen() {
     () => filterAlumni(all, { search: query, batch, district, sort, order }),
     [all, query, batch, district, sort, order],
   );
-  useEffect(() => setPage(1), [query, batch, district, sort, order]);
+  useEffect(() => setPage(1), [query, batch, district, sort, order, limit]);
   const pickSort = (next: AlumniSort, dir = alumniDefaultOrder(next)) => {
     setSort(next);
     setOrder(dir);
   };
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(rows.length / limit));
+  const pageRows = rows.slice((page - 1) * limit, page * limit);
   const filtered = Boolean(query.trim() || batch.length || district.length);
 
   const columns: Column<AlumnusRow>[] = [
@@ -237,6 +237,19 @@ export function AlumniScreen() {
               ]}
               className="w-40"
             />
+            {filtered ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={() => {
+                  setQuery('');
+                  setBatch([]);
+                  setDistrict([]);
+                }}
+              />
+            ) : null}
           </View>
           <DataTable
             testID="alumni"
@@ -266,9 +279,10 @@ export function AlumniScreen() {
               </View>
             )}
           />
-          {rows.length > PAGE_SIZE ? (
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <PageSizeSelect value={limit} onChange={setLimit} sizes={[25, 50, 100, 200]} />
             <Pagination page={page} totalPages={totalPages} onPage={setPage} />
-          ) : null}
+          </View>
         </>
       )}
 
@@ -280,6 +294,23 @@ export function AlumniScreen() {
         testID="alumnus-details"
         footer={<Button variant="outline" label="Close" onPress={() => setViewing(null)} />}
       >
+        {viewing ? (
+          <View className="mb-4 flex-row items-center gap-3">
+            {fileUrl(viewing.image) ? (
+              <Image
+                source={{ uri: fileUrl(viewing.image)! }}
+                accessibilityLabel={`Photo of ${viewing.name}`}
+                resizeMode="cover"
+                className="bg-muted aspect-[7/9] w-24 rounded-lg"
+              />
+            ) : null}
+            <View className="min-w-0 flex-1 flex-row flex-wrap gap-1.5">
+              <Badge label={`Batch ${viewing.batch || '—'}`} variant="secondary" />
+              {viewing.has_stipend ? <Badge label="Stipend" variant="secondary" /> : null}
+              <Badge label={viewing.available ? 'Active' : 'Inactive'} variant="secondary" />
+            </View>
+          </View>
+        ) : null}
         {viewing ? (
           <View className="flex-row flex-wrap gap-4">
             <Detail label="Login ID" value={viewing.login_id} />

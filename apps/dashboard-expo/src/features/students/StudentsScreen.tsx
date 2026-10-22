@@ -22,18 +22,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import * as shared from '@school/shared-schemas';
-import { RELIGION, VALID_GROUPS, studentFormSchema } from '@school/shared-schemas';
+import {
+  RELIGION,
+  VALID_GROUPS,
+  sentenceCaseAddressInput,
+  studentFormSchema,
+} from '@school/shared-schemas';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Image, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionBar } from '@/components/ui/ActionBar';
 import { ActionButton } from '@/components/ui/ActionButton';
-import { StatusBadge } from '@/components/ui/Badge';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type Column } from '@/components/ui/DataTable';
+import { Input } from '@/components/ui/Input';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import type { TableSort } from '@/components/ui/table-sort';
 import { DateInput } from '@/components/ui/DateInput';
@@ -41,6 +47,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow, FormSection } from '@/components/ui/Field';
 import {
   Award,
+  CalendarDays,
   Eye,
   FileSpreadsheet,
   KeyRound,
@@ -49,13 +56,17 @@ import {
   Plus,
   RotateCw,
   Trash2,
+  User,
   UserMinus,
+  XIcon,
 } from '@/components/ui/icons';
 import { PickFilesButton } from '@/components/ui/FilePicker';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { ErrorState } from '@/components/ui/states';
+import { Tabs } from '@/components/ui/Tabs';
 import { Text } from '@/components/ui/Text';
 import { useToast } from '@/components/ui/Toast';
 import { mutationErrorMessage, plural } from '@/features/admin/errors';
@@ -63,6 +74,7 @@ import { pageState, retainIds, sameIds, toggleId, togglePage } from '@/features/
 import { TextField } from '@/features/admin/TextField';
 import { useAdminMutation } from '@/features/admin/useAdminMutation';
 import { fileUrl } from '@/features/student/components';
+import { StudentAttendancePanel } from './StudentAttendancePanel';
 import {
   STUDENT_CLASSES,
   addedMessage,
@@ -73,6 +85,7 @@ import {
   toStudentPayload,
   type StudentFormValues,
 } from '@/features/students/form';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useDebounced } from '@/hooks/useDebounced';
 import { openPdf } from '@/lib/files/open-pdf';
 import { pdfFileName } from '@/lib/files/pdf-name';
@@ -101,8 +114,6 @@ import { useTenant } from '@/tenant/TenantProvider';
 
 const THIS_YEAR = new Date().getFullYear();
 const YEARS = [THIS_YEAR + 1, THIS_YEAR, THIS_YEAR - 1, THIS_YEAR - 2, THIS_YEAR - 3];
-const PAGE_SIZE = 50;
-const ALL = 'all';
 
 function Avatar({ s }: { s: StudentRow }) {
   const url = fileUrl(s.image);
@@ -154,9 +165,19 @@ function StudentForm({
   busy,
   onClose,
   onSubmit,
+  onPhoto,
+  photoBusy,
+  newPhoto,
+  onNewPhoto,
 }: {
   open: boolean;
   editing: StudentRow | null;
+  /** Edit only: upload or remove the photo at once (a new student has no id yet). */
+  onPhoto?: (file: PickedFile | null) => void;
+  photoBusy?: boolean;
+  /** Add only: the photo saved right after the student is created. */
+  newPhoto?: PickedFile | null;
+  onNewPhoto?: (file: PickedFile | null) => void;
   sections: readonly string[];
   busy: boolean;
   onClose: () => void;
@@ -198,6 +219,53 @@ function StudentForm({
       }
     >
       <FormSection title="Personal">
+        {!editing && onNewPhoto ? (
+          <View className="flex-row flex-wrap items-center gap-2" testID="student-form-new-photo">
+            <PickFilesButton
+              accept="image/*"
+              variant="outline"
+              size="sm"
+              label={newPhoto ? 'Change photo' : 'Add photo (optional)'}
+              disabled={busy}
+              onPick={(files) => files[0] && onNewPhoto(files[0])}
+            />
+            {newPhoto ? (
+              <>
+                <Text size="xs" color="mutedForeground" numberOfLines={1} className="max-w-48">
+                  {newPhoto.name}
+                </Text>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  label="Remove"
+                  disabled={busy}
+                  onPress={() => onNewPhoto(null)}
+                />
+              </>
+            ) : null}
+          </View>
+        ) : null}
+        {editing && onPhoto ? (
+          <View className="flex-row flex-wrap items-center gap-2" testID="student-form-photo">
+            <PickFilesButton
+              accept="image/*"
+              variant="outline"
+              size="sm"
+              label={photoBusy ? 'Saving…' : editing.image ? 'Change photo' : 'Upload photo'}
+              disabled={photoBusy}
+              onPick={(files) => files[0] && onPhoto(files[0])}
+            />
+            {editing.image ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                label="Remove photo"
+                disabled={photoBusy}
+                onPress={() => onPhoto(null)}
+              />
+            ) : null}
+          </View>
+        ) : null}
         <FieldRow>
           <TextField
             control={control}
@@ -327,10 +395,30 @@ function StudentForm({
 
       <FormSection title="Address">
         <FieldRow>
-          <TextField control={control} name="village" label="Village" />
-          <TextField control={control} name="post_office" label="Post office" />
-          <TextField control={control} name="upazila" label="Upazila" />
-          <TextField control={control} name="district" label="District" />
+          <TextField
+            control={control}
+            name="village"
+            label="Village"
+            transform={(t) => sentenceCaseAddressInput(t, false)}
+          />
+          <TextField
+            control={control}
+            name="post_office"
+            label="Post office"
+            transform={(t) => sentenceCaseAddressInput(t, false)}
+          />
+          <TextField
+            control={control}
+            name="upazila"
+            label="Upazila"
+            transform={(t) => sentenceCaseAddressInput(t, false)}
+          />
+          <TextField
+            control={control}
+            name="district"
+            label="District"
+            transform={(t) => sentenceCaseAddressInput(t, false)}
+          />
         </FieldRow>
       </FormSection>
 
@@ -348,16 +436,26 @@ function StudentForm({
 export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
   const { students, subjects } = useApi();
   const { resolution } = useTenant();
+  const mobile = useBreakpoint() === 'mobile';
   const toast = useToast();
   const [year, setYear] = useState(THIS_YEAR);
-  const [level, setLevel] = useState<string>(ALL);
-  const [section, setSection] = useState<string>(ALL);
+  const [levels, setLevels] = useState<number[]>([]);
+  const [sections, setSections] = useState<string[]>([]);
+  const [groups, setGroups] = useState<string[]>([]);
+  const [limit, setLimit] = useState(50);
+  const [newPhoto, setNewPhoto] = useState<PickedFile | null>(null);
+  const [roll, setRoll] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const search = useDebounced(query.trim(), 300);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<StudentRow | null>(null);
   const [viewing, setViewing] = useState<StudentRow | null>(null);
+  const [viewTab, setViewTab] = useState<'profile' | 'attendance'>('profile');
+  const openView = (s: StudentRow) => {
+    setViewTab('profile');
+    setViewing(s);
+  };
   const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null);
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [allMatching, setAllMatching] = useState(false);
@@ -372,15 +470,17 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
   } | null>(null);
   const [bulkFourthConfirm, setBulkFourthConfirm] = useState(false);
 
-  useEffect(() => setPage(1), [search, year, level, section, sort, fourth]);
+  useEffect(() => setPage(1), [search, year, levels, sections, groups, roll, limit, sort, fourth]);
 
   const params = {
     year,
     page,
-    limit: PAGE_SIZE,
+    limit,
     search: search || undefined,
-    levels: level === ALL ? undefined : [Number(level)],
-    sections: section === ALL ? undefined : [section],
+    levels: levels.length ? levels : undefined,
+    sections: sections.length ? sections : undefined,
+    groups: groups.length ? groups : undefined,
+    roll: Number(roll) > 0 ? Number(roll) : undefined,
     fourthSubjects: fourth.length ? fourthFilterParam(fourth) : undefined,
     sort: sort?.key,
     order: sort?.order,
@@ -395,6 +495,7 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
   const close = () => {
     setFormOpen(false);
     setEditing(null);
+    setNewPhoto(null);
   };
   const save = useAdminMutation({
     mutationFn: async (values: StudentFormValues) => {
@@ -404,6 +505,26 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
         return null;
       }
       const created = await students.create({ ...personal, ...academic });
+      if (newPhoto && created.created > 0) {
+        // The create call returns no id: find the new student by class, section and roll.
+        try {
+          const found = await students.list({
+            year: new Date().getFullYear(),
+            levels: [Number(academic.class)],
+            sections: [academic.section],
+            roll: Number(academic.roll),
+            search: personal.name,
+            limit: 5,
+          });
+          const row = found.rows.find((r) => r.name === personal.name) ?? found.rows[0];
+          if (!row) throw new Error('not found');
+          await students.uploadImage(row.id, newPhoto);
+        } catch {
+          toast.error(
+            'Student added, but the photo was not saved. Add it from the student details.',
+          );
+        }
+      }
       if (created.created > 0) {
         await saveFile(created.credentials, credentialsFileName(), XLSX_MIME).catch(() =>
           toast.error("Couldn't save the login sheet. Rotate the password from the web dashboard."),
@@ -441,7 +562,10 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
     invalidate: [['students']],
     success: (r) => (r.image ? 'Photo uploaded.' : 'Photo removed.'),
     failure: 'Failed to update the photo.',
-    onSuccess: (r) => setViewing((s) => (s && s.id === r.id ? { ...s, image: r.image } : s)),
+    onSuccess: (r) => {
+      setViewing((s) => (s && s.id === r.id ? { ...s, image: r.image } : s));
+      setEditing((s) => (s && s.id === r.id ? { ...s, image: r.image } : s));
+    },
   });
   const subjectsQ = useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'subjects'),
@@ -579,7 +703,21 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
       setCertBusy(false);
     }
   };
-  const filtered = Boolean(search) || level !== ALL || section !== ALL || fourth.length > 0;
+  const filtered =
+    Boolean(search) ||
+    levels.length > 0 ||
+    sections.length > 0 ||
+    groups.length > 0 ||
+    roll !== '' ||
+    fourth.length > 0;
+  const clearFilters = () => {
+    setQuery('');
+    setLevels([]);
+    setSections([]);
+    setGroups([]);
+    setRoll('');
+    setFourth([]);
+  };
   const showSenior = rows.some((r) => r.class >= 9);
   const fourthCell = (s: StudentRow) => {
     if (!hasFourthSubject(s.class))
@@ -617,7 +755,13 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
     : filtered
       ? `${meta.filtered.toLocaleString()} of ${plural(meta.total, 'student')}`
       : plural(meta.total, 'student');
-  const summary = readOnly && meta ? `${count} · read only` : count;
+  const summary = [
+    count,
+    meta?.stipendCount != null ? `${meta.stipendCount.toLocaleString()} on stipend` : null,
+    readOnly && meta ? 'read only' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const openAdd = () => {
     setEditing(null);
@@ -628,6 +772,9 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
     setEditing(s);
     setFormOpen(true);
   };
+  const viewAction = (s: StudentRow) => (
+    <ActionButton icon={Eye} label={`View ${s.name}`} tone="blue" onPress={() => openView(s)} />
+  );
   const actions = (s: StudentRow) => (
     <View className="flex-row gap-0.5">
       <ActionButton
@@ -636,7 +783,7 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
         tone="emerald"
         onPress={() => openEdit(s)}
       />
-      <ActionButton icon={Eye} label={`View ${s.name}`} tone="blue" onPress={() => setViewing(s)} />
+      <ActionButton icon={Eye} label={`View ${s.name}`} tone="blue" onPress={() => openView(s)} />
       <ActionButton
         icon={Trash2}
         label={`Delete ${s.name}`}
@@ -648,7 +795,20 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
   const selectColumn: Column<StudentRow> = {
     key: 'select',
     label: ' ',
-    className: 'w-10',
+    className: 'w-12',
+    header: (
+      <Checkbox
+        checked={allMatching || head.all}
+        onChange={() => {
+          if (allMatching) clearSelection();
+          else setSelected(togglePage(selected, visibleIds));
+        }}
+        label=""
+        accessibilityLabel="Select all students on this page"
+        disabled={visibleIds.length === 0}
+        testID="select-page"
+      />
+    ),
     render: (s) => (
       <Checkbox
         checked={allMatching || selected.has(s.id)}
@@ -717,27 +877,23 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
           },
         ]
       : []),
-    ...(readOnly
-      ? []
-      : [
-          {
-            key: 'actions',
-            label: ' ',
-            className: 'w-[120px]',
-            align: 'right' as const,
-            render: actions,
-          },
-        ]),
+    {
+      key: 'actions',
+      label: ' ',
+      className: readOnly ? 'w-[64px]' : 'w-[120px]',
+      align: 'right' as const,
+      render: readOnly ? viewAction : actions,
+    },
   ];
 
-  const classOptions = [
-    { value: ALL, label: 'All classes' },
-    ...(meta?.availableClasses ?? []).map((c) => ({ value: String(c), label: `Class ${c}` })),
-  ];
-  const sectionOptions = [
-    { value: ALL, label: 'All sections' },
-    ...(meta?.availableSections ?? []).map((s) => ({ value: s, label: `Section ${s}` })),
-  ];
+  const classOptions = (meta?.availableClasses ?? []).map((c) => ({
+    value: c,
+    label: `Class ${c}`,
+  }));
+  const sectionOptions = (meta?.availableSections ?? []).map((s) => ({
+    value: s,
+    label: `Section ${s}`,
+  }));
 
   return (
     <PageLayout
@@ -834,20 +990,52 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
                 testID="student-search"
               />
             </View>
-            <Select
+            <MultiSelect
               label="Class"
-              value={level}
-              onChange={setLevel}
+              allLabel="All classes"
+              value={levels}
+              onChange={setLevels}
               options={classOptions}
               className="w-36"
+              testID="student-class-filter"
             />
-            <Select
+            <MultiSelect
               label="Section"
-              value={section}
-              onChange={setSection}
+              allLabel="All sections"
+              value={sections}
+              onChange={setSections}
               options={sectionOptions}
               className="w-36"
+              testID="student-section-filter"
             />
+            <MultiSelect
+              label="Group"
+              allLabel="All groups"
+              value={groups}
+              onChange={setGroups}
+              options={VALID_GROUPS.map((g) => ({ value: g as string, label: g }))}
+              className="w-36"
+              testID="student-group-filter"
+            />
+            <Input
+              value={roll}
+              onChangeText={(t) => setRoll(t.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Roll"
+              keyboardType="number-pad"
+              accessibilityLabel="Filter by roll"
+              className="w-24"
+              testID="student-roll-filter"
+            />
+            {filtered ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={clearFilters}
+                testID="student-clear-filters"
+              />
+            ) : null}
             <MultiSelect
               label="4th subject"
               allLabel="Any 4th subject"
@@ -857,7 +1045,7 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
               className="w-44"
               testID="student-fourth-filter"
             />
-            {readOnly ? null : (
+            {readOnly || !mobile ? null : (
               <Checkbox
                 checked={allMatching || head.all}
                 onChange={() => {
@@ -885,7 +1073,7 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
                   ? 'No students match these filters.'
                   : `No students in session ${year} yet.`
             }
-            onRowPress={setViewing}
+            onRowPress={openView}
             renderMobile={(s) => (
               <View className="flex-row items-center gap-3">
                 {readOnly ? null : (
@@ -913,12 +1101,15 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
             )}
           />
           {meta ? (
-            <Pagination
-              page={meta.page}
-              totalPages={meta.totalPages}
-              onPage={setPage}
-              busy={list.isFetching}
-            />
+            <View className="flex-row flex-wrap items-center justify-between gap-2">
+              <PageSizeSelect value={limit} onChange={setLimit} sizes={[25, 50, 100, 200]} />
+              <Pagination
+                page={meta.page}
+                totalPages={meta.totalPages}
+                onPage={setPage}
+                busy={list.isFetching}
+              />
+            </View>
           ) : null}
         </>
       )}
@@ -982,7 +1173,23 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
           ) : null
         }
       >
-        {viewing && !readOnly ? (
+        {viewing ? (
+          <View className="mb-4">
+            <Tabs
+              testID="student-details-tab"
+              value={viewTab}
+              onChange={setViewTab}
+              tabs={[
+                { id: 'profile', label: 'Profile', icon: User },
+                { id: 'attendance', label: 'Attendance', icon: CalendarDays },
+              ]}
+            />
+          </View>
+        ) : null}
+        {viewing && viewTab === 'attendance' ? (
+          <StudentAttendancePanel key={viewing.id} studentId={viewing.id} initialYear={year} />
+        ) : null}
+        {viewing && viewTab === 'profile' && !readOnly ? (
           <View className="mb-4 flex-row flex-wrap items-center gap-2">
             <PickFilesButton
               accept="image/*"
@@ -1004,7 +1211,37 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
             ) : null}
           </View>
         ) : null}
-        {viewing ? (
+        {viewing && viewTab === 'profile' ? (
+          <View className="mb-4 flex-row items-center gap-3">
+            {fileUrl(viewing.image) ? (
+              <Image
+                source={{ uri: fileUrl(viewing.image)! }}
+                accessibilityLabel={`Photo of ${viewing.name}`}
+                resizeMode="cover"
+                className="bg-muted aspect-[7/9] w-24 rounded-lg"
+              />
+            ) : null}
+            <View className="min-w-0 flex-1 flex-row flex-wrap gap-1.5">
+              {[
+                `Class ${viewing.class}`,
+                `Section ${viewing.section}`,
+                `Roll ${viewing.roll}`,
+                viewing.group,
+                viewing.has_stipend ? 'Stipend' : null,
+                viewing.available ? 'Active' : 'Inactive',
+              ]
+                .filter((x): x is string => !!x)
+                .map((label) => (
+                  <Badge
+                    key={label}
+                    label={label}
+                    variant={label === 'Inactive' ? 'destructive' : 'secondary'}
+                  />
+                ))}
+            </View>
+          </View>
+        ) : null}
+        {viewing && viewTab === 'profile' ? (
           <View className="flex-row flex-wrap gap-4">
             <Detail label="Login ID" value={viewing.login_id} />
             <Detail label="Date of birth" value={viewing.dob} />
@@ -1045,6 +1282,10 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
         busy={save.isPending}
         onClose={close}
         onSubmit={(v) => save.mutate(v)}
+        onPhoto={(file) => editing && photo.mutate({ id: editing.id, file })}
+        photoBusy={photo.isPending}
+        newPhoto={newPhoto}
+        onNewPhoto={setNewPhoto}
       />
 
       <ConfirmDialog
@@ -1176,6 +1417,14 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
         title="Import students from Excel"
         noun="student"
         requiredColumns={STUDENT_REQUIRED_COLUMNS}
+        guide={{
+          notes: [
+            'dob uses DD/MM/YYYY.',
+            'Phone numbers are 11 digits starting with 01.',
+            'has_stipend is Yes or No.',
+            'group is Science, Commerce or Humanities (class 9–10 only).',
+          ],
+        }}
         template={{
           fileName: 'student_upload_demo.xlsx',
           sheet: 'Students',

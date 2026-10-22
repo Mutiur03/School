@@ -113,18 +113,57 @@ function Textarea({
 /** 30-day credits bars (the web's recharts BarChart), plain views. */
 function UsageBars({ data }: { data: { date: string; count: number }[] }) {
   const max = Math.max(1, ...data.map((d) => d.count));
+  const [picked, setPicked] = useState<string | null>(null);
+  const day = (d: string) => d.slice(0, 10).split('-').reverse().join('/');
+  const pick = data.find((d) => d.date === picked);
   return (
-    <View className="h-24 flex-row items-end gap-[2px]" accessibilityLabel="Credits per day">
-      {data.map((d) => (
-        <View
-          key={d.date}
-          className="bg-primary flex-1 rounded-t-sm"
-          style={{ height: `${Math.max(d.count ? 4 : 0, (d.count / max) * 100)}%` }}
-          accessibilityLabel={`${d.date}: ${d.count} credits`}
-        />
-      ))}
+    <View className="gap-1" testID="sms-usage-chart">
+      <View className="flex-row justify-between">
+        <Text size="xs" color="mutedForeground" tabular>
+          {`${max.toLocaleString()} credits max`}
+        </Text>
+        <Text size="xs" color={pick ? undefined : 'mutedForeground'} tabular>
+          {pick ? `${day(pick.date)}: ${pick.count} credits` : 'Tap a bar for the day'}
+        </Text>
+      </View>
+      <View className="h-24 flex-row items-end gap-[2px]" accessibilityLabel="Credits per day">
+        {data.map((d) => (
+          <Pressable
+            key={d.date}
+            onPress={() => setPicked((p) => (p === d.date ? null : d.date))}
+            className="h-full flex-1 justify-end"
+            accessibilityLabel={`${d.date}: ${d.count} credits`}
+          >
+            <View
+              className={`rounded-t-sm ${picked === d.date ? 'bg-primary/60' : 'bg-primary'}`}
+              style={{ height: `${Math.max(d.count ? 4 : 0, (d.count / max) * 100)}%` }}
+            />
+          </Pressable>
+        ))}
+      </View>
+      {data.length > 1 ? (
+        <View className="flex-row justify-between">
+          <Text size="xs" color="mutedForeground" tabular>
+            {day(data[0]!.date)}
+          </Text>
+          <Text size="xs" color="mutedForeground" tabular>
+            {day(data[data.length - 1]!.date)}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
+}
+
+interface LogFilters {
+  date: string;
+  setDate: (d: string) => void;
+  status: SmsStatus[];
+  setStatus: (s: SmsStatus[]) => void;
+  page: number;
+  setPage: (p: number) => void;
+  limit: number;
+  setLimit: (n: number) => void;
 }
 
 function LogsTab({
@@ -133,6 +172,7 @@ function LogsTab({
   onLogs,
   category,
   setCategory,
+  filters: { date, setDate, status, setStatus, page, setPage, limit, setLimit },
 }: {
   selected: Set<number>;
   setSelected: (s: Set<number>) => void;
@@ -140,13 +180,11 @@ function LogsTab({
   onLogs: (logs: SmsLog[]) => void;
   category: SmsCategory[];
   setCategory: (c: SmsCategory[]) => void;
+  /** Held by the page so they survive switching tabs (as on the web). */
+  filters: LogFilters;
 }) {
   const { sms } = useApi();
   const { resolution } = useTenant();
-  const [date, setDate] = useState(todayYmd());
-  const [status, setStatus] = useState<SmsStatus[]>([]);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
@@ -801,6 +839,10 @@ export function SmsScreen() {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('logs');
   const [category, setCategory] = useState<SmsCategory[]>(['attendance']);
+  const [logDate, setLogDate] = useState(todayYmd());
+  const [logStatus, setLogStatus] = useState<SmsStatus[]>([]);
+  const [logPage, setLogPage] = useState(1);
+  const [logLimit, setLogLimit] = useState(50);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [visibleLogs, setVisibleLogs] = useState<SmsLog[]>([]);
@@ -972,6 +1014,16 @@ export function SmsScreen() {
           onLogs={setVisibleLogs}
           category={category}
           setCategory={setCategory}
+          filters={{
+            date: logDate,
+            setDate: setLogDate,
+            status: logStatus,
+            setStatus: setLogStatus,
+            page: logPage,
+            setPage: setLogPage,
+            limit: logLimit,
+            setLimit: setLogLimit,
+          }}
         />
       ) : tab === 'bulk' ? (
         <BulkTab

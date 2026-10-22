@@ -1,4 +1,5 @@
 /** UI pieces shared by the batch-6 content screens. */
+import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Button } from '@/components/ui/Button';
@@ -75,6 +76,7 @@ export function PdfSlot({
   onRemove?: () => void;
   testID?: string;
 }) {
+  const pct = useUploadPercent();
   const toast = useToast();
   const pick = (files: PickedFile[]) => {
     const f = files[0];
@@ -107,7 +109,7 @@ export function PdfSlot({
         </View>
         <PickFilesButton
           accept="application/pdf,.pdf"
-          label={busy ? 'Uploading…' : 'Choose PDF'}
+          label={busy ? uploadLabel(pct) : 'Choose PDF'}
           disabled={busy}
           onPick={pick}
           testID={testID ? `${testID}-upload` : undefined}
@@ -152,7 +154,7 @@ export function PdfSlot({
             accept="application/pdf,.pdf"
             variant="outline"
             size="sm"
-            label={busy ? 'Uploading…' : 'Replace'}
+            label={busy ? uploadLabel(pct) : 'Replace'}
             disabled={busy}
             onPick={pick}
             testID={testID ? `${testID}-replace` : undefined}

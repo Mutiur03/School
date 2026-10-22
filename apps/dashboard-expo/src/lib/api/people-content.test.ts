@@ -340,6 +340,33 @@ describe('billing', () => {
   });
 });
 
+describe('subscription access', () => {
+  it('reads GET /api/schools/subscription-access; a 402 body still means locked', async () => {
+    const ok200 = harness(() =>
+      ok({ status: 'active', access_state: 'grace', grace_days_remaining: 3 }),
+    );
+    const g = await createBillingApi(ok200.client).access();
+    assert.equal(path(ok200.calls[0]!), '/api/schools/subscription-access');
+    assert.deepEqual([g.access_state, g.is_locked, g.grace_days_remaining], ['grace', false, 3]);
+
+    const locked = harness(() =>
+      raw(
+        {
+          success: false,
+          message: 'locked',
+          data: { status: 'expired', access_state: 'locked', is_locked: true },
+          errors: [],
+        },
+        402,
+      ),
+    );
+    assert.equal((await createBillingApi(locked.client).access()).is_locked, true);
+
+    const down = harness(() => raw({ success: false, message: 'boom', errors: [] }, 500));
+    await assert.rejects(createBillingApi(down.client).access(), ApiError);
+  });
+});
+
 describe('student profile', () => {
   it('parses personal, contact and address fields', () => {
     const p = parseProfile({

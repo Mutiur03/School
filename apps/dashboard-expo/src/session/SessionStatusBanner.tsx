@@ -4,7 +4,9 @@
  * - otherwise, while data restored from the device cache refetches: a subtle "Updating…".
  * Never blocks the screen underneath.
  */
-import { useIsFetching } from '@tanstack/react-query';
+import { useIsFetching, useQueryClient, type Query } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { isApiError } from '@/lib/api';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +16,40 @@ import { useRestoredFromCache } from '@/session/query-persistence';
 import { TENANT_ROOT } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 
+/** A query that failed because the server could not be reached (not an HTTP error). */
+const failedOffline = (q: Query) =>
+  q.state.status === 'error' && isApiError(q.state.error) && q.state.error.isTransport;
+
+/** True while some screen data of this school is failing for lack of a connection, until it loads again. */
+function useMidSessionOffline(tenantKey: string) {
+  const queryClient = useQueryClient();
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const cache = queryClient.getQueryCache();
+    const ours = (q: Query) => q.queryKey[0] === TENANT_ROOT && q.queryKey[1] === tenantKey;
+    const compute = () =>
+      setOffline(cache.findAll({ predicate: (q) => ours(q) && failedOffline(q) }).length > 0);
+    let alive = true;
+    // The cache notifies while other components render (useQuery builds a query), so never
+    // set state inline: hand it to a microtask.
+    const update = () =>
+      queueMicrotask(() => {
+        if (alive) compute();
+      });
+    compute();
+    const unsubscribe = cache.subscribe(update);
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [queryClient, tenantKey]);
+  return {
+    offline,
+    retry: () =>
+      void queryClient.refetchQueries({ predicate: (q) => failedOffline(q) }).catch(() => {}),
+  };
+}
+
 export function SessionStatusBanner() {
   const insets = useSafeAreaInsets();
   const { session: manager } = useApi();
@@ -22,7 +58,9 @@ export function SessionStatusBanner() {
   const restored = useRestoredFromCache();
   const fetching = useIsFetching({ queryKey: [TENANT_ROOT, resolution.tenantKey, 'private'] });
 
-  const offline = session.status === 'unknown' && session.startupError;
+  const mid = useMidSessionOffline(resolution.tenantKey);
+  const startupOffline = session.status === 'unknown' && session.startupError;
+  const offline = startupOffline || (session.status === 'authenticated' && mid.offline);
   const updating = !offline && restored && fetching > 0;
   if (!offline && !updating) return null;
 
@@ -44,7 +82,7 @@ export function SessionStatusBanner() {
             size="sm"
             variant="ghost"
             label="Retry"
-            onPress={() => void manager.bootstrap()}
+            onPress={() => (startupOffline ? void manager.bootstrap() : mid.retry())}
           />
         ) : null}
       </View>

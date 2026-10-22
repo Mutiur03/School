@@ -18,8 +18,10 @@ import { sortRows, type TableSort } from '@/components/ui/table-sort';
 import { DateInput } from '@/components/ui/DateInput';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
-import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { Stat, StatStrip } from '@/components/ui/StatStrip';
 import { ErrorState } from '@/components/ui/states';
@@ -35,6 +37,8 @@ import {
   todayYmd,
   validateHoliday,
   yearOptions,
+  filterHolidays,
+  type HolidayType,
 } from '@/features/holidays/model';
 import type { Holiday, HolidayInput } from '@/lib/api';
 import { useApi } from '@/session/ApiProvider';
@@ -69,6 +73,8 @@ export default function HolidaysScreen() {
   const [editing, setEditing] = useState<Holiday | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof HolidayInput, string>>>({});
   const [deleteTarget, setDeleteTarget] = useState<Holiday | null>(null);
+  const [search, setSearch] = useState('');
+  const [types, setTypes] = useState<HolidayType[]>([]);
 
   const q = useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'holidays'),
@@ -76,17 +82,19 @@ export default function HolidaysScreen() {
     staleTime: 60_000,
   });
   const all = useMemo(() => q.data ?? [], [q.data]);
-  const [sort, setSort] = useState<TableSort | null>(null);
+  // Same default as the web page: by date, oldest first.
+  const [sort, setSort] = useState<TableSort | null>({ key: 'start', order: 'asc' });
   const rows = useMemo(
     () =>
-      sortRows(inYear(all, year), sort, {
+      sortRows(filterHolidays(inYear(all, year), search, types), sort, {
         title: (h) => h.title,
         start: (h) => h.start_date,
         days: (h) => dayCount(h),
       }),
-    [all, year, sort],
+    [all, year, sort, search, types],
   );
-  const stats = holidayStats(rows, year, today);
+  const stats = holidayStats(inYear(all, year), year, today);
+  const filtered = search.trim() !== '' || types.length > 0;
 
   const close = () => {
     setForm(null);
@@ -239,6 +247,37 @@ export default function HolidaysScreen() {
             <Stat label="Upcoming" value={stats.upcoming} dot="bg-emerald-500" />
             <Stat label="Optional" value={stats.optional} dot="bg-amber-500" />
           </StatStrip>
+          <View className="flex-row flex-wrap items-center gap-2">
+            <SearchInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search title or description"
+              label="Search holidays"
+            />
+            <MultiSelect
+              label="Type"
+              allLabel="All types"
+              size="sm"
+              value={types}
+              options={[
+                { value: 'mandatory' as HolidayType, label: 'Mandatory' },
+                { value: 'optional' as HolidayType, label: 'Optional' },
+              ]}
+              onChange={setTypes}
+            />
+            {filtered ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={() => {
+                  setSearch('');
+                  setTypes([]);
+                }}
+              />
+            ) : null}
+          </View>
           <DataTable
             testID="holidays"
             sort={sort}
@@ -247,7 +286,7 @@ export default function HolidaysScreen() {
             columns={columns}
             rowKey={(h) => h.id}
             loading={q.isPending}
-            empty={`No holidays in ${year} yet.`}
+            empty={filtered ? 'No holidays match these filters.' : `No holidays in ${year} yet.`}
             onRowPress={openEdit}
             renderMobile={(h) => (
               <View className="flex-row items-center gap-3">
@@ -263,7 +302,13 @@ export default function HolidaysScreen() {
               </View>
             )}
           />
-          <HolidayCalendar holidays={all} year={year} today={today} onYear={setYear} />
+          <HolidayCalendar
+            holidays={all}
+            year={year}
+            today={today}
+            onYear={setYear}
+            onEdit={openEdit}
+          />
         </>
       )}
 

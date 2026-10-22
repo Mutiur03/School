@@ -38,7 +38,7 @@ import { useTenant } from '@/tenant/TenantProvider';
 import {
   CERTIFICATE_FIELDS,
   certificateSummary,
-  dayOf,
+  dateTimeOf,
   examLabel,
   fieldLabel,
   SENSITIVE_FIELDS,
@@ -234,7 +234,7 @@ export function CertificatesScreen() {
       className: 'w-32',
       render: (r) => (
         <Text size="sm" color="mutedForeground" tabular>
-          {dayOf(r.updated_at)}
+          {dateTimeOf(r.updated_at)}
         </Text>
       ),
     },
@@ -518,7 +518,7 @@ function CertificateDialog({
           {revisions.data.map((rev) => (
             <View key={rev.id} className="border-border gap-1.5 rounded-lg border p-3">
               <Text size="xs" color="mutedForeground">
-                {`Edited by student · ${dayOf(rev.created_at)}`}
+                {`Edited by student · ${dateTimeOf(rev.created_at)}`}
               </Text>
               {rev.changes.map((c) => (
                 <View key={c.field} className="flex-row flex-wrap items-center gap-x-2">

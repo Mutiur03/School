@@ -5,6 +5,7 @@
  * Live data: GET/POST/PUT/DELETE /api/notices/*; the PDF goes straight to R2 via a presigned URL.
  * The PDF comes from FilePicker (file input on web, document picker on native).
  */
+import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -18,7 +19,8 @@ import { DateInput } from '@/components/ui/DateInput';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
-import { ExternalLink, Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { ExternalLink, Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
+import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
 import { Input } from '@/components/ui/Input';
 import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -34,14 +36,14 @@ import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 
-const PAGE = 50;
-
 export default function NoticesScreen() {
+  const pct = useUploadPercent();
   const { notices } = useApi();
   const { resolution } = useTenant();
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
   const [sort, setSort] = useState<TableSort | null>(null);
   const [form, setForm] = useState<NoticeInput | null>(null);
   const [editing, setEditing] = useState<Notice | null>(null);
@@ -61,9 +63,9 @@ export default function NoticesScreen() {
       }),
     [q.data, search, sort],
   );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
   const current = Math.min(page, totalPages);
-  const rows = filtered.slice((current - 1) * PAGE, current * PAGE);
+  const rows = filtered.slice((current - 1) * limit, current * limit);
 
   const close = () => {
     setForm(null);
@@ -182,16 +184,30 @@ export default function NoticesScreen() {
         />
       ) : (
         <>
-          <SearchInput
-            value={search}
-            onChangeText={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            placeholder="Search titles…"
-            label="Search notices"
-            testID="notice-search"
-          />
+          <View className="flex-row flex-wrap items-center gap-2">
+            <SearchInput
+              value={search}
+              onChangeText={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              placeholder="Search titles…"
+              label="Search notices"
+              testID="notice-search"
+            />
+            {search.trim() ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
+              />
+            ) : null}
+          </View>
           <DataTable
             testID="notices"
             sort={sort}
@@ -216,7 +232,16 @@ export default function NoticesScreen() {
               </View>
             )}
           />
-          <Pagination page={current} totalPages={totalPages} onPage={setPage} />
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <PageSizeSelect
+              value={limit}
+              onChange={(n) => {
+                setLimit(n);
+                setPage(1);
+              }}
+            />
+            <Pagination page={current} totalPages={totalPages} onPage={setPage} />
+          </View>
         </>
       )}
 
@@ -229,7 +254,13 @@ export default function NoticesScreen() {
           <>
             <Button variant="outline" label="Cancel" onPress={close} disabled={save.isPending} />
             <Button
-              label={save.isPending ? 'Saving…' : editing ? 'Save changes' : 'Publish notice'}
+              label={
+                save.isPending
+                  ? uploadLabel(pct, 'Saving…')
+                  : editing
+                    ? 'Save changes'
+                    : 'Publish notice'
+              }
               onPress={submit}
               disabled={save.isPending}
               testID="notice-submit"

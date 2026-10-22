@@ -30,14 +30,63 @@ export function parsePresigned(v: unknown, path: string): PresignedUpload {
   throw new ApiError({ kind: 'parse', message: 'Invalid presigned URL response.', path });
 }
 
+/** Percent (0-100) of the upload in flight, null when idle. Read with useUploadPercent(). */
+export const uploadProgress = (() => {
+  let value: number | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set(next: number | null) {
+      if (next === value) return;
+      value = next;
+      listeners.forEach((l) => l());
+    },
+    subscribe(l: () => void) {
+      listeners.add(l);
+      return () => {
+        listeners.delete(l);
+      };
+    },
+  };
+})();
+
+/** PUT with progress events (fetch has none). Resolves like a fetch Response status check. */
+function xhrPut(uploadUrl: string, file: PickedFile): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        uploadProgress.set(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+      }
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(
+            new ApiError({
+              kind: 'http',
+              status: xhr.status,
+              message: `Upload failed (${xhr.status}).`,
+            }),
+          );
+    xhr.onerror = () =>
+      reject(new ApiError({ kind: 'network', message: 'Upload failed. Check your connection.' }));
+    xhr.ontimeout = xhr.onerror;
+    xhr.send(file.body as unknown as XMLHttpRequestBodyInit);
+  });
+}
+
 export async function putToPresignedUrl(
   uploadUrl: string,
   file: PickedFile,
   fetchImpl: typeof fetch = (...a) => fetch(...a),
 ): Promise<Response> {
+  const doFetch = fetchImpl;
   let res: Response;
   try {
-    res = await fetchImpl(uploadUrl, {
+    res = await doFetch(uploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file.body,
@@ -72,6 +121,16 @@ export async function uploadViaPresign(
     query: { filename: file.name, contentType: file.type, ...extra },
   });
   const { uploadUrl, key } = parsePresigned(data, presignPath);
-  await putToPresignedUrl(uploadUrl, file, fetchImpl);
+  if (!fetchImpl && typeof XMLHttpRequest !== 'undefined') {
+    // Real uploads report progress (XHR); tests inject their own fetch instead.
+    uploadProgress.set(0);
+    try {
+      await xhrPut(uploadUrl, file);
+    } finally {
+      uploadProgress.set(null);
+    }
+  } else {
+    await putToPresignedUrl(uploadUrl, file, fetchImpl);
+  }
   return key;
 }

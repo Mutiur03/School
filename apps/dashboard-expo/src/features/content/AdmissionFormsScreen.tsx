@@ -34,7 +34,7 @@ import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 import { admissionSections, parseClassList } from './admission-model';
-import { datedName, dayOf, yearsFrom } from './model';
+import { datedName, dateTimeOf, yearsFrom } from './model';
 import { DetailGrid, useFileTasks, ZIP_MIME } from './ui';
 
 const SORT_KEYS = ['name', 'class', 'userId', 'status', 'date'] as const;
@@ -164,6 +164,12 @@ export function AdmissionFormsScreen() {
         onPress={() => previewPdf(a)}
       />
       <ActionButton
+        icon={Download}
+        label={`Download PDF of ${a.name}`}
+        tone="blue"
+        onPress={() => downloadPdf(a)}
+      />
+      <ActionButton
         icon={a.status === 'pending' ? CheckCircle2 : Clock}
         label={a.status === 'pending' ? `Approve ${a.name}` : `Mark ${a.name} as pending`}
         tone="emerald"
@@ -244,7 +250,7 @@ export function AdmissionFormsScreen() {
       className: 'w-32',
       render: (a) => (
         <Text size="sm" color="mutedForeground" tabular>
-          {dayOf(a.submitted)}
+          {dateTimeOf(a.submitted)}
         </Text>
       ),
     },
@@ -282,7 +288,13 @@ export function AdmissionFormsScreen() {
           <Button
             variant="outline"
             icon={Download}
-            label={files.busy === 'sheet' ? 'Preparing…' : 'Excel sheet'}
+            label={
+              files.busy === 'sheet'
+                ? 'Preparing…'
+                : filtersActive
+                  ? 'Excel sheet (current filters)'
+                  : 'Excel sheet (all)'
+            }
             onPress={() => exportFile('sheet')}
             disabled={!!files.busy}
             testID="admission-export-sheet"
@@ -290,7 +302,13 @@ export function AdmissionFormsScreen() {
           <Button
             variant="outline"
             icon={Download}
-            label={files.busy === 'photos' ? 'Preparing…' : 'Photos'}
+            label={
+              files.busy === 'photos'
+                ? 'Preparing…'
+                : filtersActive
+                  ? 'Photos (current filters)'
+                  : 'Photos (all)'
+            }
             onPress={() => exportFile('photos')}
             disabled={!!files.busy}
           />
@@ -382,7 +400,7 @@ export function AdmissionFormsScreen() {
                   <View className="flex-row items-center gap-2">
                     <StatusBadge status={statusKind(a.status)} />
                     <Text size="xs" color="mutedForeground" tabular>
-                      {[a.cls, a.userId, dayOf(a.submitted)].filter(Boolean).join(' · ')}
+                      {[a.cls, a.userId, dateTimeOf(a.submitted)].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
                   {actions(a)}
@@ -414,7 +432,7 @@ export function AdmissionFormsScreen() {
         title={detail?.name || 'Application'}
         description={
           detail
-            ? [detail.cls, detail.userId, dayOf(detail.submitted)].filter(Boolean).join(' · ')
+            ? [detail.cls, detail.userId, dateTimeOf(detail.submitted)].filter(Boolean).join(' · ')
             : undefined
         }
         size="xl"

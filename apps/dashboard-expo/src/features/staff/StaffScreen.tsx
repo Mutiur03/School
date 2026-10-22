@@ -22,7 +22,9 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { Eye, Pencil, Plus, Trash2, Upload, XIcon } from '@/components/ui/icons';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Select } from '@/components/ui/Select';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
+import { Pagination } from '@/components/ui/Pagination';
 import { Stat, StatStrip } from '@/components/ui/StatStrip';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
@@ -33,6 +35,7 @@ import { useAdminMutation } from '@/features/admin/useAdminMutation';
 import { fileUrl } from '@/features/student/components';
 import {
   filterStaff,
+  NO_DESIGNATION,
   isImageFile,
   issuesToErrors,
   staffDefaults,
@@ -83,14 +86,14 @@ function StaffCell({ s }: { s: StaffRow }) {
 }
 
 function Row({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null;
+  // Like the web details: every row shows, empty ones as a dash.
   return (
     <View className="flex-row gap-3">
       <Text size="sm" color="mutedForeground" className="w-24">
         {label}
       </Text>
       <Text size="sm" className="min-w-0 flex-1">
-        {value}
+        {value || '—'}
       </Text>
     </View>
   );
@@ -101,7 +104,9 @@ export function StaffScreen() {
   const { resolution } = useTenant();
   const toast = useToast();
   const [query, setQuery] = useState('');
-  const [designation, setDesignation] = useState('');
+  const [designation, setDesignation] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [sort, setSort] = useState<TableSort | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<StaffRow | null>(null);
@@ -117,7 +122,7 @@ export function StaffScreen() {
   const all = useMemo(() => q.data ?? [], [q.data]);
   const rows = useMemo(
     () =>
-      sortRows(filterStaff(all, { search: query, designation }), sort, {
+      sortRows(filterStaff(all, { search: query, designations: designation }), sort, {
         name: (s) => s.name,
         designation: (s) => s.designation,
       }),
@@ -125,7 +130,10 @@ export function StaffScreen() {
   );
   const stats = staffStats(all);
   const designations = staffDesignations(all);
-  const filtered = Boolean(query.trim() || designation);
+  const filtered = Boolean(query.trim() || designation.length);
+  const totalPages = Math.max(1, Math.ceil(rows.length / limit));
+  const current = Math.min(page, totalPages);
+  const pageRows = rows.slice((current - 1) * limit, current * limit);
 
   const { control, handleSubmit, reset, setError } = useForm<StaffFormValues>({
     defaultValues: staffDefaults(),
@@ -291,28 +299,45 @@ export function StaffScreen() {
             <View className="min-w-[240px] flex-1">
               <SearchInput
                 value={query}
-                onChangeText={setQuery}
-                placeholder="Search by name, phone or email"
+                onChangeText={(v) => {
+                  setQuery(v);
+                  setPage(1);
+                }}
+                placeholder="Search by name, phone, email or address"
                 label="Search staff"
                 testID="staff-search"
               />
             </View>
-            <Select
+            <MultiSelect
               label="Designation"
+              allLabel="All designations"
               value={designation}
-              onChange={setDesignation}
-              options={[
-                { value: '', label: 'All designations' },
-                ...designations.map((d) => ({ value: d, label: d })),
-              ]}
+              onChange={(v) => {
+                setDesignation(v);
+                setPage(1);
+              }}
+              options={[...designations, NO_DESIGNATION].map((d) => ({ value: d, label: d }))}
               className="w-48"
             />
+            {filtered ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={() => {
+                  setQuery('');
+                  setDesignation([]);
+                  setPage(1);
+                }}
+              />
+            ) : null}
           </View>
           <DataTable
             testID="staff"
             sort={sort}
             onSort={setSort}
-            rows={rows}
+            rows={pageRows}
             columns={columns}
             rowKey={(s) => s.id}
             loading={q.isPending}
@@ -334,6 +359,16 @@ export function StaffScreen() {
               </View>
             )}
           />
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <PageSizeSelect
+              value={limit}
+              onChange={(n) => {
+                setLimit(n);
+                setPage(1);
+              }}
+            />
+            <Pagination page={current} totalPages={totalPages} onPage={setPage} />
+          </View>
         </>
       )}
 

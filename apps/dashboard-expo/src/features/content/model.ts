@@ -6,6 +6,20 @@ import { formatDay } from '@/features/holidays/model';
 /** "15 Apr 2026" for an ISO timestamp or YYYY-MM-DD; '—' when empty. */
 export const dayOf = (iso: string | null | undefined) => (iso ? formatDay(iso.slice(0, 10)) : '—');
 
+/** "15 Apr 2026, 14:30" (local time) for an ISO timestamp; '—' when empty or invalid. */
+export function dateTimeOf(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return dayOf(iso);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${dayOf(iso.slice(0, 10))}, ${hh}:${mm}`;
+}
+
+/** Step through a viewer list and wrap at both ends (web viewer). */
+export const wrapIndex = (index: number, delta: number, length: number) =>
+  length === 0 ? 0 : (((index + delta) % length) + length) % length;
+
 /** Last path segment of a stored key / URL, without the upload timestamp prefix. */
 export function fileNameOf(key: string): string {
   const last = decodeURIComponent(key.split('?')[0]!.split('/').pop() ?? '');
@@ -20,6 +34,25 @@ export function syllabusTable(rows: readonly SyllabusRow[], year: number) {
     cls,
     row: rows.find((r) => r.class === cls && r.year === year) ?? null,
   }));
+}
+
+/**
+ * Table rows for `year`: every file of a class (a class can have several), an empty row for
+ * classes 6–10 with none, and rows for files of classes outside 6–10 (web Syllabus.tsx).
+ */
+export function syllabusRows(rows: readonly SyllabusRow[], year: number) {
+  const ofYear = rows.filter((r) => r.year === year);
+  const out: { key: string; cls: number; row: SyllabusRow | null }[] = [];
+  for (const cls of SYLLABUS_CLASSES) {
+    const files = ofYear.filter((r) => r.class === cls);
+    if (files.length === 0) out.push({ key: `c${cls}`, cls, row: null });
+    for (const row of files) out.push({ key: `f${row.id}`, cls, row });
+  }
+  const known: readonly number[] = SYLLABUS_CLASSES;
+  for (const row of ofYear.filter((r) => !known.includes(r.class))) {
+    out.push({ key: `f${row.id}`, cls: row.class, row });
+  }
+  return out;
 }
 
 export const syllabusSummary = (rows: readonly SyllabusRow[], year: number) =>

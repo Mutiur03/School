@@ -8,10 +8,15 @@
  * updateVisibility; DELETE deleteExam; routine PDF via GET presigned-url, POST
  * uploadRoutinePDF/:id, DELETE removeRoutinePDF/:id (file / document picker on every platform).
  */
+import { saveFile } from '@/lib/files/save-file';
+import { pdfFileName } from '@/lib/files/pdf-name';
+import { fileUrl } from '@/features/student/components';
+import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { createExamSchema } from '@school/shared-schemas';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { ScrollView } from '@/components/ui/ScrollView';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { Badge } from '@/components/ui/Badge';
@@ -23,7 +28,16 @@ import { DateInput } from '@/components/ui/DateInput';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { PickFilesButton } from '@/components/ui/FilePicker';
-import { ExternalLink, Eye, EyeOff, Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
+import {
+  Download,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Pencil,
+  Plus,
+  Trash2,
+  XIcon,
+} from '@/components/ui/icons';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { ErrorState, Notice } from '@/components/ui/states';
@@ -61,6 +75,7 @@ import {
 } from '@/lib/api';
 import { examBody } from '@/lib/api/exams';
 import { MarksheetGenPanel, useMarksheetStatus } from '@/features/results/MarksheetGenPanel';
+import { cn } from '@/lib/utils';
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
@@ -91,6 +106,7 @@ function ExamGenStatus({ e }: { e: Exam }) {
 }
 
 export default function ExamsScreen() {
+  const pct = useUploadPercent();
   const { exams } = useApi();
   const { resolution } = useTenant();
   const [year, setYear] = useState(CURRENT_YEAR);
@@ -180,6 +196,22 @@ export default function ExamsScreen() {
   const routineBusy = (e: Exam) =>
     (routineUpload.isPending && routineUpload.variables?.id === e.id) ||
     (routineDelete.isPending && routineDelete.variables === e.id);
+  const downloadRoutine = async (e: Exam) => {
+    const url = fileUrl(e.routine);
+    if (!url) return toast.error('No file stored.');
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
+      const r = await saveFile(
+        await res.arrayBuffer(),
+        pdfFileName(['routine', e.exam_name, e.exam_year]),
+        'application/pdf',
+      );
+      if (r === 'unavailable') toast.error("This device can't save the file.");
+    } catch {
+      toast.error('Failed to download the routine.');
+    }
+  };
   const routineCell = (e: Exam) => (
     <View className="flex-row items-center gap-0.5">
       {e.routine ? (
@@ -191,6 +223,13 @@ export default function ExamsScreen() {
             onPress={() =>
               void openStoredFile(e.routine).then((ok) => ok || toast.error('No file stored.'))
             }
+          />
+          <ActionButton
+            icon={Download}
+            label={`Download routine of ${e.exam_name}`}
+            tone="blue"
+            disabled={routineBusy(e)}
+            onPress={() => void downloadRoutine(e)}
           />
           <ActionButton
             icon={XIcon}
@@ -205,7 +244,7 @@ export default function ExamsScreen() {
         accept="application/pdf,.pdf"
         variant="outline"
         size="sm"
-        label={routineBusy(e) ? 'Uploading…' : e.routine ? 'Replace' : 'Upload'}
+        label={routineBusy(e) ? uploadLabel(pct) : e.routine ? 'Replace' : 'Upload'}
         disabled={routineBusy(e)}
         onPick={(files) => pickRoutine(e, files)}
         testID={`exam-routine-${e.id}`}
@@ -295,9 +334,16 @@ export default function ExamsScreen() {
       label: 'Result',
       className: 'w-32',
       render: (e) => (
-        <Text size="sm" color="mutedForeground" tabular numberOfLines={1}>
-          {formatYmd(e.result_date)}
-        </Text>
+        <View>
+          <Text size="sm" color="mutedForeground" tabular numberOfLines={1}>
+            {formatYmd(e.result_date)}
+          </Text>
+          {e.return_date ? (
+            <Text size="xs" color="mutedForeground" tabular numberOfLines={1}>
+              {`Return ${formatYmd(e.return_date)}`}
+            </Text>
+          ) : null}
+        </View>
       ),
     },
     {
@@ -349,6 +395,47 @@ export default function ExamsScreen() {
               {`${classList(gaps)} ${gaps.length === 1 ? 'has' : 'have'} exams in ${year} but no year-end exam. Pass/fail and promotion need one.`}
             </Notice>
           ) : null}
+          {yearExams.length > 0 ? (
+            <View className="gap-2" testID="exam-session-rail">
+              <Text size="xs" weight="medium" caps color="mutedForeground">
+                {`Session calendar · ${plural(yearExams.length, 'exam')}`}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="gap-2"
+              >
+                {[...yearExams]
+                  .sort((x, y) => x.start_date.localeCompare(y.start_date))
+                  .map((x) => (
+                    <Pressable
+                      key={x.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${x.exam_name}`}
+                      onPress={() => openEdit(x)}
+                      className={cn(
+                        'min-w-40 max-w-52 rounded-md border px-3 py-2',
+                        x.is_year_end
+                          ? 'border-primary/40 bg-primary/5'
+                          : x.visible
+                            ? 'border-emerald-500/30 bg-emerald-500/5'
+                            : 'border-border bg-card',
+                      )}
+                    >
+                      <Text size="xs" color="mutedForeground" tabular>
+                        {formatExamRange(x)}
+                      </Text>
+                      <Text size="sm" weight="medium" numberOfLines={1}>
+                        {x.exam_name}
+                      </Text>
+                      <Text size="xs" color="mutedForeground">
+                        {`${x.visible ? 'Published' : 'Draft'}${x.is_year_end ? ' · Year end' : ''}`}
+                      </Text>
+                    </Pressable>
+                  ))}
+              </ScrollView>
+            </View>
+          ) : null}
           <View className="flex-row flex-wrap items-center gap-2">
             <Select
               label="Status"
@@ -375,6 +462,19 @@ export default function ExamsScreen() {
                 label="Search exams"
               />
             </View>
+            {status !== 'all' || cls !== null || search.trim() ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XIcon}
+                label="Clear filters"
+                onPress={() => {
+                  setStatus('all');
+                  setCls(null);
+                  setSearch('');
+                }}
+              />
+            ) : null}
           </View>
           <DataTable
             testID="exams"
@@ -396,6 +496,7 @@ export default function ExamsScreen() {
                 </View>
                 <Text size="xs" color="mutedForeground" tabular>
                   {formatExamRange(e)} · Result {formatYmd(e.result_date)}
+                  {e.return_date ? ` · Return ${formatYmd(e.return_date)}` : ''}
                 </Text>
                 <ExamGenStatus e={e} />
                 <View className="flex-row items-center justify-between">
@@ -510,13 +611,25 @@ export default function ExamsScreen() {
                   onChange={(result_date) => setForm({ ...form, result_date })}
                 />
               </Field>
-              <Field label="Script return date" hint="Optional" error={errors.return_date}>
-                <DateInput
-                  label="Script return date"
-                  value={form.return_date}
-                  invalid={!!errors.return_date}
-                  onChange={(return_date) => setForm({ ...form, return_date })}
-                />
+              <Field label="Marksheet return date" hint="Optional" error={errors.return_date}>
+                <View className="flex-row items-center gap-2">
+                  <View className="flex-1">
+                    <DateInput
+                      label="Marksheet return date"
+                      value={form.return_date}
+                      invalid={!!errors.return_date}
+                      onChange={(return_date) => setForm({ ...form, return_date })}
+                    />
+                  </View>
+                  {form.return_date ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      label="Clear"
+                      onPress={() => setForm({ ...form, return_date: '' })}
+                    />
+                  ) : null}
+                </View>
               </Field>
             </FieldRow>
           </>

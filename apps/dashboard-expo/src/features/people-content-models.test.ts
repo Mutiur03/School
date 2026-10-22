@@ -304,6 +304,20 @@ describe('staff', () => {
       filterStaff(rows, { search: '0171', designation: '' }).map((r) => r.id),
       [1],
     );
+    // multi-select with a "Not set" bucket, and the address is searchable
+    const withNone = [...rows, s({ id: 4, name: 'Zed', designation: null, address: 'Panchbibi' })];
+    assert.deepEqual(
+      filterStaff(withNone, { search: '', designations: ['Not set'] }).map((r) => r.id),
+      [4],
+    );
+    assert.deepEqual(
+      filterStaff(withNone, { search: '', designations: ['Clerk', 'Not set'] }).map((r) => r.id),
+      [2, 4],
+    );
+    assert.deepEqual(
+      filterStaff(withNone, { search: 'panch' }).map((r) => r.id),
+      [4],
+    );
   });
   it('validates with the shared staffFormSchema and maps to the API input', async () => {
     const { staffFormSchema } = await shared();

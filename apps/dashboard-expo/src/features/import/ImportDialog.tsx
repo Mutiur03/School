@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { PickFilesButton } from '@/components/ui/FilePicker';
 import { Icon } from '@/components/ui/Icon';
-import { AlertCircle, Download, FileText } from '@/components/ui/icons';
+import { AlertCircle, Download, FileText, Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/Text';
 import { useToast } from '@/components/ui/Toast';
 import type { PickedFile } from '@/lib/api';
@@ -22,6 +22,58 @@ import type { ImportResult } from './models';
 export const XLSX_ACCEPT =
   '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+/** Column / required / example table built from the template itself, so it never drifts from it. */
+function FormatGuide({
+  template,
+  required,
+  guide,
+}: {
+  template: { rows: string[][] };
+  required: readonly string[];
+  guide?: { descriptions?: Readonly<Record<string, string>>; notes?: readonly string[] };
+}) {
+  const [head = [], ...examples] = template.rows;
+  const lower = required.map((c) => c.toLowerCase());
+  return (
+    <View className="border-border gap-2 rounded-lg border p-3" testID="import-format-guide">
+      <Text size="xs" color="mutedForeground">
+        First row must hold these column names (case does not matter). Each row is checked before
+        upload.
+      </Text>
+      {head.map((col, i) => (
+        <View key={col} className="border-border border-t pt-1.5">
+          <View className="flex-row items-center justify-between gap-2">
+            <Text size="xs" weight="semibold" className="font-mono">
+              {col}
+            </Text>
+            <Text
+              size="xs"
+              color={lower.includes(col.toLowerCase()) ? 'primary' : 'mutedForeground'}
+            >
+              {lower.includes(col.toLowerCase()) ? 'Required' : 'Optional'}
+            </Text>
+          </View>
+          {guide?.descriptions?.[col] ? (
+            <Text size="xs" color="mutedForeground">
+              {guide.descriptions[col]}
+            </Text>
+          ) : null}
+          {examples[1]?.[i] || examples[0]?.[i] ? (
+            <Text size="xs" color="mutedForeground">
+              {`e.g. ${examples[1]?.[i] || examples[0]?.[i]}`}
+            </Text>
+          ) : null}
+        </View>
+      ))}
+      {guide?.notes?.map((n) => (
+        <Text key={n} size="xs" color="mutedForeground">
+          {`• ${n}`}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 export function ImportDialog<T>({
   open,
   onClose,
@@ -32,6 +84,7 @@ export function ImportDialog<T>({
   parse,
   onUpload,
   busy,
+  guide,
   testID,
 }: {
   open: boolean;
@@ -44,9 +97,12 @@ export function ImportDialog<T>({
   parse: (rows: string[][]) => ImportResult<T>;
   onUpload: (rows: T[]) => void;
   busy: boolean;
+  /** Extra help for the format guide: what each column means and general rules. */
+  guide?: { descriptions?: Readonly<Record<string, string>>; notes?: readonly string[] };
   testID?: string;
 }) {
   const toast = useToast();
+  const [showGuide, setShowGuide] = useState(false);
   const [file, setFile] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult<T> | null>(null);
   const [reading, setReading] = useState(false);
@@ -114,6 +170,20 @@ export function ImportDialog<T>({
           <Text size="sm" color="mutedForeground">
             {requiredColumns.join(', ')}
           </Text>
+        </View>
+        <View className="gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Info}
+            label={showGuide ? 'Hide format guide' : 'Excel format guide'}
+            className="self-start"
+            onPress={() => setShowGuide((v) => !v)}
+            testID={testID ? `${testID}-guide` : undefined}
+          />
+          {showGuide ? (
+            <FormatGuide template={template} required={requiredColumns} guide={guide} />
+          ) : null}
         </View>
         <View className="flex-row flex-wrap gap-2">
           <PickFilesButton

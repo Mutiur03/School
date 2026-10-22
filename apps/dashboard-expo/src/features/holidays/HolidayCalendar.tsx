@@ -4,9 +4,10 @@
  */
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { Icon } from '@/components/ui/Icon';
-import { CalendarDays } from '@/components/ui/icons';
+import { CalendarDays, Pencil } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Text } from '@/components/ui/Text';
 import { MonthStepper } from '@/features/student/components';
@@ -20,12 +21,15 @@ export function HolidayCalendar({
   year,
   today,
   onYear,
+  onEdit,
 }: {
   holidays: readonly Holiday[];
   year: number;
   today: string;
   /** Stepping past Dec / Jan moves the page's year selector too. */
   onYear: (year: number) => void;
+  /** Edit button on each holiday in the date popup. */
+  onEdit?: (holiday: Holiday) => void;
 }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getFullYear() === year ? now.getMonth() : 0);
@@ -133,12 +137,25 @@ export function HolidayCalendar({
                 </Text>
                 <Text size="xs" color="mutedForeground" tabular>
                   {formatRange(h)}
-                  {h.is_optional ? ' · Optional' : ''}
+                  {h.is_optional ? ' · Depends on moon' : ''}
                 </Text>
                 {h.description ? (
                   <Text size="sm" className="mt-1">
                     {h.description}
                   </Text>
+                ) : null}
+                {onEdit ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={Pencil}
+                    label="Edit"
+                    className="mt-2 self-start"
+                    onPress={() => {
+                      setPicked(null);
+                      onEdit(h);
+                    }}
+                  />
                 ) : null}
               </View>
             ))}
