@@ -1,17 +1,16 @@
 /**
  * What the on-device query cache may keep. Pure (no React / native imports) so it is unit tested.
  *
- * Only home-screen data is ever written, from an explicit allowlist of non-personal, school-wide
- * queries:
+ * Only home-screen data is ever written, from an explicit allowlist:
  *   - admin home   (app/(dashboard)/index.tsx): ['dashboard', <userId>, 'overview'], i.e. counts,
  *     announcement and event titles, exam dates. Its attendance chart is NOT kept.
- *   - student home (app/student/index.tsx): ['student', <userId>, 'notices'], the school notice
- *     list. The notices page and notice detail reuse this same query, so they benefit too; the
- *     home's profile, attendance, exams and marks queries are NOT kept.
- *   - teacher home (app/teacher/index.tsx -> TeacherProfileScreen) runs no queries (it renders
- *     from the session), so there is nothing to keep.
- * The full admin notices / events / holidays pages, marks, results, attendance, people records,
- * profiles and anything auth-related never match.
+ *   - student home (app/student/index.tsx): the student's own profile, this month's attendance,
+ *     result years, published exams, latest marks and the school notice list, all under
+ *     ['student', <userId>, ...].
+ *   - teacher home (TeacherProfileScreen): ['teacher', <userId>, 'profile'], the teacher's own
+ *     session profile.
+ * Home data of students and teachers is their own, on their own device, scoped to that user and
+ * wiped on sign-out. Admin pages, other people's records and anything auth-related never match.
  * A snapshot is scoped to one school + role + user, expires after MAX_AGE_MS and is dropped when
  * the app's cache schema (CACHE_SCHEMA_VERSION) or build changes.
  */
@@ -20,11 +19,24 @@ import { TENANT_ROOT } from '@/tenant/query-keys';
 export const CACHE_SCHEMA_VERSION = 1;
 export const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-/** Keys after ['tenant', <tenantKey>, 'private']. '*' matches any single segment (a user id). */
+/**
+ * Keys after ['tenant', <tenantKey>, 'private']. '*' matches one number segment (user id, year,
+ * month), '?' one string segment (exam name).
+ */
 const ALLOWLIST: readonly (readonly string[])[] = [
   ['dashboard', '*', 'overview'], // admin home
-  ['student', '*', 'notices'], // student home
+  // student home
+  ['student', '*', 'notices'],
+  ['student', '*', 'profile', '*'],
+  ['student', '*', 'attendance', '*', '*'],
+  ['student', '*', 'result-years'],
+  ['student', '*', 'exams', '*'],
+  ['student', '*', 'marks', '*', '?'],
+  ['teacher', '*', 'profile'], // teacher home
 ];
+
+const matches = (part: string, value: unknown) =>
+  part === '*' ? typeof value === 'number' : part === '?' ? typeof value === 'string' : value === part;
 
 export function isPersistableKey(queryKey: readonly unknown[], tenantKey: string): boolean {
   if (queryKey[0] !== TENANT_ROOT || queryKey[1] !== tenantKey || queryKey[2] !== 'private') {
@@ -34,7 +46,7 @@ export function isPersistableKey(queryKey: readonly unknown[], tenantKey: string
   return ALLOWLIST.some(
     (pattern) =>
       rest.length === pattern.length &&
-      pattern.every((part, i) => (part === '*' ? typeof rest[i] === 'number' : rest[i] === part)),
+      pattern.every((part, i) => matches(part, rest[i])),
   );
 }
 

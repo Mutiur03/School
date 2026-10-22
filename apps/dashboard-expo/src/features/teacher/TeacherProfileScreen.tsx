@@ -3,18 +3,24 @@
  * photo (or initials), name, email, phone, designation, address and the digital signature, all
  * from the signed-in session. Expo addition: the classes the teacher is class teacher of this
  * year (the same session `levels` the marks pickers use).
+ * The session user is mirrored into a query so the device cache (lib/query-persist) can show the
+ * last profile at once on a cold start, before the session refresh answers.
  */
+import { useQuery } from '@tanstack/react-query';
 import { Image, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { Icon } from '@/components/ui/Icon';
 import { User } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { fileUrl } from '@/features/student/components';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
-import { useSession } from '@/session/ApiProvider';
+import { sessionUserId, useSession } from '@/session/ApiProvider';
+import { privateQueryKey } from '@/tenant/query-keys';
+import { useTenant } from '@/tenant/TenantProvider';
 import { initials, teacherProfile } from './profile';
-import { useClassScope } from './useClassScope';
+import { classScope, parseTeacherLevels } from './scope';
 
 function Line({ label, value }: { label: string; value: string | null }) {
   return (
@@ -28,9 +34,21 @@ function Line({ label, value }: { label: string; value: string | null }) {
 }
 
 export function TeacherProfileScreen() {
-  const { user } = useSession();
+  const session = useSession();
+  const { resolution } = useTenant();
+  const cached = useQuery({
+    queryKey: privateQueryKey(
+      resolution.tenantKey,
+      'teacher',
+      sessionUserId(session) ?? 'anon',
+      'profile',
+    ),
+    queryFn: () => session.user,
+    enabled: !!session.user,
+  });
+  const user = session.user ?? cached.data;
   const t = teacherProfile(user);
-  const scope = useClassScope();
+  const scope = t ? classScope(parseTeacherLevels(user)) : null;
   const mobile = useBreakpoint() === 'mobile';
   const year = new Date().getFullYear();
   const size = mobile ? 128 : 192;
@@ -97,7 +115,9 @@ export function TeacherProfileScreen() {
             </View>
           </View>
         </SectionCard>
-      ) : null}
+      ) : (
+        <Skeleton height={320} />
+      )}
     </PageLayout>
   );
 }

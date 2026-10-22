@@ -19,10 +19,16 @@ const T = 'school-a.example';
 const scope: CacheScope = { tenantKey: T, role: 'admin', userId: 1 };
 
 describe('cache allowlist', () => {
-  it('keeps only home-screen data: admin overview and student notices', () => {
+  it('keeps only home-screen data: admin overview, student home, teacher profile', () => {
     for (const key of [
       privateQueryKey(T, 'dashboard', 1, 'overview'),
       privateQueryKey(T, 'student', 9, 'notices'),
+      privateQueryKey(T, 'student', 9, 'profile', 2026),
+      privateQueryKey(T, 'student', 9, 'attendance', 2026, 9),
+      privateQueryKey(T, 'student', 9, 'result-years'),
+      privateQueryKey(T, 'student', 9, 'exams', 2026),
+      privateQueryKey(T, 'student', 9, 'marks', 2026, 'Final'),
+      privateQueryKey(T, 'teacher', 4, 'profile'),
     ]) {
       assert.equal(isPersistableKey(key, T), true, JSON.stringify(key));
     }
@@ -42,9 +48,10 @@ describe('cache allowlist', () => {
       privateQueryKey(T, 'staff'),
       privateQueryKey(T, 'fees'),
       privateQueryKey(T, 'dashboard', 1, 'attendance', 7),
-      privateQueryKey(T, 'student', 9, 'profile', 2026),
-      privateQueryKey(T, 'student', 9, 'attendance', 2026, 9),
-      privateQueryKey(T, 'student', 9, 'marks', 2026, 'Final'),
+      privateQueryKey(T, 'student', 9, 'marks', 2026, null),
+      privateQueryKey(T, 'student', 'anon', 'profile', 2026),
+      privateQueryKey(T, 'teacher', 'anon', 'profile'),
+      privateQueryKey(T, 'teacher', 4, 'profile', 'extra'),
       privateQueryKey(T, 'notices', 'extra'),
       privateQueryKey(T, 'dashboard', 'anon', 'overview'),
       tenantQueryKey(T, 'branding'),
