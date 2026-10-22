@@ -279,8 +279,12 @@ export async function otherSamples(): Promise<PdfSampleGroup[]> {
           prisma[cfg.settingsModel] = { findFirst: async () => settings };
           prisma.school = { findUnique: async () => schoolRow };
           const service = svcMod.createRegistrationFormService(cfg);
-          return (await service.downloadRegistrationPDF('sample-registration-id', 'live'))
-            .pdfBuffer;
+          const { pdfBuffer } = await service.downloadRegistrationPDF(
+            'sample-registration-id',
+            'live',
+          );
+          if (!pdfBuffer) throw new Error(`${name}: no PDF generated`);
+          return pdfBuffer;
         }),
     }));
   };

@@ -4,6 +4,7 @@
  * subscription (school from host + token). Platform admins edit it elsewhere.
  */
 import type { ApiClient } from './client';
+import { isApiError } from './errors';
 import { isObj, num, parseError, str, strOrNull } from './parse';
 
 export type SubscriptionStatus =
@@ -34,7 +35,18 @@ export interface Subscription {
   cancelled_at: string | null;
 }
 
-export const BILLING_PATHS = { current: '/api/schools/billing' } as const;
+/** GET /api/schools/subscription-access: any tenant role; the server also answers 402 with this body when locked. */
+export interface SubscriptionAccess {
+  status: SubscriptionStatus;
+  access_state: AccessState;
+  is_locked: boolean;
+  grace_days_remaining: number;
+}
+
+export const BILLING_PATHS = {
+  current: '/api/schools/billing',
+  access: '/api/schools/subscription-access',
+} as const;
 
 const STATUSES: readonly SubscriptionStatus[] = [
   'trialing',
@@ -68,8 +80,29 @@ export function parseSubscription(v: unknown): Subscription {
   };
 }
 
+export function parseAccess(v: unknown): SubscriptionAccess {
+  if (!isObj(v)) throw parseError(BILLING_PATHS.access);
+  const state = ACCESS.find((a) => a === v.access_state) ?? 'locked';
+  return {
+    status: STATUSES.find((s) => s === v.status) ?? 'expired',
+    access_state: state,
+    is_locked: v.is_locked === true || state === 'locked',
+    grace_days_remaining: num(v.grace_days_remaining),
+  };
+}
+
 export function createBillingApi(client: ApiClient) {
   return {
+    /** A 402 that carries the access payload still means "locked", not "failed". */
+    async access(signal?: AbortSignal): Promise<SubscriptionAccess> {
+      try {
+        return parseAccess(await client.get<unknown>(BILLING_PATHS.access, { signal }));
+      } catch (e) {
+        if (isApiError(e) && e.isSubscriptionLocked && e.data) return parseAccess(e.data);
+        throw e;
+      }
+    },
+
     async current(signal?: AbortSignal): Promise<Subscription> {
       return parseSubscription(await client.get<unknown>(BILLING_PATHS.current, { signal }));
     },
