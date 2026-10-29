@@ -2,8 +2,8 @@
  * Class teachers, replicating dashboard/src/pages/Admin/AddLevel.tsx: title + academic year,
  * "N assignments in YYYY · N teachers", Assign teacher, the Class / Section / Teacher table with
  * edit / remove, and the assign / update dialog (class, section, teacher).
- * Live data: GET /api/level/getLevels, /api/teachers?limit=100; POST addLevel; PUT updateLevel;
- * DELETE deleteLevel. The school comes from the session; the client never sends a school id.
+ * Live data: GET /api/levels, /api/teachers?limit=100; POST /api/levels; PATCH /api/levels/:id;
+ * DELETE /api/levels/:id. The school comes from the session; the client never sends a school id.
  */
 import { levelFormSchema } from '@school/shared-schemas';
 import { useQuery } from '@tanstack/react-query';

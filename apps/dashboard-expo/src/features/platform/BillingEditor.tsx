@@ -1,7 +1,7 @@
 /**
  * A school's subscription, ported from dashboard/src/pages/SuperAdmin/SchoolBillingEditor.tsx:
  * access banner, Status (fills the dates that status needs), Plan, Annual price, Currency, the
- * status's date fields, internal notes, Reset / Save. Endpoints: GET/PUT /api/schools/:id/billing.
+ * status's date fields, internal notes, Reset / Save. Endpoints: GET/PUT /api/platform/schools/:id/billing.
  * Saving is confirmed (strong wording when it locks the school) and single-flight; the server
  * validates the same schema again.
  */

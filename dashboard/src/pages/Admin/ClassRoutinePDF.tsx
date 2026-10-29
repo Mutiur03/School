@@ -157,7 +157,7 @@ function ClassRoutinePDF() {
   const { data: pdf = null, isLoading } = useQuery({
     queryKey: ['class-routine-pdf'],
     queryFn: async () => {
-      const res = await axios.get<{ data: PDFData[] }>('/api/class-routine/pdf');
+      const res = await axios.get<{ data: PDFData[] }>('/api/class-routines');
       return res.data.data[0] ?? null;
     },
   });
@@ -167,9 +167,9 @@ function ClassRoutinePDF() {
     setUploading(true);
     setProgress(0);
     try {
-      const key = await uploadToR2('/api/class-routine/presigned-url', file, setProgress);
-      if (pdf) await axios.put(`/api/class-routine/pdf/${pdf.id}`, { key });
-      else await axios.post('/api/class-routine/pdf', { key });
+      const key = await uploadToR2('/api/class-routines/upload-url', file, setProgress);
+      if (pdf) await axios.patch(`/api/class-routines/${pdf.id}`, { key });
+      else await axios.post('/api/class-routines', { key });
       await refresh();
       toast.success(pdf ? 'Class routine replaced' : 'Class routine uploaded');
     } catch (err) {
@@ -183,7 +183,7 @@ function ClassRoutinePDF() {
   const remove = async () => {
     if (!pdf) return;
     try {
-      await axios.delete(`/api/class-routine/pdf/${pdf.id}`);
+      await axios.delete(`/api/class-routines/${pdf.id}`);
       await refresh();
       toast.success('Class routine removed');
     } catch (err) {

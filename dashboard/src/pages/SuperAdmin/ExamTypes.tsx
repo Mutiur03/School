@@ -139,7 +139,7 @@ export default function ExamTypes() {
     try {
       const [typeRes, schoolRes] = await Promise.all([
         axios.get('/api/exam-types'),
-        axios.get('/api/schools'),
+        axios.get('/api/platform/schools'),
       ]);
       setTypes(Array.isArray(typeRes.data?.data) ? typeRes.data.data : []);
       const schoolList = Array.isArray(schoolRes.data?.data) ? schoolRes.data.data : [];

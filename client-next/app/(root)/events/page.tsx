@@ -22,7 +22,7 @@ export default async function EventsPage() {
   let loadError: string | null = null;
 
   try {
-    const res = await api.get<EventItem[]>('/api/events/getEvents', {
+    const res = await api.get<EventItem[]>('/api/events', {
       revalidate: 60,
     });
     const payload = res.data;

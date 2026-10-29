@@ -99,7 +99,7 @@ const AddLevel = () => {
   };
 
   const addMutation = useMutation({
-    mutationFn: (data: LevelFormSchemaData) => axios.post('/api/level/addLevel', data),
+    mutationFn: (data: LevelFormSchemaData) => axios.post('/api/levels', data),
     onSuccess: () => {
       toast.success('Class teacher assigned successfully');
       invalidateLevels();
@@ -111,8 +111,7 @@ const AddLevel = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: LevelFormSchemaData) =>
-      axios.put(`/api/level/updateLevel/${editingId}`, data),
+    mutationFn: (data: LevelFormSchemaData) => axios.patch(`/api/levels/${editingId}`, data),
     onSuccess: () => {
       toast.success('Assignment updated successfully');
       invalidateLevels();
@@ -124,7 +123,7 @@ const AddLevel = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => axios.delete(`/api/level/deleteLevel/${id}`),
+    mutationFn: (id: string) => axios.delete(`/api/levels/${id}`),
     onSuccess: () => {
       toast.success('Assignment deleted successfully');
       invalidateLevels();

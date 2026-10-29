@@ -53,7 +53,7 @@ export default function SubscriptionGate({
   const loadAccess = useCallback(async () => {
     try {
       const response = await axios.get<{ data: SubscriptionAccess }>(
-        '/api/schools/subscription-access',
+        '/api/school/subscription-access',
       );
       setAccess(response.data.data);
       setFailed(false);

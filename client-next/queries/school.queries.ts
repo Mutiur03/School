@@ -222,14 +222,14 @@ const mapPublicSchoolInfoToConfig = (info: Record<string, unknown> | null) => {
 /** Deduped per RSC request (layout metadata + body + Footer). */
 export const fetchSchoolConfig = cache(async () => {
   try {
-    const primary = await api.get<Record<string, unknown>>('/api/schools/public', {
+    const primary = await api.get<Record<string, unknown>>('/api/school', {
       revalidate: 300,
     });
     const mappedPrimary = mapPublicSchoolInfoToConfig(primary?.data);
     if (mappedPrimary) return mappedPrimary;
   } catch (error) {
     console.warn(
-      'Error fetching school config from /api/schools/public:',
+      'Error fetching school config from /api/school:',
       error instanceof Error ? error.message : error,
     );
   }

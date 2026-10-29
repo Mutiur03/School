@@ -27,15 +27,15 @@ import type { SubscriptionStatus } from './billing';
 import { parsePresigned, putToPresignedUrl, type PickedFile } from './uploads';
 
 export const PLATFORM_PATHS = {
-  schools: '/api/schools',
-  school: (id: number) => `/api/schools/${id}`,
-  assetUploadUrl: '/api/schools/logo-upload-url',
-  billing: (id: number) => `/api/schools/${id}/billing`,
-  rotatePasswords: (id: number) => `/api/schools/${id}/rotate-student-passwords`,
-  exportStudents: (id: number) => `/api/schools/${id}/students/export`,
-  smsOverview: '/api/schools/sms-overview',
-  smsCredentials: (id: number) => `/api/schools/${id}/sms-credentials`,
-  smsBalance: (id: number) => `/api/schools/${id}/sms-balance`,
+  schools: '/api/platform/schools',
+  school: (id: number) => `/api/platform/schools/${id}`,
+  assetUploadUrl: '/api/platform/schools/upload-url',
+  billing: (id: number) => `/api/platform/schools/${id}/billing`,
+  rotatePasswords: (id: number) => `/api/platform/schools/${id}/student-password-rotations`,
+  exportStudents: (id: number) => `/api/platform/schools/${id}/student-export`,
+  smsOverview: '/api/platform/sms-overview',
+  smsCredentials: (id: number) => `/api/platform/schools/${id}/sms-credentials`,
+  smsBalance: (id: number) => `/api/platform/schools/${id}/sms-balance-topups`,
   platformCode: '/api/auth/super_admin/platform-code',
   admins: (schoolId: number) => `/api/auth/super_admin/schools/${schoolId}/admins`,
   admin: (schoolId: number, adminId: number) =>
@@ -374,10 +374,8 @@ export type SchoolAssetKind = 'logo' | 'header' | 'banner';
 export function createPlatformApi(client: ApiClient, fetchImpl?: typeof fetch) {
   const assetUploadUrl = async (file: PickedFile, kind: SchoolAssetKind) =>
     parsePresigned(
-      await client.post<unknown>(PLATFORM_PATHS.assetUploadUrl, {
-        fileName: file.name,
-        contentType: file.type || 'image/png',
-        kind,
+      await client.get<unknown>(PLATFORM_PATHS.assetUploadUrl, {
+        query: { filename: file.name, contentType: file.type || 'image/png', kind },
       }),
       PLATFORM_PATHS.assetUploadUrl,
     );
@@ -404,7 +402,7 @@ export function createPlatformApi(client: ApiClient, fetchImpl?: typeof fetch) {
         .map(parsePlatformSchool)
         .filter((x): x is PlatformSchool => x !== null);
     },
-    /** POST /api/schools: createSchoolSchema (school + initialAdmin + trialEndsAt). */
+    /** POST /api/platform/schools: createSchoolSchema (school + initialAdmin + trialEndsAt). */
     async createSchool(body: object): Promise<{ id: number | null }> {
       const data = await client.post<unknown>(PLATFORM_PATHS.schools, body);
       const id = isObj(data) ? num(data.id, Number.NaN) : Number.NaN;
@@ -449,7 +447,7 @@ export function createPlatformApi(client: ApiClient, fetchImpl?: typeof fetch) {
     },
     async updateSmsCredentials(id: number, body: SmsCredentialsUpdate): Promise<SmsCredentials> {
       return parseSmsCredentials(
-        await client.put<unknown>(PLATFORM_PATHS.smsCredentials(assertId(id, 'school')), body),
+        await client.patch<unknown>(PLATFORM_PATHS.smsCredentials(assertId(id, 'school')), body),
       );
     },
     /** Shared-account top-up only (the server refuses self-hosted schools). */

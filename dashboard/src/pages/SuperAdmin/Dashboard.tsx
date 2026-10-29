@@ -42,7 +42,7 @@ export default function SuperAdminDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get<{ data: SchoolRow[] }>('/api/schools');
+      const res = await axios.get<{ data: SchoolRow[] }>('/api/platform/schools');
       setSchools(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch {
       setSchools([]);

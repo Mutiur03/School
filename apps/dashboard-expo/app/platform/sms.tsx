@@ -2,7 +2,7 @@
  * SMS Management, ported from dashboard/src/pages/SuperAdmin/SmsOverview.tsx: shared account
  * balance, schools on shared / self-hosted, needs attention (not configured or < 200 left), and
  * the searchable table (School / Mode / Sender ID / Est. SMS). A row opens that school's SMS tab.
- * Read-only: GET /api/schools/sms-overview.
+ * Read-only: GET /api/platform/sms-overview.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';

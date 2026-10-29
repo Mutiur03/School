@@ -1,0 +1,254 @@
+import bcrypt from 'bcrypt';
+import * as XLSX from 'xlsx';
+import { prisma, rlsTransaction } from '@/config/prisma.js';
+import { redis } from '@/config/redis.js';
+import generatePassword from '@/utils/pwgenerator.js';
+import { ApiError } from '@/utils/ApiError.js';
+import { DEFAULT_SMS_TEMPLATES } from '@/constants/smsTemplates.js';
+
+const schoolInfoKey = (id: number) => `school:info:${id}`;
+
+function sheetToBuffer(rows: Record<string, unknown>[], sheetName: string): Buffer {
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
+}
+
+export class SchoolService {
+  static async createSchool(data: any) {
+    const { initialAdmin, trialEndsAt, ...schoolData } = data;
+    const now = new Date();
+    if (trialEndsAt <= now) {
+      throw new ApiError(400, 'Trial end must be in the future');
+    }
+
+    const hashedPassword = await bcrypt.hash(initialAdmin.password, 10);
+
+    return rlsTransaction(async (tx) => {
+      const school = await tx.school.create({ data: schoolData });
+
+      await Promise.all([
+        tx.admin.create({
+          data: {
+            username: initialAdmin.username,
+            password: hashedPassword,
+            role: 'admin',
+            school_id: school.id,
+          },
+        }),
+        tx.sms_settings.create({
+          data: { ...DEFAULT_SMS_TEMPLATES, school_id: school.id },
+        }),
+        tx.school_subscriptions.create({
+          data: {
+            school_id: school.id,
+            status: 'trialing',
+            plan_name: 'Annual',
+            billing_interval: 'annual',
+            currency: 'BDT',
+            trial_started_at: now,
+            trial_ends_at: trialEndsAt,
+          },
+        }),
+      ]);
+
+      const defaults = await tx.exam_types.findMany({
+        where: { assign_to_new_schools: true },
+        select: { id: true },
+      });
+      if (defaults.length) {
+        await tx.school_exam_types.createMany({
+          data: defaults.map((type) => ({ school_id: school.id, exam_type_id: type.id })),
+          skipDuplicates: true,
+        });
+      }
+      return tx.school.findUniqueOrThrow({
+        where: { id: school.id },
+        include: { subscription: true },
+      });
+    });
+  }
+
+  static async getSchools() {
+    return prisma.school.findMany({
+      include: { subscription: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  static async getSchoolById(id: number) {
+    return prisma.school.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            students: true,
+            teachers: true,
+            exams: true,
+            notices: true,
+          },
+        },
+      },
+    });
+  }
+
+  static async updateSchool(id: number, data: any) {
+    const updated = await prisma.school.update({
+      where: { id },
+      data,
+    });
+    redis.del(schoolInfoKey(id)).catch(() => {});
+    return updated;
+  }
+
+  static async getSchoolInfo(id: number) {
+    const key = schoolInfoKey(id);
+    const cached = await redis.get(key).catch(() => null);
+    if (cached) return JSON.parse(cached);
+
+    const info = await prisma.school.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        shortName: true,
+        nameBn: true,
+        eiin: true,
+        centerCode: true,
+        schoolCode: true,
+        subjectGroups: true,
+        medium: true,
+        board: true,
+        ownership: true,
+        gender: true,
+        logo: true,
+        headerLogo: true,
+        bannerUrls: true,
+        district: true,
+        upazila: true,
+        address: true,
+        phone: true,
+        email: true,
+        subdomain: true,
+        customDomain: true,
+        mapEmbedUrl: true,
+        establishedIn: true,
+        nationalizedYear: true,
+        resultsUrl: true,
+        teacherLoginUrl: true,
+        studentLoginUrl: true,
+        gaMeasurementId: true,
+        descriptions: true,
+        academicProfile: true,
+        seo: true,
+        promotionVersion: true,
+      },
+    });
+
+    if (info) redis.set(key, JSON.stringify(info), 'EX', 300).catch(() => {});
+    return info;
+  }
+
+  static async getCurrentSchoolInfo({ schoolId }: { schoolId?: number }) {
+    if (!schoolId) return null;
+
+    return this.getSchoolInfo(schoolId);
+  }
+
+  /** Rotate the password of every student belonging to a school; returns an .xlsx of new credentials. */
+  static async rotateStudentPasswords(schoolId: number) {
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) throw new ApiError(404, 'School not found');
+
+    const students = await prisma.students.findMany({
+      where: { school_id: schoolId },
+      select: {
+        id: true,
+        login_id: true,
+        name: true,
+        batch: true,
+        religion: true,
+      },
+    });
+
+    if (students.length === 0) {
+      throw new ApiError(404, 'No students found for this school');
+    }
+
+    const processed = await Promise.all(
+      students.map(async (student) => {
+        const password = generatePassword(8);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        return { ...student, password, hashedPassword };
+      }),
+    );
+
+    await rlsTransaction(
+      async (tx) => {
+        await Promise.all(
+          processed.map((student) =>
+            tx.students.update({
+              where: { id: student.id },
+              data: {
+                password: student.hashedPassword,
+                tokenVersion: { increment: 1 },
+              },
+            }),
+          ),
+        );
+      },
+      { timeout: 120_000 },
+    );
+
+    return sheetToBuffer(
+      processed.map((student) => ({
+        'Login ID': student.login_id.toString(),
+        Name: student.name,
+        Batch: student.batch,
+        'New Password': student.password,
+      })),
+      'Rotated Passwords',
+    );
+  }
+
+  /** Build an .xlsx of all students for a school. */
+  static async exportStudentsExcel(schoolId: number) {
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) throw new ApiError(404, 'School not found');
+
+    const students = await prisma.students.findMany({
+      where: { school_id: schoolId },
+      include: {
+        enrollments: { orderBy: { year: 'desc' }, take: 1 },
+      },
+      orderBy: { login_id: 'asc' },
+    });
+
+    return sheetToBuffer(
+      students.map((student) => {
+        const enrollment = student.enrollments[0];
+        return {
+          'Login ID': student.login_id.toString(),
+          Name: student.name,
+          'Father Name': student.father_name ?? '',
+          'Mother Name': student.mother_name ?? '',
+          Batch: student.batch,
+          Class: enrollment?.class ?? '',
+          Section: enrollment?.section ?? '',
+          Roll: enrollment?.roll ?? '',
+          Religion: student.religion,
+          'Father Phone': student.father_phone ?? '',
+          'Mother Phone': student.mother_phone ?? '',
+          DOB: student.dob ?? '',
+          Village: student.village ?? '',
+          'Post Office': student.post_office ?? '',
+          Upazila: student.upazila ?? '',
+          District: student.district ?? '',
+          Available: student.available ? 'Yes' : 'No',
+        };
+      }),
+      'Students',
+    );
+  }
+}

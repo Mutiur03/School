@@ -375,7 +375,7 @@ What it does:
   queries. Network errors, 5xx, 429 and **402 (subscription lock)** never sign the user out,
   matching `dashboard/src/context/unifiedAuthContext.tsx`.
 - **Typed only where verified**: auth (`auth.ts`, request bodies are `z.input` of the shared
-  login schemas), `GET /api/schools/public` (`school.ts`), `POST /api/school-code-lookups`
+  login schemas), `GET /api/school` (`school.ts`), `POST /api/school-code-lookups`
   (`school-codes.ts`, response validated: https, API host must equal the tenant host) and
   `GET /api/students` (`students.ts`).
 
@@ -452,7 +452,7 @@ from `X-Forwarded-Host`, which tenant-router / auth-bff set). The client never s
 | Web/native with base URL | The `EXPO_PUBLIC_API_BASE_URL` host (one school per build/config today)  |
 | Local dev                | `EXPO_PUBLIC_DEV_TENANT_HOST`, sent as `x-tenant-host`                   |
 
-Branding comes from the existing public contract `GET /api/schools/public` (`name`, `shortName`,
+Branding comes from the existing public contract `GET /api/school` (`name`, `shortName`,
 `nameBn`, `logo`/`headerLogo` resolved against the CDN like `getFileUrl`). The School model has no
 theme fields, so every tenant uses the default theme; `ThemeProvider` accepts a validated
 `primary` override for when that exists.

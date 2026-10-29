@@ -113,6 +113,26 @@ jobs:
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+    # Throwaway DB + Redis for the *.http.spec.ts suites (job-local, never a real environment).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci_owner
+          POSTGRES_PASSWORD: ci_owner
+          POSTGRES_DB: school_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_owner -d school_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -151,6 +171,39 @@ jobs:
         run: |
           pnpm test
           pnpm test:nest --testPathIgnorePatterns http.spec
+
+      # Full-stack http specs: real Postgres (migrated, app connects as a restricted role so RLS
+      # applies), real Redis, and the committed fake R2/SMS server (scripts/ci/fake-r2-sms.mjs).
+      # Excluded until their seed data exists in CI: marks, promotion, public-results (they need a
+      # seeded exam type + student and fail the same way on main).
+      - name: Prepare http-spec database
+        working-directory: server
+        env:
+          OWNER_URL: postgresql://ci_owner:ci_owner@127.0.0.1:5432/school_ci
+          APP_ROLE: school_app
+          APP_PASSWORD: school_app
+        run: ./scripts/ci/setup-test-db.sh
+
+      - name: HTTP specs (per-module integration)
+        working-directory: server
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://school_app:school_app@127.0.0.1:5432/school_ci
+          JWT_SECRET: ci-test-secret
+          ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+          REDIS_HOST: 127.0.0.1
+          R2_ACCOUNT_ID: ci
+          R2_ACCESS_KEY_ID: ci-key
+          R2_SECRET_ACCESS_KEY: ci-secret
+          R2_BUCKET_NAME: test-bucket
+          R2_PUBLIC_URL: http://cdn.local
+          R2_ENDPOINT: http://127.0.0.1:9900
+          SMSPIT_URL: http://127.0.0.1:9900/sms
+        run: |
+          node scripts/ci/fake-r2-sms.mjs > /tmp/fake-r2-sms.log 2>&1 &
+          for i in $(seq 1 20); do curl -fs http://127.0.0.1:9900/__health && break; sleep 0.5; done
+          pnpm test:nest --ci --runInBand --testPathPatterns 'http\.spec' \
+            --testPathIgnorePatterns 'marks/marks\.http' 'promotion/promotion\.http' 'public-results/public-results\.http'
 
       - name: Build
         run: pnpm exec turbo run build --filter=server

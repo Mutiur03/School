@@ -136,7 +136,7 @@ describe('request building', () => {
       fetch: f.fn,
       auth: { getAccessToken: () => 'tok', refresh: async () => false, onSessionExpired: () => {} },
     });
-    await api.get('/api/schools/public', { auth: false });
+    await api.get('/api/school', { auth: false });
     assert.equal(header(f.calls[0]!, 'Authorization'), undefined);
   });
 });

@@ -18,7 +18,7 @@ export const useEvents = () => {
   return useQuery<Event[]>({
     queryKey: ['events'],
     queryFn: async () => {
-      const response = await axios.get('/api/events/getEvents');
+      const response = await axios.get('/api/events');
       return response.data.data;
     },
   });
@@ -40,7 +40,7 @@ export const useAddEvent = () => {
 
       // 1. Handle image upload
       if (data.image) {
-        const res = await axios.get('/api/events/presigned-url', {
+        const res = await axios.get('/api/events/upload-url', {
           params: {
             filename: data.image.name,
             contentType: data.image.type,
@@ -54,7 +54,7 @@ export const useAddEvent = () => {
 
       // 2. Handle file upload
       if (data.file) {
-        const res = await axios.get('/api/events/presigned-url', {
+        const res = await axios.get('/api/events/upload-url', {
           params: {
             filename: data.file.name,
             contentType: data.file.type,
@@ -67,7 +67,7 @@ export const useAddEvent = () => {
       }
 
       // 3. Save event record to database
-      const response = await axios.post('/api/events/addEvent', {
+      const response = await axios.post('/api/events', {
         title: data.title,
         details: data.details,
         location: data.location,
@@ -109,7 +109,7 @@ export const useUpdateEvent = () => {
       let fileKey = undefined;
 
       if (data.image instanceof File) {
-        const res = await axios.get('/api/events/presigned-url', {
+        const res = await axios.get('/api/events/upload-url', {
           params: {
             filename: data.image.name,
             contentType: data.image.type,
@@ -122,7 +122,7 @@ export const useUpdateEvent = () => {
       }
 
       if (data.file instanceof File) {
-        const res = await axios.get('/api/events/presigned-url', {
+        const res = await axios.get('/api/events/upload-url', {
           params: {
             filename: data.file.name,
             contentType: data.file.type,
@@ -134,7 +134,7 @@ export const useUpdateEvent = () => {
         fileKey = key;
       }
 
-      const response = await axios.put(`/api/events/updateEvent/${id}`, {
+      const response = await axios.patch(`/api/events/${id}`, {
         title: data.title,
         details: data.details,
         location: data.location,
@@ -159,7 +159,7 @@ export const useDeleteEvent = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string | number) => {
-      const response = await axios.delete(`/api/events/deleteEvent/${id}`);
+      const response = await axios.delete(`/api/events/${id}`);
       return response.data;
     },
     onSuccess: () => {

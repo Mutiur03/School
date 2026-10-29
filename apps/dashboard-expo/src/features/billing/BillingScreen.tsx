@@ -2,7 +2,7 @@
  * Billing (read-only), replicating dashboard/src/pages/Admin/Billing.tsx: subtitle "{status} ·
  * {plan} · {access}", the status strip (Status pill, Access with dot, Days remaining / Grace
  * days left, Access ends, summary line), the Plan and Dates cards and the Help card.
- * Live data: GET /api/schools/billing (admin only, this school). Platform admins change it.
+ * Live data: GET /api/school/billing (admin only, this school). Platform admins change it.
  */
 import { useQuery } from '@tanstack/react-query';
 import { SUBSCRIPTION_DATE_FIELD_LABELS, SUBSCRIPTION_STATUS_FIELDS } from '@school/shared-schemas';

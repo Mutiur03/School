@@ -53,7 +53,7 @@ export default function Billing() {
   } = useQuery({
     queryKey: ['billing'],
     queryFn: async () =>
-      (await axios.get<{ data: SubscriptionDetails }>('/api/schools/billing')).data.data,
+      (await axios.get<{ data: SubscriptionDetails }>('/api/school/billing')).data.data,
   });
 
   return (

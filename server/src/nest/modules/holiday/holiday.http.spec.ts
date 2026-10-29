@@ -148,8 +148,8 @@ test('unknown route → legacy 404 body', async () => {
   expect(body).toEqual({ success: false, message: 'Route not found' });
 });
 
-test('legacy route error → same envelope', async () => {
-  const { status, body } = await call('POST', '/api/events/addEvent', { body: {} });
+test('Express route error → same envelope', async () => {
+  const { status, body } = await call('POST', '/api/teachers', { body: {} });
   expect(status).toBe(401);
   expect(body).toEqual({
     success: false,

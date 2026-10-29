@@ -38,8 +38,8 @@ const normalizeGalleryItem = (item: Record<string, unknown>): GalleryItem => {
   };
 };
 
-export const fetchGalleryCategories = () => fetchGalleryList('/api/gallery/getCategories');
-export const fetchGalleryEvents = () => fetchGalleryList('/api/events/getEvents');
+export const fetchGalleryCategories = () => fetchGalleryList('/api/gallery/categories');
+export const fetchGalleryEvents = () => fetchGalleryList('/api/events');
 
 async function fetchGalleryList(path: string): Promise<GalleryItem[]> {
   try {
@@ -56,9 +56,7 @@ export const fetchGalleryImages = async (
   id: string,
 ): Promise<GalleryImageItem[]> => {
   const endpoint =
-    type === 'campus'
-      ? `/api/gallery/getGalleries/campus/${id}`
-      : `/api/gallery/getGalleries/event/${id}`;
+    type === 'campus' ? `/api/gallery/categories/${id}/images` : `/api/gallery/events/${id}/images`;
 
   try {
     const response = await api.get<GalleryImageItem[]>(endpoint, {
