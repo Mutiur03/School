@@ -26,6 +26,7 @@ export function getCurrentTenantResolution(
     selectedHost: selection?.host ?? null,
     platformHost: platform?.host ?? null,
     superAdminUrl: appConfig.superAdminUrl,
+    lockedRole: appConfig.lockedRole,
   });
   return {
     resolution,

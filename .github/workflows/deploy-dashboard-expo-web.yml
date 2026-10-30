@@ -7,6 +7,12 @@
 # Static SPA, same-origin /api. The Pages custom domain must match a school-auth-bff route
 # (*.lbphs.gov.bd/api/*), which proxies /api; the backend resolves the school from the host.
 # No 404.html in the export, so Pages falls back to index.html for deep links.
+#
+# Five sites from one commit: the all-roles site (school-dashboard-expo, unchanged) and four
+# role-locked sites, built with EXPO_PUBLIC_APP_ROLE (apps/dashboard-expo/src/navigation/
+# deployment-lock.ts): every route outside that role is a 404 and other roles are signed out.
+#   school-dashboard-expo-admin / -teacher / -student / -superadmin
+# Native builds and OTAs (deploy-dashboard-expo*.yml) never set EXPO_PUBLIC_APP_ROLE.
 
 name: Deploy dashboard-expo web
 
@@ -27,7 +33,8 @@ concurrency:
 
 env:
   ARTIFACT: pages-school-dashboard-expo
-  PROJECT_NAME: school-dashboard-expo
+  # The four role-locked exports, one folder each (admin, teacher, student, superadmin).
+  ROLES_ARTIFACT: pages-school-dashboard-expo-roles
 
 jobs:
   promote-meta:
@@ -70,14 +77,15 @@ jobs:
                 --json databaseId,headSha \
                 --jq "[.[] | select(.headSha == \"$cand\")][0].databaseId // empty")"
               [ -z "$CAND_RUN" ] && { echo "No staging run for $cand"; continue; }
-              if gh api "repos/${{ github.repository }}/actions/runs/${CAND_RUN}/artifacts" \
-                --jq '.artifacts[].name' | grep -qx "$ARTIFACT"; then
+              NAMES="$(gh api "repos/${{ github.repository }}/actions/runs/${CAND_RUN}/artifacts" \
+                --jq '.artifacts[].name')"
+              if grep -qx "$ARTIFACT" <<<"$NAMES" && grep -qx "$ROLES_ARTIFACT" <<<"$NAMES"; then
                 HIT=true
                 RUN_ID="$CAND_RUN"
                 echo "Promote hit: staging run $RUN_ID for $cand"
                 break
               fi
-              echo "Staging run $CAND_RUN missing artifact: $ARTIFACT"
+              echo "Staging run $CAND_RUN missing artifact: $ARTIFACT or $ROLES_ARTIFACT"
             done
 
             [ "$HIT" = true ] || echo "Promote miss: will rebuild."
@@ -127,11 +135,34 @@ jobs:
           EXPO_PUBLIC_DIRECTORY_URL: https://superadmin.mutiurrahman.com
         run: pnpm build:web
 
+      # --clear: EXPO_PUBLIC_* are inlined at transform time, so no cached module may carry
+      # another role's value.
+      - name: Build role-locked web
+        working-directory: apps/dashboard-expo
+        env:
+          EXPO_PUBLIC_APP_ENV: production
+          EXPO_PUBLIC_CDN_URL: ${{ secrets.LBP_VITE_CDN_URL }}
+          EXPO_PUBLIC_DIRECTORY_URL: https://superadmin.mutiurrahman.com
+        run: |
+          set -euo pipefail
+          for pair in admin:admin teacher:teacher student:student superadmin:super_admin; do
+            dir="${pair%%:*}"
+            EXPO_PUBLIC_APP_ROLE="${pair#*:}" pnpm exec expo export --platform web --clear \
+              --output-dir "dist/roles/$dir"
+          done
+
       - name: Upload web dist
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT }}
           path: apps/dashboard-expo/dist/web
+          retention-days: 14
+
+      - name: Upload role-locked web dists
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ROLES_ARTIFACT }}
+          path: apps/dashboard-expo/dist/roles
           retention-days: 14
 
   deploy:
@@ -144,11 +175,38 @@ jobs:
     permissions:
       actions: read
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        site:
+          - { project: school-dashboard-expo, artifact: pages-school-dashboard-expo, dir: . }
+          - {
+              project: school-dashboard-expo-admin,
+              artifact: pages-school-dashboard-expo-roles,
+              dir: admin,
+            }
+          - {
+              project: school-dashboard-expo-teacher,
+              artifact: pages-school-dashboard-expo-roles,
+              dir: teacher,
+            }
+          - {
+              project: school-dashboard-expo-student,
+              artifact: pages-school-dashboard-expo-roles,
+              dir: student,
+            }
+          - {
+              project: school-dashboard-expo-superadmin,
+              artifact: pages-school-dashboard-expo-roles,
+              dir: superadmin,
+            }
+    env:
+      PROJECT_NAME: ${{ matrix.site.project }}
     steps:
       - name: Download web dist
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.ARTIFACT }}
+          name: ${{ matrix.site.artifact }}
           path: dist/web
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ needs.promote-meta.outputs.hit == 'true' && needs.promote-meta.outputs.run_id || github.run_id }}
@@ -161,7 +219,8 @@ jobs:
       - name: Create Pages project if missing
         run: |
           set -euo pipefail
-          if npx --yes wrangler@4 pages project list | grep -qw "$PROJECT_NAME"; then
+          # Whole cell match: school-dashboard-expo must not match school-dashboard-expo-admin.
+          if npx --yes wrangler@4 pages project list | grep -Eq "(^|[│| ])${PROJECT_NAME}([│| ]|$)"; then
             echo "Pages project $PROJECT_NAME exists."
           else
             npx --yes wrangler@4 pages project create "$PROJECT_NAME" --production-branch=main
@@ -172,7 +231,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         run: >
-          npx --yes wrangler@4 pages deploy dist/web
+          npx --yes wrangler@4 pages deploy dist/web/${{ matrix.site.dir }}
           --project-name=${{ env.PROJECT_NAME }} --branch=main --commit-hash=${{ github.sha }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}

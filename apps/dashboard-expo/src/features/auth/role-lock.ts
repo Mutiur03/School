@@ -6,6 +6,7 @@
  * "Use a different code" (switch school) clears both.
  */
 import type { RoleHint } from '@/lib/api/school-codes';
+import type { LockedRole } from '@/navigation/deployment-lock';
 import type { AppRole } from '@/navigation/role-routes';
 
 export const LOGIN_ROLES: readonly AppRole[] = ['admin', 'teacher', 'student'];
@@ -20,7 +21,10 @@ export function lockedLoginRole(
   selection: { roleHint?: RoleHint | null; host?: string } | null | undefined,
   resolution: { source: string; host?: string | null },
   urlRole?: unknown,
+  /** This web build's role (EXPO_PUBLIC_APP_ROLE): beats the subdomain, `?role=` and the code. */
+  deploymentRole: LockedRole = null,
 ): RoleHint | null {
+  if (isRole(deploymentRole)) return deploymentRole;
   if (resolution.source === 'page-host') {
     const label = resolution.host?.split('.')[0];
     return isRole(label) ? label : isRole(urlRole) ? urlRole : null;

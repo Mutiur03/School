@@ -14,6 +14,7 @@ import { Image, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BootScreen } from '@/components/layout/BootScreen';
 import { ToastProvider } from '@/components/ui/Toast';
+import { DeploymentGuard } from '@/navigation/DeploymentGuard';
 import { SchoolProvider, useSchool } from '@/school/SchoolProvider';
 import { ApiProvider } from '@/session/ApiProvider';
 import { getCurrentTenantResolution } from '@/tenant/current-resolution';
@@ -70,7 +71,15 @@ function TenantRoot({ fontsReady }: { fontsReady: boolean }) {
   return (
     <ApiProvider tenant={resolution} connection={connection}>
       <TenantProvider resolution={resolution}>
-        <TenantTheme>{fontsReady ? <Slot /> : <BootScreen textReady={false} />}</TenantTheme>
+        <TenantTheme>
+          {fontsReady ? (
+            <DeploymentGuard>
+              <Slot />
+            </DeploymentGuard>
+          ) : (
+            <BootScreen textReady={false} />
+          )}
+        </TenantTheme>
       </TenantProvider>
     </ApiProvider>
   );
