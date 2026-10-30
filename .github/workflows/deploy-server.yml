@@ -175,7 +175,8 @@ jobs:
       # Full-stack http specs: real Postgres (migrated, app connects as a restricted role so RLS
       # applies), real Redis, and the committed fake R2/SMS server (scripts/ci/fake-r2-sms.mjs).
       # setup-test-db.sh seeds the school, admin, exam type, student and enrollment they need.
-      # Run in band: the suites share one DB, Redis and fake server.
+      # One worker at a time (they share one DB, Redis and fake server); the worker is recycled
+      # past 1 GB so the heap does not run out, which --runInBand did on CI.
       - name: Prepare http-spec database
         working-directory: server
         env:

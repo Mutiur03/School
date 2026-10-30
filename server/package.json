@@ -10,7 +10,7 @@
     "docs:result-guide": "node docs/result-guide/build.mjs",
     "test:nest": "pnpm run test:nest:unit && pnpm run test:nest:http",
     "test:nest:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns http\\.spec --maxWorkers=50% --workerIdleMemoryLimit=1GB",
-    "test:nest:http": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --testPathPatterns http\\.spec",
+    "test:nest:http": "node --experimental-vm-modules node_modules/jest/bin/jest.js --maxWorkers=1 --workerIdleMemoryLimit=1GB --testPathPatterns http\\.spec",
     "test:nest:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:nest:cov": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "build": "prisma generate && nest build && tsc-alias",
