@@ -38,10 +38,8 @@ import { useStaff } from '@/queries/staff.queries';
 import type { Staff } from '@/types/staff';
 
 const uploadImageToR2 = async (file: File, staffId: number): Promise<void> => {
-  const key = await uploadToR2('/api/staffs/presigned-url', file, undefined, {
-    id: staffId,
-  });
-  await axios.put(`/api/staffs/${staffId}/image`, { key });
+  const key = await uploadToR2(`/api/staff/${staffId}/image/upload-url`, file);
+  await axios.put(`/api/staff/${staffId}/image`, { key });
 };
 
 const defaultValues: StaffFormInput = {
@@ -273,7 +271,7 @@ const StaffList = () => {
       formValues: StaffFormData;
       imageFile: File | null;
     }) => {
-      const response = await axios.post('/api/staffs', {
+      const response = await axios.post('/api/staff', {
         staff: [formValues],
       });
       const newStaff = response.data.data[0];
@@ -304,7 +302,7 @@ const StaffList = () => {
       formValues: StaffFormData;
       imageFile: File | null;
     }) => {
-      const response = await axios.put(`/api/staffs/${staffMember.id}`, formValues);
+      const response = await axios.patch(`/api/staff/${staffMember.id}`, formValues);
       if (imageFile) {
         await uploadImageToR2(imageFile, staffMember.id);
       }
@@ -324,7 +322,7 @@ const StaffList = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (staffMember: Staff) => {
-      await axios.delete(`/api/staffs/${staffMember.id}`);
+      await axios.delete(`/api/staff/${staffMember.id}`);
     },
     onSuccess: (_, staffMember) => {
       toast.success('Staff deleted successfully.');
@@ -338,7 +336,7 @@ const StaffList = () => {
 
   const removeImageMutation = useMutation({
     mutationFn: async (staffId: number) => {
-      await axios.delete(`/api/staffs/${staffId}/image`);
+      await axios.delete(`/api/staff/${staffId}/image`);
     },
     onSuccess: () => {
       toast.success('Image removed.');

@@ -1,23 +1,23 @@
 /**
- * Public-website PDFs (legacy Express), verified against server/src/modules/{citizen-charter,
+ * Public-website PDFs (Nest REST), verified against server/src/nest/modules/{citizen-charter,
  * class-routine,syllabus} and dashboard/src/pages/Admin/{CitizenCharter,ClassRoutinePDF,Syllabus}:
  *
- *   GET  /api/citizen-charter                      public; the bare row { file, download_url,
- *                                                  updated_at } (no envelope), 404 when none
- *   GET  /api/citizen-charter/presigned-url        admin → { uploadUrl, key }
- *   POST /api/citizen-charter { key }              admin; creates or replaces
+ *   GET  /api/citizen-charter/document             public; { file, download_url, updated_at },
+ *                                                  404 when none
+ *   GET  /api/citizen-charter/upload-url           admin → { uploadUrl, key }
+ *   PUT  /api/citizen-charter/document { key }     admin; creates or replaces
  *
- *   GET    /api/class-routine/pdf                  public; newest first, the page shows [0]
- *   GET    /api/class-routine/presigned-url        admin
- *   POST   /api/class-routine/pdf { key }          admin
- *   PUT    /api/class-routine/pdf/:id { key }      admin; swaps the stored file
- *   DELETE /api/class-routine/pdf/:id              admin
+ *   GET    /api/class-routines                     public; newest first, the page shows [0]
+ *   GET    /api/class-routines/upload-url          admin
+ *   POST   /api/class-routines { key }             admin
+ *   PATCH  /api/class-routines/:id { key }         admin; swaps the stored file
+ *   DELETE /api/class-routines/:id                 admin
  *
- *   GET    /api/syllabus                           public; every class/year for this school
- *   GET    /api/syllabus/presigned-url             admin
- *   POST   /api/syllabus/upload { class, year, key }        admin
- *   PUT    /api/syllabus/:id { class, year, key? }          admin; key only when replacing
- *   DELETE /api/syllabus/:id                       admin
+ *   GET    /api/syllabuses                         public; every class/year for this school
+ *   GET    /api/syllabuses/upload-url              admin
+ *   POST   /api/syllabuses { class, year, key }    admin
+ *   PATCH  /api/syllabuses/:id { class?, year?, key? }      admin; key only when replacing
+ *   DELETE /api/syllabuses/:id                     admin
  *
  * Every key is presigned under this school's prefix and re-checked server-side
  * (assertTenantR2Key); no school id is ever sent.
@@ -29,15 +29,15 @@ import { isObj, num, objArray, str, strOrNull, type Json } from './parse';
 import { uploadViaPresign, type PickedFile } from './uploads';
 
 export const SITE_DOC_PATHS = {
-  charter: '/api/citizen-charter',
-  charterPresign: '/api/citizen-charter/presigned-url',
-  routine: '/api/class-routine/pdf',
-  routineOne: (id: number) => `/api/class-routine/pdf/${id}`,
-  routinePresign: '/api/class-routine/presigned-url',
-  syllabus: '/api/syllabus',
-  syllabusUpload: '/api/syllabus/upload',
-  syllabusOne: (id: number) => `/api/syllabus/${id}`,
-  syllabusPresign: '/api/syllabus/presigned-url',
+  charter: '/api/citizen-charter/document',
+  charterPresign: '/api/citizen-charter/upload-url',
+  routine: '/api/class-routines',
+  routineOne: (id: number) => `/api/class-routines/${id}`,
+  routinePresign: '/api/class-routines/upload-url',
+  syllabus: '/api/syllabuses',
+  syllabusUpload: '/api/syllabuses',
+  syllabusOne: (id: number) => `/api/syllabuses/${id}`,
+  syllabusPresign: '/api/syllabuses/upload-url',
 } as const;
 
 export interface SiteDoc {
@@ -101,7 +101,7 @@ export function createSiteDocsApi(client: ApiClient, fetchImpl?: typeof fetch) {
     },
     async uploadCharter(file: PickedFile): Promise<void> {
       const key = await upload(SITE_DOC_PATHS.charterPresign, file, 'Citizen charter');
-      await client.post<unknown>(SITE_DOC_PATHS.charter, { key });
+      await client.put<unknown>(SITE_DOC_PATHS.charter, { key });
     },
 
     async routine(signal?: AbortSignal): Promise<RoutinePdf | null> {
@@ -109,10 +109,10 @@ export function createSiteDocsApi(client: ApiClient, fetchImpl?: typeof fetch) {
         parseRoutines(await client.get<unknown>(SITE_DOC_PATHS.routine, { signal }))[0] ?? null
       );
     },
-    /** Replaces `current` when there is one (PUT), otherwise adds the first (POST). */
+    /** Replaces `current` when there is one (PATCH), otherwise adds the first (POST). */
     async uploadRoutine(file: PickedFile, current: RoutinePdf | null): Promise<void> {
       const key = await upload(SITE_DOC_PATHS.routinePresign, file, 'Class routine');
-      if (current) await client.put<unknown>(SITE_DOC_PATHS.routineOne(current.id), { key });
+      if (current) await client.patch<unknown>(SITE_DOC_PATHS.routineOne(current.id), { key });
       else await client.post<unknown>(SITE_DOC_PATHS.routine, { key });
     },
     async removeRoutine(id: number): Promise<void> {
@@ -138,7 +138,7 @@ export function createSiteDocsApi(client: ApiClient, fetchImpl?: typeof fetch) {
         : undefined;
       const body = { class: input.class, year: input.year, ...(key ? { key } : {}) };
       if (id === null) await client.post<unknown>(SITE_DOC_PATHS.syllabusUpload, body);
-      else await client.put<unknown>(SITE_DOC_PATHS.syllabusOne(id), body);
+      else await client.patch<unknown>(SITE_DOC_PATHS.syllabusOne(id), body);
     },
     async removeSyllabus(id: number): Promise<void> {
       await client.delete<unknown>(SITE_DOC_PATHS.syllabusOne(id));

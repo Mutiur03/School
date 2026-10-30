@@ -2,7 +2,7 @@
  * Admin overview, replicating dashboard/src/pages/Admin/Dashboard.tsx: header with date and
  * counts plus quick actions, KPI strip, Attendance chart + Exams, Recent notices + Upcoming
  * events. Data comes from the same endpoints as the web page: GET /api/dashboard and
- * GET /api/dashboard/attendance?attendanceDays (see src/lib/api/dashboard.ts).
+ * GET /api/dashboard/attendance-summary?days (see src/lib/api/dashboard.ts).
  */
 import { useRouter } from 'expo-router';
 import { Bell, CalendarPlus, ChevronRight, MapPin, UserCheck } from '@/components/ui/icons';

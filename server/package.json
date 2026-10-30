@@ -6,9 +6,11 @@
   "main": "src/server.ts",
   "scripts": {
     "preinstall": "pnpm --filter @school/shared-schemas build",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "docs:result-guide": "node docs/result-guide/build.mjs",
-    "test:nest": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:nest": "pnpm run test:nest:unit && pnpm run test:nest:http",
+    "test:nest:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns http\\.spec --maxWorkers=50% --workerIdleMemoryLimit=1GB",
+    "test:nest:http": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.http.config.mjs --maxWorkers=1 --workerIdleMemoryLimit=1GB",
     "test:nest:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:nest:cov": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "build": "prisma generate && nest build && tsc-alias",

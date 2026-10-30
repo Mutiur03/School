@@ -108,7 +108,7 @@ export const useSmsSettings = (section?: string) => {
   return useQuery({
     queryKey: ['smsSettingsPublic'],
     queryFn: async () => {
-      const response = await axios.get('/api/sms-settings/public');
+      const response = await axios.get('/api/sms/settings/public');
       return response.data.data;
     },
     enabled: section === undefined || !!section,

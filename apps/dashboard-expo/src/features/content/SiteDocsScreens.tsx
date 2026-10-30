@@ -2,7 +2,7 @@
  * Citizen Charter, Class Routine and Syllabus, replicating dashboard/src/pages/Admin/
  * {CitizenCharter,ClassRoutinePDF,Syllabus}.tsx: one PDF per page (charter / routine) shown on
  * the public website, and one syllabus PDF per class (6–10) and year.
- * Live data: /api/citizen-charter, /api/class-routine/pdf, /api/syllabus (src/lib/api/site-docs).
+ * Live data: /api/citizen-charter/document, /api/class-routines, /api/syllabuses (src/lib/api/site-docs).
  * Uploads go straight to R2 through a presigned URL (file picker on web, document picker on
  * native).
  */

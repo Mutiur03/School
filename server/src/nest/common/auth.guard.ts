@@ -18,3 +18,21 @@ export const Auth = (...roles: string[]) => {
   }
   return mixin(AuthGuard);
 };
+
+/** `@UseGuards(OptionalAuth())` — legacy `authenticateOptional`: attaches `req.user` when the token is valid, never rejects. */
+export const OptionalAuth = (...roles: string[]) => {
+  const authenticate = AuthMiddleware.authenticateOptional(roles);
+
+  @Injectable()
+  class OptionalAuthGuard implements CanActivate {
+    canActivate(ctx: ExecutionContext) {
+      const http = ctx.switchToHttp();
+      return new Promise<boolean>((resolve, reject) => {
+        void authenticate(http.getRequest(), http.getResponse(), (err?: unknown) =>
+          err ? reject(err) : resolve(true),
+        );
+      });
+    }
+  }
+  return mixin(OptionalAuthGuard);
+};

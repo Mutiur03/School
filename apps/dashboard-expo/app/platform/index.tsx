@@ -1,7 +1,7 @@
 /**
  * Overview, ported from dashboard/src/pages/SuperAdmin/Dashboard.tsx: fleet health across all
  * school tenants (Schools, On free trial, Trials ending ≤14d, Needs attention), the attention
- * note, link cards to Schools / Exam types / SMS, and the app sign-in code. Data: GET /api/schools.
+ * note, link cards to Schools / Exam types / SMS, and the app sign-in code. Data: GET /api/platform/schools.
  */
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';

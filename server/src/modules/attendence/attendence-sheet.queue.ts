@@ -18,7 +18,7 @@ export type AttendanceSheetJob = {
 };
 
 export const attendanceSheetQueue = new Bull<AttendanceSheetJob>('attendanceSheetQueue', {
-  redis: { host, port: 6379 },
+  redis: { host, port: 6379, db: Number(process.env.REDIS_DB) || 0 },
   settings: {
     lockDuration: 5 * 60 * 1000,
     stalledInterval: 60 * 1000,

@@ -1,6 +1,6 @@
 /**
  * System status: real (non-mock) diagnostics for the foundation — config, tenant resolution,
- * branding source, session state and a live API probe against GET /api/schools/public.
+ * branding source, session state and a live API probe against GET /api/school.
  */
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -110,7 +110,7 @@ export default function SystemStatusScreen() {
 
       <SectionCard
         title="API connectivity"
-        description="Calls GET /api/schools/public through the shared API client."
+        description="Calls GET /api/school through the shared API client."
       >
         <View className="flex-row flex-wrap items-center gap-3">
           <Button

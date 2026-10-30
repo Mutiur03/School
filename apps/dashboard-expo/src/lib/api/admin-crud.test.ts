@@ -265,7 +265,7 @@ describe('uploads + notices', () => {
 
   it('presigns, PUTs the PDF to storage without credentials, then saves the key', async () => {
     const h = harness((c) =>
-      path(c) === '/api/notices/presigned-url'
+      path(c) === '/api/notices/upload-url'
         ? ok({ uploadUrl: 'https://r2.test/put?sig=1', key: 'schools/3/notices/a.pdf' })
         : c.url.startsWith('https://r2.test')
           ? new Response(null, { status: 200 })
@@ -283,13 +283,13 @@ describe('uploads + notices', () => {
     assert.equal(put!.method, 'PUT');
     assert.equal(put!.headers.Authorization, undefined);
     assert.equal(put!.headers['Content-Type'], 'application/pdf');
-    assert.deepEqual([save!.method, path(save!)], ['POST', '/api/notices/addNotice']);
+    assert.deepEqual([save!.method, path(save!)], ['POST', '/api/notices']);
     assert.deepEqual(save!.body, { title: 'Exam', key: 'schools/3/notices/a.pdf' });
   });
 
   it('fails the whole create when the storage PUT fails (no record without a file)', async () => {
     const h = harness((c) =>
-      path(c) === '/api/notices/presigned-url'
+      path(c) === '/api/notices/upload-url'
         ? ok({ uploadUrl: 'https://r2.test/put', key: 'k' })
         : new Response('denied', { status: 403 }),
     );
@@ -314,10 +314,7 @@ describe('uploads + notices', () => {
     );
     await api.update(8, { title: 'New', created_at: '2026-04-01', file: null });
     assert.equal(h.calls.length, 1);
-    assert.deepEqual(
-      [h.calls[0]!.method, path(h.calls[0]!)],
-      ['PUT', '/api/notices/updateNotice/8'],
-    );
+    assert.deepEqual([h.calls[0]!.method, path(h.calls[0]!)], ['PATCH', '/api/notices/8']);
     assert.deepEqual(h.calls[0]!.body, { title: 'New', created_at: '2026-04-01' });
     assert.equal(isPdf({ name: 'X.PDF', type: '' }), true);
   });
@@ -332,7 +329,7 @@ describe('events', () => {
 
   it('creates without files; uploads an image with type=image and sends imageKey', async () => {
     const h = harness((c) =>
-      path(c) === '/api/events/presigned-url'
+      path(c) === '/api/events/upload-url'
         ? ok({ uploadUrl: 'https://r2.test/u', key: 'img-key' })
         : c.url.startsWith('https://r2.test')
           ? new Response(null, { status: 200 })
@@ -358,7 +355,7 @@ describe('events', () => {
     const presign = new URL(h.calls[1]!.url);
     assert.equal(presign.searchParams.get('type'), 'image');
     const save = h.calls[3]!;
-    assert.deepEqual([save.method, path(save)], ['PUT', '/api/events/updateEvent/3']);
+    assert.deepEqual([save.method, path(save)], ['PATCH', '/api/events/3']);
     assert.equal((save.body as { imageKey: string }).imageKey, 'img-key');
     assert.equal('fileKey' in (save.body as object), false);
   });

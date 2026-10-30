@@ -7,7 +7,7 @@
  * changed rows.
  *
  * Live data (legacy Express, admin + teacher): GET /api/students/attendance-overview,
- * /api/attendance/getAttendence, /api/sms-settings/public; POST /api/attendance/save-and-send.
+ * /api/attendance/getAttendence, /api/sms/settings/public; POST /api/attendance/save-and-send.
  * The attendance routes don't scope teachers to their classes (see docs/web-parity.md), and
  * neither does the web page, so every class is offered to both roles, as on the web.
  */

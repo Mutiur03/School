@@ -1,20 +1,21 @@
 /**
- * Gallery (legacy Express), verified against server/src/modules/gallery/** and
+ * Gallery (Nest REST), verified against server/src/nest/modules/gallery/gallery.controller.ts and
  * dashboard/src/pages/Admin/{Gallery,GalleryModeration}.tsx:
  *
- *   GET    /api/gallery/getGalleries             approved photos → { events: {title: img[]},
- *                                                categories: {title: img[]} } (raw, no envelope)
- *   GET    /api/gallery/pending | /rejected      admin; same shape
- *   GET    /api/gallery/getCategories            [{ id, category, thumbnail }]
- *   GET    /api/gallery/presigned-url?filename&contentType   → { uploadUrl, key }
- *   POST   /api/gallery/upload { keys, caption, eventId, category, status: 'approved' }
- *   PUT    /api/gallery/updateGallery/:id { imageKey?, caption, eventId, category }   admin
- *   PATCH  /api/gallery/approve/:id | /reject/:id               admin
- *   POST   /api/gallery/rejectMultiple | /deleteMultiple { ids }   admin
- *   DELETE /api/gallery/deleteGallery/:id                        admin
- *   PUT    /api/gallery/setEventThumbnail/:event/:image | /setCategoryThumbnail/:cat/:image
+ *   GET    /api/gallery                          approved photos → { events: {title: img[]},
+ *                                                categories: {title: img[]} }
+ *   GET    /api/gallery/images?status=pending|rejected   admin; same shape
+ *   GET    /api/gallery/categories               [{ id, category, thumbnail }]
+ *   GET    /api/gallery/upload-url?filename&contentType   → { uploadUrl, key }
+ *   POST   /api/gallery/images { keys, caption?, eventId? | categoryId? }  status set by the
+ *                                                server (admin → approved, others → pending)
+ *   PATCH  /api/gallery/images/:id { imageKey?, caption?, eventId? | categoryId? }   admin
+ *   PATCH  /api/gallery/images/:id/status { status: approved|rejected }   admin
+ *   PATCH  /api/gallery/images { ids, status: 'rejected' }               admin (bulk)
+ *   DELETE /api/gallery/images { ids }  |  DELETE /api/gallery/images/:id  admin
+ *   PUT    /api/gallery/events/:id/thumbnail | /categories/:id/thumbnail { imageId }
  *
- * Photos tied to an event are stored under category "1" (the events category), as on the web.
+ * A photo belongs to an event or to a category, never both.
  */
 import type { ApiClient } from './client';
 import { ApiError } from './errors';
@@ -22,25 +23,19 @@ import { isObj, num, numOrNull, objArray, parseError, str, strOrNull } from './p
 import { uploadViaPresign, type PickedFile } from './uploads';
 
 export const GALLERY_PATHS = {
-  approved: '/api/gallery/getGalleries',
-  pending: '/api/gallery/pending',
-  rejected: '/api/gallery/rejected',
-  categories: '/api/gallery/getCategories',
-  presign: '/api/gallery/presigned-url',
-  upload: '/api/gallery/upload',
-  update: (id: number) => `/api/gallery/updateGallery/${id}`,
-  approve: (id: number) => `/api/gallery/approve/${id}`,
-  reject: (id: number) => `/api/gallery/reject/${id}`,
-  rejectMany: '/api/gallery/rejectMultiple',
-  remove: (id: number) => `/api/gallery/deleteGallery/${id}`,
-  removeMany: '/api/gallery/deleteMultiple',
-  eventThumb: (eventId: number, imageId: number) =>
-    `/api/gallery/setEventThumbnail/${eventId}/${imageId}`,
-  categoryThumb: (categoryId: number, imageId: number) =>
-    `/api/gallery/setCategoryThumbnail/${categoryId}/${imageId}`,
+  approved: '/api/gallery',
+  categories: '/api/gallery/categories',
+  presign: '/api/gallery/upload-url',
+  upload: '/api/gallery/images',
+  images: '/api/gallery/images',
+  update: (id: number) => `/api/gallery/images/${id}`,
+  status: (id: number) => `/api/gallery/images/${id}/status`,
+  remove: (id: number) => `/api/gallery/images/${id}`,
+  eventThumb: (eventId: number) => `/api/gallery/events/${eventId}/thumbnail`,
+  categoryThumb: (categoryId: number) => `/api/gallery/categories/${categoryId}/thumbnail`,
 } as const;
 
-/** The built-in "Events" category id; event photos are filed under it. */
+/** The built-in "Events" category id (picking it in the form means "choose an event"). */
 export const EVENTS_CATEGORY_ID = '1';
 export const GALLERY_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -126,7 +121,7 @@ export const uploader = (img: GalleryImage) =>
 export interface GalleryPlacement {
   /** Event id as text, or '' for none. */
   eventId: string;
-  /** Category id as text; ignored (forced to the events category) when an event is set. */
+  /** Category id as text; ignored when an event is set. */
   categoryId: string;
 }
 
@@ -137,10 +132,9 @@ export function placementError(p: GalleryPlacement): string | null {
   return null;
 }
 
-export const placementBody = (p: GalleryPlacement) => ({
-  eventId: p.eventId,
-  category: p.eventId ? EVENTS_CATEGORY_ID : p.categoryId,
-});
+/** `{ eventId }` or `{ categoryId }` (numbers), never both. */
+export const placementBody = (p: GalleryPlacement): { eventId: number } | { categoryId: number } =>
+  p.eventId ? { eventId: Number(p.eventId) } : { categoryId: Number(p.categoryId) };
 
 export function imageFileError(f: PickedFile): string | null {
   if (!f.type.startsWith('image/')) return `${f.name} is not an image`;
@@ -154,15 +148,17 @@ export function createGalleryApi(client: ApiClient, fetchImpl?: typeof fetch) {
   const ids = (list: readonly number[]) => ({ ids: [...list] });
   return {
     async list(status: GalleryStatus, signal?: AbortSignal): Promise<GalleryGroup[]> {
-      const path = GALLERY_PATHS[status];
-      return parseGalleryGroups(await client.get<unknown>(path, { signal }), path);
+      // Approved photos are public; the moderation queues are `images?status=` (admin).
+      const path = status === 'approved' ? GALLERY_PATHS.approved : GALLERY_PATHS.images;
+      const query = status === 'approved' ? undefined : { status };
+      return parseGalleryGroups(await client.get<unknown>(path, { query, signal }), path);
     },
     async categories(signal?: AbortSignal): Promise<GalleryCategory[]> {
       return parseGalleryCategories(
         await client.get<unknown>(GALLERY_PATHS.categories, { signal }),
       );
     },
-    /** Uploads each image, then files them all as approved (admin uploads skip review). */
+    /** Uploads each image, then files them (the server approves admin uploads). */
     async upload(files: readonly PickedFile[], caption: string, p: GalleryPlacement) {
       if (!files.length) throw invalid('Please select at least one image', GALLERY_PATHS.upload);
       const bad = placementError(p) ?? files.map(imageFileError).find(Boolean) ?? null;
@@ -175,7 +171,6 @@ export function createGalleryApi(client: ApiClient, fetchImpl?: typeof fetch) {
         keys,
         caption: caption.trim(),
         ...placementBody(p),
-        status: 'approved',
       });
       return keys.length;
     },
@@ -185,30 +180,35 @@ export function createGalleryApi(client: ApiClient, fetchImpl?: typeof fetch) {
       const imageKey = file
         ? await uploadViaPresign(client, GALLERY_PATHS.presign, file, {}, fetchImpl)
         : undefined;
-      await client.put<unknown>(GALLERY_PATHS.update(id), {
+      await client.patch<unknown>(GALLERY_PATHS.update(id), {
         ...(imageKey ? { imageKey } : {}),
         caption: caption.trim(),
         ...placementBody(p),
       });
     },
     async approve(list: readonly number[]): Promise<void> {
-      for (const id of list) await client.patch<unknown>(GALLERY_PATHS.approve(id), {});
+      for (const id of list) {
+        await client.patch<unknown>(GALLERY_PATHS.status(id), { status: 'approved' });
+      }
     },
     async reject(list: readonly number[]): Promise<void> {
-      if (list.length === 1) await client.patch<unknown>(GALLERY_PATHS.reject(list[0]!), {});
-      else if (list.length) await client.post<unknown>(GALLERY_PATHS.rejectMany, ids(list));
+      if (list.length) {
+        await client.patch<unknown>(GALLERY_PATHS.images, { ...ids(list), status: 'rejected' });
+      }
     },
     async remove(list: readonly number[]): Promise<void> {
       if (list.length === 1) await client.delete<unknown>(GALLERY_PATHS.remove(list[0]!));
-      else if (list.length) await client.post<unknown>(GALLERY_PATHS.removeMany, ids(list));
+      else if (list.length) {
+        await client.request<unknown>(GALLERY_PATHS.images, { method: 'DELETE', body: ids(list) });
+      }
     },
     async setThumbnail(group: GalleryGroup, imageId: number): Promise<void> {
       if (group.refId == null) throw invalid('This album has no id', GALLERY_PATHS.approved);
       await client.put<unknown>(
         group.kind === 'event'
-          ? GALLERY_PATHS.eventThumb(group.refId, imageId)
-          : GALLERY_PATHS.categoryThumb(group.refId, imageId),
-        {},
+          ? GALLERY_PATHS.eventThumb(group.refId)
+          : GALLERY_PATHS.categoryThumb(group.refId),
+        { imageId },
       );
     },
   };

@@ -74,7 +74,7 @@ describe('site documents', () => {
     const h = harness((c) =>
       c.url.startsWith('https://r2.test')
         ? new Response(null, { status: 200 })
-        : path(c).endsWith('/presigned-url')
+        : path(c).endsWith('/upload-url')
           ? legacy(presigned)
           : c.method === 'GET'
             ? legacy(null, 404)
@@ -84,13 +84,13 @@ describe('site documents', () => {
     assert.equal(await api.charter(), null);
     await api.uploadCharter(file('c.pdf', 'application/pdf'));
     const [, presign, put, save] = h.calls;
-    assert.equal(path(presign!), '/api/citizen-charter/presigned-url');
+    assert.equal(path(presign!), '/api/citizen-charter/upload-url');
     assert.equal(query(presign!).contentType, 'application/pdf');
     assert.equal(put!.method, 'PUT');
     assert.equal(put!.credentials, 'omit');
     assert.deepEqual(
       [save!.method, path(save!), save!.body],
-      ['POST', '/api/citizen-charter', { key: presigned.key }],
+      ['PUT', '/api/citizen-charter/document', { key: presigned.key }],
     );
     noSchoolId(h.calls);
   });
@@ -102,11 +102,11 @@ describe('site documents', () => {
     assert.equal(h.calls.length, 0);
   });
 
-  it('routine replaces with PUT when one exists, deletes by id', async () => {
+  it('routine replaces with PATCH when one exists, deletes by id', async () => {
     const h = harness((c) =>
       c.url.startsWith('https://r2.test')
         ? new Response(null, { status: 200 })
-        : path(c).endsWith('/presigned-url')
+        : path(c).endsWith('/upload-url')
           ? legacy(presigned)
           : legacy([{ id: 4, pdf_url: 'schools/7/r.pdf', created_at: '2026-01-02T00:00:00Z' }]),
     );
@@ -118,12 +118,9 @@ describe('site documents', () => {
     const save = h.calls[3]!;
     assert.deepEqual(
       [save.method, path(save), save.body],
-      ['PUT', '/api/class-routine/pdf/4', { key: presigned.key }],
+      ['PATCH', '/api/class-routines/4', { key: presigned.key }],
     );
-    assert.deepEqual(
-      [h.calls[4]!.method, path(h.calls[4]!)],
-      ['DELETE', '/api/class-routine/pdf/4'],
-    );
+    assert.deepEqual([h.calls[4]!.method, path(h.calls[4]!)], ['DELETE', '/api/class-routines/4']);
   });
 
   it('syllabus edit without a new file sends no key; a new row needs a file', async () => {
@@ -132,7 +129,7 @@ describe('site documents', () => {
     await api.saveSyllabus(9, { class: 7, year: 2026, file: null });
     assert.deepEqual(
       [h.calls[0]!.method, path(h.calls[0]!), h.calls[0]!.body],
-      ['PUT', '/api/syllabus/9', { class: 7, year: 2026 }],
+      ['PATCH', '/api/syllabuses/9', { class: 7, year: 2026 }],
     );
     await assert.rejects(api.saveSyllabus(null, { class: 7, year: 2026, file: null }), /PDF/);
     assert.equal(h.calls.length, 1);
@@ -505,11 +502,11 @@ describe('gallery', () => {
     assert.equal(placementError({ eventId: '5', categoryId: '' }), null);
   });
 
-  it('upload: presign each image, then one POST filed under the events category', async () => {
+  it('upload: presign each image, then one POST for the event (status is server-decided)', async () => {
     const h = harness((c) =>
       c.url.startsWith('https://r2.test')
         ? new Response(null, { status: 200 })
-        : path(c) === '/api/gallery/presigned-url'
+        : path(c) === '/api/gallery/upload-url'
           ? legacy({ uploadUrl: 'https://r2.test/p', key: `g/${h.calls.length}.jpg` })
           : legacy({ count: 2 }),
     );
@@ -524,13 +521,11 @@ describe('gallery', () => {
       [post.method, path(post), post.body],
       [
         'POST',
-        '/api/gallery/upload',
+        '/api/gallery/images',
         {
           keys: ['g/1.jpg', 'g/3.jpg'],
           caption: 'Hi',
-          eventId: '5',
-          category: '1',
-          status: 'approved',
+          eventId: 5,
         },
       ],
     );
@@ -568,17 +563,17 @@ describe('gallery', () => {
     assert.deepEqual(
       h.calls.map(
         (c) =>
-          `${c.method} ${path(c)}${c.body && typeof c.body === 'object' && 'ids' in c.body ? ` ${JSON.stringify(c.body)}` : ''}`,
+          `${c.method} ${path(c)}${c.body && typeof c.body === 'object' && Object.keys(c.body).length ? ` ${JSON.stringify(c.body)}` : ''}`,
       ),
       [
-        'PATCH /api/gallery/reject/1',
-        'POST /api/gallery/rejectMultiple {"ids":[1,2]}',
-        'DELETE /api/gallery/deleteGallery/3',
-        'POST /api/gallery/deleteMultiple {"ids":[3,4]}',
-        'PATCH /api/gallery/approve/5',
-        'PATCH /api/gallery/approve/6',
-        'PUT /api/gallery/setEventThumbnail/5/3',
-        'PUT /api/gallery/setCategoryThumbnail/4/9',
+        'PATCH /api/gallery/images {"ids":[1],"status":"rejected"}',
+        'PATCH /api/gallery/images {"ids":[1,2],"status":"rejected"}',
+        'DELETE /api/gallery/images/3',
+        'DELETE /api/gallery/images {"ids":[3,4]}',
+        'PATCH /api/gallery/images/5/status {"status":"approved"}',
+        'PATCH /api/gallery/images/6/status {"status":"approved"}',
+        'PUT /api/gallery/events/5/thumbnail {"imageId":3}',
+        'PUT /api/gallery/categories/4/thumbnail {"imageId":9}',
       ],
     );
   });

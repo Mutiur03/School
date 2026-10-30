@@ -2,7 +2,7 @@
  * Events, replicating dashboard/src/pages/Admin/Events.tsx: "N events · N upcoming", New event,
  * Total / Upcoming / Past stats, the table (Event / Date / Location / actions) and the New/Edit
  * dialog (Title, Date, Location, Details, Photo, Attachment).
- * Live data: GET/POST/PUT/DELETE /api/events/*. Photos and attachments upload to R2 through a
+ * Live data: GET/POST/PATCH/DELETE /api/events. Photos and attachments upload to R2 through a
  * presigned URL; picking them needs the file picker (web now, phones with the next native
  * build). Events themselves can be created and edited on phones.
  */

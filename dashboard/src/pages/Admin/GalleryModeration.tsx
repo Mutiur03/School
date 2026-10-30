@@ -68,13 +68,13 @@ type Confirm = { msg: string; label: string; onConfirm: () => void };
 
 const MODE = {
   pending: {
-    list: '/api/gallery/pending',
+    list: '/api/gallery/images?status=pending',
     title: 'Pending photos',
     summary: 'waiting for review',
     empty: 'No photos waiting for review.',
   },
   rejected: {
-    list: '/api/gallery/rejected',
+    list: '/api/gallery/images?status=rejected',
     title: 'Rejected photos',
     summary: 'rejected',
     empty: 'No rejected photos.',
@@ -113,7 +113,7 @@ export default function GalleryModeration({ mode }: { mode: Mode }) {
 
   const galleryQuery = useQuery<GroupedGalleries>({
     queryKey: ['gallery', mode],
-    queryFn: async () => (await axios.get(cfg.list)).data,
+    queryFn: async () => (await axios.get(cfg.list)).data.data,
   });
 
   const groups = useMemo<Group[]>(() => {
@@ -152,7 +152,9 @@ export default function GalleryModeration({ mode }: { mode: Mode }) {
   // No bulk approve endpoint: one request per photo.
   const approveMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      await Promise.all(ids.map((id) => axios.patch(`/api/gallery/approve/${id}`)));
+      await Promise.all(
+        ids.map((id) => axios.patch(`/api/gallery/images/${id}/status`, { status: 'approved' })),
+      );
       return ids.length;
     },
     onSuccess: (n, ids) => onDone(`Approved ${plural(n, 'photo')}`, ids),
@@ -164,8 +166,7 @@ export default function GalleryModeration({ mode }: { mode: Mode }) {
 
   const rejectMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      if (ids.length === 1) await axios.patch(`/api/gallery/reject/${ids[0]}`);
-      else await axios.post('/api/gallery/rejectMultiple', { ids });
+      await axios.patch('/api/gallery/images', { ids, status: 'rejected' });
       return ids.length;
     },
     onSuccess: (n, ids) => onDone(`Rejected ${plural(n, 'photo')}`, ids),
@@ -174,8 +175,7 @@ export default function GalleryModeration({ mode }: { mode: Mode }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      if (ids.length === 1) await axios.delete(`/api/gallery/deleteGallery/${ids[0]}`);
-      else await axios.post('/api/gallery/deleteMultiple', { ids });
+      await axios.delete('/api/gallery/images', { data: { ids } });
       return ids.length;
     },
     onSuccess: (n, ids) => onDone(`Deleted ${plural(n, 'photo')}`, ids),

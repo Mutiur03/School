@@ -58,17 +58,17 @@ const school = {
 };
 
 describe('platform api: schools', () => {
-  it('lists schools from GET /api/schools and drops malformed rows', async () => {
+  it('lists schools from GET /api/platform/schools and drops malformed rows', async () => {
     const h = harness(() => ok([school, { id: 'x' }, null]));
     const rows = await h.api.listSchools();
     assert.equal(h.calls[0]!.method, 'GET');
-    assert.equal(path(h.calls[0]!), '/api/schools');
+    assert.equal(path(h.calls[0]!), '/api/platform/schools');
     assert.equal(h.calls[0]!.headers.authorization, 'Bearer sa-token');
     assert.equal(rows.length, 1);
     assert.equal(rows[0]!.subscription?.status, 'trialing');
   });
 
-  it('create POSTs the body and reads the new id; update PUTs /api/schools/:id', async () => {
+  it('create POSTs the body and reads the new id; update PUTs /api/platform/schools/:id', async () => {
     const h = harness((c) => (c.method === 'POST' ? ok({ id: 41 }, 201) : ok(null)));
     const created = await h.api.createSchool({
       name: 'New',
@@ -76,13 +76,13 @@ describe('platform api: schools', () => {
     });
     await h.api.updateSchool(41, { name: 'Renamed' });
     assert.deepEqual(created, { id: 41 });
-    assert.equal(path(h.calls[0]!), '/api/schools');
+    assert.equal(path(h.calls[0]!), '/api/platform/schools');
     assert.deepEqual(h.calls[0]!.body, {
       name: 'New',
       initialAdmin: { username: 'a', password: 'secret1' },
     });
     assert.equal(h.calls[1]!.method, 'PUT');
-    assert.equal(path(h.calls[1]!), '/api/schools/41');
+    assert.equal(path(h.calls[1]!), '/api/platform/schools/41');
   });
 
   it('refuses non-positive or fractional ids before any request', async () => {
@@ -109,11 +109,12 @@ describe('platform api: schools', () => {
     };
     const key = await h.api.uploadAsset('logo', file);
     assert.equal(key, 'logos/new.png');
-    assert.deepEqual(h.calls[0]!.body, {
-      fileName: 'logo.png',
-      contentType: 'image/png',
-      kind: 'logo',
-    });
+    assert.equal(h.calls[0]!.method, 'GET');
+    assert.equal(
+      new URL(h.calls[0]!.url).search,
+      '?filename=logo.png&contentType=image%2Fpng&kind=logo',
+    );
+    assert.equal(h.calls[0]!.body, undefined);
     assert.equal(h.calls[1]!.method, 'PUT');
     assert.equal(h.calls[1]!.url, 'https://r2.test/put?sig=1');
     assert.equal(h.calls[1]!.headers.authorization, undefined);
@@ -121,7 +122,7 @@ describe('platform api: schools', () => {
 });
 
 describe('platform api: billing, tools, sms', () => {
-  it('billing GET/PUT /api/schools/:id/billing', async () => {
+  it('billing GET/PUT /api/platform/schools/:id/billing', async () => {
     const sub = { school_id: 3, status: 'active', currency: 'BDT' };
     const h = harness(() => ok(sub));
     await h.api.getBilling(3);
@@ -129,8 +130,8 @@ describe('platform api: billing, tools, sms', () => {
     assert.deepEqual(
       h.calls.map((c) => [c.method, path(c)]),
       [
-        ['GET', '/api/schools/3/billing'],
-        ['PUT', '/api/schools/3/billing'],
+        ['GET', '/api/platform/schools/3/billing'],
+        ['PUT', '/api/platform/schools/3/billing'],
       ],
     );
     assert.deepEqual(h.calls[1]!.body, { status: 'suspended' });
@@ -143,8 +144,8 @@ describe('platform api: billing, tools, sms', () => {
     assert.deepEqual(
       h.calls.map((c) => [c.method, path(c)]),
       [
-        ['POST', '/api/schools/3/rotate-student-passwords'],
-        ['GET', '/api/schools/3/students/export'],
+        ['POST', '/api/platform/schools/3/student-password-rotations'],
+        ['GET', '/api/platform/schools/3/student-export'],
       ],
     );
     assert.ok(rotated instanceof ArrayBuffer);
@@ -152,7 +153,7 @@ describe('platform api: billing, tools, sms', () => {
 
   it('sms: overview, credentials, top-up (positive integers only)', async () => {
     const h = harness((c) =>
-      path(c).endsWith('sms-balance')
+      path(c).endsWith('sms-balance-topups')
         ? ok({ sms_balance: 500 })
         : ok({ schools: [], shared_balance: null }),
     );
@@ -163,9 +164,9 @@ describe('platform api: billing, tools, sms', () => {
     assert.deepEqual(
       h.calls.map((c) => [c.method, path(c)]),
       [
-        ['GET', '/api/schools/sms-overview'],
-        ['PUT', '/api/schools/3/sms-credentials'],
-        ['POST', '/api/schools/3/sms-balance'],
+        ['GET', '/api/platform/sms-overview'],
+        ['PATCH', '/api/platform/schools/3/sms-credentials'],
+        ['POST', '/api/platform/schools/3/sms-balance-topups'],
       ],
     );
     assert.deepEqual(h.calls[1]!.body, { api_key: null });

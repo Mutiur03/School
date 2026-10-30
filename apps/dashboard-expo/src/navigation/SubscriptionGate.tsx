@@ -1,5 +1,5 @@
 /**
- * Port of dashboard/src/components/SubscriptionGate.tsx. Polls GET /api/schools/subscription-access
+ * Port of dashboard/src/components/SubscriptionGate.tsx. Polls GET /api/school/subscription-access
  * every 60 s: locked → admin is sent to Billing (the only screen the server still serves), other
  * roles get a full-screen lock with Sign out; grace → a floating "N days left" card.
  * A failed check does not block (the server enforces the lock with 402 on every other call).

@@ -10,7 +10,7 @@
  *   GET /api/marks/students/:id?year&exam     Nest; a student may only pass their own id
  *                                             (canAccessStudent) and only published exams
  *   GET /api/marksheets/students/:id?year&exam Nest; same checks; streams the PDF
- *   GET /api/notices/getNotices?limit         no auth, school from host; school-wide
+ *   GET /api/notices?limit                    no auth, school from host; school-wide
  *
  * The school is never sent. The student id in the marks/marksheet paths is the signed-in
  * user's own id from the session, exactly like the web page (`user.id`).
@@ -99,7 +99,7 @@ export const STUDENT_PORTAL_PATHS = {
   exams: '/api/exams/getExams',
   marks: (studentId: number) => `/api/marks/students/${studentId}`,
   marksheet: (studentId: number) => `/api/marksheets/students/${studentId}`,
-  notices: '/api/notices/getNotices',
+  notices: '/api/notices',
 } as const;
 
 const isObj = (v: unknown): v is Record<string, any> => typeof v === 'object' && v !== null;

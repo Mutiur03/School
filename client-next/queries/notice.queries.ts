@@ -5,7 +5,7 @@ import type { NoticeItem } from '@/types';
 /** Deduped per RSC request (TopBanner + NoticeBoard, etc.). */
 export const fetchNotices = cache(async (limit?: number): Promise<NoticeItem[]> => {
   try {
-    const response = await api.get<NoticeItem[]>('/api/notices/getNotices', {
+    const response = await api.get<NoticeItem[]>('/api/notices', {
       params: { limit },
       revalidate: 120,
     });

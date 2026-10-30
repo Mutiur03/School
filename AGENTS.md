@@ -27,6 +27,8 @@ Express → Nest migration (strangler fig, same process): Nest is mounted on the
 - New modules: Nest only (`server/src/nest/modules/<name>/`). Legacy Express (`server/src/modules/**`) is frozen: bug fixes only, no new routes.
 - Each path lives in exactly one stack. When migrating a module, delete its legacy route, controller and service and unmount the router in `server.ts`, all in the same change.
 - Moving a module = rename its endpoints to REST (see below) and update every frontend caller (`dashboard/`, `client-next/`) in the same change.
+- No alias routes: old paths are removed in the same change and every caller (dashboard, client-next, dashboard-expo, workers) moves with it. Each moved module ships `<module>.http.spec.ts` next to it (see Tests).
+- Super-admin routes that must run without a school go under `/api/platform/*` (pre-tenant, see `src/middlewares/pre-tenant-routes.ts`) with `Auth('super_admin')`; never read `@SchoolId()` there.
 
 ### Module layout
 
@@ -53,7 +55,8 @@ Shared Nest pieces live in `nest/common/` (auth guard, `@SchoolId()`, Prisma mod
 - Global `/api` prefix is set in `bootstrap.ts`; controllers use `@Controller('holidays')`, not `api/holidays`.
 - REST routes: resource-noun paths, verbs via HTTP method. `GET /holidays`, `GET /holidays/:id`, `POST /holidays`, `PATCH /holidays/:id` (partial update), `DELETE /holidays/:id`. No verbs in paths (`getHolidays`, `addHoliday`). Handlers named `findAll`/`findOne`/`create`/`update`/`remove`.
 - Auth: `@UseGuards(Auth('admin'))` (wraps the legacy auth middleware). Guards run before pipes, so unauthenticated requests get 401 before body validation.
-- Request bodies: DTO classes with `class-validator` in `dto/`, `PartialType` from `@nestjs/mapped-types` for updates, plain `@Body() dto: Dto`. DTO fields use `!` (strict TS). The global `ValidationPipe({ whitelist, forbidNonWhitelisted })` in `bootstrap.ts` validates them; unknown fields → 400.
+- Request bodies (standard): validate with the shared zod schema from `@school/shared-schemas` via `@Body(new ZodBodyPipe(schema))` (`server/src/nest/common/zod-body.pipe.ts`; invalid → 400, the handler gets the parsed data). If no schema exists, add one to `packages/shared-schemas` so the frontend forms and the server share it. Use `.strict()` on the schema when unknown fields must be rejected (zod strips them by default).
+- Legacy: existing `class-validator` DTOs in `dto/` (validated by the global `ValidationPipe({ whitelist, forbidNonWhitelisted })` in `bootstrap.ts`, `PartialType` for updates, fields use `!`) stay as they are and move to zod gradually, when a route is touched anyway. Do not convert them in bulk. Query strings may keep their DTOs.
 - Tenant id: controllers take `@SchoolId() schoolId: number` (`common/school-id.decorator.ts`, reads `req.schoolId` set by the tenant middleware; no `ParseIntPipe`, it is already a number) and pass it to services as an argument. Every tenant service method takes `schoolId` and uses it explicitly: `where: { school_id }` on reads/update/delete, `data: { school_id }` on create. Postgres RLS is the backup, not the gate. Services never call `requireSchoolId()` and never read `req`.
 - DI: constructor injection by type, no `@Inject` for classes. Prisma is the exception (symbol token): `@Inject(PRISMA)` from the global `PrismaModule`.
 - Errors: everything goes through `LegacyErrorFilter` (legacy envelope) until all modules are migrated. It maps Prisma P2002 → 409 and P2025 → 404 globally, so services don't try/catch Prisma errors. Update/delete put `school_id` in the `where` (atomic, wrong tenant → P2025 → 404) instead of a find-then-check pre-query. Services throw built-in exceptions only for business rules (e.g. start date after end date → `BadRequestException`).
@@ -73,11 +76,11 @@ Shared Nest pieces live in `nest/common/` (auth guard, `@SchoolId()`, Prisma mod
 
 Skip controller unit tests: controllers only delegate, and the http spec covers them.
 
-CI (`.github/workflows/deploy-server.yml`, `Test` step) runs `pnpm test` and all Jest specs except `*.http.spec.ts`, with a dummy `DATABASE_URL` and no DB. So DTO/service specs must never hit a real DB or Redis. Anything that needs one goes in `*.http.spec.ts` and runs locally.
+`*.http.spec.ts` set themselves up: `server/jest.http.config.mjs` runs `scripts/test/http-global-setup.mjs`, which takes the Postgres server from `DATABASE_URL`/`DIRECT_URL` (env or `server/.env`), creates and migrates a separate `<db>_test` database (never the dev DB), connects the app as the restricted `school_test_app` role so RLS applies, seeds it idempotently, uses Redis db 15 (`TEST_REDIS_DB`) and starts the fake R2/SMS server (`scripts/test/fake-r2-sms.mjs`) on a free port. Workers get only that env (no dotenv). Only Postgres + Redis need to be running. CI (`.github/workflows/deploy-server.yml`) runs `pnpm test` and `pnpm test:nest` against service containers. DTO/service specs must never hit a real DB or Redis. Logs are silenced under `NODE_ENV=test`; set `TEST_LOGS=1` to see them.
 
 Commands (in `server/`):
 
-- `pnpm test:nest`: all Jest specs. Filter: `pnpm test:nest --testPathPatterns holiday` (Jest 30, plural) and/or `-t "test name"`.
+- `pnpm test:nest`: all Jest specs (`test:nest:unit` in parallel, then `test:nest:http` one at a time). Filter: `pnpm test:nest --testPathPatterns holiday` (Jest 30, plural) and/or `-t "test name"`.
 - `pnpm test`: legacy `node:test` `*.test.ts` for non-migrated modules. Filter with `--test-name-pattern`, not `-t`.
 
 ## PDFs — school header

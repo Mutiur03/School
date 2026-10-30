@@ -5,8 +5,8 @@ import { BillingService } from '@/modules/billing/billing.service.js';
 
 const TENANT_ROLES = new Set(['admin', 'teacher', 'student']);
 const ALLOWED_WHEN_LOCKED = new Set([
-  'GET /api/schools/billing',
-  'GET /api/schools/subscription-access',
+  'GET /api/school/billing',
+  'GET /api/school/subscription-access',
 ]);
 
 const requestPath = (req: Request) => (req.originalUrl || req.url || '').split('?')[0];

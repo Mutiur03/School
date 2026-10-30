@@ -142,7 +142,7 @@ export default function SchoolBillingEditor({ schoolId }: { schoolId: number }) 
     setLoading(true);
     try {
       const response = await axios.get<{ data: SubscriptionDetails }>(
-        `/api/schools/${schoolId}/billing`,
+        `/api/platform/schools/${schoolId}/billing`,
       );
       setForm(toForm(response.data.data));
     } catch (error) {
@@ -237,7 +237,7 @@ export default function SchoolBillingEditor({ schoolId }: { schoolId: number }) 
     setSaving(true);
     try {
       const response = await axios.put<{ data: SubscriptionDetails }>(
-        `/api/schools/${schoolId}/billing`,
+        `/api/platform/schools/${schoolId}/billing`,
         parsed.data,
       );
       setForm(toForm(response.data.data));

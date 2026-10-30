@@ -1,7 +1,7 @@
 /**
- * GET /api/schools/public — verified in server/src/modules/school (main @ 13003bf4).
+ * GET /api/school — server/src/nest/modules/school.
  * Public (no auth). The school is resolved from the request host by the tenant middleware, so
- * the caller never passes a school id. Legacy envelope; the payload is the `select` in
+ * the caller never passes a school id. `{ success, data }`; the payload is the `select` in
  * SchoolService.getSchoolInfo. Only the fields the dashboard needs are typed; the response
  * contains more (address, seo, descriptions, ...).
  *
@@ -24,7 +24,7 @@ export interface PublicSchoolInfo {
 }
 
 export const SCHOOL_PATHS = {
-  publicInfo: '/api/schools/public',
+  publicInfo: '/api/school',
 } as const;
 
 export function createSchoolApi(client: ApiClient) {

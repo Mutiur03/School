@@ -74,7 +74,7 @@ describe('staff', () => {
   it('lists, creates ({staff:[...]}), updates, deletes and swaps the photo', async () => {
     const h = harness((c) => {
       if (c.method === 'GET') return ok([{ id: 3, name: 'Rahim', phone: '01711111111' }]);
-      if (path(c) === '/api/staffs' && c.method === 'POST')
+      if (path(c) === '/api/staff' && c.method === 'POST')
         return ok([{ id: 9, name: 'Karim', phone: '01722222222' }], 201);
       return ok(null);
     });
@@ -96,11 +96,11 @@ describe('staff', () => {
     assert.deepEqual(
       h.calls.map((c) => `${c.method} ${path(c)}`),
       [
-        'GET /api/staffs',
-        'POST /api/staffs',
-        'PUT /api/staffs/9',
-        'DELETE /api/staffs/9',
-        'DELETE /api/staffs/9/image',
+        'GET /api/staff',
+        'POST /api/staff',
+        'PATCH /api/staff/9',
+        'DELETE /api/staff/9',
+        'DELETE /api/staff/9/image',
       ],
     );
     assert.deepEqual(h.calls[1]?.body, { staff: [input] });
@@ -225,17 +225,20 @@ describe('sms', () => {
     const api = createSmsApi(h.client);
     await api.saveSettings(await api.settings(), []);
     assert.equal(h.calls[1]?.method, 'PATCH');
-    assert.equal(path(h.calls[1]!), '/api/sms-settings');
+    assert.equal(path(h.calls[1]!), '/api/sms/settings');
     assert.equal('api_key' in (h.calls[1]?.body as object), false);
     noSchoolId(h.calls);
   });
-  it('logs: raw (unenveloped) JSON, query params, folded provider statuses', async () => {
+  it('logs: enveloped page, query params, folded provider statuses', async () => {
     const h = harness(() =>
       raw({
-        smsLogs: [{ id: 1, status: 'delivered', category: 'bulk', message: 'm', created_at: '' }],
-        totalPages: 3,
-        totalCount: 41,
-        stats: { success: 2, sent: 1, failed: 4, queued: 1 },
+        success: true,
+        data: {
+          smsLogs: [{ id: 1, status: 'delivered', category: 'bulk', message: 'm', created_at: '' }],
+          totalPages: 3,
+          totalCount: 41,
+          stats: { success: 2, sent: 1, failed: 4, queued: 1 },
+        },
       }),
     );
     const page = await createSmsApi(h.client).logs({
@@ -245,7 +248,7 @@ describe('sms', () => {
       status: 'failed',
       date: '2026-10-01',
     });
-    assert.equal(path(h.calls[0]!), '/api/sms/sms-logs');
+    assert.equal(path(h.calls[0]!), '/api/sms/logs');
     assert.deepEqual(query(h.calls[0]!), {
       page: '2',
       limit: '20',
@@ -262,15 +265,15 @@ describe('sms', () => {
   });
   it('retry, delete (DELETE with body), bulk, test send and student count', async () => {
     const h = harness((c) => {
-      if (path(c) === '/api/sms/bulk-sms')
-        return raw({ successCount: 10, failedCount: 1, results: [] });
-      if (path(c) === '/api/sms/student-count')
-        return raw({
+      if (path(c) === '/api/sms/bulk-messages')
+        return ok({ successCount: 10, failedCount: 1, results: [] }, 201);
+      if (path(c) === '/api/sms/recipient-counts')
+        return ok({
           totalStudents: 5,
           withPhone: 4,
           classBreakdown: { 10: { total: 2, withPhone: 2 }, 6: { total: 3, withPhone: 2 } },
         });
-      return raw({ message: 'ok' });
+      return ok({ message: 'ok' });
     });
     const api = createSmsApi(h.client);
     await api.retry([1, 2]);
@@ -285,15 +288,15 @@ describe('sms', () => {
     assert.deepEqual(
       h.calls.map((c) => `${c.method} ${path(c)}`),
       [
-        'POST /api/sms/retry-sms',
-        'DELETE /api/sms/sms-logs',
-        'POST /api/sms/bulk-sms',
-        'POST /api/sms-settings/test',
-        'GET /api/sms/student-count',
+        'POST /api/sms/logs/retries',
+        'DELETE /api/sms/logs',
+        'POST /api/sms/bulk-messages',
+        'POST /api/sms/test-messages',
+        'GET /api/sms/recipient-counts',
       ],
     );
-    assert.deepEqual(h.calls[0]?.body, { smsLogIds: [1, 2] });
-    assert.deepEqual(h.calls[1]?.body, { smsLogIds: [3] });
+    assert.deepEqual(h.calls[0]?.body, { ids: [1, 2] });
+    assert.deepEqual(h.calls[1]?.body, { ids: [3] });
     assert.deepEqual(h.calls[2]?.body, { classNames: [6, 10], message: 'Hello' });
     assert.deepEqual(h.calls[3]?.body, { phoneNumber: '01711111111', message: 'Hi' });
     assert.throws(() => parseStudentCount(null), ApiError);
@@ -320,7 +323,7 @@ describe('school codes (admin)', () => {
 });
 
 describe('billing', () => {
-  it('reads GET /api/schools/billing and rejects unknown statuses', async () => {
+  it('reads GET /api/school/billing and rejects unknown statuses', async () => {
     const h = harness(() =>
       ok({
         status: 'active',
@@ -330,7 +333,7 @@ describe('billing', () => {
       }),
     );
     const s = await createBillingApi(h.client).current();
-    assert.equal(path(h.calls[0]!), '/api/schools/billing');
+    assert.equal(path(h.calls[0]!), '/api/school/billing');
     assert.equal(s.days_remaining, 40);
     assert.throws(() => parseSubscription({ status: 'free' }), ApiError);
     assert.equal(
@@ -341,12 +344,12 @@ describe('billing', () => {
 });
 
 describe('subscription access', () => {
-  it('reads GET /api/schools/subscription-access; a 402 body still means locked', async () => {
+  it('reads GET /api/school/subscription-access; a 402 body still means locked', async () => {
     const ok200 = harness(() =>
       ok({ status: 'active', access_state: 'grace', grace_days_remaining: 3 }),
     );
     const g = await createBillingApi(ok200.client).access();
-    assert.equal(path(ok200.calls[0]!), '/api/schools/subscription-access');
+    assert.equal(path(ok200.calls[0]!), '/api/school/subscription-access');
     assert.deepEqual([g.access_state, g.is_locked, g.grace_days_remaining], ['grace', false, 3]);
 
     const locked = harness(() =>

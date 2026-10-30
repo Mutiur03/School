@@ -8,7 +8,7 @@
  *   GET  /api/attendance/getAttendence      ?month(0-11)&year&level&section -> month records
  *   GET  /api/attendance/getStats           ?date&level&section&year -> today's counts + SMS
  *   POST /api/attendance/save-and-send      { records, date, level, section, year }
- *   GET  /api/sms-settings/public            -> SMS on/off, templates, balance (Running away)
+ *   GET  /api/sms/settings/public            -> SMS on/off, templates, balance (Running away)
  *
  * The school is never sent: the server takes it from the session/host (RLS).
  */
@@ -30,7 +30,7 @@ export interface AttendanceStudent {
   has_phone: boolean;
 }
 
-/** GET /api/sms-settings/public (admin + teacher): what an attendance save will text. */
+/** GET /api/sms/settings/public (admin + teacher): what an attendance save will text. */
 export interface PublicSmsSettings {
   is_active: boolean;
   send_to_present: boolean;
@@ -83,7 +83,7 @@ export const ATTENDANCE_PATHS = {
   records: '/api/attendance/getAttendence',
   stats: '/api/attendance/getStats',
   saveAndSend: '/api/attendance/save-and-send',
-  smsPublic: '/api/sms-settings/public',
+  smsPublic: '/api/sms/settings/public',
   sheetPdf: '/api/attendance/sheet/download',
 } as const;
 

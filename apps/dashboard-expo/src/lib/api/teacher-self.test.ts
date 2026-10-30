@@ -168,7 +168,7 @@ describe('attendance additions for Running away', () => {
       },
     );
   });
-  it('reads GET /api/sms-settings/public', async () => {
+  it('reads GET /api/sms/settings/public', async () => {
     const h = harness(() => ok({ is_active: true, send_to_run_awayed: true, sms_balance: 3 }));
     const r = await createAttendanceApi(h.client).smsSettings();
     assert.equal(pathOf(h.calls[0]!), ATTENDANCE_PATHS.smsPublic);

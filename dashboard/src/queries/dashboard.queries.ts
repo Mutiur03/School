@@ -43,7 +43,7 @@ export const useDashboardOverview = () =>
   useQuery({
     queryKey: ['dashboard', 'overview'],
     queryFn: async () => {
-      const response = await axios.get('/api/dashboard');
+      const response = await axios.get('/api/dashboard/overview');
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch dashboard data');
       }
@@ -55,8 +55,8 @@ export const useDashboardAttendance = (days: AttendanceRange) =>
   useQuery({
     queryKey: ['dashboard', 'attendance', days],
     queryFn: async () => {
-      const response = await axios.get('/api/dashboard/attendance', {
-        params: { attendanceDays: days },
+      const response = await axios.get('/api/dashboard/attendance-summary', {
+        params: { days },
       });
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to fetch attendance data');

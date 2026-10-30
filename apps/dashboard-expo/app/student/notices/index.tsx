@@ -1,4 +1,4 @@
-/** School notices (GET /api/notices/getNotices: school-wide, newest first), list → detail. */
+/** School notices (GET /api/notices: school-wide, newest first), list → detail. */
 import { PageLayout } from '@/components/layout/PageLayout';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states';

@@ -26,7 +26,7 @@ jest.unstable_mockModule('@/modules/attendence/attendence-sheet.queue.js', () =>
   PRIORITY_BACKFILL: 0,
   PRIORITY_USER: 0,
 }));
-jest.unstable_mockModule('@/modules/school/school.service.js', () => ({
+jest.unstable_mockModule('@/nest/modules/school/school.service.js', () => ({
   SchoolService: {
     getSchoolInfo: async () => ({
       name: 'Panchbibi Model High School',

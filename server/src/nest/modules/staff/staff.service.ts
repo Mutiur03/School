@@ -1,0 +1,155 @@
+import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@/generated/prisma/client.js';
+import { prisma } from '@/config/prisma.js';
+import { getUploadUrl } from '@/config/r2.js';
+import { ApiError } from '@/utils/ApiError.js';
+import {
+  assertTenantR2KeyIfPresent,
+  deleteFromR2IfPresent,
+  tenantR2Key,
+} from '@/utils/r2Key.util.js';
+import { requireSchoolId } from '@/utils/requireSchoolId.js';
+import type { StaffFormData } from '@school/shared-schemas';
+
+@Injectable()
+export class StaffService {
+  async getStaffsPaginated(params: { page: number; limit: number; search?: string }) {
+    const normalizedPage =
+      Number.isFinite(params.page) && params.page > 0 ? Math.floor(params.page) : 1;
+    const normalizedLimit =
+      Number.isFinite(params.limit) && params.limit > 0
+        ? Math.min(Math.floor(params.limit), 200)
+        : 20;
+    const skip = (normalizedPage - 1) * normalizedLimit;
+    const search = params.search?.trim();
+    const schoolId = requireSchoolId();
+
+    const where: Prisma.staffsWhereInput = { school_id: schoolId };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { designation: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, data] = await prisma.$transaction([
+      prisma.staffs.count({ where }),
+      prisma.staffs.findMany({
+        where,
+        orderBy: { id: 'asc' },
+        skip,
+        take: normalizedLimit,
+      }),
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / normalizedLimit);
+
+    return {
+      data,
+      meta: {
+        total,
+        page: normalizedPage,
+        limit: normalizedLimit,
+        totalPages,
+      },
+    };
+  }
+
+  getStaffs() {
+    const schoolId = requireSchoolId();
+    return prisma.staffs.findMany({ where: { school_id: schoolId }, orderBy: { id: 'asc' } });
+  }
+
+  async addStaff(staff: StaffFormData[]) {
+    const emails = staff.map((row) => row.email).filter(Boolean) as string[];
+
+    if (emails.length) {
+      const existing = await prisma.staffs.findMany({
+        where: { email: { in: emails } },
+        select: { email: true },
+      });
+
+      if (existing.length) {
+        throw new ApiError(
+          409,
+          'One or more emails already exist',
+          existing.map((row) => row.email),
+        );
+      }
+    }
+
+    await prisma.staffs.createMany({
+      data: staff,
+      skipDuplicates: true,
+    });
+
+    if (emails.length) {
+      return prisma.staffs.findMany({ where: { email: { in: emails } } });
+    }
+
+    return prisma.staffs.findMany({
+      where: { phone: { in: staff.map((row) => row.phone) } },
+    });
+  }
+
+  async requireStaff(id: number) {
+    const staff = await prisma.staffs.findUnique({ where: { id } });
+    if (!staff) {
+      throw new ApiError(404, 'Staff not found');
+    }
+    return staff;
+  }
+
+  async updateStaff(id: number, data: StaffFormData) {
+    if (data.email) {
+      const conflict = await prisma.staffs.findFirst({
+        where: { email: data.email, NOT: { id } },
+        select: { id: true },
+      });
+
+      if (conflict) {
+        throw new ApiError(409, 'Email already in use by another staff');
+      }
+    }
+
+    return prisma.staffs.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteStaff(id: number) {
+    const existing = await this.requireStaff(id);
+
+    if (existing.image) {
+      await deleteFromR2IfPresent(existing.image);
+    }
+
+    return prisma.staffs.delete({ where: { id } });
+  }
+
+  async getPresignedUploadUrl(id: number, filename: string, contentType: string) {
+    await this.requireStaff(id);
+    const key = tenantR2Key(`staff/${id}-${Date.now()}-${filename}`);
+    const uploadUrl = await getUploadUrl(key, contentType);
+    return { uploadUrl, key };
+  }
+
+  async saveStaffImage(id: number, key: string | null) {
+    const existing = await this.requireStaff(id);
+
+    assertTenantR2KeyIfPresent(key);
+    if (existing.image && existing.image !== key) {
+      await deleteFromR2IfPresent(existing.image);
+    }
+
+    return prisma.staffs.update({
+      where: { id },
+      data: { image: key },
+    });
+  }
+}
