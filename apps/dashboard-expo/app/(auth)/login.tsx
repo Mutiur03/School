@@ -23,6 +23,8 @@ import {
 } from '@/features/auth/login-form';
 import { effectiveLoginRole, lockedLoginRole, loginRoles } from '@/features/auth/role-lock';
 import { cn } from '@/lib/utils';
+import { appConfig } from '@/config/env';
+import { requireDeploymentRole } from '@/navigation/deployment-lock';
 import { homeForRole, PLATFORM_LOGIN, safeNext, type AppRole } from '@/navigation/role-routes';
 import { useSchool } from '@/school/SchoolProvider';
 import { useSwitchSchool } from '@/school/useSwitchSchool';
@@ -38,7 +40,7 @@ export default function LoginScreen() {
   const switchSchool = useSwitchSchool();
   const router = useRouter();
   const { role: urlRole, next } = useLocalSearchParams<{ role?: string; next?: string }>();
-  const locked = lockedLoginRole(selection, resolution, urlRole);
+  const locked = lockedLoginRole(selection, resolution, urlRole, appConfig.lockedRole);
   const [chosenRole, setRole] = useState<AppRole>(selection?.roleHint ?? 'admin');
   const role = effectiveLoginRole(locked, chosenRole);
   const [identifier, setIdentifier] = useState('');
@@ -53,7 +55,8 @@ export default function LoginScreen() {
           : r === 'teacher'
             ? await auth.loginTeacher(body)
             : await auth.loginStudent(body);
-      await manager.signIn(payload);
+      // Checked before signIn, which is what persists the session.
+      await manager.signIn(requireDeploymentRole(payload, appConfig.lockedRole));
     },
   });
 

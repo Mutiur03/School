@@ -119,7 +119,9 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     return next;
   }, [pending]);
 
-  const platformAvailable = platformSelectionFor(appConfig.superAdminUrl) !== null;
+  // A web build locked to a school role never offers platform sign-in (the platform code is ignored).
+  const schoolLocked = appConfig.lockedRole !== null && appConfig.lockedRole !== 'super_admin';
+  const platformAvailable = !schoolLocked && platformSelectionFor(appConfig.superAdminUrl) !== null;
 
   const choosePlatform = useCallback(async () => {
     const next = platformSelectionFor(appConfig.superAdminUrl);

@@ -77,7 +77,28 @@ export function resolveTenant(input: {
   platformHost?: string | null;
   /** This build's super-admin origin; on web, that page host is platform mode. */
   superAdminUrl?: string | null;
+  /** Web build locked to one role (EXPO_PUBLIC_APP_ROLE). */
+  lockedRole?: string | null;
 }): TenantResolution {
+  const locked = input.platform === 'web' ? (input.lockedRole ?? null) : null;
+  // Platform-admin build: always platform mode, never a school. The page host is the platform host
+  // (same-origin via the BFF); on a bare localhost, the build's super-admin origin.
+  if (locked === 'super_admin') {
+    const page = normalizeHost(input.pageHost);
+    if (page && !isBareLocalHost(page)) {
+      return {
+        tenantKey: platformTenantKey(page),
+        host: page,
+        source: 'platform',
+        sameOrigin: true,
+      };
+    }
+    const sa = normalizeHost(input.superAdminUrl) ?? LOCAL_SUPER_ADMIN_HOST;
+    return { tenantKey: platformTenantKey(sa), host: sa, source: 'platform' };
+  }
+  // School-role builds never enter platform mode (no super-admin host, no stored platform choice).
+  const schoolOnly = locked !== null;
+
   const dev = normalizeHost(input.devTenantHost);
   if (dev) return { tenantKey: dev, host: dev, source: 'dev-override' };
 
@@ -86,7 +107,9 @@ export function resolveTenant(input: {
 
   if (input.platform === 'web') {
     const page = normalizeHost(input.pageHost);
-    if (page && (page === LOCAL_SUPER_ADMIN_HOST || page === normalizeHost(input.superAdminUrl))) {
+    const isSuperHost =
+      page && (page === LOCAL_SUPER_ADMIN_HOST || page === normalizeHost(input.superAdminUrl));
+    if (page && isSuperHost && !schoolOnly) {
       return {
         tenantKey: platformTenantKey(page),
         host: page,
@@ -97,7 +120,7 @@ export function resolveTenant(input: {
     if (page && !isBareLocalHost(page)) return { tenantKey: page, host: page, source: 'page-host' };
   }
 
-  const platform = normalizeHost(input.platformHost);
+  const platform = schoolOnly ? null : normalizeHost(input.platformHost);
   if (platform)
     return { tenantKey: platformTenantKey(platform), host: platform, source: 'platform' };
 

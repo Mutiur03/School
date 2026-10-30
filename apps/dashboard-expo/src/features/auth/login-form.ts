@@ -1,5 +1,6 @@
 /** Role-specific login fields and client-side checks, mirroring packages/shared-schemas. */
 import { ApiError } from '@/lib/api';
+import { WrongDeploymentRoleError } from '@/navigation/deployment-lock';
 import type { AppRole } from '@/navigation/role-routes';
 
 export interface LoginField {
@@ -69,6 +70,7 @@ export function buildLoginBody(
 
 /** Never says which half was wrong. */
 export function loginErrorMessage(error: unknown): string {
+  if (error instanceof WrongDeploymentRoleError) return error.message;
   if (error instanceof ApiError) {
     if (error.isTransport) return "Can't reach the server. Check your connection and try again.";
     if (error.status === 429) return 'Too many attempts. Wait a few minutes and try again.';
