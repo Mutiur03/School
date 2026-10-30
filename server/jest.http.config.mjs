@@ -8,6 +8,8 @@ export default {
   testRegex: '.*\\.http\\.spec\\.ts$',
   // No dotenv in workers: the env comes only from globalSetup, so dev .env values can't leak in.
   setupFiles: [],
+  // Real DB + bcrypt + app boot per suite: slow machines (Windows) blow past Jest's 5 s default.
+  testTimeout: 60000,
   globalSetup: '<rootDir>/../scripts/test/http-global-setup.mjs',
   globalTeardown: '<rootDir>/../scripts/test/http-global-teardown.mjs',
 };

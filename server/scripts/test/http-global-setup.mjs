@@ -33,6 +33,9 @@ DO $$ BEGIN
     EXECUTE 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO ${APP_ROLE}';
   END IF;
 END $$;
+-- Schools left by an aborted earlier run (two-schools fixture fx<tag>a/b, school spec
+-- pr<tag>n/z and empty<id>x); everything they own cascades. Only ever runs on the test DB.
+DELETE FROM "School" WHERE subdomain ~ '^(fx[0-9a-f]{8}[ab]|pr[0-9a-f]{8}[nz]|empty[0-9]+x)$';
 INSERT INTO "School"(name, "shortName", subdomain, "updatedAt")
   SELECT 'Local Test', 'LT', 'localtest', now()
   WHERE NOT EXISTS (SELECT 1 FROM "School" WHERE subdomain = 'localtest');
