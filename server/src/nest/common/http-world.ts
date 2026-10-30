@@ -12,12 +12,11 @@ import { closeAppResources, seedTwoSchools } from './two-schools.fixture.js';
  * World for module http specs: the real app, two seeded schools (admin, teacher, student and one
  * event each), signed tokens, and `run()` which sends a request script and checks every step's
  * status, the `{ success }` envelope and an optional per-step `check`. R2/SMS calls go to the fake
- * server (scripts/ci/fake-r2-sms.mjs); `run()` returns what it logged.
+ * server (scripts/test/fake-r2-sms.mjs, started by jest.http.config.mjs); `run()` returns what it logged.
  */
+/** Fake R2/SMS base URL, set by scripts/test/http-global-setup.mjs. */
 export const MOCK = process.env.R2_ENDPOINT ?? 'http://127.0.0.1:9900';
-/** Needs the fake R2/SMS server; skipped otherwise so a bare `pnpm test:nest` stays usable. */
-export const HAS_FAKES = !!process.env.R2_ENDPOINT && !!process.env.SMSPIT_URL;
-export const describeHttp = HAS_FAKES ? describe : describe.skip;
+export const describeHttp = describe;
 
 export type Who =
   'none' | 'adminA' | 'adminB' | 'studentA' | 'studentB' | 'teacherA' | 'teacherB' | 'superAdmin';

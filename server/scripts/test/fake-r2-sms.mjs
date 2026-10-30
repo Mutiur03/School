@@ -1,15 +1,10 @@
-#!/usr/bin/env node
 /**
- * Local stand-in for Cloudflare R2 (S3 API) and the SMSPit capture API, for http specs.
- * Point R2_ENDPOINT at it and SMSPIT_URL at `<it>/sms`. Every call is recorded; `GET /__log`
- * returns and clears the log so specs can snapshot storage/SMS side effects.
- *
- *   node scripts/ci/fake-r2-sms.mjs            # listens on FAKE_R2_SMS_PORT (default 9900)
+ * In-process stand-in for Cloudflare R2 (S3 API) and the SMSPit capture API, for http specs.
+ * Started by http-global-setup.mjs on a free port; R2_ENDPOINT points at it and SMSPIT_URL at
+ * `<it>/sms`. Every call is recorded; `GET /__log` returns and clears the log so specs can
+ * snapshot storage/SMS side effects.
  */
 import http from 'node:http';
-
-const port = Number(process.env.FAKE_R2_SMS_PORT ?? 9900);
-let log = [];
 
 const send = (res, status, type, body) => {
   res.statusCode = status;
@@ -17,8 +12,10 @@ const send = (res, status, type, body) => {
   res.end(body);
 };
 
-http
-  .createServer((req, res) => {
+/** Resolves to `{ url, close }` once listening on 127.0.0.1 (port 0 = any free port). */
+export function startFakeR2Sms(port = 0) {
+  let log = [];
+  const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
@@ -49,5 +46,19 @@ http
       }
       return send(res, 200, 'application/xml', '');
     });
-  })
-  .listen(port, '127.0.0.1', () => console.log(`fake R2/SMS listening on 127.0.0.1:${port}`));
+  });
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => {
+      const { port: p } = server.address();
+      resolve({
+        url: `http://127.0.0.1:${p}`,
+        close: () =>
+          new Promise((r) => {
+            server.closeAllConnections();
+            server.close(() => r());
+          }),
+      });
+    });
+  });
+}

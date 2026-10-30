@@ -76,11 +76,11 @@ Shared Nest pieces live in `nest/common/` (auth guard, `@SchoolId()`, Prisma mod
 
 Skip controller unit tests: controllers only delegate, and the http spec covers them.
 
-CI (`.github/workflows/deploy-server.yml`) runs `pnpm test` and all Jest specs except `*.http.spec.ts` with no DB in the `Test` step, then every `*.http.spec.ts` against a throwaway migrated Postgres + Redis and the fake R2/SMS server (`scripts/ci/fake-r2-sms.mjs`). DTO/service specs must never hit a real DB or Redis.
+`*.http.spec.ts` set themselves up: `server/jest.http.config.mjs` runs `scripts/test/http-global-setup.mjs`, which takes the Postgres server from `DATABASE_URL`/`DIRECT_URL` (env or `server/.env`), creates and migrates a separate `<db>_test` database (never the dev DB), connects the app as the restricted `school_test_app` role so RLS applies, seeds it idempotently, uses Redis db 15 (`TEST_REDIS_DB`) and starts the fake R2/SMS server (`scripts/test/fake-r2-sms.mjs`) on a free port. Workers get only that env (no dotenv). Only Postgres + Redis need to be running. CI (`.github/workflows/deploy-server.yml`) runs `pnpm test` and `pnpm test:nest` against service containers. DTO/service specs must never hit a real DB or Redis. Logs are silenced under `NODE_ENV=test`; set `TEST_LOGS=1` to see them.
 
 Commands (in `server/`):
 
-- `pnpm test:nest`: all Jest specs. Filter: `pnpm test:nest --testPathPatterns holiday` (Jest 30, plural) and/or `-t "test name"`.
+- `pnpm test:nest`: all Jest specs (`test:nest:unit` in parallel, then `test:nest:http` one at a time). Filter: `pnpm test:nest --testPathPatterns holiday` (Jest 30, plural) and/or `-t "test name"`.
 - `pnpm test`: legacy `node:test` `*.test.ts` for non-migrated modules. Filter with `--test-name-pattern`, not `-t`.
 
 ## PDFs — school header

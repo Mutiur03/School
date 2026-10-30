@@ -6,7 +6,6 @@ import { prisma } from '../../../config/prisma.js';
 import { getRlsContext } from '../../../config/rlsContextStore.js';
 import { asSuperAdmin } from '../../common/http-test.js';
 import {
-  HAS_FAKES,
   SUPER_HOST,
   clearRedis,
   run as runSteps,
@@ -18,16 +17,14 @@ import { SchoolService } from './school.service.js';
 
 /**
  * School module over HTTP (real Postgres + Redis + the fake R2/SMS server from
- * scripts/ci/fake-r2-sms.mjs). Platform routes (`/api/platform/*`, super admin, pre-tenant) and
+ * scripts/test/fake-r2-sms.mjs). Platform routes (`/api/platform/*`, super admin, pre-tenant) and
  * tenant routes (`/api/school*`): envelope + status per step with explicit body checks, role checks,
  * cross-school isolation, the pre-tenant RLS context, the 402 lock and its allow-list,
  * validation, 404s, upload URLs, the xlsx export / password rotation and the SMS endpoints.
  */
 type CStep = Step;
 
-const maybe = HAS_FAKES ? describe : describe.skip;
-
-maybe('school module (HTTP)', () => {
+describe('school module (HTTP)', () => {
   let w: World;
   beforeAll(async () => {
     w = await setupWorld();

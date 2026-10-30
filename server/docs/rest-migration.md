@@ -140,7 +140,7 @@ deploy the server and publish the OTA together.
 ## Tests
 
 Each module has `<module>.http.spec.ts` next to it (real app, test DB, two seeded schools via
-`src/nest/common/http-world.ts`, fake R2/SMS server from `scripts/ci/fake-r2-sms.mjs`): happy path
+`src/nest/common/http-world.ts`, fake R2/SMS server from `scripts/test/fake-r2-sms.mjs`, started by `scripts/test/http-global-setup.mjs`): happy path
 and envelope, 401/403 per role, cross-school isolation, DTO validation and unknown fields, 404,
 and presigned uploads. Service logic has `*.service.spec.ts` unit tests. CI runs both (unit step
 and the `http\.spec` step in `deploy-server.yml`).
