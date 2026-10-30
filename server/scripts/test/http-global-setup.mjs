@@ -11,6 +11,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
@@ -55,8 +56,12 @@ INSERT INTO student_enrollments(student_id, class, roll, section, year, school_i
   ON CONFLICT DO NOTHING;
 `;
 
+/** Windows/Node can resolve `localhost` to ::1 while Postgres/Redis listen on 127.0.0.1 only. */
+const ipv4Host = (host) => (!host || host === 'localhost' ? '127.0.0.1' : host);
+
 const withDb = (url, db) => {
   const u = new URL(url);
+  u.hostname = ipv4Host(u.hostname);
   u.pathname = `/${db}`;
   u.search = '';
   return u.toString();
@@ -87,6 +92,15 @@ export default async function globalSetup() {
 
   // Create the test DB + restricted role from the maintenance DB.
   const admin = withDb(baseUrl, 'postgres');
+  const where = `${ipv4Host(base.hostname)}:${base.port || 5432}`;
+  try {
+    await query(admin, 'SELECT 1');
+  } catch (err) {
+    throw new Error(
+      `http specs: can't reach Postgres at ${where} (${err.code ?? err.message}). ` +
+        'Is Postgres running, and are the user/password in DATABASE_URL (server/.env) right?',
+    );
+  }
   const exists = await query(admin, 'SELECT 1 FROM pg_database WHERE datname = $1', [testDb]);
   if (exists.rowCount === 0) await query(admin, `CREATE DATABASE "${testDb}"`);
   await query(
@@ -112,6 +126,22 @@ export default async function globalSetup() {
   }
   await query(ownerUrl, SEED_SQL);
 
+  const redisHost = ipv4Host(pick('REDIS_HOST'));
+  await new Promise((resolve, reject) => {
+    const sock = net.connect({ host: redisHost, port: 6379, timeout: 3000 });
+    const fail = (err) => {
+      sock.destroy();
+      reject(
+        new Error(
+          `http specs: can't reach Redis at ${redisHost}:6379 (${err?.code ?? 'timeout'}). Is Redis running?`,
+        ),
+      );
+    };
+    sock.once('connect', () => (sock.end(), resolve()));
+    sock.once('error', fail);
+    sock.once('timeout', fail);
+  });
+
   const fake = await startFakeR2Sms();
   globalThis.__FAKE_R2_SMS__ = fake;
 
@@ -124,7 +154,7 @@ export default async function globalSetup() {
     NODE_ENV: 'test',
     DATABASE_URL: appUrl.toString(),
     DIRECT_URL: ownerUrl,
-    REDIS_HOST: pick('REDIS_HOST') || '127.0.0.1',
+    REDIS_HOST: redisHost,
     REDIS_DB: process.env.TEST_REDIS_DB || '15',
     JWT_SECRET: 'http-spec-jwt-secret',
     ENCRYPTION_KEY: '0'.repeat(64),
