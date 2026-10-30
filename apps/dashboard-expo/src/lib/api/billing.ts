@@ -1,6 +1,6 @@
 /**
- * Billing (read-only), verified against server/src/modules/school/school.route.ts and
- * billing.controller.ts: GET /api/schools/billing, admin only, the current school's
+ * Billing (read-only), server/src/nest/modules/school/school.controller.ts:
+ * GET /api/school/billing, admin only, the current school's
  * subscription (school from host + token). Platform admins edit it elsewhere.
  */
 import type { ApiClient } from './client';
@@ -35,7 +35,7 @@ export interface Subscription {
   cancelled_at: string | null;
 }
 
-/** GET /api/schools/subscription-access: any tenant role; the server also answers 402 with this body when locked. */
+/** GET /api/school/subscription-access: any tenant role; the server also answers 402 with this body when locked. */
 export interface SubscriptionAccess {
   status: SubscriptionStatus;
   access_state: AccessState;
@@ -44,8 +44,8 @@ export interface SubscriptionAccess {
 }
 
 export const BILLING_PATHS = {
-  current: '/api/schools/billing',
-  access: '/api/schools/subscription-access',
+  current: '/api/school/billing',
+  access: '/api/school/subscription-access',
 } as const;
 
 const STATUSES: readonly SubscriptionStatus[] = [

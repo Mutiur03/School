@@ -6,7 +6,7 @@
  * - pending (/gallery/pending): approve or reject student uploads;
  * - rejected (/gallery/rejected): approve again or delete for good.
  * Albums fold, select-all per album, a bulk bar and a photo viewer with previous / next.
- * Live data: /api/gallery/* (src/lib/api/gallery.ts), events from /api/events/getEvents.
+ * Live data: /api/gallery/* (src/lib/api/gallery.ts), events from /api/events.
  */
 import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';
 import { useQuery } from '@tanstack/react-query';

@@ -3,8 +3,8 @@
  * (dashboard/src/queries/dashboard.queries.ts, pages/Admin/Dashboard.tsx), verified against
  * server/src/modules/dashboard (admin only, school from the host):
  *
- *   GET /api/dashboard                          quickStats, announcements, events, examSchedule
- *   GET /api/dashboard/attendance?attendanceDays daily present/absent/run_awayed series
+ *   GET /api/dashboard/overview                 quickStats, announcements, events, examSchedule
+ *   GET /api/dashboard/attendance-summary?days  daily present/absent/run_awayed series (7|15|30)
  */
 import type { ApiClient } from './client';
 import { ApiError } from './errors';
@@ -28,8 +28,8 @@ export interface DashboardOverview {
 }
 
 export const DASHBOARD_PATHS = {
-  overview: '/api/dashboard',
-  attendance: '/api/dashboard/attendance',
+  overview: '/api/dashboard/overview',
+  attendance: '/api/dashboard/attendance-summary',
 } as const;
 
 type Rec = Record<string, unknown>;
@@ -118,7 +118,7 @@ export function createDashboardApi(client: ApiClient) {
     async attendance(days: AttendanceRange, signal?: AbortSignal) {
       return parseAttendanceSeries(
         await client.get<unknown>(DASHBOARD_PATHS.attendance, {
-          query: { attendanceDays: days },
+          query: { days },
           signal,
         }),
       );

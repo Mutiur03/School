@@ -22,6 +22,8 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional(),
   DOMAIN: z.string().optional(),
   REDIS_HOST: z.string().optional(),
+  /** Redis logical db (default 0); lets parallel local test runs share one Redis. */
+  REDIS_DB: z.coerce.number().int().min(0).default(0),
 
   SHORT_TERM_CACHE_TTL: z.coerce.number().int().positive().default(300),
   LONG_TERM_CACHE_TTL: z.coerce.number().int().positive().default(3600),

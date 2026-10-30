@@ -713,7 +713,7 @@ function SchoolManagement() {
   const fetchSchools = useCallback(async () => {
     setFetching(true);
     try {
-      const res = await axios.get('/api/schools');
+      const res = await axios.get('/api/platform/schools');
       const list = Array.isArray(res.data?.data) ? res.data.data : [];
       setSchools(list);
 
@@ -804,7 +804,7 @@ function SchoolManagement() {
   const fetchSmsCredentials = useCallback(async (schoolId: number) => {
     setFetchingSms(true);
     try {
-      const res = await axios.get(`/api/schools/${schoolId}/sms-credentials`);
+      const res = await axios.get(`/api/platform/schools/${schoolId}/sms-credentials`);
       const data = { ...EMPTY_SMS_CREDENTIALS, ...res.data?.data };
       setSmsCredentials(data);
       setSmsApiKeyDraft('');
@@ -862,7 +862,10 @@ function SchoolManagement() {
       if (smsApiKeyDraft.trim()) {
         payload.api_key = smsApiKeyDraft.trim();
       }
-      const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, payload);
+      const res = await axios.patch(
+        `/api/platform/schools/${selectedSchoolId}/sms-credentials`,
+        payload,
+      );
       setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
       setSmsApiKeyDraft('');
       toast.success('SMS credentials updated');
@@ -887,7 +890,9 @@ function SchoolManagement() {
     }
     setAddingBalance(true);
     try {
-      const res = await axios.post(`/api/schools/${selectedSchoolId}/sms-balance`, { amount });
+      const res = await axios.post(`/api/platform/schools/${selectedSchoolId}/sms-balance-topups`, {
+        amount,
+      });
       setSmsCredentials((prev) => ({
         ...prev,
         estimated_sms: res.data?.data?.sms_balance ?? prev.estimated_sms,
@@ -917,7 +922,7 @@ function SchoolManagement() {
 
     setSavingSms(true);
     try {
-      const res = await axios.put(`/api/schools/${selectedSchoolId}/sms-credentials`, {
+      const res = await axios.patch(`/api/platform/schools/${selectedSchoolId}/sms-credentials`, {
         api_key: null,
       });
       setSmsCredentials({ ...EMPTY_SMS_CREDENTIALS, ...res.data?.data });
@@ -1172,10 +1177,8 @@ function SchoolManagement() {
   );
 
   const uploadAssetFile = async (kind: SchoolAssetKind, file: File): Promise<string> => {
-    const signRes = await axios.post('/api/schools/logo-upload-url', {
-      fileName: file.name,
-      contentType: file.type || 'image/png',
-      kind,
+    const signRes = await axios.get('/api/platform/schools/upload-url', {
+      params: { filename: file.name, contentType: file.type || 'image/png', kind },
     });
     const uploadUrl = signRes.data?.data?.uploadUrl as string | undefined;
     const key = signRes.data?.data?.key as string | undefined;
@@ -1230,10 +1233,10 @@ function SchoolManagement() {
       };
 
       if (selectedSchoolId !== 'new') {
-        await axios.put(`/api/schools/${selectedSchoolId}`, payload);
+        await axios.put(`/api/platform/schools/${selectedSchoolId}`, payload);
         toast.success('School updated successfully');
       } else {
-        const res = await axios.post('/api/schools', {
+        const res = await axios.post('/api/platform/schools', {
           ...payload,
           initialAdmin: getAdminValues(),
           trialEndsAt: new Date(`${trialEndsAt}T23:59:59.999Z`).toISOString(),
@@ -1336,9 +1339,13 @@ function SchoolManagement() {
 
     setRotatingId(id);
     try {
-      const { data } = await axios.post(`/api/schools/${id}/rotate-student-passwords`, undefined, {
-        responseType: 'blob',
-      });
+      const { data } = await axios.post(
+        `/api/platform/schools/${id}/student-password-rotations`,
+        undefined,
+        {
+          responseType: 'blob',
+        },
+      );
       const safeName = (name || 'school').replace(/[^a-zA-Z0-9-_]/g, '_');
       downloadBlob(new Blob([data]), `${safeName}_rotated_passwords.xlsx`);
       toast.success('Student passwords rotated. Excel downloaded.');
@@ -1353,7 +1360,7 @@ function SchoolManagement() {
   const handleExportStudents = async (id: number, name: string) => {
     setExportingId(id);
     try {
-      const { data } = await axios.get(`/api/schools/${id}/students/export`, {
+      const { data } = await axios.get(`/api/platform/schools/${id}/student-export`, {
         responseType: 'blob',
       });
       const safeName = (name || 'school').replace(/[^a-zA-Z0-9-_]/g, '_');

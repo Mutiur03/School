@@ -105,7 +105,7 @@ export default function SmsOverview() {
     else setLoading(true);
     setLoadError(false);
     try {
-      const res = await axios.get<{ data: SmsOverviewResponse }>('/api/schools/sms-overview');
+      const res = await axios.get<{ data: SmsOverviewResponse }>('/api/platform/sms-overview');
       setData(res.data.data);
     } catch (error) {
       setLoadError(true);

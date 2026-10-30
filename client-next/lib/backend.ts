@@ -292,13 +292,7 @@ async function getApiFetchHeaders(): Promise<HeadersInit | undefined> {
 }
 
 function normalizeApiResponse<T>(payload: unknown): ApiResponse<T> {
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'success' in payload &&
-    'message' in payload &&
-    'data' in payload
-  ) {
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
     const typedPayload = payload as ApiResponse<T>;
     return typedPayload;
   }

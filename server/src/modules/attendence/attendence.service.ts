@@ -1,7 +1,7 @@
 import { prisma, rlsTransaction } from '@/config/prisma.js';
 import { SMSService } from '@/utils/sms.service.js';
-import { SmsSettingsService } from '../sms-settings/sms-settings.service.js';
-import { SmsLogsService, SmsLogInfo } from '../sms-logs/sms-logs.service.js';
+import { SmsSettingsService } from '@/nest/modules/sms-settings/sms-settings.service.js';
+import { SmsLogsService, SmsLogInfo } from '@/nest/modules/sms-logs/sms-logs.service.js';
 import { AttendanceSheetService } from './attendence-sheet.service.js';
 
 export class AttendenceService {

@@ -19,21 +19,10 @@ import {
   tenantAuthRouter,
 } from './modules/auth/auth.route.js';
 import cookieParser from 'cookie-parser';
-import levelRouter from './modules/level/level.route.js';
 import attendenceRouter from './modules/attendence/attendence.route.js';
-import smsSettingsRoute from './modules/sms-settings/sms-settings.route.js';
-import noticeRouter from './modules/notice/notice.route.js';
-import eventsRouter from './modules/events/events.route.js';
-import galleryRouter from './modules/gallery/gallery.route.js';
-import dashboardRouter from './modules/dashboard/dashboard.route.js';
-import syllabusRouter from './modules/syllabus/syllabus.route.js';
-import classRoutineRouter from './modules/class-routine/class-routine.route.js';
-import citizenCharterRouter from './modules/citizen-charter/citizen-charter.route.js';
-import staffRouter from './modules/staff/staff.route.js';
 import admissionRouter from './modules/admission/admission.route.js';
 import admissionFormRouter from './modules/admission/form/admission-form.route.js';
 import admissionResultRouter from './modules/admission/result/admission-result.route.js';
-import smsRouter from './modules/sms-logs/sms-logs.route.js';
 import registrationFormClass6Router from './modules/registration/class-6/Form/registrationFormClass6.route.js';
 import registrationFormClass8Router from './modules/registration/class-8/Form/registrationFormClass8.route.js';
 import registrationFormJuniorScholarshipRouter from './modules/registration/junior-scholarship/Form/registrationFormJuniorScholarship.route.js';
@@ -47,7 +36,6 @@ import {
 import rateLimit from 'express-rate-limit';
 import { MemoryStore } from 'express-rate-limit';
 import AuthMiddleware from './middlewares/auth.middleware.js';
-import { superAdminSchoolRouter, tenantSchoolRouter } from './modules/school/school.route.js';
 import studentRouter from './modules/student/student.route.js';
 import routerTeacher from './modules/teacher/teacher.route.js';
 import subjectRouter from './modules/result/subject/subject.route.js';
@@ -58,20 +46,16 @@ import {
   syncRlsSchoolContextMiddleware,
 } from './middlewares/rlsContext.middleware.js';
 import { getDatabasePoolStats } from './utils/dbMetrics.js';
+import { isPreTenantRequest } from './middlewares/pre-tenant-routes.js';
 import { enforceSubscriptionAccess } from './middlewares/subscription-access.middleware.js';
 
 const app = express();
 
-/**
- * Public routes that run before any school is known: the app looks its school up by code and
- * only then talks to that school's host. Exact method + path; everything else still needs a
- * resolved tenant. The handler itself reads only through a narrow SECURITY DEFINER function.
- */
-const PRE_TENANT_ROUTES = new Set(['POST /api/school-code-lookups']);
+/** Pre-tenant requests (middlewares/pre-tenant-routes.ts) skip the tenant-only middlewares. */
 const skipPreTenantRoutes =
   (middleware: express.RequestHandler): express.RequestHandler =>
   (req, res, next) =>
-    PRE_TENANT_ROUTES.has(`${req.method} ${req.path}`) ? next() : middleware(req, res, next);
+    isPreTenantRequest(req.method, req.path) ? next() : middleware(req, res, next);
 
 /** Behind nginx-proxy / load balancer in production — required for rate-limit IP keys. */
 const resolveTrustProxy = (): boolean | number => {
@@ -176,7 +160,7 @@ const LimitReq = rateLimit({
   skip: (req) => {
     const url = req.originalUrl || req.url;
     return (
-      url.includes('/api/sms-settings/public') ||
+      url.includes('/api/sms/settings/public') ||
       url.includes('/api/health') ||
       url.includes('/api/marksheets/exams/')
     );
@@ -192,32 +176,22 @@ app.get('/api/resetLimit', AuthMiddleware.authenticate(['admin']), (_req, res) =
 });
 
 app.use(superAdminAuthRouter);
-app.use(superAdminSchoolRouter);
 app.use(superAdminExamTypeRouter);
 app.use(skipPreTenantRoutes(schoolContextMiddleware));
-app.use(syncRlsSchoolContextMiddleware);
+// Pre-tenant requests keep the context initRlsContextMiddleware set (no school; super admin only
+// with a valid super-admin access token). The sync would reset isSuperAdmin before Auth runs.
+app.use(skipPreTenantRoutes(syncRlsSchoolContextMiddleware));
 app.use(sharedAuthSessionRouter);
 app.use(skipPreTenantRoutes(requireSchoolContextMiddleware));
 app.use(enforceSubscriptionAccess);
 
 app.use(studentRouter);
-app.use(tenantSchoolRouter);
 app.use(examRouter);
 app.use(tenantExamTypeRouter);
 app.use(subjectRouter);
 app.use(routerTeacher);
-app.use(staffRouter);
 app.use(tenantAuthRouter);
-app.use(levelRouter);
 app.use(attendenceRouter);
-app.use(noticeRouter);
-app.use(smsSettingsRoute);
-app.use(eventsRouter);
-app.use('/api/gallery', galleryRouter);
-app.use(dashboardRouter);
-app.use(syllabusRouter);
-app.use(classRoutineRouter);
-app.use(citizenCharterRouter);
 app.use(registrationSettingsClass9Router);
 app.use(registrationFormClass9Router);
 app.use(registrationSettingsClass6Router);
@@ -229,8 +203,6 @@ app.use(registrationFormJuniorScholarshipRouter);
 app.use(admissionRouter);
 app.use(admissionFormRouter);
 app.use(admissionResultRouter);
-
-app.use(smsRouter);
 
 // Nest mounts after legacy routers; its 404 + error handling (LegacyErrorFilter) close the chain.
 let ready: Promise<typeof app> | undefined;

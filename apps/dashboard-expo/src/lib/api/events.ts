@@ -1,12 +1,12 @@
 /**
- * Events (legacy Express), verified against server/src/modules/events/ and
+ * Events (Nest REST), verified against server/src/nest/modules/events/ and
  * dashboard/src/queries/events.queries.ts:
  *
- *   GET    /api/events/getEvents                     public, school from host
- *   GET    /api/events/presigned-url?filename&contentType&type=image|file   admin
- *   POST   /api/events/addEvent { title, date, details?, location?, imageKey?, fileKey? }  admin
- *   PUT    /api/events/updateEvent/:id  same body, keys only when replaced     admin
- *   DELETE /api/events/deleteEvent/:id  admin; removes the stored image/file
+ *   GET    /api/events                               public, school from host
+ *   GET    /api/events/upload-url?filename&contentType&type=image|file   admin
+ *   POST   /api/events { title, date, details?, location?, imageKey?, fileKey? }  admin
+ *   PATCH  /api/events/:id  same body, keys only when replaced            admin
+ *   DELETE /api/events/:id  admin; removes the stored image/file
  */
 import type { ApiClient } from './client';
 import { num, objArray, str, strOrNull } from './parse';
@@ -33,11 +33,11 @@ export interface EventInput {
 }
 
 export const EVENT_PATHS = {
-  list: '/api/events/getEvents',
-  presign: '/api/events/presigned-url',
-  add: '/api/events/addEvent',
-  update: (id: number) => `/api/events/updateEvent/${id}`,
-  remove: (id: number) => `/api/events/deleteEvent/${id}`,
+  list: '/api/events',
+  presign: '/api/events/upload-url',
+  add: '/api/events',
+  update: (id: number) => `/api/events/${id}`,
+  remove: (id: number) => `/api/events/${id}`,
 } as const;
 
 export function parseEvents(v: unknown): SchoolEvent[] {
@@ -83,7 +83,7 @@ export function createEventsApi(client: ApiClient, fetchImpl?: typeof fetch) {
       await client.post<unknown>(EVENT_PATHS.add, body(input, await keys(input)));
     },
     async update(id: number, input: EventInput): Promise<void> {
-      await client.put<unknown>(EVENT_PATHS.update(id), body(input, await keys(input)));
+      await client.patch<unknown>(EVENT_PATHS.update(id), body(input, await keys(input)));
     },
     async remove(id: number): Promise<void> {
       await client.delete<unknown>(EVENT_PATHS.remove(id));

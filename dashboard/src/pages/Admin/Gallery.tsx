@@ -136,11 +136,11 @@ export default function Gallery() {
 
   const galleryQuery = useQuery<GalleryData>({
     queryKey: ['gallery', 'approved'],
-    queryFn: async () => (await axios.get('/api/gallery/getGalleries')).data,
+    queryFn: async () => (await axios.get('/api/gallery')).data.data,
   });
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['galleryCategories'],
-    queryFn: async () => (await axios.get('/api/gallery/getCategories')).data || [],
+    queryFn: async () => (await axios.get('/api/gallery/categories')).data.data || [],
   });
   const { data: events = [] } = useEvents();
 
@@ -180,8 +180,7 @@ export default function Gallery() {
 
   const rejectMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      if (ids.length === 1) await axios.patch(`/api/gallery/reject/${ids[0]}`);
-      else await axios.post('/api/gallery/rejectMultiple', { ids });
+      await axios.patch('/api/gallery/images', { ids, status: 'rejected' });
       return ids.length;
     },
     onSuccess: (n, ids) => {
@@ -195,8 +194,8 @@ export default function Gallery() {
   const thumbnailMutation = useMutation({
     mutationFn: (img: GalleryImage) =>
       img.event_id
-        ? axios.put(`/api/gallery/setEventThumbnail/${img.event_id}/${img.id}`)
-        : axios.put(`/api/gallery/setCategoryThumbnail/${img.category_id}/${img.id}`),
+        ? axios.put(`/api/gallery/events/${img.event_id}/thumbnail`, { imageId: img.id })
+        : axios.put(`/api/gallery/categories/${img.category_id}/thumbnail`, { imageId: img.id }),
     onSuccess: () => toast.success('Thumbnail changed'),
     onError: () => toast.error('Failed to change thumbnail'),
   });
@@ -261,21 +260,25 @@ export default function Gallery() {
       return;
     }
 
+    // An image belongs to an event or to a category, never both.
     const meta = {
       caption: formValues.caption,
-      eventId: formValues.eventId || '',
-      category: formValues.eventId ? '1' : formValues.category,
+      ...(formValues.eventId
+        ? { eventId: Number(formValues.eventId) }
+        : formValues.category
+          ? { categoryId: Number(formValues.category) }
+          : {}),
     };
 
     try {
       setUploadProgress(1);
       if (isEditing) {
         const imageKey = files.length
-          ? await uploadToR2('/api/gallery/presigned-url', files[0], (pct) =>
+          ? await uploadToR2('/api/gallery/upload-url', files[0], (pct) =>
               setUploadProgress(Math.max(1, pct)),
             )
           : undefined;
-        await axios.put(`/api/gallery/updateGallery/${editId}`, {
+        await axios.patch(`/api/gallery/images/${editId}`, {
           ...(imageKey ? { imageKey } : {}),
           ...meta,
         });
@@ -284,12 +287,13 @@ export default function Gallery() {
         const keys: string[] = [];
         for (let i = 0; i < files.length; i++) {
           keys.push(
-            await uploadToR2('/api/gallery/presigned-url', files[i], (pct) =>
+            await uploadToR2('/api/gallery/upload-url', files[i], (pct) =>
               setUploadProgress(Math.max(1, Math.round(((i + pct / 100) / files.length) * 100))),
             ),
           );
         }
-        await axios.post('/api/gallery/upload', { keys, ...meta, status: 'approved' });
+        // Admin uploads are approved by the server.
+        await axios.post('/api/gallery/images', { keys, ...meta });
         toast.success(`Uploaded ${plural(keys.length, 'photo')}`);
       }
       resetForm();

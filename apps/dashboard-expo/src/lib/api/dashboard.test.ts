@@ -85,7 +85,7 @@ describe('dashboard api', () => {
     assert.equal(r.latest.name, 'b');
     assert.equal(latestAttendance(parseAttendanceSeries([{ name: 'z' }]))!.rate, null);
   });
-  it('calls the web dashboard endpoints with attendanceDays; no school id', async () => {
+  it('calls the REST dashboard endpoints with days; no school id', async () => {
     const urls: string[] = [];
     const api = createDashboardApi(
       createApiClient({
@@ -93,13 +93,10 @@ describe('dashboard api', () => {
         fetch: (async (url: RequestInfo | URL) => {
           urls.push(String(url));
           const data = String(url).includes('attendance') ? [] : overviewBody;
-          return new Response(
-            JSON.stringify({ statusCode: 200, success: true, message: 'ok', data }),
-            {
-              status: 200,
-              headers: { 'content-type': 'application/json' },
-            },
-          );
+          return new Response(JSON.stringify({ success: true, data }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
         }) as typeof fetch,
       }),
     );
@@ -108,7 +105,8 @@ describe('dashboard api', () => {
     assert.equal(new URL(urls[0]!).pathname, DASHBOARD_PATHS.overview);
     const a = new URL(urls[1]!);
     assert.equal(a.pathname, DASHBOARD_PATHS.attendance);
-    assert.equal(a.searchParams.get('attendanceDays'), '15');
+    assert.equal(a.pathname, '/api/dashboard/attendance-summary');
+    assert.equal(a.searchParams.get('days'), '15');
     assert.equal(a.searchParams.has('school_id'), false);
   });
 });

@@ -31,8 +31,8 @@ function CitizenCharter() {
     // 404 means none uploaded yet.
     queryFn: () =>
       axios
-        .get<PDFData>('/api/citizen-charter')
-        .then((res) => res.data)
+        .get<{ data: PDFData }>('/api/citizen-charter/document')
+        .then((res) => res.data.data)
         .catch(() => null),
   });
 
@@ -42,8 +42,8 @@ function CitizenCharter() {
     setUploading(true);
     setProgress(0);
     try {
-      const key = await uploadToR2('/api/citizen-charter/presigned-url', file, setProgress);
-      const res = await axios.post<{ data: PDFData }>('/api/citizen-charter', { key });
+      const key = await uploadToR2('/api/citizen-charter/upload-url', file, setProgress);
+      const res = await axios.put<{ data: PDFData }>('/api/citizen-charter/document', { key });
       queryClient.setQueryData(QUERY_KEY, res.data.data);
       toast.success('Citizen charter uploaded');
     } catch (err) {

@@ -1,12 +1,12 @@
 /**
- * Admin notices (legacy Express), verified against server/src/modules/notice/ and
+ * Admin notices (Nest REST), verified against server/src/nest/modules/notice/ and
  * dashboard/src/queries/notice.queries.ts + pages/Admin/Notice.tsx:
  *
- *   GET    /api/notices/getNotices                public, school from host, newest first
- *   GET    /api/notices/presigned-url?filename&contentType   admin → { uploadUrl, key }
- *   POST   /api/notices/addNotice { title, key, created_at? }    admin; key required (a PDF)
- *   PUT    /api/notices/updateNotice/:id { title?, key?, created_at? }   admin
- *   DELETE /api/notices/deleteNotice/:id          admin; also removes the PDF from storage
+ *   GET    /api/notices                           public, school from host, newest first
+ *   GET    /api/notices/upload-url?filename&contentType   admin → { uploadUrl, key }
+ *   POST   /api/notices { title, key, created_at? }    admin; key required (a PDF)
+ *   PATCH  /api/notices/:id { title?, key?, created_at? }   admin
+ *   DELETE /api/notices/:id                       admin; also removes the PDF from storage
  */
 import type { ApiClient } from './client';
 import { ApiError } from './errors';
@@ -14,11 +14,11 @@ import { parseNotices, type Notice } from './student-portal';
 import { uploadViaPresign, type PickedFile } from './uploads';
 
 export const NOTICE_PATHS = {
-  list: '/api/notices/getNotices',
-  presign: '/api/notices/presigned-url',
-  add: '/api/notices/addNotice',
-  update: (id: number) => `/api/notices/updateNotice/${id}`,
-  remove: (id: number) => `/api/notices/deleteNotice/${id}`,
+  list: '/api/notices',
+  presign: '/api/notices/upload-url',
+  add: '/api/notices',
+  update: (id: number) => `/api/notices/${id}`,
+  remove: (id: number) => `/api/notices/${id}`,
 } as const;
 
 export interface NoticeInput {
@@ -70,7 +70,7 @@ export function createNoticesApi(client: ApiClient, fetchImpl?: typeof fetch) {
     },
     async update(id: number, input: NoticeInput): Promise<void> {
       const key = input.file ? await upload(input.file) : undefined;
-      await client.put<unknown>(NOTICE_PATHS.update(id), {
+      await client.patch<unknown>(NOTICE_PATHS.update(id), {
         title: input.title.trim(),
         ...(key ? { key } : {}),
         ...(input.created_at ? { created_at: input.created_at } : {}),

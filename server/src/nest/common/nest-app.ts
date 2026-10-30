@@ -1,8 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
 
 /**
- * TEMPORARY bridge so legacy Express services (exam/level/teacher) and server.ts can reach Nest
- * providers via `nestApp().get(Provider)`. Delete when exam/level/teacher move to Nest.
+ * TEMPORARY bridge so legacy Express services (exam/teacher) and server.ts can reach Nest
+ * providers via `nestApp().get(Provider)`. Delete when exam/teacher move to Nest.
  */
 let app: INestApplication | undefined;
 

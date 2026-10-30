@@ -35,6 +35,8 @@ const fileFormat = combine(
 const consoleTransport = new winston.transports.Console({
   format: process.env.NODE_ENV === 'development' ? devConsoleFormat : fileFormat,
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'http',
+  // Jest prints every console write with a stack; set TEST_LOGS=1 to see them.
+  silent: process.env.NODE_ENV === 'test' && !process.env.TEST_LOGS,
 });
 
 // All logs (info and above) rotating daily

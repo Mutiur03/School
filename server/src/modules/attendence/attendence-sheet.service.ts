@@ -6,7 +6,7 @@ import { getFileBuffer, headObject, uploadToR2 } from '@/config/r2.js';
 import { getRlsContext, runWithRlsContext } from '@/config/rlsContextStore.js';
 import { ApiError } from '@/utils/ApiError.js';
 import logger from '@/utils/logger.js';
-import { SchoolService } from '../school/school.service.js';
+import { SchoolService } from '@/nest/modules/school/school.service.js';
 import {
   attendanceSheetJobId,
   attendanceSheetQueue,

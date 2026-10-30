@@ -4,8 +4,8 @@
  * photo + address, Designation, Phone, Email, actions), the "Staff details" dialog and the
  * add / edit dialog validated with the shared staffFormSchema (the server runs the same one),
  * including the photo card (file picker on web, photo picker on native).
- * Live data: GET/POST/PUT/DELETE /api/staffs, photo via presigned upload + PUT/DELETE
- * /api/staffs/:id/image (admin only; the server re-checks the key belongs to this school).
+ * Live data: GET/POST/PATCH/DELETE /api/staff, photo via presigned upload + PUT/DELETE
+ * /api/staff/:id/image (admin only; the server re-checks the key belongs to this school).
  */
 import { useQuery } from '@tanstack/react-query';
 import { staffFormSchema } from '@school/shared-schemas';

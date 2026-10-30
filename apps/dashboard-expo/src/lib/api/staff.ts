@@ -1,15 +1,15 @@
 /**
- * Staff endpoints (legacy Express), verified against server/src/modules/staff/staff.route.ts +
- * staff.controller.ts and dashboard/src/pages/Admin/StaffList.tsx:
+ * Staff endpoints (Nest REST), verified against server/src/nest/modules/staff/staff.controller.ts
+ * and dashboard/src/pages/Admin/StaffList.tsx:
  *
- *   GET    /api/staffs                     optional auth; admins get full rows (anyone else the
+ *   GET    /api/staff                      optional auth; admins get full rows (anyone else the
  *          public profile); no query = every row
- *   POST   /api/staffs { staff: [form] }   admin; staffFormSchema per row; returns the new rows
- *   PUT    /api/staffs/:id                 admin; staffFormSchema
- *   DELETE /api/staffs/:id                 admin
- *   GET    /api/staffs/presigned-url?id&filename&contentType   admin; tenant-prefixed key
- *   PUT    /api/staffs/:id/image { key }   admin; key re-checked against this school
- *   DELETE /api/staffs/:id/image           admin
+ *   POST   /api/staff { staff: [form] }    admin; staffFormSchema per row; returns the new rows
+ *   PATCH  /api/staff/:id                  admin; staffFormSchema (partial allowed)
+ *   DELETE /api/staff/:id                  admin
+ *   GET    /api/staff/:id/image/upload-url?filename&contentType   admin; tenant-prefixed key
+ *   PUT    /api/staff/:id/image { key }    admin; key re-checked against this school
+ *   DELETE /api/staff/:id/image            admin
  *
  * The school is never sent: the server takes it from the host + token (RLS).
  */
@@ -37,10 +37,10 @@ export interface StaffInput {
 }
 
 export const STAFF_PATHS = {
-  list: '/api/staffs',
-  one: (id: number) => `/api/staffs/${id}`,
-  presign: '/api/staffs/presigned-url',
-  image: (id: number) => `/api/staffs/${id}/image`,
+  list: '/api/staff',
+  one: (id: number) => `/api/staff/${id}`,
+  presign: (id: number) => `/api/staff/${id}/image/upload-url`,
+  image: (id: number) => `/api/staff/${id}/image`,
 } as const;
 
 export function parseStaffRow(s: Record<string, unknown>): StaffRow {
@@ -67,20 +67,14 @@ export function createStaffApi(client: ApiClient) {
       return isObj(first) ? parseStaffRow(first) : null;
     },
     async update(id: number, input: StaffInput): Promise<void> {
-      await client.put<unknown>(STAFF_PATHS.one(id), input);
+      await client.patch<unknown>(STAFF_PATHS.one(id), input);
     },
     async remove(id: number): Promise<void> {
       await client.delete<unknown>(STAFF_PATHS.one(id));
     },
-    /** Presign (with the staff id), upload straight to storage, then save the key. */
+    /** Presign for this staff row, upload straight to storage, then save the key. */
     async uploadImage(id: number, file: PickedFile, fetchImpl?: typeof fetch): Promise<string> {
-      const key = await uploadViaPresign(
-        client,
-        STAFF_PATHS.presign,
-        file,
-        { id: String(id) },
-        fetchImpl,
-      );
+      const key = await uploadViaPresign(client, STAFF_PATHS.presign(id), file, {}, fetchImpl);
       await client.put<unknown>(STAFF_PATHS.image(id), { key });
       return key;
     },

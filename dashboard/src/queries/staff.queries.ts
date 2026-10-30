@@ -7,7 +7,7 @@ export const useStaff = () =>
   useQuery({
     queryKey: ['staff'],
     queryFn: async (): Promise<Staff[]> => {
-      const response = await axios.get('/api/staffs');
+      const response = await axios.get('/api/staff');
       return response.data.data;
     },
   });

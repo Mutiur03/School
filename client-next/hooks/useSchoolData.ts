@@ -29,18 +29,21 @@ function useLazyFetch<T>(fetcher: () => Promise<T>) {
 
 export const useRoutinePDF = () =>
   useLazyFetch(async () => {
-    const res = await axios.get('/api/class-routine/pdf');
+    const res = await axios.get('/api/class-routines');
     return (res.data.data?.[0]?.pdf_url as string | null) || null;
   });
 
 export const useSyllabuses = () =>
   useLazyFetch<Syllabus[]>(async () => {
-    const res = await axios.get('/api/syllabus');
+    const res = await axios.get('/api/syllabuses');
     return (res.data.data ?? []) as Syllabus[];
   });
 
 export const useCitizenCharter = () =>
   useLazyFetch(async () => {
-    const response = await axios.get('/api/citizen-charter');
-    return (response.data.file as string | null) || null;
+    // 404 until the school uploads one.
+    const response = await axios.get('/api/citizen-charter/document', {
+      validateStatus: (s) => s === 200 || s === 404,
+    });
+    return (response.data?.data?.file as string | null) || null;
   });

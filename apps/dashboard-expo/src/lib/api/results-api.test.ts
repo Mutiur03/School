@@ -345,9 +345,9 @@ describe('class teachers client', () => {
     await api.update(3, { class_name: 9, section: 'a', year: 2026, teacher_id: 4 });
     await api.remove(3);
     assert.deepEqual(h.calls[0]!.body, { class_name: 9, section: 'B', year: 2026, teacher_id: 4 });
-    assert.equal(url(h.calls[0]!).pathname, '/api/level/addLevel');
-    assert.equal(url(h.calls[1]!).pathname, '/api/level/updateLevel/3');
-    assert.equal(url(h.calls[2]!).pathname, '/api/level/deleteLevel/3');
+    assert.equal(`${h.calls[0]!.method} ${url(h.calls[0]!).pathname}`, 'POST /api/levels');
+    assert.equal(`${h.calls[1]!.method} ${url(h.calls[1]!).pathname}`, 'PATCH /api/levels/3');
+    assert.equal(`${h.calls[2]!.method} ${url(h.calls[2]!).pathname}`, 'DELETE /api/levels/3');
     noSchoolId(h.calls);
   });
 

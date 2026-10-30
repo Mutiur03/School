@@ -4,6 +4,7 @@ const host = env.REDIS_HOST || '127.0.0.1';
 export const redis = new Redis({
   host: host,
   port: 6379,
+  db: env.REDIS_DB,
 });
 
 export const check = async () => {

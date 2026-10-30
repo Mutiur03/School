@@ -15,7 +15,7 @@ export const useNotices = () => {
   return useQuery<Notice[]>({
     queryKey: ['notices'],
     queryFn: async () => {
-      const response = await axios.get('/api/notices/getNotices');
+      const response = await axios.get('/api/notices');
       return response.data.data;
     },
   });
@@ -25,10 +25,10 @@ export const useAddNotice = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { title: string; file: File; created_at?: string }) => {
-      const key = await uploadToR2('/api/notices/presigned-url', data.file);
+      const key = await uploadToR2('/api/notices/upload-url', data.file);
 
       // Save notice record to database
-      const response = await axios.post('/api/notices/addNotice', {
+      const response = await axios.post('/api/notices', {
         title: data.title,
         key,
         created_at: data.created_at,
@@ -58,10 +58,10 @@ export const useUpdateNotice = () => {
     }) => {
       let key = undefined;
       if (data.file) {
-        key = await uploadToR2('/api/notices/presigned-url', data.file);
+        key = await uploadToR2('/api/notices/upload-url', data.file);
       }
 
-      const response = await axios.put(`/api/notices/updateNotice/${id}`, {
+      const response = await axios.patch(`/api/notices/${id}`, {
         title: data.title,
         ...(key ? { key } : {}),
         created_at: data.created_at,
@@ -83,7 +83,7 @@ export const useDeleteNotice = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string | number) => {
-      const response = await axios.delete(`/api/notices/deleteNotice/${id}`);
+      const response = await axios.delete(`/api/notices/${id}`);
       return response.data;
     },
     onSuccess: () => {

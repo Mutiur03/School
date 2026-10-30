@@ -1,7 +1,7 @@
 /**
  * A school's SMS provider setup (SchoolManagement.tsx "SMS" tab): estimated balance, top-up
  * (shared account only) or Switch to Shared (self-hosted), Provider / Sender ID(s) / API key.
- * GET/PUT /api/schools/:id/sms-credentials, POST /api/schools/:id/sms-balance. Never sends an
+ * GET/PATCH /api/platform/schools/:id/sms-credentials, POST .../sms-balance-topups. Never sends an
  * SMS. Every write is confirmed and single-flight; only writable fields are sent.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';

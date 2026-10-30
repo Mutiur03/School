@@ -16,6 +16,9 @@ export const createNest = async (app: Express) => {
   const nest = await NestFactory.create(AppModule, new ExpressAdapter(app), {
     // Must stay false: Express 4 already parses bodies, and Nest's parser setup reads `app.router` (Express 5 only) → crash.
     bodyParser: false,
+    ...(process.env.NODE_ENV === 'test' && !process.env.TEST_LOGS
+      ? { logger: ['error', 'warn'] as const }
+      : {}),
   });
   nest.setGlobalPrefix('api');
   nest.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));

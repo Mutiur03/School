@@ -264,8 +264,8 @@ function SmsManagement() {
   const { data: studentCount, isLoading: studentCountLoading } = useQuery({
     queryKey: ['studentCount', selectedClasses],
     queryFn: async () => {
-      const res = await axios.get(`/api/sms/student-count?classes=${selectedClasses.join(',')}`);
-      return res.data as {
+      const res = await axios.get(`/api/sms/recipient-counts?classes=${selectedClasses.join(',')}`);
+      return res.data.data as {
         totalStudents: number;
         withPhone: number;
         classBreakdown: Record<number, { total: number; withPhone: number }>;
@@ -285,8 +285,8 @@ function SmsManagement() {
         status: statusParam,
         date: toDateInputValue(date) || date,
       });
-      const response = await axios.get(`/api/sms/sms-logs?${params}`);
-      return response.data;
+      const response = await axios.get(`/api/sms/logs?${params}`);
+      return response.data.data;
     },
     enabled: activeTab === 'logs',
     placeholderData: (prev) => prev,
@@ -298,8 +298,8 @@ function SmsManagement() {
   const smsUsageQuery = useQuery({
     queryKey: ['smsUsage'],
     queryFn: async () => {
-      const response = await axios.get('/api/sms/usage-stats?days=30');
-      return response.data;
+      const response = await axios.get('/api/sms/usage?days=30');
+      return response.data.data;
     },
     enabled: activeTab === 'logs',
   });
@@ -307,7 +307,7 @@ function SmsManagement() {
   const smsSettingsQuery = useQuery<SmsSettings>({
     queryKey: ['smsSettings'],
     queryFn: async () => {
-      const response = await axios.get('/api/sms-settings');
+      const response = await axios.get('/api/sms/settings');
       return response.data.data;
     },
     enabled: activeTab === 'settings',
@@ -317,7 +317,7 @@ function SmsManagement() {
   const smsBalanceQuery = useQuery<SmsBalance>({
     queryKey: ['smsBalance'],
     queryFn: async () => {
-      const response = await axios.get('/api/sms-settings/balance');
+      const response = await axios.get('/api/sms/balance');
       return response.data.data;
     },
     refetchOnMount: true,
@@ -327,8 +327,16 @@ function SmsManagement() {
 
   const settingsMutation = useMutation({
     mutationFn: async (payload: { settings: SmsSettings; requiredPlaceholders: string[] }) => {
-      await axios.patch('/api/sms-settings', {
-        ...payload.settings,
+      // Only the tenant-editable fields: the server rejects unknown properties.
+      const s = payload.settings;
+      await axios.patch('/api/sms/settings', {
+        present_template: s.present_template,
+        absent_template: s.absent_template,
+        run_awayed_template: s.run_awayed_template,
+        send_to_present: s.send_to_present,
+        send_to_absent: s.send_to_absent,
+        send_to_run_awayed: s.send_to_run_awayed,
+        is_active: s.is_active,
         requiredPlaceholders: payload.requiredPlaceholders,
       });
     },
@@ -345,7 +353,7 @@ function SmsManagement() {
 
   const testSmsMutation = useMutation({
     mutationFn: async (payload: { phoneNumber: string; message: string }) => {
-      await axios.post('/api/sms-settings/test', payload);
+      await axios.post('/api/sms/test-messages', payload);
     },
     onSuccess: () => {
       toast.success('Test SMS sent');
@@ -361,8 +369,8 @@ function SmsManagement() {
 
   const retryMutation = useMutation({
     mutationFn: async (smsLogIds: number[]) => {
-      const response = await axios.post('/api/sms/retry-sms', { smsLogIds });
-      return response.data;
+      const response = await axios.post('/api/sms/logs/retries', { ids: smsLogIds });
+      return response.data.data;
     },
     onSuccess: (data) => {
       toast.success(data.message);
@@ -378,8 +386,8 @@ function SmsManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (smsLogIds: number[]) => {
-      const response = await axios.delete('/api/sms/sms-logs', { data: { smsLogIds } });
-      return response.data;
+      const response = await axios.delete('/api/sms/logs', { data: { ids: smsLogIds } });
+      return response.data.data;
     },
     onSuccess: (data) => {
       toast.success(data.message);
@@ -393,8 +401,8 @@ function SmsManagement() {
 
   const bulkSmsMutation = useMutation({
     mutationFn: async (payload: { classNames: number[]; message: string }) => {
-      const response = await axios.post('/api/sms/bulk-sms', payload);
-      return response.data;
+      const response = await axios.post('/api/sms/bulk-messages', payload);
+      return response.data.data;
     },
     onSuccess: (data) => {
       toast.success(data.message || 'Bulk SMS sent');

@@ -2,7 +2,7 @@
  * Notice, replicating dashboard/src/pages/Admin/Notice.tsx: "Notices" header with
  * "N notices · latest <date>", New notice, title search, the table (Title / Published /
  * actions: open, edit, delete) and the New/Edit dialog (Title, Publish date, PDF).
- * Live data: GET/POST/PUT/DELETE /api/notices/*; the PDF goes straight to R2 via a presigned URL.
+ * Live data: GET/POST/PATCH/DELETE /api/notices; the PDF goes straight to R2 via a presigned URL.
  * The PDF comes from FilePicker (file input on web, document picker on native).
  */
 import { uploadLabel, useUploadPercent } from '@/hooks/useUploadPercent';

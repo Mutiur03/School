@@ -113,7 +113,7 @@ function Syllabus() {
     isError,
   } = useQuery({
     queryKey: QUERY_KEY,
-    queryFn: async () => (await axios.get<{ data: Syllabus[] }>('/api/syllabus')).data.data,
+    queryFn: async () => (await axios.get<{ data: Syllabus[] }>('/api/syllabuses')).data.data,
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
@@ -176,16 +176,16 @@ function Syllabus() {
     setProgress(0);
     try {
       const key = form.pdf
-        ? await uploadToR2('/api/syllabus/presigned-url', form.pdf, setProgress)
+        ? await uploadToR2('/api/syllabuses/upload-url', form.pdf, setProgress)
         : undefined;
       if (editing) {
-        await axios.put(`/api/syllabus/${editing.id}`, {
+        await axios.patch(`/api/syllabuses/${editing.id}`, {
           class: form.class,
           year: form.year,
           ...(key ? { key } : {}),
         });
       } else {
-        await axios.post('/api/syllabus/upload', { class: form.class, year: form.year, key });
+        await axios.post('/api/syllabuses', { class: form.class, year: form.year, key });
       }
       await refresh();
       toast.success(editing ? 'Syllabus updated' : 'Syllabus uploaded');
@@ -201,7 +201,7 @@ function Syllabus() {
 
   const handleDelete = async (s: Syllabus) => {
     try {
-      await axios.delete(`/api/syllabus/${s.id}`);
+      await axios.delete(`/api/syllabuses/${s.id}`);
       await refresh();
       toast.success('Syllabus deleted');
     } catch (err) {

@@ -1,22 +1,23 @@
 /**
- * SMS management, verified against server/src/modules/sms-logs/sms-logs.route.ts (all admin
- * only) and sms-settings/sms-settings.route.ts (admin, except /public for teachers too), and
+ * SMS management (Nest REST, all `{ success, data }`), verified against
+ * server/src/nest/modules/sms-logs/sms-logs.controller.ts (admin only) and
+ * sms-settings/sms-settings.controller.ts (admin, except settings/public for teachers too), and
  * dashboard/src/pages/Admin/SmsManagement.tsx:
  *
- *   GET    /api/sms/sms-logs?page&limit&category&status&date   raw JSON (no envelope):
+ *   GET    /api/sms/logs?page&limit&category&status&date
  *          { smsLogs, totalCount, totalPages, currentPage, stats: { sent?, failed?, pending? } }
- *   GET    /api/sms/usage-stats?days=30          { stats: [{ date, count }] }
- *   POST   /api/sms/retry-sms { smsLogIds }       { message, stats }   (sends real SMS)
- *   DELETE /api/sms/sms-logs { smsLogIds }        { message }
- *   GET    /api/sms/student-count?classes=6,7     { totalStudents, withPhone, classBreakdown }
- *   POST   /api/sms/bulk-sms { classNames, message }  { successCount, failedCount } (real SMS)
- *   GET    /api/sms-settings                      envelope; templates + send_* flags + is_active
- *   PATCH  /api/sms-settings { ...templates/flags, requiredPlaceholders }
- *   GET    /api/sms-settings/balance              envelope; { estimatedSms, message, selfHosted }
- *   POST   /api/sms-settings/test { phoneNumber, message }   (real SMS, one credit)
+ *   GET    /api/sms/usage?days=30                { stats: [{ date, count }] }
+ *   POST   /api/sms/logs/retries { ids }         { message, stats }   (sends real SMS)
+ *   DELETE /api/sms/logs { ids }                 { message }
+ *   GET    /api/sms/recipient-counts?classes=6,7 { totalStudents, withPhone, classBreakdown }
+ *   POST   /api/sms/bulk-messages { classNames, message }  { successCount, failedCount } (real SMS)
+ *   GET    /api/sms/settings                     templates + send_* flags + is_active
+ *   PATCH  /api/sms/settings { ...templates/flags, requiredPlaceholders }
+ *   GET    /api/sms/balance                      { estimatedSms, message, selfHosted }
+ *   POST   /api/sms/test-messages { phoneNumber, message }   (real SMS, one credit)
  *
- * PATCH only ever sends the seven editable fields: the server forwards any other body key to the
- * database update (see docs/web-parity.md, SMS gaps). The school is never sent.
+ * PATCH only ever sends the seven editable fields (the server rejects any other key with 400).
+ * The school is never sent.
  */
 import type { ApiClient } from './client';
 import { bool, isObj, num, objArray, parseError, str, strOrNull } from './parse';
@@ -82,14 +83,14 @@ export interface SmsStudentCount {
 }
 
 export const SMS_PATHS = {
-  logs: '/api/sms/sms-logs',
-  usage: '/api/sms/usage-stats',
-  retry: '/api/sms/retry-sms',
-  studentCount: '/api/sms/student-count',
-  bulk: '/api/sms/bulk-sms',
-  settings: '/api/sms-settings',
-  balance: '/api/sms-settings/balance',
-  test: '/api/sms-settings/test',
+  logs: '/api/sms/logs',
+  usage: '/api/sms/usage',
+  retry: '/api/sms/logs/retries',
+  studentCount: '/api/sms/recipient-counts',
+  bulk: '/api/sms/bulk-messages',
+  settings: '/api/sms/settings',
+  balance: '/api/sms/balance',
+  test: '/api/sms/test-messages',
 } as const;
 
 const CATEGORIES: readonly SmsCategory[] = ['attendance', 'password_reset', 'test', 'bulk'];
@@ -221,13 +222,13 @@ export function createSmsApi(client: ApiClient) {
       }));
     },
     async retry(smsLogIds: number[]): Promise<string> {
-      const data = await client.post<unknown>(SMS_PATHS.retry, { smsLogIds });
+      const data = await client.post<unknown>(SMS_PATHS.retry, { ids: smsLogIds });
       return message(data, 'Retry started.');
     },
     async deleteLogs(smsLogIds: number[]): Promise<string> {
       const data = await client.request<unknown>(SMS_PATHS.logs, {
         method: 'DELETE',
-        body: { smsLogIds },
+        body: { ids: smsLogIds },
       });
       return message(data, 'SMS logs deleted.');
     },

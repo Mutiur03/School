@@ -1,5 +1,5 @@
 /**
- * Tenant branding derived from GET /api/schools/public. Pure functions, unit-tested.
+ * Tenant branding derived from GET /api/school. Pure functions, unit-tested.
  */
 import type { PublicSchoolInfo } from '@/lib/api/school';
 import type { TenantThemeOverrides } from '@/theme/ThemeProvider';

@@ -47,7 +47,11 @@ export const marksheetQueueProvider = {
   provide: MARKSHEET_QUEUE,
   useFactory: (): MarksheetQueue =>
     new Bull<MarksheetJob>('marksheetQueue', {
-      redis: { host: process.env.REDIS_HOST || '127.0.0.1', port: 6379 },
+      redis: {
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: 6379,
+        db: Number(process.env.REDIS_DB) || 0,
+      },
       settings: {
         lockDuration: 5 * 60 * 1000,
         stalledInterval: 60 * 1000,
