@@ -161,7 +161,7 @@ jobs:
       - name: Lint, format, and typecheck
         run: pnpm run check:server
 
-      # Unit tests only: no DB/Redis. *.http.spec.ts needs a seeded Postgres + Redis, run locally.
+      # Node tests + Jest unit specs (no DB/Redis). The *.http.spec.ts suites run in the next steps.
       - name: Test
         working-directory: server
         env:
@@ -170,12 +170,12 @@ jobs:
           ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
         run: |
           pnpm test
-          pnpm test:nest --testPathIgnorePatterns http.spec
+          pnpm test:nest:unit --ci
 
       # Full-stack http specs: real Postgres (migrated, app connects as a restricted role so RLS
       # applies), real Redis, and the committed fake R2/SMS server (scripts/ci/fake-r2-sms.mjs).
-      # Excluded until their seed data exists in CI: marks, promotion, public-results (they need a
-      # seeded exam type + student and fail the same way on main).
+      # setup-test-db.sh seeds the school, admin, exam type, student and enrollment they need.
+      # Run in band: the suites share one DB, Redis and fake server.
       - name: Prepare http-spec database
         working-directory: server
         env:
@@ -202,8 +202,7 @@ jobs:
         run: |
           node scripts/ci/fake-r2-sms.mjs > /tmp/fake-r2-sms.log 2>&1 &
           for i in $(seq 1 20); do curl -fs http://127.0.0.1:9900/__health && break; sleep 0.5; done
-          pnpm test:nest --ci --runInBand --testPathPatterns 'http\.spec' \
-            --testPathIgnorePatterns 'marks/marks\.http' 'promotion/promotion\.http' 'public-results/public-results\.http'
+          pnpm test:nest:http --ci
 
       - name: Build
         run: pnpm exec turbo run build --filter=server
