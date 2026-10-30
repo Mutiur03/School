@@ -2,6 +2,8 @@
  * Pure config parsing (no React Native imports) so it can be unit-tested under Node.
  * `src/config/env.ts` feeds it the inlined EXPO_PUBLIC_* values.
  */
+import { parseLockedRole, type LockedRole } from '../navigation/deployment-lock';
+
 export type AppEnv = 'local' | 'staging' | 'production';
 export type RuntimePlatform = 'web' | 'ios' | 'android' | (string & {});
 
@@ -21,6 +23,8 @@ export interface AppConfig {
   /** Dev-only `x-tenant-host` override; always null outside `local`. */
   devTenantHost: string | null;
   platform: RuntimePlatform;
+  /** Web build locked to one role (EXPO_PUBLIC_APP_ROLE); null = every role. Always null on native. */
+  lockedRole: LockedRole;
 }
 
 export interface ConfigIssue {
@@ -34,6 +38,7 @@ export interface RawPublicEnv {
   directoryUrl?: string;
   cdnUrl?: string;
   devTenantHost?: string;
+  appRole?: string;
 }
 
 const APP_ENVS: readonly AppEnv[] = ['local', 'staging', 'production'];
@@ -83,7 +88,16 @@ export function buildAppConfig(
   }
 
   return {
-    config: { appEnv, apiBaseUrl, directoryUrl, superAdminUrl, cdnUrl, devTenantHost, platform },
+    config: {
+      appEnv,
+      apiBaseUrl,
+      directoryUrl,
+      superAdminUrl,
+      cdnUrl,
+      devTenantHost,
+      platform,
+      lockedRole: parseLockedRole(raw.appRole, platform),
+    },
     // The same bad value reported for both keys once is enough.
     issues: issues.filter(
       (issue, i) =>

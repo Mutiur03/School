@@ -203,13 +203,14 @@ Conventions:
 All runtime config is public (`EXPO_PUBLIC_*` is inlined into the bundle). **Never put secrets
 in these variables.** See `.env.example`.
 
-| Variable                      | Purpose                                                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EXPO_PUBLIC_APP_ENV`         | `local` / `staging` / `production`                                                                                                                |
-| `EXPO_PUBLIC_API_BASE_URL`    | Optional. Pins the build to one school's API origin (no school codes).                                                                            |
-| `EXPO_PUBLIC_DIRECTORY_URL`   | Super-admin origin: pre-login school-code lookup and platform (super-admin) API. Native needs it or `API_BASE_URL`. Empty hides platform sign-in. |
-| `EXPO_PUBLIC_CDN_URL`         | Public CDN for R2 keys (photos, PDFs), mirrors `VITE_CDN_URL`; staging: `https://cdn.lbphs.gov.bd`                                                |
-| `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production)                                                                  |
+| Variable                      | Purpose                                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_APP_ENV`         | `local` / `staging` / `production`                                                                                                                                        |
+| `EXPO_PUBLIC_API_BASE_URL`    | Optional. Pins the build to one school's API origin (no school codes).                                                                                                    |
+| `EXPO_PUBLIC_DIRECTORY_URL`   | Super-admin origin: pre-login school-code lookup and platform (super-admin) API. Native needs it or `API_BASE_URL`. Empty hides platform sign-in.                         |
+| `EXPO_PUBLIC_CDN_URL`         | Public CDN for R2 keys (photos, PDFs), mirrors `VITE_CDN_URL`; staging: `https://cdn.lbphs.gov.bd`                                                                        |
+| `EXPO_PUBLIC_APP_ROLE`        | Web only: lock this build to one role (`admin`, `teacher`, `student`, `super_admin`). Other routes 404, other roles are signed out. Unset = every role; native ignores it |
+| `EXPO_PUBLIC_DEV_TENANT_HOST` | Local only: sent as `x-tenant-host` (backend honours it only outside production)                                                                                          |
 
 `APP_ENV` (build time, `app.config.ts`) selects the app name, bundle id suffix (`.dev`,
 `.staging`), URL scheme and OTA channel. No EAS: builds are Gradle (CI or local), OTA is

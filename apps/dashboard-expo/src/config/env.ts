@@ -23,6 +23,7 @@ const built = buildAppConfig(
     directoryUrl: process.env.EXPO_PUBLIC_DIRECTORY_URL || localDirectoryUrl,
     cdnUrl: process.env.EXPO_PUBLIC_CDN_URL,
     devTenantHost: process.env.EXPO_PUBLIC_DEV_TENANT_HOST,
+    appRole: process.env.EXPO_PUBLIC_APP_ROLE,
   },
   Platform.OS,
 );
