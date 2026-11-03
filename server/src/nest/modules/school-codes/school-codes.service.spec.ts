@@ -191,10 +191,10 @@ describe('tenantHostFor', () => {
     (process.env as any).NODE_ENV = 'production';
     delete process.env.TENANT_HOST_SUFFIX;
     expect(tenantHostFor({ subdomain: 'alpha', custom_domain: null })).toBe(
-      'alpha-dashboard.mutiurrahman.com',
+      'alpha-dashboard.torongo.dev',
     );
-    expect(tenantApiBaseUrl('alpha-dashboard.mutiurrahman.com')).toBe(
-      'https://alpha-dashboard.mutiurrahman.com',
+    expect(tenantApiBaseUrl('alpha-dashboard.torongo.dev')).toBe(
+      'https://alpha-dashboard.torongo.dev',
     );
   });
   it('suffix is configurable', () => {

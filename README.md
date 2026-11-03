@@ -11,8 +11,7 @@ Built with **pnpm workspaces**. Shared packages keep validation and UI consisten
 ```
 School/
 ├── server/                 # Express API, Prisma, background workers
-├── dashboard/              # Vite + React (admin / teacher / student / super_admin modes)
-├── apps/dashboard-expo/    # Expo (web + Android + iOS) dashboard foundation, in progress
+├── apps/dashboard-expo/    # Expo (web + Android + iOS) dashboard (admin / teacher / student / super_admin)
 ├── client-next/            # Next.js public school website
 ├── client/                 # Legacy public client (Vite)
 ├── workers/
@@ -27,15 +26,11 @@ School/
 
 ### Applications
 
-| App                         | Purpose                                        | Default dev port    |
-| --------------------------- | ---------------------------------------------- | ------------------- |
-| **server**                  | REST API, Prisma, Bull workers, PDF generation | `5000` (see `PORT`) |
-| **dashboard** (admin)       | School admin panel                             | `5174`              |
-| **dashboard** (student)     | Student portal                                 | `5175`              |
-| **dashboard** (teacher)     | Teacher portal                                 | `5176`              |
-| **dashboard** (super_admin) | Platform / multi-school admin                  | `5177`              |
-| **client-next**             | Public institutional website                   | `3000`              |
-| **workers/auth-bff**        | Cookie/session edge worker                     | `8787`              |
+| App                  | Purpose                                        | Default dev port    |
+| -------------------- | ---------------------------------------------- | ------------------- |
+| **server**           | REST API, Prisma, Bull workers, PDF generation | `5000` (see `PORT`) |
+| **client-next**      | Public institutional website                   | `3000`              |
+| **workers/auth-bff** | Cookie/session edge worker                     | `8787`              |
 
 ---
 
@@ -45,9 +40,7 @@ School/
 flowchart LR
   subgraph clients [Clients]
     WEB[client-next Public site]
-    ADM[Dashboard Admin]
-    TCH[Dashboard Teacher]
-    STU[Dashboard Student]
+    APP[dashboard-expo Web + Native]
   end
 
   subgraph edge [Cloudflare Workers]
@@ -68,9 +61,7 @@ flowchart LR
   end
 
   WEB --> TR
-  ADM --> TR
-  TCH --> TR
-  STU --> TR
+  APP --> TR
   TR --> BFF
   BFF --> API
   API --> PG
@@ -160,18 +151,18 @@ Full specification: [`server/docs/marksheet-regeneration.md`](server/docs/marksh
 
 ## Tech stack
 
-| Layer              | Technology                                                              |
-| ------------------ | ----------------------------------------------------------------------- |
-| **Dashboard**      | React 19, Vite, TanStack Query, Tailwind 4, shadcn/Radix, Framer Motion |
-| **Public site**    | Next.js 16, React 19, Tailwind 4                                        |
-| **API**            | Node.js, Express (ESM), TypeScript, Zod                                 |
-| **Database**       | PostgreSQL, Prisma, RLS per school                                      |
-| **Queue**          | Bull, Redis (ioredis)                                                   |
-| **Marksheet PDFs** | PDFKit, pdf-to-img rasterization, hash cache on R2                      |
-| **Other PDFs**     | Puppeteer (admission / registration forms)                              |
-| **Storage**        | Cloudflare R2 (primary), Cloudinary (images)                            |
-| **Edge**           | Cloudflare Workers (tenant routing, auth BFF)                           |
-| **Observability**  | Winston, Sentry (optional)                                              |
+| Layer              | Technology                                                      |
+| ------------------ | --------------------------------------------------------------- |
+| **Dashboard**      | Expo (React Native + web), React 19, TanStack Query, NativeWind |
+| **Public site**    | Next.js 16, React 19, Tailwind 4                                |
+| **API**            | Node.js, Express (ESM), TypeScript, Zod                         |
+| **Database**       | PostgreSQL, Prisma, RLS per school                              |
+| **Queue**          | Bull, Redis (ioredis)                                           |
+| **Marksheet PDFs** | PDFKit, pdf-to-img rasterization, hash cache on R2              |
+| **Other PDFs**     | Puppeteer (admission / registration forms)                      |
+| **Storage**        | Cloudflare R2 (primary), Cloudinary (images)                    |
+| **Edge**           | Cloudflare Workers (tenant routing, auth BFF)                   |
+| **Observability**  | Winston, Sentry (optional)                                      |
 
 ---
 
@@ -196,11 +187,10 @@ pnpm install
 
 Create env files from samples in each app:
 
-| Path                                                                | Purpose                                      |
-| ------------------------------------------------------------------- | -------------------------------------------- |
-| `server/.env`                                                       | Database, JWT, Redis, R2, SMS, Brevo, Sentry |
-| `dashboard/.env.admin` (and `.teacher`, `.student`, `.super_admin`) | API URL, mode-specific config                |
-| `client-next/.env`                                                  | Public site API / analytics                  |
+| Path               | Purpose                                      |
+| ------------------ | -------------------------------------------- |
+| `server/.env`      | Database, JWT, Redis, R2, SMS, Brevo, Sentry |
+| `client-next/.env` | Public site API / analytics                  |
 
 **Server — required**
 
@@ -212,7 +202,7 @@ JWT_SECRET=...
 **Server — auth (optional)**
 
 ```env
-TENANT_HOST_SUFFIX=-dashboard.mutiurrahman.com   # optional, school-code lookup hosts
+TENANT_HOST_SUFFIX=-dashboard.torongo.dev   # optional, school-code lookup hosts
 PLATFORM_ACCESS_CODE=XXX-XXXX                     # optional, opens super-admin sign-in in the app
 ```
 
@@ -255,7 +245,7 @@ pnpm run db:seed
 ./run-all.sh
 ```
 
-Starts server, client-next, shared package watchers, dashboard modes (admin, teacher, super_admin), and auth-bff worker.
+Starts server, client-next, shared package watchers and auth-bff worker.
 
 **Minimal (root package.json):**
 
@@ -267,7 +257,7 @@ pnpm run dev
 
 ```bash
 pnpm run dev:server
-pnpm --filter dashboard dev:admin
+pnpm run dev:dashboard-expo
 pnpm run dev:client-next
 ```
 
@@ -279,7 +269,6 @@ Ensure **Redis is running** before starting the server — the marksheet worker 
 pnpm run build
 # or separately:
 pnpm run build:server
-pnpm run build:dashboard
 pnpm run build:client:core
 ```
 
@@ -314,7 +303,6 @@ pnpm run build:client:core
 | Document                                                                         | Contents                                              |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | [`server/docs/marksheet-regeneration.md`](server/docs/marksheet-regeneration.md) | PDF types, triggers, hashes, worker flow, progress UI |
-| [`dashboard/README.md`](dashboard/README.md)                                     | Dashboard-specific notes                              |
 | [`apps/dashboard-expo/README.md`](apps/dashboard-expo/README.md)                 | Expo dashboard: setup, API client, tenant branding    |
 | [`client-next/README.md`](client-next/README.md)                                 | Public site notes                                     |
 

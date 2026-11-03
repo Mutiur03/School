@@ -10,7 +10,7 @@ const envSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)'),
   /** Signs refresh tokens. Unset = falls back to JWT_SECRET with a startup warning (see docs/native-auth.md). */
-  /** Host suffix for platform-subdomain schools in school-code lookups. Default: `-dashboard.mutiurrahman.com` in production, `.localhost` otherwise. */
+  /** Host suffix for platform-subdomain schools in school-code lookups. Default: `-dashboard.torongo.dev` in production, `.localhost` otherwise. */
   TENANT_HOST_SUFFIX: z.string().optional(),
   /**
    * Platform access code (XXX-XXXX, school-code alphabet). Typed or scanned in the app's school-code

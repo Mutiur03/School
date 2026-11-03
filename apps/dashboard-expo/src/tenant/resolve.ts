@@ -11,7 +11,7 @@
  * 1. Local development: EXPO_PUBLIC_DEV_TENANT_HOST, sent as `x-tenant-host` (honoured by the
  *    backend only when NODE_ENV !== 'production').
  * 2. EXPO_PUBLIC_API_BASE_URL: a build pinned to one school (school codes do not apply).
- * 3. Web, same-origin: the page host, e.g. `<school>-dashboard.mutiurrahman.com` or a custom
+ * 3. Web, same-origin: the page host, e.g. `<school>-dashboard.torongo.dev` or a custom
  *    domain. A super-admin page host (admin.localhost, or this build's super-admin origin) is
  *    platform mode, like the web dashboard: the host decides, through the same BFF. It beats a stored school-code selection so web auth stays on first-party cookies.
  *    A bare localhost / 127.0.0.1 is never a school (the server 404s it).

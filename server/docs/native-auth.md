@@ -25,8 +25,8 @@ This is the only endpoint that runs before a tenant is known. It returns public 
 {
   "school": { "name": "…", "shortName": "…", "logo": "…" },
   "tenant": {
-    "host": "lbp-dashboard.mutiurrahman.com",
-    "apiBaseUrl": "https://lbp-dashboard.mutiurrahman.com"
+    "host": "lbp-dashboard.torongo.dev",
+    "apiBaseUrl": "https://lbp-dashboard.torongo.dev"
   },
   "roleHint": "teacher"
 }
@@ -130,7 +130,7 @@ workers must be deployed for native sign-in through the edge.
 
 | Variable                    | Where    | Notes                                                                                                                                                                                                                                                                                                                        |
 | --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TENANT_HOST_SUFFIX`        | server   | Optional. Host suffix for subdomain schools in lookup results. Defaults to `-dashboard.mutiurrahman.com` in production and `.localhost` otherwise.                                                                                                                                                                           |
+| `TENANT_HOST_SUFFIX`        | server   | Optional. Host suffix for subdomain schools in lookup results. Defaults to `-dashboard.torongo.dev` in production and `.localhost` otherwise.                                                                                                                                                                                |
 | `PLATFORM_ACCESS_CODE`      | server   | Optional. Platform access code that opens super-admin sign-in in the app (see §1). Unset = off. Generate: `node -e "const c=require('crypto'),a='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<7;i++)s+=a[c.randomInt(a.length)];console.log(s.slice(0,3)+'-'+s.slice(3))"`. Rotate by changing it and restarting. |
 | `EXPO_PUBLIC_DIRECTORY_URL` | Expo app | Origin that answers the lookup before a school is chosen. It must reach the server without tenant resolution.                                                                                                                                                                                                                |
 | `EXPO_PUBLIC_API_BASE_URL`  | Expo app | Optional. Pins a build to one school; school codes are then not used.                                                                                                                                                                                                                                                        |
@@ -210,7 +210,7 @@ Everything below is local only: never point it at a shared database.
      names the school with `x-tenant-host`, and outside production the server ignores a bare
      localhost Origin so that header applies.
    - `tenant-router` has no local equivalent: its routes match the production
-     `*-dashboard.mutiurrahman.com` hosts.
+     `*-dashboard.torongo.dev` hosts.
    - Expo SDK 57 dev builds read `EXPO_PUBLIC_*` from the `.env*` files, not from the shell.
 
 5. **Tests against the seeded DB.**

@@ -4,6 +4,7 @@
  * openPdfLoadingTab(); if the browser blocks it anyway the file is downloaded instead.
  * Native: open-pdf.native.ts caches the PDF and opens it in the device's PDF viewer.
  */
+import { openPdfLoadingTab } from '@school/common-ui/blob';
 import { checkPdfBytes } from '@/features/student/marksheet-file';
 import { ApiError } from '@/lib/api/errors';
 import { saveFile } from './save-file';
@@ -15,7 +16,7 @@ export async function openPdf(
   fileName: string,
 ): Promise<OpenPdfResult> {
   if (typeof window === 'undefined') return 'unavailable';
-  const tab = window.open('', '_blank');
+  const tab = openPdfLoadingTab();
   try {
     const bytes = await load();
     const check = checkPdfBytes(new Uint8Array(bytes));
@@ -70,7 +71,7 @@ export async function openRemote(
   _fileName?: string,
 ): Promise<OpenPdfResult> {
   if (typeof window === 'undefined') return 'unavailable';
-  const tab = window.open('', '_blank');
+  const tab = openPdfLoadingTab();
   try {
     const url = await load();
     if (tab) {

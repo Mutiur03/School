@@ -130,10 +130,6 @@ const forwardRequest = (request, targetUrl, headers) =>
   );
 
 const resolveTenantTarget = (hostname, env) => {
-  const dashboardHostSuffix = String(env.DASHBOARD_HOST_SUFFIX || '-dashboard.mutiurrahman.com')
-    .trim()
-    .toLowerCase();
-
   // Comma-separated: the client site is served on several domains.
   const clientSlug = String(env.CLIENT_HOST_SUFFIX || '-school.torongo.dev')
     .split(',')
@@ -156,16 +152,6 @@ const resolveTenantTarget = (hostname, env) => {
     return {
       slug: expoSlug,
       origin: trimTrailingSlash(String(env.EXPO_DASHBOARD_PAGES_ORIGIN).trim()),
-    };
-  }
-
-  const dashboardSlug = getTenantSlug(hostname, dashboardHostSuffix);
-  if (dashboardSlug) {
-    return {
-      slug: dashboardSlug,
-      origin: trimTrailingSlash(
-        String(env.DASHBOARD_PAGES_ORIGIN || 'https://lbp-dashboard.pages.dev').trim(),
-      ),
     };
   }
 

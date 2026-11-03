@@ -26,8 +26,8 @@ Express → Nest migration (strangler fig, same process): Nest is mounted on the
 
 - New modules: Nest only (`server/src/nest/modules/<name>/`). Legacy Express (`server/src/modules/**`) is frozen: bug fixes only, no new routes.
 - Each path lives in exactly one stack. When migrating a module, delete its legacy route, controller and service and unmount the router in `server.ts`, all in the same change.
-- Moving a module = rename its endpoints to REST (see below) and update every frontend caller (`dashboard/`, `client-next/`) in the same change.
-- No alias routes: old paths are removed in the same change and every caller (dashboard, client-next, dashboard-expo, workers) moves with it. Each moved module ships `<module>.http.spec.ts` next to it (see Tests).
+- Moving a module = rename its endpoints to REST (see below) and update every frontend caller (`apps/dashboard-expo/`, `client-next/`) in the same change.
+- No alias routes: old paths are removed in the same change and every caller (client-next, dashboard-expo, workers) moves with it. Each moved module ships `<module>.http.spec.ts` next to it (see Tests).
 - Super-admin routes that must run without a school go under `/api/platform/*` (pre-tenant, see `src/middlewares/pre-tenant-routes.ts`) with `Auth('super_admin')`; never read `@SchoolId()` there.
 
 ### Module layout

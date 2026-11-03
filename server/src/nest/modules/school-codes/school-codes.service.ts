@@ -158,7 +158,7 @@ export class SchoolCodeLookupService {
 
 /**
  * Public host the tenant middleware resolves back to this school: its custom domain, else
- * `<subdomain><TENANT_HOST_SUFFIX>` (default `-dashboard.mutiurrahman.com` in production, served
+ * `<subdomain><TENANT_HOST_SUFFIX>` (default `-dashboard.torongo.dev` in production, served
  * by the tenant-router worker; `.localhost` elsewhere).
  */
 export function tenantHostFor(row: Pick<LookupRow, 'subdomain' | 'custom_domain'>): string | null {
@@ -166,7 +166,7 @@ export function tenantHostFor(row: Pick<LookupRow, 'subdomain' | 'custom_domain'
   if (!row.subdomain) return null;
   const suffix =
     process.env.TENANT_HOST_SUFFIX ||
-    (process.env.NODE_ENV === 'production' ? '-dashboard.mutiurrahman.com' : '.localhost');
+    (process.env.NODE_ENV === 'production' ? '-dashboard.torongo.dev' : '.localhost');
   return `${row.subdomain.toLowerCase()}${suffix}`;
 }
 
