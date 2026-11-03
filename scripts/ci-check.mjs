@@ -19,7 +19,7 @@ const SCOPES = {
     paths: ['dashboard', 'packages/common-ui', 'packages/shared-schemas'],
   },
   'dashboard-expo': {
-    paths: ['apps/dashboard-expo'],
+    paths: ['apps/dashboard-expo', 'packages/common-ui', 'packages/shared-schemas'],
   },
   'auth-bff': {
     paths: ['workers/auth-bff'],
@@ -99,7 +99,7 @@ const BUILD_BEFORE_TYPECHECK = {
   'client-next': ['@school/shared-schemas', '@school/common-ui'],
   dashboard: ['@school/shared-schemas', '@school/common-ui'],
   // Type-only imports of the shared login schemas.
-  'dashboard-expo': ['@school/shared-schemas'],
+  'dashboard-expo': ['@school/shared-schemas', '@school/common-ui'],
 };
 
 for (const pkg of BUILD_BEFORE_TYPECHECK[scope] ?? []) {
