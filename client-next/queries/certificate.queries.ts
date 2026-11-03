@@ -8,9 +8,8 @@ export type CertificateRecord = {
 };
 
 export const getCertificateRecord = async (id: string): Promise<CertificateRecord | null> => {
-  const response = await api.get<{ success: boolean; data: CertificateRecord }>(
-    `/api/certificates/${id}`,
-    { cache: 'no-store' },
-  );
-  return response.data?.data ?? null;
+  const response = await api.get<CertificateRecord>(`/api/certificates/${id}`, {
+    cache: 'no-store',
+  });
+  return response.data ?? null;
 };
