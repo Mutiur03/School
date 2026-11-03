@@ -20,7 +20,14 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { Download, FileText, Info } from '@/components/ui/icons';
-import { ScrollView } from '@/components/ui/ScrollView';
+import {
+  StickyTable,
+  frozenEdge,
+  frozenEdgeEnd,
+  stickyCell,
+  stickyEnd,
+  stickyHeader,
+} from '@/components/ui/StickyTable';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Select } from '@/components/ui/Select';
@@ -217,7 +224,6 @@ export function ClassResultsScreen() {
       <View className="flex-row flex-wrap items-center gap-2">
         <Select
           label="Year"
-          size="sm"
           value={year}
           options={narrowYears(sessionYears(allExams, CURRENT_YEAR), scope, CURRENT_YEAR).map(
             (y) => ({
@@ -235,7 +241,6 @@ export function ClassResultsScreen() {
         />
         <Select
           label="Exam"
-          size="sm"
           value={exam || null}
           placeholder="Select exam"
           disabled={unassigned}
@@ -250,7 +255,6 @@ export function ClassResultsScreen() {
         />
         <Select
           label="Class"
-          size="sm"
           value={cls}
           placeholder="Select class"
           disabled={!exam}
@@ -267,7 +271,6 @@ export function ClassResultsScreen() {
         />
         <Select
           label="Section"
-          size="sm"
           value={section}
           disabled={!ready || sections.length === 0}
           options={[
@@ -278,7 +281,6 @@ export function ClassResultsScreen() {
         />
         <Select
           label="Group"
-          size="sm"
           value={group}
           disabled={!ready || table.groups.length === 0}
           options={[
@@ -359,53 +361,69 @@ export function ClassResultsScreen() {
               );
             })
           ) : (
-            <ScrollView horizontal contentContainerClassName="min-w-full">
+            <StickyTable testID="results-table">
               <View className="flex-1">
-                <View className="bg-muted border-border flex-row items-center border-b px-3 py-2.5">
-                  <Text size="xs" weight="semibold" className="w-16 uppercase text-gray-700">
-                    Roll
-                  </Text>
-                  <Text
-                    size="xs"
-                    weight="semibold"
-                    className="min-w-[224px] flex-1 uppercase text-gray-700"
+                <View
+                  className="bg-muted border-border flex-row items-stretch border-b"
+                  style={stickyHeader}
+                >
+                  <View
+                    className="bg-muted w-16 justify-center px-3 py-2.5"
+                    style={stickyCell(0, true)}
                   >
-                    Student
-                  </Text>
-                  {table.subjects.map((s) => (
-                    <Text
-                      key={s}
-                      size="xs"
-                      weight="semibold"
-                      numberOfLines={2}
-                      className="w-24 px-1 text-center text-gray-700"
-                    >
-                      {s}
+                    <Text size="xs" weight="semibold" className="uppercase text-gray-700">
+                      Roll
                     </Text>
+                  </View>
+                  <View
+                    className="bg-muted min-w-[224px] flex-1 justify-center px-3 py-2.5"
+                    style={[stickyCell(64, true), frozenEdge]}
+                  >
+                    <Text size="xs" weight="semibold" className="uppercase text-gray-700">
+                      Student
+                    </Text>
+                  </View>
+                  {table.subjects.map((s) => (
+                    <View key={s} className="w-24 justify-center px-1 py-2.5">
+                      <Text
+                        size="xs"
+                        weight="semibold"
+                        numberOfLines={2}
+                        className="text-center text-gray-700"
+                      >
+                        {s}
+                      </Text>
+                    </View>
                   ))}
-                  <View className="w-20" />
+                  <View className="bg-muted w-20 py-2.5" style={[stickyEnd(true), frozenEdgeEnd]} />
                 </View>
                 {table.shown.map((r) => {
                   const by = marksBySubject(r);
                   return (
                     <View
                       key={r.student_id}
-                      className="border-border bg-card flex-row items-center border-b px-3 py-1.5"
+                      className="border-border bg-card flex-row items-stretch border-b"
                     >
-                      <Text size="sm" tabular className="w-16">
-                        {section ? r.roll : `${r.section || '—'}-${r.roll}`}
-                      </Text>
+                      <View
+                        className="bg-card w-16 justify-center px-3 py-2.5"
+                        style={stickyCell(0)}
+                      >
+                        <Text size="sm" tabular>
+                          {section ? r.roll : `${r.section || '—'}-${r.roll}`}
+                        </Text>
+                      </View>
                       <Pressable
                         onPress={() => setSelected(r)}
                         accessibilityRole="button"
-                        className="min-w-[224px] flex-1 pr-2"
+                        className="bg-card min-w-[224px] flex-1 justify-center px-3 py-2.5"
+                        style={[stickyCell(64), frozenEdge]}
                       >
                         <Text size="sm" weight="medium" numberOfLines={1}>
                           {r.name}
                         </Text>
                       </Pressable>
                       {table.subjects.map((s) => (
-                        <View key={s} className="w-24 items-center">
+                        <View key={s} className="w-24 items-center justify-center">
                           {by[s] === null || by[s] === undefined ? (
                             <Dash />
                           ) : (
@@ -415,7 +433,10 @@ export function ClassResultsScreen() {
                           )}
                         </View>
                       ))}
-                      <View className="w-20 flex-row justify-end gap-0.5">
+                      <View
+                        className="bg-card w-20 flex-row items-center justify-end gap-0.5 px-1"
+                        style={[stickyEnd(), frozenEdgeEnd]}
+                      >
                         <ActionButton
                           icon={Info}
                           label={`Details for ${r.name}`}
@@ -433,7 +454,7 @@ export function ClassResultsScreen() {
                   );
                 })}
               </View>
-            </ScrollView>
+            </StickyTable>
           )}
         </SectionCard>
       )}

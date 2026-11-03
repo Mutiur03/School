@@ -60,7 +60,7 @@ import {
   UserMinus,
   XIcon,
 } from '@/components/ui/icons';
-import { PickFilesButton } from '@/components/ui/FilePicker';
+import { PhotoField } from '@/components/ui/PhotoField';
 import { Pagination } from '@/components/ui/Pagination';
 import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -220,51 +220,24 @@ function StudentForm({
     >
       <FormSection title="Personal">
         {!editing && onNewPhoto ? (
-          <View className="flex-row flex-wrap items-center gap-2" testID="student-form-new-photo">
-            <PickFilesButton
-              accept="image/*"
-              variant="outline"
-              size="sm"
-              label={newPhoto ? 'Change photo' : 'Add photo (optional)'}
-              disabled={busy}
-              onPick={(files) => files[0] && onNewPhoto(files[0])}
-            />
-            {newPhoto ? (
-              <>
-                <Text size="xs" color="mutedForeground" numberOfLines={1} className="max-w-48">
-                  {newPhoto.name}
-                </Text>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  label="Remove"
-                  disabled={busy}
-                  onPress={() => onNewPhoto(null)}
-                />
-              </>
-            ) : null}
-          </View>
+          <PhotoField
+            picked={newPhoto}
+            onPick={onNewPhoto}
+            onRemove={() => onNewPhoto(null)}
+            busy={busy}
+            hint="Optional. Saved right after the student is added."
+            testID="student-form-new-photo"
+          />
         ) : null}
         {editing && onPhoto ? (
-          <View className="flex-row flex-wrap items-center gap-2" testID="student-form-photo">
-            <PickFilesButton
-              accept="image/*"
-              variant="outline"
-              size="sm"
-              label={photoBusy ? 'Saving…' : editing.image ? 'Change photo' : 'Upload photo'}
-              disabled={photoBusy}
-              onPick={(files) => files[0] && onPhoto(files[0])}
-            />
-            {editing.image ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                label="Remove photo"
-                disabled={photoBusy}
-                onPress={() => onPhoto(null)}
-              />
-            ) : null}
-          </View>
+          <PhotoField
+            url={fileUrl(editing.image)}
+            onPick={onPhoto}
+            onRemove={() => onPhoto(null)}
+            busy={photoBusy}
+            hint="Uploads and removals apply right away."
+            testID="student-form-photo"
+          />
         ) : null}
         <FieldRow>
           <TextField
@@ -901,7 +874,6 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
       titleAccessory={
         <Select
           label="Session year"
-          size="sm"
           value={year}
           onChange={setYear}
           options={YEARS.map((y) => ({ value: y, label: `Session ${y}` }))}
@@ -1190,30 +1162,20 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
           <StudentAttendancePanel key={viewing.id} studentId={viewing.id} initialYear={year} />
         ) : null}
         {viewing && viewTab === 'profile' && !readOnly ? (
-          <View className="mb-4 flex-row flex-wrap items-center gap-2">
-            <PickFilesButton
-              accept="image/*"
-              variant="outline"
-              size="sm"
-              label={photo.isPending ? 'Saving…' : viewing.image ? 'Change photo' : 'Upload photo'}
-              disabled={photo.isPending}
-              onPick={(files) => files[0] && photo.mutate({ id: viewing.id, file: files[0] })}
+          <View className="mb-4">
+            <PhotoField
+              url={fileUrl(viewing.image)}
+              onPick={(file) => photo.mutate({ id: viewing.id, file })}
+              onRemove={() => photo.mutate({ id: viewing.id, file: null })}
+              busy={photo.isPending}
+              hint="JPG or PNG. Uploads and removals apply right away."
               testID="student-photo"
             />
-            {viewing.image ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                label="Remove photo"
-                disabled={photo.isPending}
-                onPress={() => photo.mutate({ id: viewing.id, file: null })}
-              />
-            ) : null}
           </View>
         ) : null}
         {viewing && viewTab === 'profile' ? (
           <View className="mb-4 flex-row items-center gap-3">
-            {fileUrl(viewing.image) ? (
+            {readOnly && fileUrl(viewing.image) ? (
               <Image
                 source={{ uri: fileUrl(viewing.image)! }}
                 accessibilityLabel={`Photo of ${viewing.name}`}

@@ -19,7 +19,6 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Field } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
 import { ExternalLink, Pencil, Trash2, Upload } from '@/components/ui/icons';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
@@ -214,7 +213,6 @@ export function AdmissionResultScreen() {
       titleAccessory={
         <Select
           label="Admission year"
-          size="sm"
           value={year}
           options={resultYearOptions(all, base, year).map((y) => ({ value: y, label: String(y) }))}
           onChange={setPicked}
@@ -306,15 +304,12 @@ export function AdmissionResultScreen() {
                 </Field>
               </View>
               <View className="min-w-[140px] flex-1">
-                <Field label="Admission year" required>
-                  <Input
-                    value={form.year}
-                    onChangeText={(y) =>
-                      setForm({ ...form, year: y.replace(/\D/g, '').slice(0, 4) })
-                    }
-                    keyboardType="number-pad"
-                    accessibilityLabel="Admission year"
-                  />
+                <Field label="Admission year">
+                  <View className="min-h-10 justify-center" testID="result-form-year">
+                    <Text weight="medium" tabular>
+                      {form.year}
+                    </Text>
+                  </View>
                 </Field>
               </View>
             </View>

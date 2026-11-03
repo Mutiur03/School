@@ -206,13 +206,13 @@ export const ADMIN_NAV: readonly NavEntry[] = [
       '/admin/registration/class-9',
       '/registration/class-9',
     ),
-    // Not in the web sidebar (the web route exists); listed so phones can reach it.
-    leaf(
-      'jse-registration',
-      'Junior Scholarship',
-      '/admin/registration/junior-scholarship',
-      '/registration/junior-scholarship',
-    ),
+    // Hidden for now (route and screen still exist). Not in the web sidebar either.
+    // leaf(
+    //   'jse-registration',
+    //   'Junior Scholarship',
+    //   '/admin/registration/junior-scholarship',
+    //   '/registration/junior-scholarship',
+    // ),
   ]),
   group(
     'fees',

@@ -17,6 +17,8 @@ import { PageLayout } from '@/components/layout/PageLayout';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { controlClassName, controlFrameStyle, useControlTouch } from '@/components/ui/control';
+import { useTheme } from '@/theme/ThemeProvider';
 import { useToast } from '@/components/ui/Toast';
 import { useLeaveGuard } from '@/navigation/LeaveGuard';
 import { openPdf } from '@/lib/files/open-pdf';
@@ -34,6 +36,7 @@ import {
   XIcon,
 } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { StickyTable, frozenEdge, stickyCell, stickyHeader } from '@/components/ui/StickyTable';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -112,61 +115,6 @@ function Stat({ label, value, dot }: { label: string; value: number; dot?: strin
       <Text size="xl" weight="semibold" tabular className="mt-0.5">
         {value.toLocaleString()}
       </Text>
-    </View>
-  );
-}
-
-/** Web <select> stand-in: a row of chips (few options, large touch targets on phones). */
-function ChipSelect<T extends string | number>({
-  label,
-  options,
-  value,
-  onChange,
-  format,
-  disabled,
-  big,
-}: {
-  label: string;
-  options: readonly T[];
-  value: T | null;
-  onChange: (v: T) => void;
-  format: (v: T) => string;
-  disabled?: boolean;
-  big?: boolean;
-}) {
-  return (
-    <View
-      accessibilityRole="radiogroup"
-      accessibilityLabel={label}
-      className={cn(
-        'border-control flex-row items-center gap-0.5 rounded-md border p-0.5',
-        disabled && 'opacity-50',
-      )}
-    >
-      {options.map((o) => {
-        const on = o === value;
-        return (
-          <Pressable
-            key={String(o)}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: on, disabled }}
-            aria-checked={on}
-            accessibilityLabel={format(o)}
-            testID={`att-${label.toLowerCase()}-${o}`}
-            disabled={disabled}
-            onPress={() => onChange(o)}
-            className={cn(
-              'items-center justify-center rounded-sm px-2.5',
-              big ? 'h-10 min-w-10' : 'h-7',
-              on ? 'bg-primary' : 'hover:bg-muted active:bg-muted',
-            )}
-          >
-            <Text size="sm" weight="medium" color={on ? 'primaryForeground' : 'foreground'} tabular>
-              {format(o)}
-            </Text>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
@@ -269,6 +217,10 @@ function PresentToggle({
 }
 
 export function AttendanceScreen() {
+  const { colors } = useTheme();
+  const touch = useControlTouch();
+  // Same frame (height, border, radius) as the Class / Section / Year dropdowns beside it.
+  const monthControl = { size: 'md', touch } as const;
   const mobile = useBreakpoint() === 'mobile';
   const { attendance } = useApi();
   const { resolution } = useTenant();
@@ -600,15 +552,18 @@ export function AttendanceScreen() {
           ))}
     </View>
   ) : (
-    <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }} testID="att-table">
+    <StickyTable testID="att-table">
       <View className="min-w-full">
-        <View className="bg-muted border-border flex-row border-b">
-          <View className="w-16 px-3 py-2.5">
+        <View className="bg-muted border-border flex-row border-b" style={stickyHeader}>
+          <View className="bg-muted w-16 justify-center px-3 py-2.5" style={stickyCell(0, true)}>
             <Text size="xs" weight="semibold" caps className="text-foreground/70">
               Roll
             </Text>
           </View>
-          <View className="w-56 px-3 py-2.5">
+          <View
+            className="bg-muted w-56 justify-center px-3 py-2.5"
+            style={[stickyCell(64, true), frozenEdge]}
+          >
             <Text size="xs" weight="semibold" caps className="text-foreground/70">
               Student
             </Text>
@@ -659,12 +614,18 @@ export function AttendanceScreen() {
                   i > 0 && 'border-border border-t',
                 )}
               >
-                <View className="w-16 px-3 py-2">
+                <View
+                  className="bg-card w-16 justify-center self-stretch px-3 py-2"
+                  style={stickyCell(0)}
+                >
                   <Text size="sm" tabular color={s.available ? undefined : 'mutedForeground'}>
                     {s.roll}
                   </Text>
                 </View>
-                <View className="w-56 flex-row items-center gap-2 px-3 py-2">
+                <View
+                  className="bg-card w-56 flex-row items-center gap-2 self-stretch px-3 py-2"
+                  style={[stickyCell(64), frozenEdge]}
+                >
                   <Text
                     size="sm"
                     weight="medium"
@@ -704,7 +665,7 @@ export function AttendanceScreen() {
               </View>
             ))}
       </View>
-    </ScrollView>
+    </StickyTable>
   );
 
   const noticeBox = notice ? (
@@ -750,31 +711,32 @@ export function AttendanceScreen() {
           </>
         }
       >
-        <View className="-mt-4 flex-row flex-wrap items-center gap-2">
-          <ChipSelect
+        <View className="-mt-4 flex-row flex-wrap items-end gap-2">
+          <Select
             label="Class"
-            options={ATTENDANCE_CLASSES}
+            placeholder="Select class"
             value={level}
+            options={ATTENDANCE_CLASSES.map((c) => ({ value: c, label: `Class ${c}` }))}
             onChange={(v) => void changeLevel(v)}
-            format={(c) => (mobile ? String(c) : `Class ${c}`)}
-            big={mobile}
+            testID="att-class"
           />
-          <ChipSelect
+          <Select
             label="Section"
-            options={ATTENDANCE_SECTIONS}
+            placeholder="Select section"
             value={section}
+            options={ATTENDANCE_SECTIONS.map((x) => ({ value: x, label: `Section ${x}` }))}
             onChange={(v) => void changeSection(v)}
-            format={(s) => (mobile ? s : `Section ${s}`)}
             disabled={!level}
-            big={mobile}
+            testID="att-section"
           />
           <View
             accessibilityLabel="Month"
-            className="border-control flex-row items-center rounded-md border"
+            className={cn('flex-row items-center', controlClassName(monthControl))}
+            style={controlFrameStyle(colors, monthControl)}
           >
             <Button
               variant="ghost"
-              size={mobile ? 'icon' : 'icon-sm'}
+              size={touch ? 'icon' : 'icon-sm'}
               icon={ChevronLeft}
               accessibilityLabel="Previous month"
               onPress={() => void stepMonth(-1)}
@@ -790,7 +752,7 @@ export function AttendanceScreen() {
             </Text>
             <Button
               variant="ghost"
-              size={mobile ? 'icon' : 'icon-sm'}
+              size={touch ? 'icon' : 'icon-sm'}
               icon={ChevronRight}
               accessibilityLabel="Next month"
               onPress={() => void stepMonth(1)}
@@ -798,7 +760,6 @@ export function AttendanceScreen() {
           </View>
           <Select
             label="Year"
-            size="sm"
             value={year}
             options={[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => ({
               value: y,

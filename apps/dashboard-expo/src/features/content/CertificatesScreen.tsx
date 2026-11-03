@@ -14,7 +14,7 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { headerSortValue, parseSortValue, withSortOption } from '@/components/ui/table-sort';
+import { headerSortValue, parseSortValue } from '@/components/ui/table-sort';
 import { Dialog } from '@/components/ui/Dialog';
 import { Eye, FileText, Trash2, XIcon } from '@/components/ui/icons';
 import { MultiSelect } from '@/components/ui/MultiSelect';
@@ -47,23 +47,6 @@ import { DetailGrid, useFileTasks } from './ui';
 
 type EditFilter = 'edited' | 'never';
 const SORT_KEYS = ['name', 'exam', 'year', 'mobile', 'updated', 'edits'] as const;
-const SORT_LABELS: Record<string, string> = {
-  name: 'Name',
-  exam: 'Exam',
-  year: 'Year',
-  mobile: 'Mobile',
-  updated: 'Last updated',
-  edits: 'Edits',
-};
-const SORTS: { value: string; label: string }[] = [
-  { value: 'updated:desc', label: 'Last updated (newest)' },
-  { value: 'updated:asc', label: 'Last updated (oldest)' },
-  { value: 'name:asc', label: 'Name (A–Z)' },
-  { value: 'name:desc', label: 'Name (Z–A)' },
-  { value: 'year:desc', label: 'Year (newest)' },
-  { value: 'edits:desc', label: 'Most edited' },
-];
-
 export function CertificatesScreen() {
   const { certificates } = useApi();
   const { resolution } = useTenant();
@@ -272,7 +255,6 @@ export function CertificatesScreen() {
         </View>
         <MultiSelect
           label="Exam"
-          size="sm"
           value={exam}
           options={examOptions}
           onChange={reset(setExam)}
@@ -281,7 +263,6 @@ export function CertificatesScreen() {
         />
         <MultiSelect
           label="Year"
-          size="sm"
           value={year}
           options={yearOptions}
           onChange={reset(setYear)}
@@ -289,7 +270,6 @@ export function CertificatesScreen() {
         />
         <MultiSelect
           label="Status"
-          size="sm"
           value={status}
           options={[
             { value: 'pending', label: 'Pending' },
@@ -301,7 +281,6 @@ export function CertificatesScreen() {
         />
         <MultiSelect
           label="Edits"
-          size="sm"
           value={edits}
           options={[
             { value: 'edited', label: 'Edited' },
@@ -309,13 +288,6 @@ export function CertificatesScreen() {
           ]}
           onChange={reset(setEdits)}
           allLabel="Any edits"
-        />
-        <Select
-          label="Sort"
-          size="sm"
-          value={sort}
-          options={withSortOption(SORTS, sort, SORT_LABELS)}
-          onChange={reset(setSort)}
         />
         {filtersActive ? (
           <Button variant="ghost" size="sm" icon={XIcon} label="Clear filters" onPress={clear} />
@@ -371,7 +343,6 @@ export function CertificatesScreen() {
           <View className="flex-row flex-wrap items-center justify-between gap-2">
             <Select
               label="Rows per page"
-              size="sm"
               value={limit}
               options={[50, 100, 200].map((n) => ({ value: n, label: `${n} / page` }))}
               onChange={reset(setLimit)}

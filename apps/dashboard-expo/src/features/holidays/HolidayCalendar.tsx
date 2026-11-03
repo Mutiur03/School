@@ -6,12 +6,12 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { Icon } from '@/components/ui/Icon';
-import { CalendarDays, Pencil } from '@/components/ui/icons';
+import { Icon, type LucideIcon } from '@/components/ui/Icon';
+import { ChevronLeft, ChevronRight, Pencil } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Text } from '@/components/ui/Text';
-import { MonthStepper } from '@/features/student/components';
-import { calendarCells, formatDate, MONTHS, WEEKDAYS } from '@/features/student/format';
+import { formatDate, MONTHS } from '@/features/student/format';
+import { useTheme } from '@/theme/ThemeProvider';
 import type { Holiday } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { formatRange, holidayDaysInMonth, holidaysOn } from './model';
@@ -35,7 +35,8 @@ export function HolidayCalendar({
   const [month, setMonth] = useState(now.getFullYear() === year ? now.getMonth() : 0);
   const [picked, setPicked] = useState<string | null>(null);
   const days = useMemo(() => holidayDaysInMonth(holidays, year, month), [holidays, year, month]);
-  const cells = calendarCells(year, month);
+  const { shadows } = useTheme();
+  const cells = gridCells(year, month);
   const pickedList = picked ? holidaysOn(holidays, picked) : [];
 
   const step = (delta: number) => {
@@ -52,24 +53,25 @@ export function HolidayCalendar({
   return (
     <SectionCard
       title="Calendar"
-      description={`${days.size} holiday ${days.size === 1 ? 'day' : 'days'} in ${MONTHS[month]}`}
-      icon={<Icon icon={CalendarDays} size={20} color="primary" />}
+      description="Pick a date to see its holidays."
       testID="holiday-calendar"
     >
-      <View className="mb-3 flex-row justify-end">
-        <MonthStepper month={month} year={year} onStep={step} />
-      </View>
-      <View className="border-border overflow-hidden rounded-xl border">
-        <View className="border-border bg-muted/40 flex-row border-b">
-          {WEEKDAYS.map((d) => (
+      {/* The web's Calendar: bordered arrows, centred month, 7-column grid, red holiday days. */}
+      <View
+        className="bg-card mx-auto w-full max-w-xs rounded-lg p-5"
+        style={{ boxShadow: shadows.popover }}
+      >
+        <View className="flex-row items-center justify-between p-4">
+          <StepButton icon={ChevronLeft} label="Previous month" onPress={() => step(-1)} />
+          <Text weight="medium" testID="month-label">
+            {MONTHS[month]} {year}
+          </Text>
+          <StepButton icon={ChevronRight} label="Next month" onPress={() => step(1)} />
+        </View>
+        <View className="flex-row">
+          {SHORT_DAYS.map((d) => (
             <View key={d} className="flex-1 items-center py-2">
-              <Text
-                size="xs"
-                weight="semibold"
-                caps
-                color="mutedForeground"
-                className="text-[11px]"
-              >
+              <Text size="sm" weight="medium" className="text-gray-400">
                 {d}
               </Text>
             </View>
@@ -77,9 +79,19 @@ export function HolidayCalendar({
         </View>
         <View className="flex-row flex-wrap p-2">
           {cells.map((cell, i) => {
-            if (!cell) return <View key={`e${i}`} className="h-11 w-[14.2857%]" />;
+            const weekend = i % 7 >= 5;
+            if (!cell.date) {
+              return (
+                <View key={`o${i}`} className="w-[14.2857%] p-0.5">
+                  <View className="h-9 items-center justify-center">
+                    <Text size="sm" className="text-gray-400">
+                      {cell.day}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
             const on = days.has(cell.date);
-            const optional = on && holidaysOn(holidays, cell.date).every((h) => h.is_optional);
             return (
               <View key={cell.date} className="w-[14.2857%] p-0.5">
                 <Pressable
@@ -88,22 +100,18 @@ export function HolidayCalendar({
                   accessibilityLabel={`${cell.day} ${MONTHS[month]}${on ? ': holiday' : ''}`}
                   testID={`holiday-cal-${cell.day}`}
                   className={cn(
-                    'h-11 items-center justify-center rounded-md border hover:opacity-80',
+                    'h-9 items-center justify-center rounded-lg',
                     on
-                      ? optional
-                        ? 'border-amber-200 bg-amber-50'
-                        : 'border-red-200 bg-red-50'
-                      : 'border-border/60 bg-background',
-                    cell.date === today && 'border-primary border-2',
+                      ? 'bg-red-500 hover:bg-red-600'
+                      : cell.date === today
+                        ? 'bg-gray-200'
+                        : 'hover:bg-gray-200',
                   )}
                 >
                   <Text
                     size="sm"
-                    weight={on ? 'semibold' : 'regular'}
                     tabular
-                    className={
-                      on ? (optional ? 'text-amber-700' : 'text-red-700') : 'text-foreground'
-                    }
+                    className={on ? 'text-white' : weekend ? 'text-red-500' : undefined}
                   >
                     {cell.day}
                   </Text>
@@ -112,10 +120,6 @@ export function HolidayCalendar({
             );
           })}
         </View>
-      </View>
-      <View className="mt-3 flex-row flex-wrap gap-4">
-        <Legend dot="bg-red-500" label="Holiday" />
-        <Legend dot="bg-amber-500" label="Optional" />
       </View>
 
       <Dialog
@@ -166,13 +170,42 @@ export function HolidayCalendar({
   );
 }
 
-function Legend({ dot, label }: { dot: string; label: string }) {
+const SHORT_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
+
+/** Whole weeks (Sunday first); days outside the month carry no date so they are not pressable. */
+function gridCells(year: number, month: number) {
+  const first = new Date(year, month, 1).getDay();
+  const count = new Date(year, month + 1, 0).getDate();
+  const prevCount = new Date(year, month, 0).getDate();
+  const out: { day: number; date: string | null }[] = [];
+  for (let i = first - 1; i >= 0; i--) out.push({ day: prevCount - i, date: null });
+  for (let d = 1; d <= count; d++) {
+    out.push({
+      day: d,
+      date: `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+    });
+  }
+  for (let d = 1; out.length % 7 !== 0; d++) out.push({ day: d, date: null });
+  return out;
+}
+
+function StepButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <View className="flex-row items-center gap-1.5">
-      <View className={cn('h-2 w-2 rounded-full', dot)} />
-      <Text size="xs" color="mutedForeground">
-        {label}
-      </Text>
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      className="border-border rounded-lg border p-1.5 hover:bg-gray-300"
+    >
+      <Icon icon={icon} size={16} color="mutedForeground" />
+    </Pressable>
   );
 }

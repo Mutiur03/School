@@ -33,6 +33,8 @@ import {
   XIcon,
 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
+import { usePreview } from '@/components/ui/PhotoField';
+import { cn } from '@/lib/utils';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Select } from '@/components/ui/Select';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states';
@@ -94,10 +96,23 @@ function TileAction({
       accessibilityLabel={label}
       onPress={onPress}
       hitSlop={4}
-      className="h-6 w-6 items-center justify-center rounded bg-white/90 active:opacity-70"
+      className="h-7 w-7 items-center justify-center rounded-md bg-white/95 active:opacity-70"
     >
       <Icon icon={icon} size={14} />
     </Pressable>
+  );
+}
+
+/** Picked photo as a small square with a remove button. */
+function UploadThumb({ file, onRemove }: { file: PickedFile; onRemove: () => void }) {
+  const src = usePreview(file);
+  return (
+    <View className="bg-muted border-border h-20 w-20 overflow-hidden rounded-lg border">
+      {src ? <Image source={{ uri: src }} className="h-full w-full" resizeMode="cover" /> : null}
+      <View className="absolute right-1 top-1">
+        <TileAction icon={XIcon} label={`Remove ${file.name}`} onPress={onRemove} />
+      </View>
+    </View>
   );
 }
 
@@ -371,12 +386,17 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                     <View style={{ transform: [{ rotate: folded[g.id] ? '-90deg' : '0deg' }] }}>
                       <Icon icon={ChevronDown} size={18} color="mutedForeground" />
                     </View>
-                    <Text weight="semibold" numberOfLines={1} className="shrink">
-                      {g.title}
-                    </Text>
-                    <Text size="xs" color="mutedForeground">
-                      {`${g.kind === 'event' ? 'Event' : 'Category'} · ${plural(g.images.length, 'photo')}`}
-                    </Text>
+                    <View className="min-w-0 shrink">
+                      <Text weight="semibold" numberOfLines={1}>
+                        {g.title}
+                      </Text>
+                      <Text size="xs" color="mutedForeground" numberOfLines={1}>
+                        {`${g.kind === 'event' ? 'Event' : 'Category'} · ${plural(g.images.length, 'photo')}`}
+                        {gIds.some((id) => selected.has(id))
+                          ? ` · ${gIds.filter((id) => selected.has(id)).length} selected`
+                          : ''}
+                      </Text>
+                    </View>
                   </Pressable>
                   <Checkbox
                     checked={allOn}
@@ -390,30 +410,48 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                     {g.images.map((img, index) => {
                       const on = selected.has(img.id);
                       return (
-                        <View key={img.id} className="h-28 w-28 md:h-36 md:w-36">
+                        <View
+                          key={img.id}
+                          className="group aspect-square w-[48.5%] md:w-[24%] xl:w-[15.8%]"
+                        >
                           <Pressable
                             accessibilityRole="imagebutton"
                             accessibilityLabel={img.caption || `Photo ${index + 1} in ${g.title}`}
                             onPress={() => setViewer({ group: g.id, index })}
-                            className={`bg-muted h-full w-full overflow-hidden rounded-lg border-2 ${on ? 'border-primary' : 'border-transparent'}`}
+                            className={cn(
+                              'bg-muted h-full w-full overflow-hidden rounded-xl border-2',
+                              on ? 'border-primary' : 'border-transparent',
+                            )}
                           >
                             <Image
                               source={{ uri: fileUrl(img.key) ?? undefined }}
-                              className="h-full w-full"
+                              className={cn('h-full w-full', on && 'opacity-80')}
                               resizeMode="cover"
                             />
-                            <View className="absolute inset-x-0 bottom-0 bg-black/55 px-1.5 py-1">
-                              <Text size="xs" numberOfLines={1} className="text-white">
+                            <View className="absolute inset-x-0 bottom-0 bg-black/50 px-2 pb-1.5 pt-3">
+                              <Text
+                                size="xs"
+                                weight="medium"
+                                numberOfLines={1}
+                                className="text-white"
+                              >
                                 {mode === 'approved'
                                   ? img.caption || img.studentName || uploader(img)
                                   : uploader(img)}
                               </Text>
-                              <Text size="xs" numberOfLines={1} className="text-white/80">
+                              <Text size="xs" numberOfLines={1} className="text-white/75">
                                 {dateTimeOf(img.createdAt)}
                               </Text>
                             </View>
                           </Pressable>
-                          <View className="absolute right-1 top-1 gap-1">
+                          {/* Desktop: actions appear on hover or keyboard focus; touch keeps them visible. */}
+                          <View
+                            className={cn(
+                              'absolute right-1.5 top-1.5 gap-1.5',
+                              Platform.OS === 'web' &&
+                                'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100',
+                            )}
+                          >
                             {mode === 'approved' ? (
                               <TileAction
                                 icon={Pencil}
@@ -435,7 +473,15 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                               }
                             />
                           </View>
-                          <View className="absolute left-1.5 top-1.5 rounded bg-white/90">
+                          <View
+                            className={cn(
+                              'absolute left-1.5 top-1.5 rounded-md bg-white/95',
+                              Platform.OS === 'web' &&
+                                !on &&
+                                !selected.size &&
+                                'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100',
+                            )}
+                          >
                             <Checkbox
                               checked={on}
                               onChange={() =>
@@ -542,7 +588,7 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
       >
         {current ? (
           <>
-            <View className="bg-muted aspect-[4/3] w-full overflow-hidden rounded-lg">
+            <View className="aspect-[4/3] w-full overflow-hidden rounded-lg bg-neutral-900">
               <Image
                 source={{ uri: fileUrl(current.key) ?? undefined }}
                 className="h-full w-full"
@@ -617,23 +663,13 @@ export function GalleryScreen({ mode }: { mode: GalleryStatus }) {
                   {form.files.length ? (
                     <View className="flex-row flex-wrap gap-2">
                       {form.files.map((f, i) => (
-                        <View
+                        <UploadThumb
                           key={`${f.name}-${i}`}
-                          className="border-border flex-row items-center gap-1 rounded-md border px-2 py-1"
-                        >
-                          <Text size="xs" numberOfLines={1} className="max-w-40">
-                            {f.name}
-                          </Text>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            icon={XIcon}
-                            accessibilityLabel={`Remove ${f.name}`}
-                            onPress={() =>
-                              setForm({ ...form, files: form.files.filter((_, j) => j !== i) })
-                            }
-                          />
-                        </View>
+                          file={f}
+                          onRemove={() =>
+                            setForm({ ...form, files: form.files.filter((_, j) => j !== i) })
+                          }
+                        />
                       ))}
                     </View>
                   ) : null}

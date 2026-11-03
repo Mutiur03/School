@@ -367,7 +367,6 @@ export default function ExamsScreen() {
       titleAccessory={
         <Select
           label="Session"
-          size="sm"
           value={year}
           onChange={setYear}
           options={examYearOptions(all, CURRENT_YEAR).map((y) => ({ value: y, label: String(y) }))}
@@ -439,14 +438,12 @@ export default function ExamsScreen() {
           <View className="flex-row flex-wrap items-center gap-2">
             <Select
               label="Status"
-              size="sm"
               value={status}
               options={EXAM_STATUS_OPTIONS}
               onChange={setStatus}
             />
             <Select
               label="Class"
-              size="sm"
               value={cls ?? 0}
               options={[
                 { value: 0, label: 'All classes' },

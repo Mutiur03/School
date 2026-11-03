@@ -2,14 +2,15 @@
  * Holidays, replicating dashboard/src/pages/Admin/Holidays.tsx: title + Year selector, "N
  * holidays · N days off in YYYY", Add holiday, a 4-up stats strip, the holiday table (Holiday /
  * Dates / Days / Type / actions) and the add/edit dialog (title, dates, description, Optional).
- * Below the table, the month calendar (holiday days highlighted; press a date for its holidays).
+ * Beside the table (below it on narrow screens), the month calendar (holiday days in red; press a
+ * date for its holidays).
  * Live data: GET/POST/PATCH/DELETE /api/holidays.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
-import { ActionButton } from '@/components/ui/ActionButton';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -18,10 +19,8 @@ import { sortRows, type TableSort } from '@/components/ui/table-sort';
 import { DateInput } from '@/components/ui/DateInput';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
-import { Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
+import { Pencil, Plus, Trash2 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/Input';
-import { MultiSelect } from '@/components/ui/MultiSelect';
-import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { Stat, StatStrip } from '@/components/ui/StatStrip';
 import { ErrorState } from '@/components/ui/states';
@@ -37,8 +36,6 @@ import {
   todayYmd,
   validateHoliday,
   yearOptions,
-  filterHolidays,
-  type HolidayType,
 } from '@/features/holidays/model';
 import type { Holiday, HolidayInput } from '@/lib/api';
 import { useApi } from '@/session/ApiProvider';
@@ -73,8 +70,6 @@ export default function HolidaysScreen() {
   const [editing, setEditing] = useState<Holiday | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof HolidayInput, string>>>({});
   const [deleteTarget, setDeleteTarget] = useState<Holiday | null>(null);
-  const [search, setSearch] = useState('');
-  const [types, setTypes] = useState<HolidayType[]>([]);
 
   const q = useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'holidays'),
@@ -86,15 +81,14 @@ export default function HolidaysScreen() {
   const [sort, setSort] = useState<TableSort | null>({ key: 'start', order: 'asc' });
   const rows = useMemo(
     () =>
-      sortRows(filterHolidays(inYear(all, year), search, types), sort, {
+      sortRows(inYear(all, year), sort, {
         title: (h) => h.title,
         start: (h) => h.start_date,
         days: (h) => dayCount(h),
       }),
-    [all, year, sort, search, types],
+    [all, year, sort],
   );
   const stats = holidayStats(inYear(all, year), year, today);
-  const filtered = search.trim() !== '' || types.length > 0;
 
   const close = () => {
     setForm(null);
@@ -142,20 +136,13 @@ export default function HolidaysScreen() {
   };
 
   const actions = (h: Holiday) => (
-    <View className="flex-row gap-0.5">
-      <ActionButton
-        icon={Pencil}
-        label={`Edit ${h.title}`}
-        tone="emerald"
-        onPress={() => openEdit(h)}
-      />
-      <ActionButton
-        icon={Trash2}
-        label={`Delete ${h.title}`}
-        tone="red"
-        onPress={() => setDeleteTarget(h)}
-      />
-    </View>
+    <RowMenu
+      title={h.title}
+      items={[
+        { icon: Pencil, label: 'Edit', onPress: () => openEdit(h) },
+        { icon: Trash2, label: 'Delete', destructive: true, onPress: () => setDeleteTarget(h) },
+      ]}
+    />
   );
 
   const columns: Column<Holiday>[] = [
@@ -206,7 +193,7 @@ export default function HolidaysScreen() {
       ),
     },
     { key: 'type', label: 'Type', className: 'w-32', render: (h) => <TypeCell h={h} /> },
-    { key: 'actions', label: ' ', className: 'w-[88px]', align: 'right', render: actions },
+    { key: 'actions', label: ' ', className: 'w-16', align: 'right', render: actions },
   ];
 
   return (
@@ -215,7 +202,6 @@ export default function HolidaysScreen() {
       titleAccessory={
         <Select
           label="Year"
-          size="sm"
           value={year}
           onChange={setYear}
           options={yearOptions(all, new Date().getFullYear()).map((y) => ({
@@ -247,68 +233,43 @@ export default function HolidaysScreen() {
             <Stat label="Upcoming" value={stats.upcoming} dot="bg-emerald-500" />
             <Stat label="Optional" value={stats.optional} dot="bg-amber-500" />
           </StatStrip>
-          <View className="flex-row flex-wrap items-center gap-2">
-            <SearchInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search title or description"
-              label="Search holidays"
-            />
-            <MultiSelect
-              label="Type"
-              allLabel="All types"
-              size="sm"
-              value={types}
-              options={[
-                { value: 'mandatory' as HolidayType, label: 'Mandatory' },
-                { value: 'optional' as HolidayType, label: 'Optional' },
-              ]}
-              onChange={setTypes}
-            />
-            {filtered ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={XIcon}
-                label="Clear filters"
-                onPress={() => {
-                  setSearch('');
-                  setTypes([]);
-                }}
+          <View className="gap-6 xl:flex-row xl:items-start">
+            <View className="min-w-0 xl:flex-1">
+              <DataTable
+                testID="holidays"
+                sort={sort}
+                onSort={setSort}
+                rows={rows}
+                columns={columns}
+                rowKey={(h) => h.id}
+                loading={q.isPending}
+                empty={`No holidays in ${year} yet.`}
+                onRowPress={openEdit}
+                renderMobile={(h) => (
+                  <View className="flex-row items-center gap-3">
+                    <View className="min-w-0 flex-1">
+                      <Text size="sm" weight="medium" numberOfLines={1}>
+                        {h.title}
+                      </Text>
+                      <Text size="xs" color="mutedForeground" tabular>
+                        {formatRange(h)} · {plural(dayCount(h), 'day')}
+                      </Text>
+                    </View>
+                    <TypeCell h={h} />
+                  </View>
+                )}
               />
-            ) : null}
+            </View>
+            <View className="xl:w-[22rem]">
+              <HolidayCalendar
+                holidays={all}
+                year={year}
+                today={today}
+                onYear={setYear}
+                onEdit={openEdit}
+              />
+            </View>
           </View>
-          <DataTable
-            testID="holidays"
-            sort={sort}
-            onSort={setSort}
-            rows={rows}
-            columns={columns}
-            rowKey={(h) => h.id}
-            loading={q.isPending}
-            empty={filtered ? 'No holidays match these filters.' : `No holidays in ${year} yet.`}
-            onRowPress={openEdit}
-            renderMobile={(h) => (
-              <View className="flex-row items-center gap-3">
-                <View className="min-w-0 flex-1">
-                  <Text size="sm" weight="medium" numberOfLines={1}>
-                    {h.title}
-                  </Text>
-                  <Text size="xs" color="mutedForeground" tabular>
-                    {formatRange(h)} · {plural(dayCount(h), 'day')}
-                  </Text>
-                </View>
-                <TypeCell h={h} />
-              </View>
-            )}
-          />
-          <HolidayCalendar
-            holidays={all}
-            year={year}
-            today={today}
-            onYear={setYear}
-            onEdit={openEdit}
-          />
         </>
       )}
 

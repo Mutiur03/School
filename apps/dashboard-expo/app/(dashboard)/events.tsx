@@ -12,6 +12,7 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type Column } from '@/components/ui/DataTable';
@@ -23,6 +24,8 @@ import { FilePicker } from '@/components/ui/FilePicker';
 import { Icon } from '@/components/ui/Icon';
 import {
   ExternalLink,
+  Eye,
+  FileText,
   MapPin,
   PartyPopper,
   Pencil,
@@ -171,25 +174,28 @@ export default function EventsScreen() {
 
   const actions = (e: SchoolEvent) => (
     <View className="flex-row gap-0.5">
-      {e.file ? (
-        <ActionButton
-          icon={ExternalLink}
-          label={`Open attachment of ${e.title}`}
-          tone="blue"
-          onPress={() => void openStoredFile(e.file)}
-        />
-      ) : null}
       <ActionButton
-        icon={Pencil}
-        label={`Edit ${e.title}`}
-        tone="emerald"
-        onPress={() => openEdit(e)}
+        icon={Eye}
+        label={`View ${e.title}`}
+        tone="blue"
+        onPress={() => setViewing(e)}
       />
-      <ActionButton
-        icon={Trash2}
-        label={`Delete ${e.title}`}
-        tone="red"
-        onPress={() => setDeleteTarget(e)}
+      <RowMenu
+        title={e.title}
+        items={[
+          { icon: Eye, label: 'View details', onPress: () => setViewing(e) },
+          { icon: Pencil, label: 'Edit', onPress: () => openEdit(e) },
+          ...(e.file
+            ? [
+                {
+                  icon: FileText,
+                  label: 'Open notice PDF',
+                  onPress: () => void openStoredFile(e.file),
+                },
+              ]
+            : []),
+          { icon: Trash2, label: 'Delete', destructive: true, onPress: () => setDeleteTarget(e) },
+        ]}
       />
     </View>
   );
@@ -235,7 +241,11 @@ export default function EventsScreen() {
           <Text size="sm" color="mutedForeground" tabular>
             {formatDay(e.date)}
           </Text>
-          <Text size="xs" color={e.date >= today ? 'primary' : 'mutedForeground'}>
+          <Text
+            size="xs"
+            color={e.date >= today ? undefined : 'mutedForeground'}
+            className={e.date >= today ? 'text-emerald-700' : undefined}
+          >
             {e.date >= today ? 'Upcoming' : 'Past'}
           </Text>
         </View>
@@ -251,7 +261,30 @@ export default function EventsScreen() {
         </Text>
       ),
     },
-    { key: 'actions', label: ' ', className: 'w-[120px]', align: 'right', render: actions },
+    {
+      key: 'notice',
+      label: 'Notice',
+      className: 'w-28',
+      render: (e) =>
+        e.file ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`Open notice PDF of ${e.title}`}
+            onPress={() => void openStoredFile(e.file)}
+            className="flex-row items-center gap-1 self-start hover:underline"
+          >
+            <Icon icon={FileText} size={14} color="primary" />
+            <Text size="sm" color="primary">
+              PDF
+            </Text>
+          </Pressable>
+        ) : (
+          <Text size="sm" color="mutedForeground">
+            —
+          </Text>
+        ),
+    },
+    { key: 'actions', label: ' ', className: 'w-[88px]', align: 'right', render: actions },
   ];
 
   return (
@@ -303,7 +336,6 @@ export default function EventsScreen() {
             <MultiSelect
               label="When"
               allLabel="Upcoming & past"
-              size="sm"
               value={when}
               options={[
                 { value: 'upcoming' as EventWhen, label: 'Upcoming' },
@@ -366,7 +398,6 @@ export default function EventsScreen() {
           <View className="flex-row flex-wrap items-center justify-between gap-2">
             <Select
               label="Rows per page"
-              size="sm"
               value={limit}
               options={[25, 50, 100].map((n) => ({ value: n, label: `${n} / page` }))}
               onChange={(n) => {

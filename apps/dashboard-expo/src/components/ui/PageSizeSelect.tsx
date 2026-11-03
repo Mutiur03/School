@@ -13,7 +13,6 @@ export function PageSizeSelect({
   return (
     <Select
       label="Rows per page"
-      size="sm"
       value={value}
       options={sizes.map((n) => ({ value: n, label: `${n} / page` }))}
       onChange={onChange}

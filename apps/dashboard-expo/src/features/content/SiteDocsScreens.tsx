@@ -298,7 +298,6 @@ export function SyllabusScreen() {
       titleAccessory={
         <Select
           label="Year"
-          size="sm"
           value={year}
           options={syllabusYears(all, thisYear).map((y) => ({ value: y, label: String(y) }))}
           onChange={setYear}
@@ -347,7 +346,7 @@ export function SyllabusScreen() {
       <Dialog
         open={form !== null}
         onClose={() => (save.isPending ? undefined : setForm(null))}
-        title={form?.id ? 'Replace syllabus' : 'Upload syllabus'}
+        title={`${form?.id ? 'Replace' : 'Upload'} syllabus for ${form?.year ?? year}`}
         testID="syllabus-form"
         footer={
           <>
@@ -378,17 +377,6 @@ export function SyllabusScreen() {
                 options={SYLLABUS_CLASSES.map((c) => ({ value: String(c), label: `Class ${c}` }))}
                 onChange={(cls) => setForm({ ...form, cls })}
                 invalid={!!errors.cls}
-              />
-            </Field>
-            <Field label="Year" required>
-              <Select
-                label="Year"
-                value={form.year}
-                options={syllabusYears(all, thisYear).map((y) => ({
-                  value: String(y),
-                  label: String(y),
-                }))}
-                onChange={(y) => setForm({ ...form, year: y })}
               />
             </Field>
             <Field label="PDF" required={!form.id} error={errors.file}>

@@ -15,7 +15,7 @@
  * class marks 403 outside it, PUT /api/marks rejects other students per row).
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLeaveGuard } from '@/navigation/LeaveGuard';
 import { parseStoredClass } from '@/features/attendance/model';
 import { useTenantStorage } from '@/tenant/useTenantStorage';
@@ -66,10 +66,19 @@ import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { StickyTable, stickyHeader } from '@/components/ui/StickyTable';
 import { useTheme } from '@/theme/ThemeProvider';
 import { withAlpha } from '@/theme/tokens';
 
 const CURRENT_YEAR = new Date().getFullYear();
+
+/** Desktop: rows scroll under the frozen header; phones use the page scroll. */
+const Frame = ({ children }: { children: ReactNode }) =>
+  useBreakpoint() === 'mobile' ? (
+    <>{children}</>
+  ) : (
+    <StickyTable maxHeight="65vh">{children}</StickyTable>
+  );
 
 export function MarksEntryScreen() {
   const { exams, subjects, marks } = useApi();
@@ -300,7 +309,6 @@ export function MarksEntryScreen() {
       <View className="flex-row flex-wrap items-center gap-2">
         <Select
           label="Year"
-          size="sm"
           value={year}
           options={narrowYears(sessionYears(allExams, CURRENT_YEAR, 10), scope, CURRENT_YEAR).map(
             (y) => ({
@@ -321,7 +329,6 @@ export function MarksEntryScreen() {
         />
         <Select
           label="Exam"
-          size="sm"
           value={examName || null}
           placeholder="Select exam"
           disabled={examsQ.isPending || unassigned}
@@ -339,7 +346,6 @@ export function MarksEntryScreen() {
         />
         <Select
           label="Class"
-          size="sm"
           value={cls}
           placeholder="Select class"
           disabled={!examName}
@@ -358,7 +364,6 @@ export function MarksEntryScreen() {
         {cls !== null && cls >= 9 ? (
           <Select
             label="Group"
-            size="sm"
             value={group}
             options={[
               { value: '', label: 'All groups' },
@@ -369,7 +374,6 @@ export function MarksEntryScreen() {
         ) : null}
         <Select
           label="Section"
-          size="sm"
           value={section}
           disabled={cls === null}
           options={[
@@ -380,7 +384,6 @@ export function MarksEntryScreen() {
         />
         <Select
           label="Subject"
-          size="sm"
           value={subjectId}
           placeholder="Select subject"
           disabled={cls === null}
@@ -438,141 +441,146 @@ export function MarksEntryScreen() {
               />
             </View>
           ) : null}
-          <View className="bg-muted border-border flex-row items-center border-b px-3 py-2.5">
-            {mobile ? null : (
-              <>
-                <Text size="xs" weight="semibold" className="w-14 uppercase text-gray-700">
-                  Roll
+          <Frame>
+            <View
+              className="bg-muted border-border flex-row items-center border-b px-3 py-2.5"
+              style={mobile ? undefined : stickyHeader}
+            >
+              {mobile ? null : (
+                <>
+                  <Text size="xs" weight="semibold" className="w-14 uppercase text-gray-700">
+                    Roll
+                  </Text>
+                  <Text
+                    size="xs"
+                    weight="semibold"
+                    className="min-w-0 flex-1 uppercase text-gray-700"
+                  >
+                    Student
+                  </Text>
+                </>
+              )}
+              {columns.map((c) => (
+                <Text
+                  key={c.field}
+                  size="xs"
+                  weight="semibold"
+                  tabular
+                  className={cn(
+                    'text-center uppercase text-gray-700',
+                    mobile ? 'flex-1' : 'w-[72px]',
+                  )}
+                >
+                  {c.label} /{c.max}
                 </Text>
+              ))}
+              {breakdown ? (
                 <Text
                   size="xs"
                   weight="semibold"
-                  className="min-w-0 flex-1 uppercase text-gray-700"
-                >
-                  Student
-                </Text>
-              </>
-            )}
-            {columns.map((c) => (
-              <Text
-                key={c.field}
-                size="xs"
-                weight="semibold"
-                tabular
-                className={cn(
-                  'text-center uppercase text-gray-700',
-                  mobile ? 'flex-1' : 'w-[72px]',
-                )}
-              >
-                {c.label} /{c.max}
-              </Text>
-            ))}
-            {breakdown ? (
-              <Text
-                size="xs"
-                weight="semibold"
-                tabular
-                className={cn(
-                  'text-center uppercase text-gray-700',
-                  mobile ? 'flex-1' : 'w-[64px]',
-                )}
-              >
-                Total /{subject?.full_mark}
-              </Text>
-            ) : null}
-          </View>
-          {loading ? (
-            <View className="gap-2 p-3">
-              {Array.from({ length: 6 }, (_, i) => (
-                <Skeleton key={i} className="h-9 w-full" />
-              ))}
-            </View>
-          ) : empty ? (
-            <Text size="sm" color="mutedForeground" className="px-4 py-12 text-center">
-              {empty}
-            </Text>
-          ) : (
-            subject &&
-            shown.map((st, index) => {
-              const mismatch = groupMismatch(subject, st);
-              const row = rowState(subject, draft, saved, st.student_id);
-              const dirty = changed.includes(st.student_id);
-              return (
-                <View
-                  key={st.student_id}
-                  testID={`marks-row-${st.student_id}`}
+                  tabular
                   className={cn(
-                    'border-border border-b px-3 py-1.5',
-                    mobile ? 'gap-1.5 py-2.5' : 'flex-row items-center',
-                    !dirty && 'bg-card',
+                    'text-center uppercase text-gray-700',
+                    mobile ? 'flex-1' : 'w-[64px]',
                   )}
-                  style={dirty ? { backgroundColor: withAlpha(colors.primary, 0.06) } : undefined}
                 >
-                  <View className={cn('flex-row items-center', !mobile && 'min-w-0 flex-1')}>
-                    <Text size="sm" tabular className="w-14">
-                      {section ? st.roll : `${st.section}-${st.roll}`}
-                    </Text>
-                    <Text
-                      size="sm"
-                      weight="medium"
-                      numberOfLines={1}
-                      color={mismatch ? 'mutedForeground' : undefined}
-                      className="min-w-0 flex-1 pr-2"
-                    >
-                      {st.name}
-                    </Text>
-                  </View>
-                  {mismatch ? (
-                    <Text
-                      size="xs"
-                      color="mutedForeground"
-                      className={mobile ? 'pl-14' : 'text-center'}
-                      style={
-                        mobile ? undefined : { width: 72 * columns.length + (breakdown ? 64 : 0) }
-                      }
-                    >
-                      Not for {st.group || 'this'} group
-                    </Text>
-                  ) : (
-                    <View className="flex-row items-center">
-                      {columns.map((c) => (
-                        <View
-                          key={c.field}
-                          className={cn('items-center', mobile ? 'flex-1' : 'w-[72px]')}
-                        >
-                          <MarkCell
-                            value={cellText(draft, saved, st.student_id, c.field)}
-                            max={c.max}
-                            disabled={c.max <= 0}
-                            error={row.errors[c.field]}
-                            label={`${st.name} ${c.label}`}
-                            testID={`mark-${st.student_id}-${c.field}`}
-                            inputRef={(el) => {
-                              const k = `${c.field}:${index}`;
-                              if (el) refs.current.set(k, el);
-                              else refs.current.delete(k);
-                            }}
-                            onChange={(t) => setCell(st.student_id, c.field, t)}
-                            onMove={(step) => move(c.field, index, step)}
-                          />
-                        </View>
-                      ))}
-                      {breakdown ? (
-                        <Text
-                          size="sm"
-                          weight="semibold"
-                          tabular
-                          className={cn('text-center', mobile ? 'flex-1' : 'w-[64px]')}
-                        >
-                          {row.total ?? '—'}
-                        </Text>
-                      ) : null}
+                  Total /{subject?.full_mark}
+                </Text>
+              ) : null}
+            </View>
+            {loading ? (
+              <View className="gap-2 p-3">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </View>
+            ) : empty ? (
+              <Text size="sm" color="mutedForeground" className="px-4 py-12 text-center">
+                {empty}
+              </Text>
+            ) : (
+              subject &&
+              shown.map((st, index) => {
+                const mismatch = groupMismatch(subject, st);
+                const row = rowState(subject, draft, saved, st.student_id);
+                const dirty = changed.includes(st.student_id);
+                return (
+                  <View
+                    key={st.student_id}
+                    testID={`marks-row-${st.student_id}`}
+                    className={cn(
+                      'border-border border-b px-3 py-1.5',
+                      mobile ? 'gap-1.5 py-2.5' : 'flex-row items-center',
+                      !dirty && 'bg-card',
+                    )}
+                    style={dirty ? { backgroundColor: withAlpha(colors.primary, 0.06) } : undefined}
+                  >
+                    <View className={cn('flex-row items-center', !mobile && 'min-w-0 flex-1')}>
+                      <Text size="sm" tabular className="w-14">
+                        {section ? st.roll : `${st.section}-${st.roll}`}
+                      </Text>
+                      <Text
+                        size="sm"
+                        weight="medium"
+                        numberOfLines={1}
+                        color={mismatch ? 'mutedForeground' : undefined}
+                        className="min-w-0 flex-1 pr-2"
+                      >
+                        {st.name}
+                      </Text>
                     </View>
-                  )}
-                </View>
-              );
-            })
-          )}
+                    {mismatch ? (
+                      <Text
+                        size="xs"
+                        color="mutedForeground"
+                        className={mobile ? 'pl-14' : 'text-center'}
+                        style={
+                          mobile ? undefined : { width: 72 * columns.length + (breakdown ? 64 : 0) }
+                        }
+                      >
+                        Not for {st.group || 'this'} group
+                      </Text>
+                    ) : (
+                      <View className="flex-row items-center">
+                        {columns.map((c) => (
+                          <View
+                            key={c.field}
+                            className={cn('items-center', mobile ? 'flex-1' : 'w-[72px]')}
+                          >
+                            <MarkCell
+                              value={cellText(draft, saved, st.student_id, c.field)}
+                              max={c.max}
+                              disabled={c.max <= 0}
+                              error={row.errors[c.field]}
+                              label={`${st.name} ${c.label}`}
+                              testID={`mark-${st.student_id}-${c.field}`}
+                              inputRef={(el) => {
+                                const k = `${c.field}:${index}`;
+                                if (el) refs.current.set(k, el);
+                                else refs.current.delete(k);
+                              }}
+                              onChange={(t) => setCell(st.student_id, c.field, t)}
+                              onMove={(step) => move(c.field, index, step)}
+                            />
+                          </View>
+                        ))}
+                        {breakdown ? (
+                          <Text
+                            size="sm"
+                            weight="semibold"
+                            tabular
+                            className={cn('text-center', mobile ? 'flex-1' : 'w-[64px]')}
+                          >
+                            {row.total ?? '—'}
+                          </Text>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </Frame>
           {subject && shown.length > 0 ? (
             <Text size="xs" color="mutedForeground" className="px-4 py-2.5">
               Enter or ↓ moves to the next student, ↑ to the previous. Marks above the limit are not

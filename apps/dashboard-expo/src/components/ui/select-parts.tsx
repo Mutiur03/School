@@ -4,7 +4,7 @@
  * field once there are more than 8 options, safe-area padding) and a centred popover card on wider
  * screens. Tapping the backdrop or the Android back button closes it.
  */
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { AnimatedModal } from './AnimatedModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +25,9 @@ import { AlertCircle, ChevronDown } from './icons';
 import { ScrollView } from './ScrollView';
 import { SearchInput } from './SearchInput';
 import { Text } from './Text';
+
+/** Selects inside get a compact trigger with a lighter border (set by PageLayout's title accessory). */
+export const QuietSelectContext = createContext(false);
 
 /** Lists longer than this get a search field in the sheet. */
 export const SEARCH_THRESHOLD = 8;
@@ -55,8 +58,10 @@ export function SelectTrigger({
   const { colors } = useTheme();
   const touch = useControlTouch();
   const [focused, setFocused] = useState(false);
+  const quiet = useContext(QuietSelectContext);
   const control: ControlState = {
-    size: size === 'sm' ? 'sm' : 'md',
+    size: size === 'sm' || quiet ? 'sm' : 'md',
+    quiet,
     touch,
     focused: focused || open,
     invalid,
@@ -86,8 +91,8 @@ export function SelectTrigger({
       ]}
     >
       <Text
-        size={touch && size !== 'sm' ? 'base' : 'sm'}
-        weight={size === 'sm' ? 'medium' : 'regular'}
+        size={touch && size !== 'sm' && !quiet ? 'base' : 'sm'}
+        weight={size === 'sm' || quiet ? 'medium' : 'regular'}
         color={text ? (disabled ? 'mutedForeground' : 'foreground') : 'mutedForeground'}
         numberOfLines={1}
         className="shrink"

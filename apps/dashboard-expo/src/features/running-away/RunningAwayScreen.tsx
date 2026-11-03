@@ -265,7 +265,6 @@ export function RunningAwayScreen() {
       <View className="flex-row flex-wrap items-center gap-2">
         <Select
           label="Class"
-          size="sm"
           value={level}
           options={[
             ...(level ? [] : [{ value: 0, label: 'Select class' }]),
@@ -283,7 +282,6 @@ export function RunningAwayScreen() {
         />
         <Select
           label="Section"
-          size="sm"
           value={section}
           disabled={!level}
           options={[

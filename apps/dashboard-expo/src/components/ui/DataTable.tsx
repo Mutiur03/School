@@ -3,14 +3,15 @@
  * Holidays...): SectionCard noPadding, `bg-muted` header with `text-xs font-semibold uppercase
  * tracking-wider text-foreground/70` labels, `divide-y` body rows with `px-4 py-2` cells and a
  * `hover:bg-muted/60` tint. Phones (< md) get stacked rows from `renderMobile` instead of a
- * sideways-scrolling table. Columns with a `sortKey` get a clickable header (the web's
+ * sideways-scrolling table; wide screens scroll sideways when the columns do not fit. Columns with a `sortKey` get a clickable header (the web's
  * ColumnHeaderMenu sort arrow: unsorted → ascending → descending → unsorted).
  */
-import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { cn } from '@/lib/utils';
 import { Icon } from './Icon';
+import { ScrollView } from './ScrollView';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from './icons';
 import { SectionCard } from './SectionCard';
 import { EmptyState, Skeleton } from './states';
@@ -28,6 +29,20 @@ export interface Column<T> {
   /** Makes the header a sort toggle (needs the table's `onSort`). */
   sortKey?: string;
   render: (row: T) => ReactNode;
+}
+
+/** A growing column keeps a readable minimum; the table scrolls sideways before it collapses. */
+const FLEX_MIN = 200;
+const colClass = (c: { className: string }) =>
+  c.className.includes('flex-1') ? cn(c.className, 'min-w-[200px]') : c.className;
+
+/** Smallest width a column needs, read from its width class (`w-32`, `w-[120px]`, `flex-1`). */
+function colMin({ className }: { className: string }): number {
+  const px = /(?:^|\s)w-\[(\d+)px\]/.exec(className);
+  if (px) return Number(px[1]);
+  const step = /(?:^|\s)w-(\d+)(?:\s|$)/.exec(className);
+  if (step) return Number(step[1]) * 4;
+  return className.includes('flex-1') ? FLEX_MIN : 0;
 }
 
 export function DataTable<T>({
@@ -60,6 +75,7 @@ export function DataTable<T>({
   testID?: string;
 }) {
   const mobile = useBreakpoint() === 'mobile';
+  const [width, setWidth] = useState(0);
   const body =
     !loading && rows.length === 0 ? (
       typeof empty === 'string' ? (
@@ -97,7 +113,7 @@ export function DataTable<T>({
           {columns.map((c) => (
             <View
               key={c.key}
-              className={cn('px-4 py-2', c.className, c.align === 'right' && 'items-end')}
+              className={cn('px-4 py-2', colClass(c), c.align === 'right' && 'items-end')}
             >
               {c.render(r)}
             </View>
@@ -106,14 +122,15 @@ export function DataTable<T>({
       ))
     );
 
-  return (
-    <SectionCard noPadding testID={testID}>
+  const minWidth = columns.reduce((sum, c) => sum + colMin(c), 0);
+  const table = (
+    <>
       {mobile ? null : (
         <View className="bg-muted flex-row items-center">
           {columns.map((c) => (
             <View
               key={c.key}
-              className={cn('px-4 py-2.5', c.className, c.align === 'right' && 'items-end')}
+              className={cn('px-4 py-2.5', colClass(c), c.align === 'right' && 'items-end')}
             >
               {c.header ? (
                 c.header
@@ -134,6 +151,22 @@ export function DataTable<T>({
         </View>
       )}
       {body}
+    </>
+  );
+
+  return (
+    <SectionCard noPadding testID={testID}>
+      {mobile ? (
+        table
+      ) : (
+        // A definite width (card width, or the columns' minimum when that is wider) so growing
+        // columns wrap their text instead of stretching to one long line.
+        <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
+          <ScrollView horizontal>
+            <View style={{ width: Math.max(width, minWidth) }}>{table}</View>
+          </ScrollView>
+        </View>
+      )}
     </SectionCard>
   );
 }

@@ -539,7 +539,6 @@ export default function SubjectsScreen() {
       titleAccessory={
         <Select
           label="Year"
-          size="sm"
           value={year}
           onChange={setYear}
           options={years.map((y) => ({ value: y, label: String(y) }))}
@@ -607,7 +606,7 @@ export default function SubjectsScreen() {
             <MultiSelect
               label="Group"
               allLabel="All groups"
-              size="sm"
+              className="w-40"
               value={groups}
               options={['General', ...VALID_GROUPS].map((g) => ({ value: g as string, label: g }))}
               onChange={(v) => {
@@ -618,7 +617,7 @@ export default function SubjectsScreen() {
             <MultiSelect
               label="Type"
               allLabel="All types"
-              size="sm"
+              className="w-40"
               value={types}
               options={(['main', 'paper', 'single'] as SubjectType[]).map((t) => ({
                 value: t,
@@ -676,7 +675,6 @@ export default function SubjectsScreen() {
           <View className="flex-row flex-wrap items-center justify-between gap-2">
             <Select
               label="Rows per page"
-              size="sm"
               value={limit}
               options={[50, 100, 200].map((n) => ({ value: n, label: `${n} / page` }))}
               onChange={(n) => {

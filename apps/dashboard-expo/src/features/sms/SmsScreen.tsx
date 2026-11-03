@@ -110,45 +110,85 @@ function Textarea({
   );
 }
 
-/** 30-day credits bars (the web's recharts BarChart), plain views. */
+/** Axis top: the next 1 / 2 / 5 x 10^n at or above `max / 3`, times 3 (ticks at 0, 1/3, 2/3, top). */
+function niceTicks(max: number) {
+  const raw = Math.max(1, max) / 3;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = ([1, 2, 5, 10].find((m) => m * pow >= raw) ?? 10) * pow;
+  const whole = Math.max(1, Math.ceil(step));
+  return [0, 1, 2, 3].map((i) => i * whole);
+}
+
+/** 30-day credits bars (the web's recharts BarChart): y axis, grid lines, d/m ticks, tap for a day. */
 function UsageBars({ data }: { data: { date: string; count: number }[] }) {
-  const max = Math.max(1, ...data.map((d) => d.count));
+  const ticks = niceTicks(Math.max(0, ...data.map((d) => d.count)));
+  const top = ticks[ticks.length - 1]!;
   const [picked, setPicked] = useState<string | null>(null);
-  const day = (d: string) => d.slice(0, 10).split('-').reverse().join('/');
+  const full = (d: string) => d.slice(0, 10).split('-').reverse().join('/');
+  const short = (d: string) => {
+    const [, m, day] = d.slice(0, 10).split('-');
+    return `${Number(day)}/${Number(m)}`;
+  };
   const pick = data.find((d) => d.date === picked);
+  const labelAt =
+    data.length > 1 ? [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * (data.length - 1))) : [0];
   return (
     <View className="gap-1" testID="sms-usage-chart">
-      <View className="flex-row justify-between">
-        <Text size="xs" color="mutedForeground" tabular>
-          {`${max.toLocaleString()} credits max`}
-        </Text>
-        <Text size="xs" color={pick ? undefined : 'mutedForeground'} tabular>
-          {pick ? `${day(pick.date)}: ${pick.count} credits` : 'Tap a bar for the day'}
-        </Text>
+      <View className="h-4 items-end justify-center">
+        {pick ? (
+          <Text size="xs" tabular>
+            {`${full(pick.date)}: `}
+            <Text size="xs" weight="semibold" tabular>
+              {pick.count}
+            </Text>
+            {' credits'}
+          </Text>
+        ) : null}
       </View>
-      <View className="h-24 flex-row items-end gap-[2px]" accessibilityLabel="Credits per day">
-        {data.map((d) => (
-          <Pressable
-            key={d.date}
-            onPress={() => setPicked((p) => (p === d.date ? null : d.date))}
-            className="h-full flex-1 justify-end"
-            accessibilityLabel={`${d.date}: ${d.count} credits`}
-          >
+      <View className="flex-row gap-2">
+        <View className="h-32 items-end justify-between">
+          {[...ticks].reverse().map((t) => (
+            <Text key={t} size="xs" color="mutedForeground" tabular className="leading-none">
+              {t}
+            </Text>
+          ))}
+        </View>
+        <View className="h-32 flex-1" accessibilityLabel="Credits per day">
+          {ticks.map((t) => (
             <View
-              className={`rounded-t-sm ${picked === d.date ? 'bg-primary/60' : 'bg-primary'}`}
-              style={{ height: `${Math.max(d.count ? 4 : 0, (d.count / max) * 100)}%` }}
+              key={t}
+              pointerEvents="none"
+              className="border-border absolute left-0 right-0 border-t"
+              style={{ bottom: `${(t / top) * 100}%` }}
             />
-          </Pressable>
-        ))}
+          ))}
+          <View className="h-full flex-row items-end">
+            {data.map((d) => (
+              <Pressable
+                key={d.date}
+                onPress={() => setPicked((p) => (p === d.date ? null : d.date))}
+                className={cn(
+                  'h-full flex-1 items-center justify-end',
+                  picked === d.date && 'bg-muted',
+                )}
+                accessibilityLabel={`${full(d.date)}: ${d.count} credits`}
+              >
+                <View
+                  className="bg-primary w-full max-w-[16px] rounded-t-[3px]"
+                  style={{ height: `${Math.max(d.count ? 3 : 0, (d.count / top) * 100)}%` }}
+                />
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </View>
       {data.length > 1 ? (
-        <View className="flex-row justify-between">
-          <Text size="xs" color="mutedForeground" tabular>
-            {day(data[0]!.date)}
-          </Text>
-          <Text size="xs" color="mutedForeground" tabular>
-            {day(data[data.length - 1]!.date)}
-          </Text>
+        <View className="ml-8 flex-row justify-between">
+          {labelAt.map((i) => (
+            <Text key={i} size="xs" color="mutedForeground" tabular>
+              {short(data[i]!.date)}
+            </Text>
+          ))}
         </View>
       ) : null}
     </View>
@@ -292,28 +332,37 @@ function LogsTab({
   return (
     <View className="gap-6">
       <View className="flex-row flex-wrap gap-4">
-        <StatStrip className="min-w-[300px] flex-[3]">
+        <StatStrip className="min-w-[260px] flex-1 content-center justify-center">
           <View className="w-full">
-            <Text size="xs" color="mutedForeground" tabular>
+            <Text size="xs" weight="semibold" caps color="mutedForeground">
               {displayDate(date)} · {typeSummary(category)}
             </Text>
           </View>
-          <Stat label="Sent" value={stats.sent} dot="bg-emerald-500" />
-          <Stat label="Failed" value={stats.failed} dot="bg-red-500" />
-          <Stat label="Pending" value={stats.pending} dot="bg-amber-500" />
-          <Stat label="Total" value={stats.sent + stats.failed + stats.pending} />
+          {/* Always 2 x 2, like the web's grid-cols-2, whatever the card width. */}
+          <View className="w-full flex-row flex-wrap gap-y-4">
+            {[
+              <Stat key="sent" label="Sent" value={stats.sent} dot="bg-emerald-500" />,
+              <Stat key="failed" label="Failed" value={stats.failed} dot="bg-red-500" />,
+              <Stat key="pending" label="Pending" value={stats.pending} dot="bg-amber-500" />,
+              <Stat key="total" label="Total" value={stats.sent + stats.failed + stats.pending} />,
+            ].map((stat) => (
+              <View key={stat.key} className="w-1/2">
+                {stat}
+              </View>
+            ))}
+          </View>
         </StatStrip>
-        <SectionCard className="min-w-[260px] flex-[2]">
-          <View className="gap-2">
+        <SectionCard className="min-w-[300px] flex-[2]">
+          <View className="gap-1">
             <View className="flex-row items-baseline justify-between">
-              <Text size="xs" color="mutedForeground">
+              <Text size="xs" weight="semibold" caps color="mutedForeground">
                 Credits used · last 30 days
               </Text>
-              <Text size="lg" weight="semibold" tabular>
+              <Text size="sm" weight="semibold" tabular>
                 {usageTotal.toLocaleString()}
               </Text>
             </View>
-            {usageQ.isPending ? <Skeleton height={96} /> : <UsageBars data={usage} />}
+            {usageQ.isPending ? <Skeleton height={152} /> : <UsageBars data={usage} />}
           </View>
         </SectionCard>
       </View>
@@ -419,7 +468,6 @@ function LogsTab({
       <View className="flex-row flex-wrap items-center justify-between gap-3">
         <Select
           label="Rows per page"
-          size="sm"
           value={limit}
           onChange={setLimit}
           options={[25, 50, 100].map((n) => ({ value: n, label: `${n} per page` }))}

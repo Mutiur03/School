@@ -58,6 +58,8 @@ export interface ControlState {
   disabled?: boolean;
   readOnly?: boolean;
   multiline?: boolean;
+  /** Lighter resting border for selects in a page heading (they are secondary to the title). */
+  quiet?: boolean;
 }
 
 export const controlHeight = (s: ControlState) =>
@@ -88,7 +90,7 @@ export function controlBorderColor(colors: ThemeColors, s: ControlState): string
   if (s.invalid) return colors.destructive;
   if (s.disabled) return tw.gray200;
   if (s.focused && !s.readOnly) return colors.ring;
-  return CONTROL_BORDER;
+  return s.quiet ? tw.gray200 : CONTROL_BORDER;
 }
 
 const editableFocus = (s: ControlState) => !!s.focused && !s.readOnly && !s.disabled;

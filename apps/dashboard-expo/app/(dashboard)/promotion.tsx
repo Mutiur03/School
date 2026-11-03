@@ -9,11 +9,11 @@
  * run first; nothing is committed without the confirm button.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -48,6 +48,7 @@ import { useAdminMutation } from '@/features/admin/useAdminMutation';
 import { CorrectionsDialog } from '@/features/promotion/CorrectionsDialog';
 import { PromotionBadges, PromotionStatus } from '@/features/promotion/PromotionStatus';
 import { SkippedStudents } from '@/features/promotion/SkippedStudents';
+import { SessionMarksheetDialog } from '@/features/marksheet/SessionMarksheetScreen';
 import {
   failsText,
   generateConfirmText,
@@ -197,7 +198,6 @@ function PreviewTable({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
 
 export default function PromotionScreen() {
   const { promotions, students, exams } = useApi();
-  const router = useRouter();
   const { resolution } = useTenant();
   const toast = useToast();
   const mobile = useBreakpoint() === 'mobile';
@@ -223,6 +223,7 @@ export default function PromotionScreen() {
     text: string;
   } | null>(null);
   const [calcTarget, setCalcTarget] = useState<StudentRow | null>(null);
+  const [preview, setPreview] = useState<{ id: number; name: string } | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
   const pdfLock = useRef(false);
 
@@ -469,35 +470,32 @@ export default function PromotionScreen() {
         icon={Eye}
         label={`Preview session marksheet of ${row.name}`}
         tone="blue"
-        onPress={() =>
-          router.push({
-            pathname: '/marksheet/[studentId]/[year]',
-            params: { studentId: String(row.id), year: String(year) },
-          })
-        }
+        onPress={() => setPreview({ id: row.id, name: row.name })}
       />
-      <ActionButton
-        icon={FileText}
-        label={`Session marksheet PDF for ${row.name}`}
-        tone="blue"
-        onPress={() => sessionPdf(row)}
+      <RowMenu
+        title={row.name}
+        items={[
+          { icon: FileText, label: 'Marksheet PDF', onPress: () => sessionPdf(row) },
+          ...(row.result_manual && !row.result_held && row.enrollment_id
+            ? [
+                {
+                  icon: RotateCcw,
+                  label: 'Use calculated result',
+                  onPress: () => setCalcTarget(row),
+                },
+              ]
+            : []),
+          ...(row.status !== 'Graduated' && row.enrollment_id
+            ? [
+                {
+                  icon: row.result_held ? PlayCircle : PauseCircle,
+                  label: row.result_held ? 'Release result' : 'Hold result',
+                  onPress: () => setHoldTarget(row),
+                },
+              ]
+            : []),
+        ]}
       />
-      {row.result_manual && !row.result_held && row.enrollment_id ? (
-        <ActionButton
-          icon={RotateCcw}
-          label={`Use calculated result for ${row.name}`}
-          tone="blue"
-          onPress={() => setCalcTarget(row)}
-        />
-      ) : null}
-      {row.status !== 'Graduated' && row.enrollment_id ? (
-        <ActionButton
-          icon={row.result_held ? PlayCircle : PauseCircle}
-          label={row.result_held ? `Release result of ${row.name}` : `Hold result of ${row.name}`}
-          tone="emerald"
-          onPress={() => setHoldTarget(row)}
-        />
-      ) : null}
     </View>
   );
 
@@ -580,7 +578,7 @@ export default function PromotionScreen() {
         </Text>
       ),
     },
-    { key: 'actions', label: ' ', className: 'w-40', align: 'right', render: actions },
+    { key: 'actions', label: ' ', className: 'w-[88px]', align: 'right', render: actions },
   ];
 
   const sections = meta?.availableSections?.length ? meta.availableSections : ['A', 'B'];
@@ -597,7 +595,6 @@ export default function PromotionScreen() {
         <View className="flex-row flex-wrap items-center gap-2">
           <Select
             label="Session year"
-            size="sm"
             value={year}
             options={promotionYears(CURRENT_YEAR).map((y) => ({ value: y, label: `Session ${y}` }))}
             onChange={(y) => {
@@ -740,7 +737,6 @@ export default function PromotionScreen() {
         <MultiSelect
           label="Class"
           allLabel="All classes"
-          size="sm"
           value={cls}
           options={(meta?.availableClasses?.length ? meta.availableClasses : [6, 7, 8, 9, 10]).map(
             (c) => ({ value: c, label: `Class ${c}` }),
@@ -754,7 +750,6 @@ export default function PromotionScreen() {
         <MultiSelect
           label="Section"
           allLabel="All sections"
-          size="sm"
           value={section}
           options={sections.map((s) => ({ value: s, label: `Section ${s}` }))}
           onChange={(s) => {
@@ -765,7 +760,6 @@ export default function PromotionScreen() {
         <MultiSelect
           label="Group"
           allLabel="All groups"
-          size="sm"
           value={group}
           options={GROUPS.map((g) => ({ value: g as string, label: g }))}
           onChange={(g) => {
@@ -775,7 +769,6 @@ export default function PromotionScreen() {
         />
         <Select
           label="Rows per page"
-          size="sm"
           value={limit}
           options={PAGE_SIZES.map((n) => ({ value: n, label: `${n} / page` }))}
           onChange={(n) => {
@@ -1102,6 +1095,11 @@ ${statusChange.text}`
           </>
         )}
       </Dialog>
+      <SessionMarksheetDialog
+        student={preview}
+        year={Number(year)}
+        onClose={() => setPreview(null)}
+      />
     </PageLayout>
   );
 }

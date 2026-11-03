@@ -3,6 +3,7 @@
  * with a header of `text-2xl font-bold` title, `text-sm text-muted-foreground` subtitle and
  * right-aligned actions (pages/Admin/Dashboard.tsx, components/PageHeader.tsx).
  */
+import { QuietSelectContext } from '@/components/ui/select-parts';
 import type { ReactNode } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { FormChain } from '@/components/ui/form-chain';
@@ -47,7 +48,7 @@ export function PageLayout({
               <Text size="2xl" weight="bold" color="heading" accessibilityRole="header">
                 {title}
               </Text>
-              {titleAccessory}
+              <QuietSelectContext.Provider value>{titleAccessory}</QuietSelectContext.Provider>
               {badge}
             </View>
             {description ? (

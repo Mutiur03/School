@@ -19,7 +19,6 @@ import { Eye, XIcon } from '@/components/ui/icons';
 import { Pagination } from '@/components/ui/Pagination';
 import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Select } from '@/components/ui/Select';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { ErrorState } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
@@ -225,17 +224,6 @@ export function AlumniScreen() {
               options={facets.districts.map((d) => ({ value: d, label: d }))}
               className="w-40"
               testID="alumni-district"
-            />
-            <Select
-              label="Sort"
-              value={sort}
-              onChange={(v) => pickSort(v)}
-              options={[
-                { value: 'batch', label: 'Sort: batch' },
-                { value: 'name', label: 'Sort: name' },
-                { value: 'district', label: 'Sort: district' },
-              ]}
-              className="w-40"
             />
             {filtered ? (
               <Button

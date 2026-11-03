@@ -187,7 +187,6 @@ export default function AssignedTeachersScreen() {
       titleAccessory={
         <Select
           label="Academic year"
-          size="sm"
           value={year}
           onChange={setYear}
           options={levelYearOptions(CURRENT_YEAR).map((y) => ({ value: y, label: String(y) }))}
@@ -215,7 +214,6 @@ export default function AssignedTeachersScreen() {
           <View className="flex-row flex-wrap items-center gap-2">
             <Select
               label="Class"
-              size="sm"
               value={cls}
               options={[
                 { value: 0, label: 'All classes' },

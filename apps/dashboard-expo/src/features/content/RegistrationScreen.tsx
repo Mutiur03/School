@@ -14,12 +14,13 @@ import { Image, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionBar } from '@/components/ui/ActionBar';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { headerSortValue, parseSortValue, withSortOption } from '@/components/ui/table-sort';
+import { headerSortValue, parseSortValue } from '@/components/ui/table-sort';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow, FormSection } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
@@ -75,22 +76,6 @@ import { DetailGrid, useFileTasks, ZIP_MIME } from './ui';
 
 type Tab = 'registrations' | 'settings';
 const SORT_KEYS = ['name', 'section', 'roll', 'status', 'date'] as const;
-const SORT_LABELS: Record<string, string> = {
-  name: 'Name',
-  section: 'Section',
-  roll: 'Roll',
-  status: 'Status',
-  date: 'Submitted',
-};
-const SORTS: { value: string; label: string }[] = [
-  { value: '', label: 'Default order' },
-  { value: 'roll:asc', label: 'Roll' },
-  { value: 'name:asc', label: 'Name (A–Z)' },
-  { value: 'section:asc', label: 'Section' },
-  { value: 'date:desc', label: 'Newest first' },
-  { value: 'status:asc', label: 'Status' },
-];
-
 export function RegistrationScreen({ variant }: { variant: RegVariant }) {
   const cfg = REG_CONFIG[variant];
   const { registration } = useApi();
@@ -115,7 +100,6 @@ export function RegistrationScreen({ variant }: { variant: RegVariant }) {
         tab === 'registrations' ? (
           <Select
             label={cfg.yearLabel}
-            size="sm"
             value={year}
             options={regYearOptions(baseYear, [year]).map((y) => ({
               value: String(y),
@@ -243,29 +227,18 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
   const actions = (r: Registration) => (
     <View className="flex-row gap-0.5">
       <ActionButton icon={Eye} label={`View ${r.name}`} tone="blue" onPress={() => setDetail(r)} />
-      <ActionButton
-        icon={FileText}
-        label={`Preview PDF of ${r.name}`}
-        tone="blue"
-        onPress={() => previewPdf(r)}
-      />
-      <ActionButton
-        icon={Download}
-        label={`Download PDF of ${r.name}`}
-        tone="blue"
-        onPress={() => downloadPdf(r)}
-      />
-      <ActionButton
-        icon={r.status === 'pending' ? CheckCircle2 : Clock}
-        label={r.status === 'pending' ? `Approve ${r.name}` : `Mark ${r.name} as pending`}
-        tone="emerald"
-        onPress={() => toggle(r)}
-      />
-      <ActionButton
-        icon={Trash2}
-        label={`Delete ${r.name}`}
-        tone="red"
-        onPress={() => setDeleteTarget(r)}
+      <RowMenu
+        title={r.name}
+        items={[
+          { icon: FileText, label: 'Preview PDF', onPress: () => previewPdf(r) },
+          { icon: Download, label: 'Download PDF', onPress: () => downloadPdf(r) },
+          {
+            icon: r.status === 'pending' ? CheckCircle2 : Clock,
+            label: r.status === 'pending' ? 'Approve' : 'Mark as pending',
+            onPress: () => toggle(r),
+          },
+          { icon: Trash2, label: 'Delete', destructive: true, onPress: () => setDeleteTarget(r) },
+        ]}
       />
     </View>
   );
@@ -339,7 +312,7 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
         </Text>
       ),
     },
-    { key: 'actions', label: ' ', className: 'w-[150px]', align: 'right', render: actions },
+    { key: 'actions', label: ' ', className: 'w-[88px]', align: 'right', render: actions },
   ];
   const summary = meta
     ? [
@@ -400,7 +373,6 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
         </View>
         <MultiSelect
           label="Section"
-          size="sm"
           value={sections}
           options={['A', 'B'].map((s) => ({ value: s, label: `Section ${s}` }))}
           onChange={reset(setSections)}
@@ -409,7 +381,6 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
         />
         <MultiSelect
           label="Status"
-          size="sm"
           value={status}
           options={[
             { value: 'pending', label: 'Pending' },
@@ -418,13 +389,6 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
           onChange={reset(setStatus)}
           allLabel="Any status"
           testID="reg-status"
-        />
-        <Select
-          label="Sort"
-          size="sm"
-          value={sort}
-          options={withSortOption(SORTS, sort, SORT_LABELS)}
-          onChange={reset(setSort)}
         />
         {filtersActive ? (
           <Button
@@ -483,7 +447,6 @@ function RegistrationList({ cfg, year }: { cfg: RegConfig; year: string }) {
           <View className="flex-row flex-wrap items-center justify-between gap-2">
             <Select
               label="Rows per page"
-              size="sm"
               value={limit}
               options={[50, 100, 200].map((n) => ({ value: n, label: `${n} / page` }))}
               onChange={reset(setLimit)}
@@ -692,7 +655,6 @@ function RegistrationSettingsCard({
         <View className="flex-row items-center gap-2">
           <Select
             label={cfg.yearLabel}
-            size="sm"
             value={year}
             options={regYearOptions(baseYear, [year], true).map((y) => ({
               value: String(y),

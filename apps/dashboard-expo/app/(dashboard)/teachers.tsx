@@ -29,6 +29,8 @@ import type { TableSort } from '@/components/ui/table-sort';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { PhotoField } from '@/components/ui/PhotoField';
 import { Eye, KeyRound, Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { PageSizeSelect } from '@/components/ui/PageSizeSelect';
@@ -182,8 +184,12 @@ export default function TeachersScreen() {
   const [viewing, setViewing] = useState<TeacherRow | null>(null);
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [rotateOpen, setRotateOpen] = useState(false);
+  const [allMatching, setAllMatching] = useState(false);
+  const mobile = useBreakpoint() === 'mobile';
 
   useEffect(() => setPage(1), [search, sort, designations, emailQuery, limit]);
+  // "All matching" is only valid for the filter it was chosen under.
+  useEffect(() => setAllMatching(false), [search, designations, emailQuery]);
 
   // Like the web: one request for the first 200, then search / sort / paging in memory.
   const list = useQuery({
@@ -296,9 +302,19 @@ export default function TeachersScreen() {
     });
   }, [visibleIds]);
   const head = pageState(selected, visibleIds);
+  const selectedIds = allMatching ? view.map((t) => t.id) : [...selected];
+  const selectedCount = selectedIds.length;
+  const clearSelection = () => {
+    setAllMatching(false);
+    setSelected(new Set());
+  };
+  const togglePageSelection = () => {
+    if (allMatching) clearSelection();
+    else setSelected(togglePage(selected, visibleIds));
+  };
   const rotate = useAdminMutation({
     mutationFn: async () =>
-      saveFile(await teachers.rotatePasswords([...selected]), 'rotated_passwords.xlsx', XLSX_MIME),
+      saveFile(await teachers.rotatePasswords(selectedIds), 'rotated_passwords.xlsx', XLSX_MIME),
     invalidate: [],
     success: (r) =>
       r === 'saved'
@@ -307,13 +323,16 @@ export default function TeachersScreen() {
     failure: 'Failed to rotate passwords. Please try again.',
     onSuccess: () => {
       setRotateOpen(false);
-      setSelected(new Set());
+      clearSelection();
     },
   });
   const check = (t: TeacherRow) => (
     <Checkbox
-      checked={selected.has(t.id)}
-      onChange={() => setSelected(toggleId(selected, t.id))}
+      checked={allMatching || selected.has(t.id)}
+      onChange={() => {
+        setAllMatching(false);
+        setSelected(toggleId(selected, t.id));
+      }}
       label=""
       testID={`select-teacher-${t.id}`}
     />
@@ -336,7 +355,22 @@ export default function TeachersScreen() {
     </View>
   );
   const columns: Column<TeacherRow>[] = [
-    { key: 'select', label: ' ', className: 'w-10', render: check },
+    {
+      key: 'select',
+      label: ' ',
+      className: 'w-12',
+      header: (
+        <Checkbox
+          checked={allMatching || head.all}
+          onChange={togglePageSelection}
+          label=""
+          accessibilityLabel="Select all teachers on this page"
+          disabled={visibleIds.length === 0}
+          testID="teachers-select-page"
+        />
+      ),
+      render: check,
+    },
     {
       key: 'teacher',
       label: 'Teacher',
@@ -408,10 +442,22 @@ export default function TeachersScreen() {
       onRefresh={() => void list.refetch()}
       refreshing={list.isRefetching}
       footer={
-        selected.size > 0 ? (
+        selectedCount > 0 ? (
           <ActionBar
-            label={`${plural(selected.size, 'teacher')} selected`}
-            onClear={() => setSelected(new Set())}
+            label={`${plural(selectedCount, 'teacher')} selected`}
+            onClear={clearSelection}
+            detail={
+              head.all && !allMatching && view.length > rows.length ? (
+                <Button
+                  variant="link"
+                  size="sm"
+                  label={`Select all ${view.length.toLocaleString()} matching`}
+                  onPress={() => setAllMatching(true)}
+                  className="h-auto px-0"
+                  testID="teachers-select-all-matching"
+                />
+              ) : null
+            }
             testID="teachers-bulk-bar"
           >
             <Button
@@ -478,13 +524,15 @@ export default function TeachersScreen() {
                 }}
               />
             ) : null}
-            <Checkbox
-              checked={head.all}
-              onChange={() => setSelected(togglePage(selected, visibleIds))}
-              label="Select page"
-              disabled={visibleIds.length === 0}
-              testID="teachers-select-page"
-            />
+            {mobile ? (
+              <Checkbox
+                checked={allMatching || head.all}
+                onChange={togglePageSelection}
+                label="Select page"
+                disabled={visibleIds.length === 0}
+                testID="teachers-select-page-mobile"
+              />
+            ) : null}
           </View>
           {list.data && list.data.rows.length > 0 ? (
             <StatStrip className="sm:max-w-md">
@@ -617,25 +665,18 @@ export default function TeachersScreen() {
         <TextField control={control} name="address" label="Address" required />
         <FieldRow>
           <Field label="Photo" hint="Image, up to 2 MB.">
-            <FilePicker
-              accept="image/*"
-              label="Photo"
-              value={photo}
-              onChange={(f) => pickTeacherFile('image', f)}
-              currentLabel={editing?.image ? 'Current photo' : undefined}
-              onOpenCurrent={editing?.image ? () => void openStoredFile(editing.image) : undefined}
-              disabled={save.isPending}
+            <PhotoField
+              url={editing?.image ? fileUrl(editing.image) : null}
+              picked={photo}
+              onPick={(f) => pickTeacherFile('image', f)}
+              onRemove={() =>
+                photo || !editing
+                  ? setPhoto(null)
+                  : removeFile.mutate({ id: editing.id, kind: 'image' })
+              }
+              busy={save.isPending || removeFile.isPending}
+              testID="teacher-photo"
             />
-            {editing?.image && !photo ? (
-              <Button
-                variant="link"
-                size="sm"
-                label="Remove photo"
-                disabled={removeFile.isPending}
-                onPress={() => removeFile.mutate({ id: editing.id, kind: 'image' })}
-                className="h-auto self-start px-0"
-              />
-            ) : null}
           </Field>
           <Field label="Signature" hint="Image, up to 1 MB.">
             <FilePicker
@@ -703,7 +744,7 @@ export default function TeachersScreen() {
         tone="default"
         onConfirm={() => rotate.mutate(undefined)}
         confirmLabel="Rotate passwords"
-        message={`This will generate new passwords for ${plural(selected.size, 'teacher')}. An Excel file with the new credentials downloads here and is also emailed to the headmaster. Old passwords stop working.`}
+        message={`This will generate new passwords for ${plural(selectedCount, 'teacher')}. An Excel file with the new credentials downloads here and is also emailed to the headmaster. Old passwords stop working.`}
       />
 
       <ConfirmDialog

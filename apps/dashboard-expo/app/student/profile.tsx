@@ -122,7 +122,6 @@ export default function StudentProfileScreen() {
         <>
           <Select
             label="Academic year"
-            size="sm"
             value={year}
             onChange={setYear}
             options={(years.length ? years : [year]).map((y) => ({

@@ -10,11 +10,12 @@ import { useState } from 'react';
 import { Image, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type Column } from '@/components/ui/DataTable';
-import { headerSortValue, parseSortValue, withSortOption } from '@/components/ui/table-sort';
+import { headerSortValue, parseSortValue } from '@/components/ui/table-sort';
 import { Dialog } from '@/components/ui/Dialog';
 import { CheckCircle2, Clock, Download, Eye, FileText, Trash2, XIcon } from '@/components/ui/icons';
 import { MultiSelect } from '@/components/ui/MultiSelect';
@@ -38,22 +39,6 @@ import { datedName, dateTimeOf, yearsFrom } from './model';
 import { DetailGrid, useFileTasks, ZIP_MIME } from './ui';
 
 const SORT_KEYS = ['name', 'class', 'userId', 'status', 'date'] as const;
-const SORT_LABELS: Record<string, string> = {
-  name: 'Name',
-  class: 'Class',
-  userId: 'User ID',
-  status: 'Status',
-  date: 'Submitted',
-};
-const SORTS: { value: string; label: string }[] = [
-  { value: 'date:desc', label: 'Newest first' },
-  { value: 'date:asc', label: 'Oldest first' },
-  { value: 'name:asc', label: 'Name (A–Z)' },
-  { value: 'class:asc', label: 'Class' },
-  { value: 'userId:asc', label: 'User ID' },
-  { value: 'status:asc', label: 'Status' },
-];
-
 export function AdmissionFormsScreen() {
   const { admission } = useApi();
   const { resolution } = useTenant();
@@ -157,29 +142,18 @@ export function AdmissionFormsScreen() {
   const actions = (a: AdmissionForm) => (
     <View className="flex-row gap-0.5">
       <ActionButton icon={Eye} label={`View ${a.name}`} tone="blue" onPress={() => setDetail(a)} />
-      <ActionButton
-        icon={FileText}
-        label={`Preview PDF of ${a.name}`}
-        tone="blue"
-        onPress={() => previewPdf(a)}
-      />
-      <ActionButton
-        icon={Download}
-        label={`Download PDF of ${a.name}`}
-        tone="blue"
-        onPress={() => downloadPdf(a)}
-      />
-      <ActionButton
-        icon={a.status === 'pending' ? CheckCircle2 : Clock}
-        label={a.status === 'pending' ? `Approve ${a.name}` : `Mark ${a.name} as pending`}
-        tone="emerald"
-        onPress={() => toggle(a)}
-      />
-      <ActionButton
-        icon={Trash2}
-        label={`Delete ${a.name}`}
-        tone="red"
-        onPress={() => setDeleteTarget(a)}
+      <RowMenu
+        title={a.name}
+        items={[
+          { icon: FileText, label: 'Preview PDF', onPress: () => previewPdf(a) },
+          { icon: Download, label: 'Download PDF', onPress: () => downloadPdf(a) },
+          {
+            icon: a.status === 'pending' ? CheckCircle2 : Clock,
+            label: a.status === 'pending' ? 'Approve' : 'Mark as pending',
+            onPress: () => toggle(a),
+          },
+          { icon: Trash2, label: 'Delete', destructive: true, onPress: () => setDeleteTarget(a) },
+        ]}
       />
     </View>
   );
@@ -254,7 +228,7 @@ export function AdmissionFormsScreen() {
         </Text>
       ),
     },
-    { key: 'actions', label: ' ', className: 'w-[150px]', align: 'right', render: actions },
+    { key: 'actions', label: ' ', className: 'w-[88px]', align: 'right', render: actions },
   ];
 
   const summary = meta
@@ -273,7 +247,6 @@ export function AdmissionFormsScreen() {
       titleAccessory={
         <Select
           label="Admission year"
-          size="sm"
           value={yearValue}
           options={[
             { value: '', label: 'All years' },
@@ -329,7 +302,6 @@ export function AdmissionFormsScreen() {
         </View>
         <MultiSelect
           label="Status"
-          size="sm"
           value={status}
           options={[
             { value: 'pending', label: 'Pending' },
@@ -341,20 +313,12 @@ export function AdmissionFormsScreen() {
         />
         <Select
           label="Class"
-          size="sm"
           value={cls}
           options={[
             { value: '', label: 'All classes' },
             ...classes.map((c) => ({ value: c, label: c })),
           ]}
           onChange={reset(setCls)}
-        />
-        <Select
-          label="Sort"
-          size="sm"
-          value={sort}
-          options={withSortOption(SORTS, sort, SORT_LABELS)}
-          onChange={reset(setSort)}
         />
         {filtersActive ? (
           <Button
@@ -411,7 +375,6 @@ export function AdmissionFormsScreen() {
           <View className="flex-row flex-wrap items-center justify-between gap-2">
             <Select
               label="Rows per page"
-              size="sm"
               value={limit}
               options={[50, 100, 200].map((n) => ({ value: n, label: `${n} / page` }))}
               onChange={reset(setLimit)}
