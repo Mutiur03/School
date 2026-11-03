@@ -18,7 +18,7 @@ export default async function CertificateConfirmPage({
     getCertificateRecord(id),
   ]);
 
-  if (!certificate) {
+  if (!certificate?.data) {
     redirect('/testimonial');
   }
 
