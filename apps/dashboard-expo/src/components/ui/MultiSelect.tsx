@@ -1,7 +1,7 @@
 /**
  * Multi-select filter, standing in for the web's column-menu checkboxes (ColumnHeaderMenu
  * `options` / `selected`): an input-styled trigger ("All …", one label, or "N selected") opening
- * a checklist in a popover card (bottom sheet on phones) with Clear and Done. Pure JS.
+ * a checklist in a popover card (bottom sheet on phones) with Clear. Applies on change. Pure JS.
  */
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -97,23 +97,6 @@ export function MultiSelect<T extends string | number>({
             >
               <Text size={touch ? 'base' : 'sm'} weight="medium" color="mutedForeground">
                 Clear
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setOpen(false)}
-              className={cn(
-                'bg-primary justify-center rounded-md px-4',
-                touch ? 'min-h-11' : 'py-1.5',
-              )}
-              testID={testID ? `${testID}-done` : undefined}
-            >
-              <Text
-                size={touch ? 'base' : 'sm'}
-                weight="medium"
-                className="text-primary-foreground"
-              >
-                Done
               </Text>
             </Pressable>
           </View>
