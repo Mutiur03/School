@@ -212,8 +212,13 @@ function LogsTab({
   onLogs,
   category,
   setCategory,
+  onRetryAll,
+  retryAllBusy,
   filters: { date, setDate, status, setStatus, page, setPage, limit, setLimit },
 }: {
+  /** Asks the page to confirm retrying every failed message (count) matching the filters. */
+  onRetryAll: (failedCount: number) => void;
+  retryAllBusy: boolean;
   selected: Set<number>;
   setSelected: (s: Set<number>) => void;
   /** The rows on screen, for the page-level Retry button. */
@@ -409,7 +414,21 @@ function LogsTab({
             }}
           />
         ) : null}
-        <View className="ml-auto">
+        <Button
+          variant="outline"
+          size="sm"
+          icon={RotateCw}
+          label={
+            retryAllBusy
+              ? 'Retrying…'
+              : `Retry all failed${stats.failed ? ` (${stats.failed})` : ''}`
+          }
+          disabled={retryAllBusy || stats.failed === 0}
+          onPress={() => onRetryAll(stats.failed)}
+          className="ml-auto"
+          testID="sms-retry-all"
+        />
+        <View>
           <Checkbox
             checked={head.all}
             onChange={() => setSelected(togglePage(selected, ids))}
@@ -966,6 +985,20 @@ export function SmsScreen() {
     },
     onError: (e) => toast.error(mutationErrorMessage(e, 'Failed to retry SMS messages')),
   });
+  const [retryAllCount, setRetryAllCount] = useState<number | null>(null);
+  const retryAll = useMutation({
+    mutationFn: () => sms.retryAllFailed({ category: listParam(category), date: logDate }),
+    onSuccess: (msg) => {
+      toast.success(msg);
+      setRetryAllCount(null);
+      setSelected(new Set());
+      invalidate('sms-logs', 'sms-balance', 'sms-usage');
+    },
+    onError: (e) => {
+      setRetryAllCount(null);
+      toast.error(mutationErrorMessage(e, 'Failed to retry SMS messages'));
+    },
+  });
   const remove = useMutation({
     mutationFn: (ids: number[]) => sms.deleteLogs(ids),
     onSuccess: (msg) => {
@@ -1062,6 +1095,8 @@ export function SmsScreen() {
           onLogs={setVisibleLogs}
           category={category}
           setCategory={setCategory}
+          onRetryAll={setRetryAllCount}
+          retryAllBusy={retryAll.isPending}
           filters={{
             date: logDate,
             setDate: setLogDate,
@@ -1104,6 +1139,14 @@ export function SmsScreen() {
           <Skeleton height={160} />
         </View>
       )}
+      <ConfirmDialog
+        open={retryAllCount !== null}
+        busy={retryAll.isPending}
+        onClose={() => setRetryAllCount(null)}
+        onConfirm={() => retryAll.mutate()}
+        confirmLabel="Retry all"
+        message={`Retry ${plural(retryAllCount ?? 0, 'failed message')} matching the current filters, across all pages?`}
+      />
       <ConfirmDialog
         open={deleteOpen}
         busy={remove.isPending}

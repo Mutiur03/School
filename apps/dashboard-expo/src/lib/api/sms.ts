@@ -225,6 +225,11 @@ export function createSmsApi(client: ApiClient) {
       const data = await client.post<unknown>(SMS_PATHS.retry, { ids: smsLogIds });
       return message(data, 'Retry started.');
     },
+    /** Retry every failed log matching the filters, across all pages. */
+    async retryAllFailed(filter: { category: string; date: string }): Promise<string> {
+      const data = await client.post<unknown>(SMS_PATHS.retry, { allFailed: true, ...filter });
+      return message(data, 'Retry started.');
+    },
     async deleteLogs(smsLogIds: number[]): Promise<string> {
       const data = await client.request<unknown>(SMS_PATHS.logs, {
         method: 'DELETE',
