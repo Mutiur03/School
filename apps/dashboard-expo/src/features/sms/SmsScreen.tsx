@@ -416,7 +416,7 @@ function LogsTab({
         ) : null}
         <Button
           variant="outline"
-          size="sm"
+          size="lg"
           icon={RotateCw}
           label={
             retryAllBusy
@@ -425,10 +425,10 @@ function LogsTab({
           }
           disabled={retryAllBusy || stats.failed === 0}
           onPress={() => onRetryAll(stats.failed)}
-          className="ml-auto"
+          className="min-h-11"
           testID="sms-retry-all"
         />
-        <View>
+        <View className="ml-auto">
           <Checkbox
             checked={head.all}
             onChange={() => setSelected(togglePage(selected, ids))}

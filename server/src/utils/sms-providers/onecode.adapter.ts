@@ -27,13 +27,15 @@ export const onecodeAdapter: SmsProviderAdapter = {
           MessageParameters: messages,
         }),
       });
-      const data: any = await res.json().catch(() => ({}));
+      const body: any = await res.json().catch(() => ({}));
       if (!res.ok) {
         return {
           success: false,
-          message: data?.message || `Failed to send SMS via OneCode (${res.status})`,
+          message: body?.message || `Failed to send SMS via OneCode (${res.status})`,
         };
       }
+      // v3 wraps the payload: { status, message, data: { results, ... } }
+      const data = body?.data ?? body;
       console.log(data);
 
       let unitsUsed = 0;
