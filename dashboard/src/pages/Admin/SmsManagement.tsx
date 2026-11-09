@@ -236,6 +236,7 @@ function SmsManagement() {
   // ---- Logs ----
   const [selectedLogs, setSelectedLogs] = useState<number[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [retryAllOpen, setRetryAllOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [date, setDate] = useState(formatIsoToDisplayDate(new Date().toISOString()));
@@ -368,8 +369,10 @@ function SmsManagement() {
   });
 
   const retryMutation = useMutation({
-    mutationFn: async (smsLogIds: number[]) => {
-      const response = await axios.post('/api/sms/logs/retries', { ids: smsLogIds });
+    mutationFn: async (
+      body: { ids: number[] } | { allFailed: true; category: string; date: string },
+    ) => {
+      const response = await axios.post('/api/sms/logs/retries', body);
       return response.data.data;
     },
     onSuccess: (data) => {
@@ -1028,6 +1031,17 @@ function SmsManagement() {
                   aria-label="Updating"
                 />
               )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                disabled={retryMutation.isPending || !stats.failed}
+                onClick={() => setRetryAllOpen(true)}
+              >
+                {retryMutation.isPending ? <Loader2 className="animate-spin" /> : <RotateCw />}
+                Retry all failed{stats.failed ? ` (${stats.failed})` : ''}
+              </Button>
             </div>
 
             <div className="overflow-x-auto">
@@ -1223,7 +1237,7 @@ function SmsManagement() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => retryMutation.mutate(retryableIds)}
+                  onClick={() => retryMutation.mutate({ ids: retryableIds })}
                   disabled={retryMutation.isPending || retryableIds.length === 0}
                   title={
                     retryableIds.length === 0
@@ -1247,6 +1261,21 @@ function SmsManagement() {
               </div>
             </div>
           )}
+
+          <ConfirmationPopup
+            open={retryAllOpen}
+            onOpenChange={setRetryAllOpen}
+            onConfirm={() => {
+              setRetryAllOpen(false);
+              retryMutation.mutate({
+                allFailed: true,
+                category,
+                date: toDateInputValue(date) || date,
+              });
+            }}
+            confirmLabel="Retry all"
+            msg={`Retry all ${plural(stats.failed || 0, 'failed message')} matching the current filters, across all pages?`}
+          />
 
           <ConfirmationPopup
             open={deleteOpen}

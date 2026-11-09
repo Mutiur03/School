@@ -93,6 +93,46 @@ const finalizeBulkSend = async (
   return processRes;
 };
 
+/**
+ * category / status: one value, a comma list ("attendance,bulk"), or 'all'.
+ * category defaults to 'attendance' so existing clients/behavior are unchanged.
+ */
+const buildLogsWhere = ({ status, date, category = 'attendance' }: LogFilters) => {
+  const toList = (v?: string) =>
+    !v || v === 'all'
+      ? []
+      : v
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+  const categories = toList(category);
+  const statuses = toList(status);
+
+  const whereClause: any = {};
+  if (statuses.length) whereClause.status = { in: statuses };
+
+  if (date) {
+    // Attendance rows are filed by attendance_date; password_reset/test/bulk rows have none,
+    // so they're matched by the day they were sent (Asia/Dhaka, fixed UTC+6, no DST).
+    const start = new Date(`${date}T00:00:00+06:00`);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    const wantsAttendance = !categories.length || categories.includes('attendance');
+    const others = categories.filter((c) => c !== 'attendance');
+    const byDay: any[] = [];
+    if (wantsAttendance) byDay.push({ category: 'attendance', attendance_date: date });
+    if (!categories.length || others.length) {
+      byDay.push({
+        category: others.length ? { in: others } : { not: 'attendance' },
+        created_at: { gte: start, lt: end },
+      });
+    }
+    whereClause.OR = byDay;
+  } else if (categories.length) {
+    whereClause.category = { in: categories };
+  }
+  return whereClause;
+};
+
 export class SmsLogsService {
   static async getSmsLogs(filters: LogFilters, user?: UserContext) {
     const { status, date, category = 'attendance', page = 1, limit = 50 } = filters;
@@ -100,40 +140,7 @@ export class SmsLogsService {
     const safeLimit = Math.min(100, Math.max(1, Number.isFinite(limit) ? Number(limit) : 50));
     const offset = (safePage - 1) * safeLimit;
 
-    // category / status: one value, a comma list ("attendance,bulk"), or 'all'.
-    // category defaults to 'attendance' so existing clients/behavior are unchanged.
-    const toList = (v?: string) =>
-      !v || v === 'all'
-        ? []
-        : v
-            .split(',')
-            .map((x) => x.trim())
-            .filter(Boolean);
-    const categories = toList(category);
-    const statuses = toList(status);
-
-    const whereClause: any = {};
-    if (statuses.length) whereClause.status = { in: statuses };
-
-    if (date) {
-      // Attendance rows are filed by attendance_date; password_reset/test/bulk rows have none,
-      // so they're matched by the day they were sent (Asia/Dhaka, fixed UTC+6, no DST).
-      const start = new Date(`${date}T00:00:00+06:00`);
-      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-      const wantsAttendance = !categories.length || categories.includes('attendance');
-      const others = categories.filter((c) => c !== 'attendance');
-      const byDay: any[] = [];
-      if (wantsAttendance) byDay.push({ category: 'attendance', attendance_date: date });
-      if (!categories.length || others.length) {
-        byDay.push({
-          category: others.length ? { in: others } : { not: 'attendance' },
-          created_at: { gte: start, lt: end },
-        });
-      }
-      whereClause.OR = byDay;
-    } else if (categories.length) {
-      whereClause.category = { in: categories };
-    }
+    const whereClause = buildLogsWhere({ status, date, category });
 
     const studentFilter = await buildTeacherStudentFilter(user);
     if (studentFilter) {
@@ -495,6 +502,25 @@ export class SmsLogsService {
         },
       },
     };
+  }
+
+  /** Retry every failed log matching the filters, across all pages. */
+  static async retryAllFailed(filters: Pick<LogFilters, 'date' | 'category'>) {
+    const logs = await prisma.sms_logs.findMany({
+      where: buildLogsWhere({ ...filters, status: 'failed' }),
+      select: { id: true },
+    });
+    if (logs.length === 0) {
+      return {
+        status: 200,
+        body: {
+          message: 'No failed messages to retry',
+          results: [],
+          stats: { total: 0, successful: 0, failed: 0, skipped: 0 },
+        },
+      };
+    }
+    return this.retrySms(logs.map((l) => l.id));
   }
 
   static async deleteSmsLogs(smsLogIds: number[]) {

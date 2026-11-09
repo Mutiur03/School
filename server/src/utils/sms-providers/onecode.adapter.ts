@@ -6,7 +6,7 @@ import type {
 } from './types.js';
 import type { SMSMessage } from '@/utils/sms.service.js';
 
-const DEFAULT_API_URL = 'https://sms.onecodesoft.com/api/send-bulk-sms';
+const DEFAULT_API_URL = 'https://sms.ocs-api.top/api/v3/send-bulk-sms';
 const BALANCE_API_URL = 'https://sms.ocs-api.top/api/get-balance';
 
 export const onecodeAdapter: SmsProviderAdapter = {
@@ -19,6 +19,7 @@ export const onecodeAdapter: SmsProviderAdapter = {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${creds.apiKey}`,
         },
         body: JSON.stringify({
           api_key: creds.apiKey,

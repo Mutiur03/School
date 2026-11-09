@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -10,6 +11,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 /** Empty query values (`?date=`) mean "not set". */
@@ -53,6 +55,30 @@ export class SmsLogIdsDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   ids!: number[];
+}
+
+/** Retry selected `ids`, or every failed log matching `category`/`date` when `allFailed` is true. */
+export class RetrySmsDto {
+  @IsOptional()
+  @IsBoolean()
+  allFailed?: boolean;
+
+  @ValidateIf((o: RetrySmsDto) => !o.allFailed)
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  ids?: number[];
+
+  @IsOptional()
+  @Transform(emptyToUndefined)
+  @IsString()
+  category?: string;
+
+  @IsOptional()
+  @Transform(emptyToUndefined)
+  @IsDateString()
+  date?: string;
 }
 
 export class UsageQueryDto {

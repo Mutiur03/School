@@ -15,6 +15,7 @@ import type { AuthUser } from '../../common/current-user.decorator.js';
 import {
   BulkSmsDto,
   RecipientCountQueryDto,
+  RetrySmsDto,
   SmsLogIdsDto,
   SmsLogsQueryDto,
   UsageQueryDto,
@@ -52,8 +53,12 @@ export class SmsLogsController {
   }
 
   @Post('logs/retries')
-  async retry(@Body() dto: SmsLogIdsDto) {
-    return unwrap(await SmsLogsService.retrySms(dto.ids));
+  async retry(@Body() dto: RetrySmsDto) {
+    return unwrap(
+      dto.allFailed
+        ? await SmsLogsService.retryAllFailed(dto)
+        : await SmsLogsService.retrySms(dto.ids!),
+    );
   }
 
   @Get('usage')
