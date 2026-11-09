@@ -100,6 +100,17 @@ describe('routeAllowed over every app route', () => {
     }
   });
 
+  it('school: every school route, no platform area or platform sign-in', () => {
+    for (const r of ROUTES) {
+      const want = area(r) !== '/platform' && r !== '/platform-login';
+      assert.equal(routeAllowed(r, 'school'), want, r);
+    }
+    assert.equal(rootRedirect('school'), null);
+    assert.equal(parseLockedRole('School', 'web'), 'school');
+    assert.equal(roleAllowed('teacher', 'school'), true);
+    assert.equal(roleAllowed('super_admin', 'school'), false);
+  });
+
   it('super_admin: only /platform/** and platform sign-in, no school screens or /join', () => {
     for (const r of ROUTES) {
       const want = r === '/' || area(r) === '/platform' || r === '/platform-login';

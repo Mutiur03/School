@@ -1,6 +1,6 @@
 # Deploy dashboard-expo web (Cloudflare Pages)
 #
-# Same promote flow as deploy-pages.yml: staging builds dist/web and uploads it as an artifact.
+# Same promote flow as deploy-pages.yml: staging builds dist/roles and uploads it as an artifact.
 # main looks up a successful staging run for github.sha (and merge 2nd parent): on hit, download
 # the dist and wrangler deploy only; on miss, rebuild. Only main deploys.
 #
@@ -8,10 +8,11 @@
 # (*.lbphs.gov.bd/api/*), which proxies /api; the backend resolves the school from the host.
 # No 404.html in the export, so Pages falls back to index.html for deep links.
 #
-# Five sites from one commit: the all-roles site (school-dashboard-expo, unchanged) and four
-# role-locked sites, built with EXPO_PUBLIC_APP_ROLE (apps/dashboard-expo/src/navigation/
+# Five role-locked sites from one commit, built with EXPO_PUBLIC_APP_ROLE (apps/dashboard-expo/src/navigation/
 # deployment-lock.ts): every route outside that role is a 404 and other roles are signed out.
 #   school-dashboard-expo-admin / -teacher / -student / -superadmin
+#   school-dashboard-expo-school: admin + teacher + student together, no super admin
+#     (the tenant-router's <school>-dashboard host points here)
 # Native builds and OTAs (deploy-dashboard-expo*.yml) never set EXPO_PUBLIC_APP_ROLE.
 
 name: Deploy dashboard-expo web
@@ -32,8 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ARTIFACT: pages-school-dashboard-expo
-  # The four role-locked exports, one folder each (admin, teacher, student, superadmin).
+  # The role-locked exports, one folder each (admin, teacher, student, school, superadmin).
   ROLES_ARTIFACT: pages-school-dashboard-expo-roles
 
 jobs:
@@ -79,13 +79,13 @@ jobs:
               [ -z "$CAND_RUN" ] && { echo "No staging run for $cand"; continue; }
               NAMES="$(gh api "repos/${{ github.repository }}/actions/runs/${CAND_RUN}/artifacts" \
                 --jq '.artifacts[].name')"
-              if grep -qx "$ARTIFACT" <<<"$NAMES" && grep -qx "$ROLES_ARTIFACT" <<<"$NAMES"; then
+              if grep -qx "$ROLES_ARTIFACT" <<<"$NAMES"; then
                 HIT=true
                 RUN_ID="$CAND_RUN"
                 echo "Promote hit: staging run $RUN_ID for $cand"
                 break
               fi
-              echo "Staging run $CAND_RUN missing artifact: $ARTIFACT or $ROLES_ARTIFACT"
+              echo "Staging run $CAND_RUN missing artifact: $ROLES_ARTIFACT"
             done
 
             [ "$HIT" = true ] || echo "Promote miss: will rebuild."
@@ -126,15 +126,6 @@ jobs:
       - name: Test
         run: pnpm --filter dashboard-expo test
 
-      - name: Build web
-        working-directory: apps/dashboard-expo
-        env:
-          EXPO_PUBLIC_APP_ENV: production
-          EXPO_PUBLIC_CDN_URL: ${{ secrets.LBP_VITE_CDN_URL }}
-          # Page host superadmin.mutiurrahman.com == this origin -> platform (super-admin) mode.
-          EXPO_PUBLIC_DIRECTORY_URL: https://superadmin.mutiurrahman.com
-        run: pnpm build:web
-
       # --clear: EXPO_PUBLIC_* are inlined at transform time, so no cached module may carry
       # another role's value.
       - name: Build role-locked web
@@ -145,18 +136,11 @@ jobs:
           EXPO_PUBLIC_DIRECTORY_URL: https://superadmin.mutiurrahman.com
         run: |
           set -euo pipefail
-          for pair in admin:admin teacher:teacher student:student superadmin:super_admin; do
+          for pair in admin:admin teacher:teacher student:student school:school superadmin:super_admin; do
             dir="${pair%%:*}"
             EXPO_PUBLIC_APP_ROLE="${pair#*:}" pnpm exec expo export --platform web --clear \
               --output-dir "dist/roles/$dir"
           done
-
-      - name: Upload web dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT }}
-          path: apps/dashboard-expo/dist/web
-          retention-days: 14
 
       - name: Upload role-locked web dists
         uses: actions/upload-artifact@v4
@@ -179,7 +163,6 @@ jobs:
       fail-fast: false
       matrix:
         site:
-          - { project: school-dashboard-expo, artifact: pages-school-dashboard-expo, dir: . }
           - {
               project: school-dashboard-expo-admin,
               artifact: pages-school-dashboard-expo-roles,
@@ -194,6 +177,11 @@ jobs:
               project: school-dashboard-expo-student,
               artifact: pages-school-dashboard-expo-roles,
               dir: student,
+            }
+          - {
+              project: school-dashboard-expo-school,
+              artifact: pages-school-dashboard-expo-roles,
+              dir: school,
             }
           - {
               project: school-dashboard-expo-superadmin,
