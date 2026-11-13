@@ -22,10 +22,14 @@ export function startBullWorker<T>(opts: {
     }),
   );
 
-  queue.process(opts.concurrency, async (job) => {
-    await opts.process(job);
-    return true;
-  });
+  // Before taking work, release jobs a killed process left `active` (its lock lives on for
+  // lockDuration, blocking re-queues of that jobId). Then register the processor.
+  void releaseOrphanedActiveJobs(queue, name).finally(() =>
+    queue.process(opts.concurrency, async (job) => {
+      await opts.process(job);
+      return true;
+    }),
+  );
 
   queue.on('failed', (job, err) => {
     logger.warn(`[${name}] worker: job failed (Bull)`, {
@@ -47,6 +51,28 @@ export function startBullWorker<T>(opts: {
 
   logger.info(`[${name}] worker: started`, { concurrency: opts.concurrency });
   opts.onStarted?.();
+}
+
+/**
+ * Move every `active` job back to wait by dropping its lock. Runs before this process
+ * registers its processor, so nothing here is ours.
+ * ponytail: assumes one worker process per queue. With several, a peer's live job may be
+ * re-run; the DB claim (pending/failed → generating) makes that a no-op skip.
+ */
+export async function releaseOrphanedActiveJobs(queue: Bull.Queue, name: string): Promise<void> {
+  try {
+    const active = await queue.getActive();
+    if (active.length === 0) return;
+    await queue.client.del(...active.map((j) => `${queue.toKey(String(j.id))}:lock`));
+    await (queue as any).moveUnlockedJobsToWait();
+    logger.info(`[${name}] worker: released orphaned active jobs`, {
+      jobIds: active.map((j) => j.id),
+    });
+  } catch (e) {
+    logger.warn(`[${name}] worker: releasing orphaned active jobs failed`, {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 }
 
 /** Pause local processing and wait for in-flight jobs before shutdown. */

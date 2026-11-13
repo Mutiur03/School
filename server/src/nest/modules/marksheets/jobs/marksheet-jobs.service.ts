@@ -250,8 +250,7 @@ export class MarksheetJobsService {
    * re-attach for DB `pending`/`failed` rows runs on every poll so a lost Bull
    * job cannot sit pending for the full cooldown with generating=0.
    */
-  async ensureQueuedForExamIfDue(schoolId: number, examId: number): Promise<number> {
-    if (!(await this.isPublished(schoolId, examId))) return 0;
+  private async ensureQueuedForExamIfDue(schoolId: number, examId: number): Promise<number> {
     const now = Date.now();
     const last = this.ensureQueuedLastRun.get(examId) ?? 0;
     if (now - last < ENSURE_QUEUED_COOLDOWN_MS) {
@@ -270,11 +269,29 @@ export class MarksheetJobsService {
     return !!exam?.visible;
   }
 
-  /** Status breakdown for an exam, for admin progress UI. */
+  // ponytail: "active" = pending/generating row touched in the last 10 min (no Bull lookup);
+  // a job stalled longer than that drops off the UI until it is picked up again.
+  private async hasRecentActivity(where: { school_id: number; exam_id: number }) {
+    const recent = {
+      ...where,
+      status: { in: ['pending', 'generating'] },
+      updated_at: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+    };
+    const [file, bundle] = await Promise.all([
+      this.prisma.marksheet_files.findFirst({ where: recent, select: { id: true } }),
+      this.prisma.marksheet_bundles.findFirst({ where: recent, select: { id: true } }),
+    ]);
+    return !!(file || bundle);
+  }
+
+  /** Status breakdown for an exam, for admin progress UI. Published: also re-queues lost jobs. */
   async statusCounts(schoolId: number, examId: number) {
     const where = { school_id: schoolId, exam_id: examId };
-    // Unpublished: nothing generates, so leftover pending rows must not show as progress.
-    if (!(await this.isPublished(schoolId, examId))) {
+    const published = await this.isPublished(schoolId, examId);
+    if (published) await this.ensureQueuedForExamIfDue(schoolId, examId);
+    // Unpublished: only an admin's on-demand download generates. Report progress while that
+    // runs; old leftover pending rows (not touched recently) must not show as progress.
+    if (!published && !(await this.hasRecentActivity(where))) {
       const empty = {
         pending: 0,
         generating: 0,
@@ -286,8 +303,7 @@ export class MarksheetJobsService {
       };
       return { ...empty, bundles: { ...empty, stale: 0, staleItems: [], failedItems: [] } };
     }
-    // Remove orphan skipped rows (students without marks for this exam).
-    await this.prisma.marksheet_files.deleteMany({ where: { ...where, status: 'skipped' } });
+    // Legacy `skipped` file rows are excluded from total below; no cleanup write on this GET.
 
     const [grouped, bundleGrouped] = await Promise.all([
       this.prisma.marksheet_files.groupBy({ by: ['status'], where, _count: { _all: true } }),

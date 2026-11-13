@@ -554,7 +554,9 @@ async function buildPdf(opts: {
           width: innerW,
           align,
         });
-        if (textH <= h - 2) break;
+        // Also require every word to fit, else PDFKit breaks mid-word ("Tot al Ma rks").
+        const longestWord = Math.max(...display.split(/\s+/).map((w) => doc.widthOfString(w)));
+        if (textH <= h - 2 && longestWord <= innerW) break;
         size -= 0.5;
       }
     } else if (opts.compact !== false) {
@@ -679,6 +681,7 @@ async function buildPdf(opts: {
         writeInBox(span.col.name, x0, y, blockW, h1 + h2, {
           bold: true,
           size: headerFont,
+          wrap: true,
         });
         const sub = ['Mark', 'LG', 'GP'];
         let sx = x0;
@@ -734,14 +737,15 @@ async function buildPdf(opts: {
 
     for (const span of spans) {
       const cell = row.cells[span.col.subjectId];
+      // Columns are the union across students; blank = subject not in this student's group.
       const values: (string | number)[] =
         span.col.kind === 'paper'
           ? cell && cell.kind === 'paper'
             ? [cell.first, cell.second, cell.total, cell.lg, cell.gp]
-            : [0, 0, 0, 'F', 0]
+            : []
           : cell && cell.kind === 'single'
             ? [cell.mark, cell.lg, cell.gp]
-            : [0, 'F', 0];
+            : [];
 
       let x = spanX(span);
       for (let i = 0; i < span.widths.length; i++) {

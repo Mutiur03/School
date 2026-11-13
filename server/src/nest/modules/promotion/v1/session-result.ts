@@ -50,11 +50,13 @@ export interface ExamMarks {
 
 /** One paper of a main subject, shown on its own row of the marksheet. */
 export interface PaperResult {
+  subjectId: number;
   name: string;
   previous: ExamMarks | null;
   yearEnd: ExamMarks;
   combined: number;
   fullMark: number;
+  classHighestMark?: number;
 }
 
 export interface SubjectResult {
@@ -73,6 +75,7 @@ export interface SubjectResult {
   passed: boolean;
   /** Main subjects only: the papers behind the combined row (display; the result uses the combined). */
   papers?: PaperResult[];
+  classHighestMark?: number;
 }
 
 export interface StudentSessionResult {
@@ -89,6 +92,9 @@ export interface StudentSessionResult {
   isFailed: boolean;
   /** Late-release batch (0 = on time); later batches rank after earlier ones. Set by the loader, not the engine. */
   releaseBatch?: number;
+  classHighestBySubject?: Record<number, number>;
+  classHighestTotal?: number;
+  classHighestGrandTotal?: number;
 }
 
 export type ExamMode = 'both' | 'yearEndOnly';
@@ -217,6 +223,7 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
           .map((p) => {
             const m = marksOf(new Set([p.id]));
             return {
+              subjectId: p.id,
               name: p.name,
               ...m,
               combined: (m.yearEnd.marks ?? 0) + (m.previous?.marks ?? 0),
@@ -262,11 +269,12 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
   };
 }
 
-/** Merit position per enrollment: by class (+ group for class 10 only; class 9 ranks across groups), passed first, then release batch, then marks/GPA/section/roll. */
+/** Merit position per enrollment: by class only (groups ignored), passed first, then release batch, then marks/GPA/section/roll. */
 export function rankStudents(results: StudentSessionResult[]): Map<number, number> {
   const buckets = new Map<string, StudentSessionResult[]>();
   for (const r of results) {
-    const key = `${r.classLevel}|${r.classLevel === 10 ? (r.group ?? '') : ''}`;
+    // Rank by class only; groups are not considered.
+    const key = String(r.classLevel);
     buckets.set(key, [...(buckets.get(key) ?? []), r]);
   }
   const positions = new Map<number, number>();

@@ -38,6 +38,8 @@ export const marksheetStatusPath = (examId: number) => `/api/marksheets/exams/${
 
 export const MARKSHEET_POLL_MS = 8_000;
 export const MARKSHEET_STALE_POLL_MS = 60_000;
+/** Nothing generating yet (draft exam, or not started): keep checking so a job started elsewhere shows up. */
+export const MARKSHEET_IDLE_POLL_MS = 30_000;
 
 const count = (v: unknown) => Math.max(0, num(v, 0));
 function tally(v: Record<string, unknown>): GenTally {
@@ -88,9 +90,10 @@ export const hasStaleBundles = (s?: MarksheetGenStatus | null) => (s?.bundles.st
 export const formatBundleScope = (b: BundleScope) =>
   b.section === 'ALL' ? `Class ${b.class} (all sections)` : `Class ${b.class} (${b.section})`;
 
-/** refetchInterval: 8 s while running, 60 s while bundles are stale, otherwise stop. */
+/** refetchInterval: 8 s while running, 60 s while bundles are stale, 30 s while idle, stop when complete. */
 export function marksheetPollMs(s?: MarksheetGenStatus | null): number | false {
-  if (!s || s.total === 0) return false;
+  if (!s) return false;
+  if (s.total === 0) return MARKSHEET_IDLE_POLL_MS;
   if (hasStaleBundles(s)) return MARKSHEET_STALE_POLL_MS;
   return isGenComplete(s) ? false : MARKSHEET_POLL_MS;
 }

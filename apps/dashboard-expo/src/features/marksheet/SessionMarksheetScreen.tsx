@@ -81,7 +81,7 @@ export function SessionMarksheetDialog({
           {r.subject}
         </Text>
       </View>
-      {[...r.marks, r.fullMark, r.passMark, r.grade, r.gp].map((v, i) => (
+      {[...r.marks, r.fullMark, r.grade, r.gp, r.highestMark].map((v, i) => (
         <Cell key={i} value={v} tint={heads[i] === m?.yearEndExam} />
       ))}
     </View>
@@ -143,7 +143,7 @@ export function SessionMarksheetDialog({
                     Subject
                   </Text>
                 </View>
-                {[...heads, 'Full', 'Pass', 'Grade', 'GP'].map((h, i) => (
+                {[...heads, 'Full', 'Grade', 'GP', 'Highest'].map((h, i) => (
                   <View key={`${h}-${i}`} className={cn(CELL, 'justify-end')}>
                     <Text
                       size="xs"
@@ -166,7 +166,7 @@ export function SessionMarksheetDialog({
                     Total
                   </Text>
                 </View>
-                {m.totals.map((v, i) => (
+                {[...m.totals, '-', '-', '-', m.classHighestTotal].map((v, i) => (
                   <Cell key={i} value={v} bold />
                 ))}
               </View>

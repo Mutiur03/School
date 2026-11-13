@@ -20,14 +20,16 @@ import { useTenant } from '@/tenant/TenantProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { cn } from '@/lib/utils';
 
-export function useMarksheetStatus(examId: number | undefined) {
+/** `idlePoll: false` (list rows): stop polling when nothing is generating; exam mutations and remount recheck. */
+export function useMarksheetStatus(examId: number | undefined, { idlePoll = true } = {}) {
   const { marks } = useApi();
   const { resolution } = useTenant();
   return useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'marksheet-gen-status', examId ?? 0),
     queryFn: ({ signal }) => marks.marksheetStatus(examId!, signal),
     enabled: !!examId,
-    refetchInterval: (q) => marksheetPollMs(q.state.data),
+    refetchInterval: (q) =>
+      !idlePoll && q.state.data?.total === 0 ? false : marksheetPollMs(q.state.data),
   });
 }
 

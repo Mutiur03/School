@@ -902,6 +902,20 @@ export class MarksheetCacheService {
     });
   }
 
+  /** Re-queue all session PDFs after result generation changes saved outcomes. */
+  async invalidateSessionsForYear(schoolId: number, year: number): Promise<void> {
+    const enrollments = await this.prisma.student_enrollments.findMany({
+      where: { school_id: schoolId, year, student: { available: true } },
+      select: { student_id: true },
+    });
+    await this.enqueueSessionsForStudents(
+      schoolId,
+      enrollments.map((e) => e.student_id),
+      year,
+      PRIORITY_BACKFILL,
+    );
+  }
+
   /**
    * Seed the signatory snapshot on student rows that don't have one yet, using
    * the CURRENT head and each student's current section class-teacher. Called

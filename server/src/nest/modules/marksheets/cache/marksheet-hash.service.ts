@@ -444,6 +444,12 @@ export class MarksheetHashService {
         fourth_subject_id: true,
         class: true,
         section: true,
+        status: true,
+        result_held: true,
+        result_manual: true,
+        release_batch: true,
+        fail_count: true,
+        final_merit: true,
         student: { select: { name: true } },
       },
     });
@@ -472,6 +478,12 @@ export class MarksheetHashService {
       t: classTeacher,
       r: enrollment?.roll ?? null,
       f: enrollment?.fourth_subject_id ?? null,
+      st: enrollment?.status ?? null,
+      held: enrollment?.result_held ?? false,
+      manual: enrollment?.result_manual ?? false,
+      batch: enrollment?.release_batch ?? 0,
+      fails: enrollment?.fail_count ?? null,
+      merit: enrollment?.final_merit ?? null,
       nm: enrollment?.student?.name ?? null,
       sch: school,
       d: MARKSHEET_DESIGN_VERSION,
@@ -490,7 +502,15 @@ export class MarksheetHashService {
       this.schoolMarksheetFingerprint(schoolId),
       this.prisma.student_enrollments.findMany({
         where: { school_id: schoolId, year },
-        select: { student: { select: { name: true } } },
+        select: {
+          status: true,
+          result_held: true,
+          result_manual: true,
+          release_batch: true,
+          fail_count: true,
+          final_merit: true,
+          student: { select: { name: true } },
+        },
         orderBy: [{ class: 'asc' }, { section: 'asc' }, { roll: 'asc' }],
       }),
     ]);
@@ -499,7 +519,19 @@ export class MarksheetHashService {
       m: isoStamp(markAgg._max?.updated_at),
       h: head,
       t: classTeachers,
-      sn: namesDigest(enrollments.map((e) => e.student?.name ?? '')),
+      sn: namesDigest(
+        enrollments.map((e) =>
+          [
+            e.student?.name ?? '',
+            e.status ?? '',
+            e.result_held ? '1' : '0',
+            e.result_manual ? '1' : '0',
+            e.release_batch ?? 0,
+            e.fail_count ?? '',
+            e.final_merit ?? '',
+          ].join('\0'),
+        ),
+      ),
       sch: school,
       d: MARKSHEET_DESIGN_VERSION,
     });

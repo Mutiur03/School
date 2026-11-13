@@ -8,7 +8,7 @@
  * Without one (web, first launch) the full-screen SessionBoot shows instead of bouncing.
  */
 import { Redirect, usePathname } from 'expo-router';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { SplashReady } from '@/boot/splash';
 import { useSession } from '@/session/ApiProvider';
@@ -21,6 +21,9 @@ export function RoleGate({ role, children }: { role: GateRole; children: ReactNo
   const { resolution } = useTenant();
   const pathname = usePathname();
   const session = useSession();
+  // While SessionBoot shows, the child navigator is not mounted and the pathname falls back to
+  // the group index ("/"), so `next` uses the path from the last render that showed the page.
+  const wantedPath = useRef(pathname);
   const userRole = session.user?.role;
   const home =
     session.status === 'authenticated' ? homeForRole(userRole, resolution.source) : undefined;
@@ -35,13 +38,15 @@ export function RoleGate({ role, children }: { role: GateRole; children: ReactNo
     const provisionalHome = provisional ? homeForRole(provisional.role, resolution.source) : null;
     if (!provisional || !provisionalHome) return <SessionBoot />;
     if (provisional.role !== role) return <Redirect href={provisionalHome} />;
+    wantedPath.current = pathname;
     return <WithBanner>{children}</WithBanner>;
   }
   if (session.status === 'anonymous') {
-    return <Redirect href={loginHrefFor(resolution.source, pathname)} />;
+    return <Redirect href={loginHrefFor(resolution.source, wantedPath.current)} />;
   }
   if (home === null) return <SessionBoot label="Signing out…" />;
   if (userRole !== role && home) return <Redirect href={home} />;
+  wantedPath.current = pathname;
   return <WithBanner>{children}</WithBanner>;
 }
 

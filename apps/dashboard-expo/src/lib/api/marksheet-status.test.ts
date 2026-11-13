@@ -53,7 +53,7 @@ describe('marksheet generation status', () => {
       { total: 4, done: 1, generating: 1, pending: 2 },
     );
     assert.equal(isGenComplete(bundling), false);
-    assert.equal(marksheetPollMs(make({})), false);
+    assert.equal(marksheetPollMs(make({})), 30_000);
     assert.equal(marksheetPollMs(undefined), false);
   });
 

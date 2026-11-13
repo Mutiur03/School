@@ -213,6 +213,7 @@ export const PROMOTION_PATHS = {
   retainClass10: (y: number) => `/api/graduations/${y}/retained`,
   sessionPdf: (studentId: number) => `/api/marksheets/students/${studentId}/session`,
   allSessionPdf: '/api/marksheets/session',
+  finalResultPdf: (year: number) => `/api/promotions/${year}/final-result`,
   /** Nest, admin/teacher/student (server scopes the student): on-screen session preview. */
   sessionPreview: (studentId: number) => `/api/marks/students/${studentId}/session`,
 } as const;
@@ -524,6 +525,7 @@ export function createPromotionsApi(client: ApiClient) {
     sessionPdf: (studentId: number, year: number) =>
       pdf(PROMOTION_PATHS.sessionPdf(studentId), { year }),
     allSessionPdf: (year: number) => pdf(PROMOTION_PATHS.allSessionPdf, { year }),
+    finalResultPdf: (year: number) => pdf(PROMOTION_PATHS.finalResultPdf(year), {}),
   };
 }
 
@@ -535,6 +537,7 @@ export interface SessionRow {
   passMark: string;
   grade: string;
   gp: string;
+  highestMark: string;
 }
 
 export interface SessionMarksheet {
@@ -545,7 +548,9 @@ export interface SessionMarksheet {
   examRows: SessionRow[];
   continuousRows: SessionRow[];
   totals: string[];
+  classHighestTotal: string;
   grandTotal: string;
+  classHighestGrandTotal: string;
   gpa: string;
   failed: boolean;
   failCount: number;
@@ -562,6 +567,7 @@ function parseSessionRows(v: unknown, path: string): SessionRow[] {
     passMark: cell(r.passMark),
     grade: cell(r.grade),
     gp: cell(r.gp),
+    highestMark: cell(r.highestMark),
   }));
 }
 
@@ -584,7 +590,9 @@ export function parseSessionMarksheet(v: unknown, path: string): SessionMarkshee
     examRows: parseSessionRows(v.examRows, path),
     continuousRows: parseSessionRows(v.continuousRows, path),
     totals: Array.isArray(v.totals) ? v.totals.map(cell) : [],
+    classHighestTotal: cell(v.class_highest_total),
     grandTotal: cell(v.grand_total),
+    classHighestGrandTotal: cell(v.class_highest_grand_total),
     // Display only: the server computed it; toFixed just formats.
     gpa: Number.isFinite(gpa) ? gpa.toFixed(2) : '-',
     failed: v.is_failed === true,

@@ -629,6 +629,20 @@ export default function PromotionScreen() {
               )
             }
           />
+          <Button
+            variant="outline"
+            icon={FileText}
+            label={pdfBusy === 'final-result' ? 'Preparing…' : 'Final result'}
+            disabled={(meta?.filtered ?? 0) === 0 || pdfBusy !== null}
+            onPress={() =>
+              void pdf(
+                'final-result',
+                () => promotions.finalResultPdf(year),
+                pdfFileName(['final-result', year]),
+                'Failed to download final result',
+              )
+            }
+          />
         </>
       }
       onRefresh={() => {

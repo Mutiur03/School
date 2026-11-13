@@ -82,6 +82,7 @@ test.each([
   ['DELETE', `/api/promotions/${YEAR}/results/1/override`],
   ['GET', `/api/promotions/${YEAR}/corrections/plan`],
   ['POST', `/api/promotions/${YEAR}/corrections`],
+  ['GET', `/api/promotions/${YEAR}/final-result`],
 ])('%s %s without token → 401', async (method, path) => {
   const { status, body } = await call(method, path, { body: method === 'GET' ? undefined : {} });
   expect(status).toBe(401);
@@ -92,6 +93,23 @@ test('GET /promotions/abc/stats → 400 invalid year', async () => {
   const { status, body } = await call('GET', '/api/promotions/abc/stats', { auth: true });
   expect(status).toBe(400);
   expect(body.message).toBe('Validation failed (numeric string is expected)');
+});
+
+test('GET /promotions/abc/final-result → 400 invalid year', async () => {
+  const { status, body } = await call('GET', '/api/promotions/abc/final-result', { auth: true });
+  expect(status).toBe(400);
+  expect(body.message).toBe('Validation failed (numeric string is expected)');
+});
+
+test('GET final-result (empty year) → 200 PDF attachment', async () => {
+  const res = await fetch(`${base}/api/promotions/${YEAR}/final-result`, {
+    headers: { 'x-tenant-host': host, authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(200);
+  expect(res.headers.get('content-type')).toContain('application/pdf');
+  expect(res.headers.get('content-disposition')).toContain(`final-result_${YEAR}.pdf`);
+  const pdf = Buffer.from(await res.arrayBuffer());
+  expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
 });
 
 test.each([

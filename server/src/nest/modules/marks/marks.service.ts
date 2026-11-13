@@ -465,6 +465,8 @@ export class MarksService {
       year_end_exam_name: page.yearEndExamName,
       ...buildSessionTable(r),
       grand_total: r.grandTotal,
+      class_highest_total: r.classHighestTotal ?? r.totalMarks,
+      class_highest_grand_total: r.classHighestGrandTotal ?? r.grandTotal,
       gpa: r.gpa,
       is_failed: r.isFailed,
       fail_count: r.failCount,

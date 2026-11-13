@@ -215,3 +215,40 @@ describe('processJob: bundle / session dispatch', () => {
     expect(hash.computeSessionStudentHash).toHaveBeenCalledWith(S, 100, 2026);
   });
 });
+
+describe('statusCounts', () => {
+  const groupBy = (rows: { status: string; n: number }[]) =>
+    jest.fn<Fn>().mockResolvedValue(rows.map((r) => ({ status: r.status, _count: { _all: r.n } })));
+
+  beforeEach(() => {
+    db.exams.findUnique.mockResolvedValue({ visible: false });
+    Object.assign(db.marksheet_files, {
+      groupBy: groupBy([
+        { status: 'ready', n: 3 },
+        { status: 'pending', n: 2 },
+      ]),
+      deleteMany: jest.fn<Fn>().mockResolvedValue({ count: 0 }),
+    });
+    Object.assign(db.marksheet_bundles, { groupBy: groupBy([{ status: 'generating', n: 1 }]) });
+  });
+
+  it('unpublished with no recent activity reports zeros', async () => {
+    const out = await service.statusCounts(S, 9);
+    expect(out).toMatchObject({ total: 0, done: 0, bundles: { total: 0 } });
+    expect(db.marksheet_files.findFirst).toHaveBeenCalledWith({
+      where: {
+        school_id: S,
+        exam_id: 9,
+        status: { in: ['pending', 'generating'] },
+        updated_at: { gte: expect.any(Date) },
+      },
+      select: { id: true },
+    });
+  });
+
+  it('unpublished with an on-demand job running reports real progress', async () => {
+    db.marksheet_bundles.findFirst.mockResolvedValue({ id: 1 });
+    const out = await service.statusCounts(S, 9);
+    expect(out).toMatchObject({ total: 5, done: 3, pending: 2, bundles: { generating: 1 } });
+  });
+});

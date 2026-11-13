@@ -35,7 +35,8 @@ const db = {
   promotion_runs: model(),
 };
 const prisma = db as unknown as PrismaClient;
-const service = new PromotionService(prisma);
+const marksheets = { invalidateSessionsForYear: jest.fn<Fn>().mockResolvedValue(undefined) };
+const service = new PromotionService(prisma, marksheets as any);
 
 const S = 7; // school id
 const YEAR = 2026;

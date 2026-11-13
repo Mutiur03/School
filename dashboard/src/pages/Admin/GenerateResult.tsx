@@ -507,6 +507,8 @@ If promotion for ${year + 1} already ran, their ${year + 1} class row is removed
     );
   const downloadAllMarksheetPDF = () =>
     downloadPdf('/api/marksheets/session', 'Failed to download all marksheets');
+  const downloadFinalResultPDF = () =>
+    downloadPdf(`/api/promotions/${year}/final-result`, 'Failed to download final result');
 
   const summary = promo
     ? `${promo.total.toLocaleString()} in classes 6–9 · ${promo.passed} passed · ${promo.failed} failed · ${promo.pending} pending · promotes into ${year + 1}`
@@ -575,6 +577,14 @@ If promotion for ${year + 1} already ran, their ${year + 1} class row is removed
             disabled={totalFiltered === 0}
           >
             <Download /> All session PDFs
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void downloadFinalResultPDF()}
+            disabled={totalFiltered === 0}
+          >
+            <FileText /> Final result
           </Button>
         </div>
       </header>

@@ -97,7 +97,6 @@ export class MarksheetsController {
   @UseGuards(Auth('admin', 'teacher'))
   @Header('Cache-Control', 'no-store')
   async findStatus(@SchoolId() schoolId: number, @Param('examId', ParseIntPipe) examId: number) {
-    await this.jobs.ensureQueuedForExamIfDue(schoolId, examId);
     return this.jobs.statusCounts(schoolId, examId);
   }
 }

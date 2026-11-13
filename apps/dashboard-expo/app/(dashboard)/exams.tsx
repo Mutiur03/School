@@ -94,14 +94,11 @@ function StatusCell({ e }: { e: Exam }) {
   );
 }
 
-/** Web exam-workbench-card: compact progress on published exams, a note while a hidden one drains. */
+/** Compact progress with counts: always on published exams, on drafts while a job runs. */
 function ExamGenStatus({ e }: { e: Exam }) {
-  const status = useMarksheetStatus(e.id).data;
-  if (e.visible) return <MarksheetGenPanel status={status} compact testID={`exam-gen-${e.id}`} />;
-  return isQueueActive(status) ? (
-    <Text size="xs" color="mutedForeground" className="mt-1.5">
-      Finishing background jobs…
-    </Text>
+  const status = useMarksheetStatus(e.id, { idlePoll: false }).data;
+  return e.visible || isQueueActive(status) ? (
+    <MarksheetGenPanel status={status} compact testID={`exam-gen-${e.id}`} />
   ) : null;
 }
 
@@ -357,7 +354,7 @@ export default function ExamsScreen() {
         </View>
       ),
     },
-    { key: 'routine', label: 'Routine PDF', className: 'w-[168px]', render: routineCell },
+    { key: 'routine', label: 'Routine PDF', className: 'w-[220px]', render: routineCell },
     { key: 'actions', label: ' ', className: 'w-[120px]', align: 'right', render: actions },
   ];
 

@@ -323,6 +323,14 @@ echo "=== Docker DB Backup Completed Successfully at $(date) ==="
 
 -- Restore
 
+```bash
+# 1. Pull the backup from Google Drive
+rclone copy "School_Drive:PostgresBackups/school_YYYY-MM-DD_HH-MM.dump" /root/db_temp/
+
+# 2. Restore (custom format needs pg_restore, not psql). --clean drops existing objects first.
+docker exec -i lbp-postgres_school-1 pg_restore -U mutiur -d school --clean --if-exists --no-owner < /root/db_temp/school_YYYY-MM-DD_HH-MM.dump
+```
+
 -- As superuser/owner
 GRANT USAGE ON SCHEMA app TO school_app;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA app TO school_app;

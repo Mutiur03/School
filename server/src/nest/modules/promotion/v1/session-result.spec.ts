@@ -352,7 +352,7 @@ describe('v1 rankStudents', () => {
     ]);
   });
 
-  it('separates classes and class-10 groups; ignores group for 6-9', () => {
+  it('ranks by class only, ignoring group', () => {
     const ranks = rankStudents([
       res(1, { classLevel: 9, group: 'Science', totalMarks: 10 }),
       res(2, { classLevel: 9, group: 'Humanities', totalMarks: 5 }),
@@ -362,7 +362,7 @@ describe('v1 rankStudents', () => {
       res(6, { classLevel: 10, group: 'Science', totalMarks: 1 }),
       res(7, { classLevel: 10, group: 'Humanities', totalMarks: 1 }),
     ]);
-    expect(Object.fromEntries(ranks)).toEqual({ 1: 2, 2: 3, 3: 1, 4: 2, 5: 1, 6: 1, 7: 1 });
+    expect(Object.fromEntries(ranks)).toEqual({ 1: 2, 2: 3, 3: 1, 4: 2, 5: 1, 6: 1, 7: 2 });
   });
 });
 

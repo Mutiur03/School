@@ -67,6 +67,24 @@ describe('computeInputHash', () => {
     });
     expect(await service.computeInputHash(S, 100, 9, 2026)).not.toBe(before);
   });
+
+  it('changes when a generated result changes', async () => {
+    const before = await service.computeSessionStudentHash(S, 100, 2026);
+    db.student_enrollments.findFirst.mockResolvedValue({
+      class: 6,
+      section: 'A',
+      roll: 1,
+      fourth_subject_id: null,
+      status: 'Passed',
+      result_held: false,
+      result_manual: false,
+      release_batch: 0,
+      fail_count: 0,
+      final_merit: 1,
+      school_id: S,
+    });
+    expect(await service.computeSessionStudentHash(S, 100, 2026)).not.toBe(before);
+  });
 });
 
 describe('isSessionCacheFresh', () => {

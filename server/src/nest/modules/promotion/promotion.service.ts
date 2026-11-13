@@ -3,6 +3,8 @@ import type { Prisma, PrismaClient } from '@/generated/prisma/client.js';
 import { rlsTransaction } from '@/config/prisma.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { AuthUser } from '../../common/current-user.decorator.js';
+import { MarksheetCacheService } from '../marksheets/cache/marksheet-cache.service.js';
+import { isExamFrozen } from '@/modules/exam/exam-year-end.js';
 import { PASS_RULE_CLASSES } from './dto/pass-rules.dto.js';
 import type { PassRuleDto } from './dto/pass-rules.dto.js';
 import type { CorrectionsDto as CorrectionsInput } from './dto/corrections.dto.js';
@@ -18,9 +20,8 @@ const ACTIVE = { student: { available: true } };
 
 type Tx = Prisma.TransactionClient;
 
-/** Same bucket as the engine's rank: class, plus group for class 10 only. */
-const bucketOf = (r: SessionResultRow) =>
-  `${r.classLevel}|${r.classLevel === 10 ? (r.group ?? '') : ''}`;
+/** Same bucket as the engine's rank: class only (groups are not considered). */
+const bucketOf = (r: SessionResultRow) => String(r.classLevel);
 
 const subjectKey = (s: { name: string; class: number; group: string | null }) =>
   `${s.name}|${s.class}|${s.group ?? ''}`;
@@ -58,7 +59,10 @@ const publicPlacement = (p: Placement) => ({
 
 @Injectable()
 export class PromotionService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    private readonly marksheets: MarksheetCacheService,
+  ) {}
 
   getResults(schoolId: number, year: number, classLevel?: number) {
     return loadSessionResults(this.prisma, schoolId, year, { classLevel });
@@ -113,6 +117,13 @@ export class PromotionService {
         });
       }
     }, TX_OPTIONS);
+    const yearEndExams = await this.prisma.exams.findMany({
+      where: { school_id: schoolId, exam_year: year, is_year_end: true },
+      select: { visible: true, result_date: true },
+    });
+    if (yearEndExams.some((exam) => exam.visible || isExamFrozen(exam.result_date))) {
+      await this.marksheets.invalidateSessionsForYear(schoolId, year);
+    }
     const failed = results.filter((r) => r.isFailed).length;
     return {
       updated: results.length,

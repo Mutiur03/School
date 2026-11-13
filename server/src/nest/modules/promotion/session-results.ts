@@ -177,6 +177,45 @@ export async function loadSessionResults(
     computed.filter((c) => !c.e.result_held).map((c) => c.result),
   );
 
+  const classResults = new Map<string, typeof computed>();
+  for (const item of computed) {
+    const key = String(item.e.class);
+    const list = classResults.get(key);
+    if (list) list.push(item);
+    else classResults.set(key, [item]);
+  }
+  for (const [key, list] of classResults) {
+    const highestBySubject: Record<number, number> = {};
+    for (const item of list) {
+      for (const subject of item.result.subjects) {
+        highestBySubject[subject.subjectId] = Math.max(
+          highestBySubject[subject.subjectId] ?? 0,
+          subject.combined,
+        );
+        for (const paper of subject.papers ?? []) {
+          highestBySubject[paper.subjectId] = Math.max(
+            highestBySubject[paper.subjectId] ?? 0,
+            paper.combined,
+          );
+        }
+      }
+    }
+    const classHighestTotal = Math.max(...list.map(({ result }) => result.totalMarks), 0);
+    const classHighestGrandTotal = Math.max(...list.map(({ result }) => result.grandTotal), 0);
+    for (const item of list) {
+      item.result.classHighestBySubject = highestBySubject;
+      item.result.classHighestTotal = classHighestTotal;
+      item.result.classHighestGrandTotal = classHighestGrandTotal;
+      for (const subject of item.result.subjects) {
+        subject.classHighestMark = highestBySubject[subject.subjectId] ?? 0;
+        for (const paper of subject.papers ?? []) {
+          paper.classHighestMark = highestBySubject[paper.subjectId] ?? 0;
+        }
+      }
+    }
+    classResults.set(key, list);
+  }
+
   const wanted = opts.enrollmentIds && new Set(opts.enrollmentIds);
   const results = computed
     .filter(({ e }) => !wanted || wanted.has(e.id))
@@ -190,12 +229,7 @@ export async function loadSessionResults(
       held: e.result_held,
       manual: e.result_manual,
     }))
-    .sort(
-      (a, b) =>
-        a.classLevel - b.classLevel ||
-        (a.classLevel === 10 ? (a.group ?? '').localeCompare(b.group ?? '') : 0) ||
-        a.position - b.position,
-    );
+    .sort((a, b) => a.classLevel - b.classLevel || a.position - b.position);
 
   return { version: school.promotionVersion, results, missingYearEnd, missingPrevious };
 }

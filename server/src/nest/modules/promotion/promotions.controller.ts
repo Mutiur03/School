@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Auth } from '../../common/auth.guard.js';
+import { pdfFile } from '../../common/pdf-file.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import { CurrentUser } from '../../common/current-user.decorator.js';
 import type { AuthUser } from '../../common/current-user.decorator.js';
@@ -19,13 +20,17 @@ import { CorrectionsDto } from './dto/corrections.dto.js';
 import { PassRulesDto } from './dto/pass-rules.dto.js';
 import { ResultEnrollmentsDto } from './dto/result-enrollments.dto.js';
 import { UpdateResultDto } from './dto/update-result.dto.js';
+import { FinalResultService } from './final-result.service.js';
 import { PromotionService, ranBy } from './promotion.service.js';
 
-/** Year-end results (pass/fail + positions), pass rules, and the promotion run for a session year. */
+/** Year-end results (pass/fail + positions), final-result PDF, pass rules, and promotion. */
 @Controller('promotions')
 @UseGuards(Auth('admin'))
 export class PromotionsController {
-  constructor(private readonly promotion: PromotionService) {}
+  constructor(
+    private readonly promotion: PromotionService,
+    private readonly finalResult: FinalResultService,
+  ) {}
 
   /** Run promotion of `year` into `year + 1`. */
   @Post(':year')
@@ -56,6 +61,12 @@ export class PromotionsController {
     @Query('class', new ParseIntPipe({ optional: true })) classLevel?: number,
   ) {
     return this.promotion.getResults(schoolId, year, classLevel);
+  }
+
+  @Get(':year/final-result')
+  async findFinalResult(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
+    const buffer = await this.finalResult.generate(schoolId, year);
+    return pdfFile(buffer, `final-result_${year}.pdf`, 'attachment');
   }
 
   /** Generate pass/fail + positions for the year. */

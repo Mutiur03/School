@@ -39,7 +39,7 @@ describe('buildSessionTable', () => {
     const table = buildSessionTable(
       result({
         subjects: [
-          subject({}),
+          subject({ classHighestMark: 145 }),
           subject({
             subjectId: 2,
             name: 'Math',
@@ -48,10 +48,13 @@ describe('buildSessionTable', () => {
             combined: 40,
             grade: 'F',
             gp: 0,
+            classHighestMark: 90,
           }),
           subject({ subjectId: 3, name: 'Physical Education', isContinuous: true, passMark: 0 }),
         ],
         totalMarks: 170,
+        classHighestBySubject: { 1: 145, 2: 90, 3: 50 },
+        classHighestGrandTotal: 285,
       }),
     );
     expect(table.split).toBe(true);
@@ -62,6 +65,7 @@ describe('buildSessionTable', () => {
         fullMark: '200',
         grade: 'A-',
         gp: '3.50',
+        highestMark: '145',
       },
       {
         subject: 'Math',
@@ -69,6 +73,7 @@ describe('buildSessionTable', () => {
         fullMark: '200',
         grade: 'F',
         gp: '0.00',
+        highestMark: '90',
       },
     ]);
     expect(table.continuousRows.map((r) => r.subject)).toEqual(['Physical Education']);
@@ -87,6 +92,7 @@ describe('buildSessionTable', () => {
             papers: [
               {
                 name: 'English 1st Paper',
+                subjectId: 2,
                 previous: { ...none, marks: 30 },
                 yearEnd: { ...none, marks: 35 },
                 combined: 65,
@@ -94,6 +100,7 @@ describe('buildSessionTable', () => {
               },
               {
                 name: 'English 2nd Paper',
+                subjectId: 3,
                 previous: { ...none, marks: 28 },
                 yearEnd: { ...none, marks: 31 },
                 combined: 59,
@@ -106,8 +113,20 @@ describe('buildSessionTable', () => {
     );
     expect(table.examRows[0]).not.toHaveProperty('passMark');
     expect(table.examRows[0].papers).toEqual([
-      { subject: 'English 1st Paper', marks: ['30', '35', '65'], fullMark: '100' },
-      { subject: 'English 2nd Paper', marks: ['28', '31', '59'], fullMark: '100' },
+      {
+        subjectId: 2,
+        subject: 'English 1st Paper',
+        marks: ['30', '35', '65'],
+        fullMark: '100',
+        highestMark: '-',
+      },
+      {
+        subjectId: 3,
+        subject: 'English 2nd Paper',
+        marks: ['28', '31', '59'],
+        fullMark: '100',
+        highestMark: '-',
+      },
     ]);
   });
 
@@ -154,6 +173,7 @@ describe('drawSessionMarksheetBody', () => {
               papers: [
                 {
                   name: 'English 1st Paper',
+                  subjectId: 2,
                   previous: { ...none, marks: 30 },
                   yearEnd: { ...none, marks: 35 },
                   combined: 65,
@@ -161,6 +181,7 @@ describe('drawSessionMarksheetBody', () => {
                 },
                 {
                   name: 'English 2nd Paper',
+                  subjectId: 3,
                   previous: { ...none, marks: 28 },
                   yearEnd: { ...none, marks: 31 },
                   combined: 59,
