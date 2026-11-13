@@ -60,6 +60,7 @@ export function stepState(stats: PromotionStats | undefined) {
     nextYearTotal: stats?.next_year_enrollments ?? 0,
     class10Done: (stats?.graduated ?? false) || (c10?.graduated ?? 0) > 0 || c10?.total === 0,
     awaitingRetain: stats?.awaiting_retain ?? 0,
+    resultsOutdated: stats?.results_outdated ?? 0,
   };
 }
 

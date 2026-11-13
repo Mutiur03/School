@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLeaveGuard } from '@/navigation/LeaveGuard';
 import { parseStoredClass } from '@/features/attendance/model';
+import { asNumber, asString, useRememberedFilters } from '@/tenant/useRememberedFilters';
 import { useTenantStorage } from '@/tenant/useTenantStorage';
 import { Platform, View, type TextInput } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
@@ -107,6 +108,22 @@ export function MarksEntryScreen() {
   const [saving, setSaving] = useState(false);
   const refs = useRef(new Map<string, TextInput>());
 
+  // Reopen on the last year / exam / class / group / section / subject picked here.
+  useRememberedFilters(
+    'marks-entry-filters',
+    { year, examName, cls, group, section, subjectId },
+    (v) => {
+      const y = asNumber(v.year);
+      if (y === undefined || (scope && !scope.years.includes(y))) return;
+      setYear(y);
+      setExamName(asString(v.examName) ?? '');
+      setCls(asNumber(v.cls) ?? null);
+      setGroup(asString(v.group) ?? '');
+      setSection(asString(v.section) ?? '');
+      setSubjectId(asNumber(v.subjectId) ?? null);
+    },
+  );
+
   const examsQ = useQuery({
     queryKey: key('exams'),
     queryFn: ({ signal }) => exams.list(signal),
@@ -130,6 +147,16 @@ export function MarksEntryScreen() {
 
   const allExams = examsQ.data ?? [];
   const examList = examNames(allExams, year);
+  // A remembered exam that was deleted/renamed: start over instead of showing an empty sheet.
+  useEffect(() => {
+    if (!examsQ.data || !examName || examList.includes(examName)) return;
+    setExamName('');
+    setCls(null);
+    setGroup('');
+    setSection('');
+    setSubjectId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the list or pick changes
+  }, [examsQ.data, year, examName]);
   const classList = narrowClasses(examClasses(allExams, year, examName), scope, year);
   const subjectList = useMemo(
     () => (cls === null ? [] : entrySubjects(subjectsQ.data ?? [], cls, year, group)),

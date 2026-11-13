@@ -26,6 +26,7 @@ jest.unstable_mockModule('@/utils/logger.js', () => ({
 const enqueueUserPriority = jest.fn<Fn>().mockResolvedValue(undefined);
 jest.unstable_mockModule('@/utils/bullQueue.js', () => ({
   PRIORITY_BACKFILL: 2,
+  PRIORITY_USER: 1,
   defaultJobOpts: (priority: number) => ({ priority }),
   enqueueUserPriority,
   ensureJobQueued: jest.fn(),
@@ -54,7 +55,7 @@ const MODELS = [
   'head_msg',
 ] as const;
 let db: Record<(typeof MODELS)[number], ReturnType<typeof model>>;
-let queue: { addBulk: jest.Mock<Fn> };
+let queue: { addBulk: jest.Mock<Fn>; add: jest.Mock<Fn> };
 let hash: Record<string, jest.Mock<Fn>>;
 let renderer: { verifyMarksheetDownloadAccess: jest.Mock<Fn> };
 let service: InstanceType<typeof MarksheetCacheService>;
@@ -65,7 +66,10 @@ const admin = { id: 1, role: 'admin' } as any;
 beforeEach(() => {
   jest.clearAllMocks();
   db = Object.fromEntries(MODELS.map((m) => [m, model()])) as typeof db;
-  queue = { addBulk: jest.fn<Fn>().mockResolvedValue([]) };
+  queue = {
+    addBulk: jest.fn<Fn>().mockResolvedValue([]),
+    add: jest.fn<Fn>().mockResolvedValue({}),
+  };
   hash = {
     isStudentCacheFresh: jest.fn<Fn>().mockResolvedValue(false),
     isBundleCacheFresh: jest.fn<Fn>().mockResolvedValue(false),
@@ -265,5 +269,36 @@ describe('invalidate', () => {
     await service.invalidateForSchoolSignatureChange(S);
     expect(db.marksheet_files.updateMany).not.toHaveBeenCalled();
     expect(queue.addBulk).not.toHaveBeenCalled();
+  });
+});
+
+describe('results refresh', () => {
+  it('scheduleResultsRefresh: delayed job, id shared within one debounce window', async () => {
+    await service.scheduleResultsRefresh(S, 2026);
+    await service.scheduleResultsRefresh(S, 2026);
+    const [a, b] = queue.add.mock.calls;
+    expect(a[0]).toEqual({ kind: 'session-results', schoolId: S, year: 2026 });
+    expect(a[1]).toMatchObject({ delay: expect.any(Number) });
+    expect(a[1].jobId).toMatch(/^session-results:7:2026:\d+$/);
+    expect(b[1].jobId).toBe(a[1].jobId);
+  });
+
+  it('invalidateForResults: nothing when no class changed or no year-end exam is live', async () => {
+    await service.invalidateForResults(S, 2026, []);
+    expect(db.exams.findMany).not.toHaveBeenCalled();
+    db.exams.findMany.mockResolvedValue([{ id: 3, visible: false, result_date: null }]);
+    await service.invalidateForResults(S, 2026, [6]);
+    expect(queue.addBulk).not.toHaveBeenCalled();
+  });
+
+  it('invalidateForResults: re-queues session PDFs of the changed classes', async () => {
+    db.exams.findMany.mockResolvedValue([{ id: 3, visible: false, result_date: '2000-01-01' }]);
+    db.student_enrollments.findMany.mockResolvedValue([{ student_id: 101 }]);
+    await service.invalidateForResults(S, 2026, [6]);
+    expect(db.student_enrollments.findMany).toHaveBeenCalledWith({
+      where: { school_id: S, year: 2026, class: { in: [6] }, student: { available: true } },
+      select: { student_id: true },
+    });
+    expect(queue.addBulk).toHaveBeenCalled();
   });
 });

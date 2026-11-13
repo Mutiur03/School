@@ -187,7 +187,7 @@ export function SessionMarksheetDialog({
               [
                 ['Grand total', m.grandTotal],
                 ['GPA', m.gpa],
-                ['Result', m.failed ? 'Failed' : 'Passed'],
+                ['Result', m.result ?? 'Not generated yet'],
                 ['Failed subjects', String(m.failCount)],
                 ['Position', m.position ? String(m.position) : '—'],
               ] as const

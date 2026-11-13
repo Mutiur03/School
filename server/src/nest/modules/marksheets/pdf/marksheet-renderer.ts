@@ -2,7 +2,7 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import type { Prisma, PrismaClient } from '@/generated/prisma/client.js';
 import { getFileBuffer, headObjectEtag } from '@/config/r2.js';
 import { VALID_GROUPS } from '@school/shared-schemas';
-import { loadSessionResults } from '@/nest/modules/promotion/session-results.js';
+import { loadSessionResults, officialResult } from '@/nest/modules/promotion/session-results.js';
 import { PRISMA } from '../../../common/prisma.module.js';
 import { canAccessStudent } from '../access.js';
 import type { AccessUser } from '../access.js';
@@ -188,7 +188,12 @@ export class MarksheetRenderer {
       .map((result) => {
         const yearEnd = byId.get(result.yearEndExamId);
         return {
-          result,
+          // Official values only: what "Generate pass/fail" saved, never the live calculation.
+          result: {
+            ...result,
+            position: result.held ? 0 : result.saved.merit,
+            officialResult: officialResult(result),
+          },
           previousExamName:
             result.previousExamId != null
               ? (byId.get(result.previousExamId)?.exam_name ?? null)

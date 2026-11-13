@@ -147,14 +147,15 @@ export default function ExamsScreen() {
     onSuccess: close,
   });
   const visibility = useAdminMutation({
-    mutationFn: async (v: { id: number; visible: boolean }) => ({
+    mutationFn: async (v: { id: number; visible: boolean; yearEnd: boolean }) => ({
       visible: v.visible,
+      yearEnd: v.yearEnd,
       ...(await exams.setVisibility(v.id, v.visible)),
     }),
     invalidate,
     success: (r) =>
       r.visible
-        ? `Results published${r.queued > 0 ? ` · ${plural(r.queued, 'marksheet')} queued` : ''}`
+        ? `Results published${r.yearEnd ? ' · pass/fail and ranks are being generated' : ''}${r.queued > 0 ? ` · ${plural(r.queued, 'marksheet')} queued` : ''}`
         : 'Results hidden',
     failure: 'Error updating result visibility',
   });
@@ -275,7 +276,8 @@ export default function ExamsScreen() {
     }
     save.mutate({ id: editing?.id ?? null, input });
   };
-  const toggleVisible = (e: Exam) => visibility.mutate({ id: e.id, visible: !e.visible });
+  const toggleVisible = (e: Exam) =>
+    visibility.mutate({ id: e.id, visible: !e.visible, yearEnd: e.is_year_end });
 
   const actions = (e: Exam) => (
     <View className="flex-row gap-0.5">

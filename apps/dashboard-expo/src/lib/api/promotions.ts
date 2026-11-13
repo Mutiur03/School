@@ -71,6 +71,10 @@ export interface PromotionStats {
   /** Last runs (null = never run, or run before runs were recorded). */
   promotion_run: RunInfo | null;
   graduation_run: RunInfo | null;
+  /** "Generate pass/fail" has run for the year. */
+  results_generated: boolean;
+  /** Saved results that no longer match marks/rules (the server refreshes them automatically). */
+  results_outdated: number;
 }
 
 export interface RunInfo {
@@ -250,6 +254,8 @@ export function parsePromotionStats(v: unknown, year: number): PromotionStats {
     graduated: s.graduation_run != null,
     promotion_run: parseRun(s.promotion_run),
     graduation_run: parseRun(s.graduation_run),
+    results_generated: bool(s.results_generated),
+    results_outdated: num(s.results_outdated),
   };
 }
 
@@ -402,7 +408,7 @@ export function parseGraduationPlan(v: unknown, year: number): GraduationPlan {
 }
 
 export function createPromotionsApi(client: ApiClient) {
-  const pdf = (path: string, query: Record<string, number>) =>
+  const pdf = (path: string, query: Record<string, number | string>) =>
     client.get<ArrayBuffer>(path, { query, responseType: 'arrayBuffer', timeoutMs: 180_000 });
   return {
     async stats(year: number, signal?: AbortSignal) {
@@ -525,7 +531,12 @@ export function createPromotionsApi(client: ApiClient) {
     sessionPdf: (studentId: number, year: number) =>
       pdf(PROMOTION_PATHS.sessionPdf(studentId), { year }),
     allSessionPdf: (year: number) => pdf(PROMOTION_PATHS.allSessionPdf, { year }),
-    finalResultPdf: (year: number) => pdf(PROMOTION_PATHS.finalResultPdf(year), {}),
+    /** `classes` empty = every class. */
+    finalResultPdf: (year: number, classes: readonly number[] = []) =>
+      pdf(
+        PROMOTION_PATHS.finalResultPdf(year),
+        classes.length ? { classes: classes.join(',') } : {},
+      ),
   };
 }
 
@@ -553,6 +564,8 @@ export interface SessionMarksheet {
   classHighestGrandTotal: string;
   gpa: string;
   failed: boolean;
+  /** Official (saved) result: Passed / Failed / Withheld; null until results are generated. */
+  result: string | null;
   failCount: number;
   position: number | null;
 }
@@ -596,6 +609,7 @@ export function parseSessionMarksheet(v: unknown, path: string): SessionMarkshee
     // Display only: the server computed it; toFixed just formats.
     gpa: Number.isFinite(gpa) ? gpa.toFixed(2) : '-',
     failed: v.is_failed === true,
+    result: typeof v.result === 'string' ? v.result : null,
     failCount: num(v.fail_count),
     position: num(v.position) > 0 ? num(v.position) : null,
   };

@@ -28,6 +28,12 @@ jest.unstable_mockModule('../cache/marksheet-cache.service.js', () => ({
 jest.unstable_mockModule('../cache/marksheet-hash.service.js', () => ({
   MarksheetHashService: class {},
 }));
+const resultsGenerated = jest.fn<Fn>().mockResolvedValue(false);
+const writeSessionResults = jest.fn<Fn>().mockResolvedValue({ changedClasses: [6] });
+jest.unstable_mockModule('../../promotion/session-results.js', () => ({
+  resultsGenerated,
+  writeSessionResults,
+}));
 const { MarksheetJobsService } = await import('./marksheet-jobs.service.js');
 
 const model = () => ({
@@ -250,5 +256,38 @@ describe('statusCounts', () => {
     db.marksheet_bundles.findFirst.mockResolvedValue({ id: 1 });
     const out = await service.statusCounts(S, 9);
     expect(out).toMatchObject({ total: 5, done: 3, pending: 2, bundles: { generating: 1 } });
+  });
+});
+
+describe('processJob: session-results (automatic refresh)', () => {
+  const job = { kind: 'session-results' as const, schoolId: S, year: 2026 };
+  const run = async () => {
+    const cache = { invalidateForResults: jest.fn<Fn>().mockResolvedValue(undefined) };
+    (service as any).cache = cache;
+    await service.processJob(job);
+    return cache;
+  };
+
+  it('skips a year never generated and with no published year-end exam', async () => {
+    const cache = await run();
+    expect(db.exams.findFirst).toHaveBeenCalledWith({
+      where: { school_id: S, exam_year: 2026, is_year_end: true, visible: true },
+      select: { id: true },
+    });
+    expect(writeSessionResults).not.toHaveBeenCalled();
+    expect(cache.invalidateForResults).not.toHaveBeenCalled();
+  });
+
+  it('refreshes once generated and re-queues the changed classes', async () => {
+    resultsGenerated.mockResolvedValueOnce(true);
+    const cache = await run();
+    expect(writeSessionResults).toHaveBeenCalledWith(S, 2026);
+    expect(cache.invalidateForResults).toHaveBeenCalledWith(S, 2026, [6]);
+  });
+
+  it('a published year-end exam makes results official even before generation', async () => {
+    db.exams.findFirst.mockResolvedValueOnce({ id: 3 });
+    await run();
+    expect(writeSessionResults).toHaveBeenCalledWith(S, 2026);
   });
 });

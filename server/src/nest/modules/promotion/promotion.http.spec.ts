@@ -112,6 +112,21 @@ test('GET final-result (empty year) → 200 PDF attachment', async () => {
   expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
 });
 
+test('GET final-result?classes=6,8 → 200, file named by class', async () => {
+  const res = await fetch(`${base}/api/promotions/${YEAR}/final-result?classes=6,8`, {
+    headers: { 'x-tenant-host': host, authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(200);
+  expect(res.headers.get('content-disposition')).toContain(`final-result_${YEAR}_class-6-8.pdf`);
+});
+
+test('GET final-result?classes=x → 400', async () => {
+  const { status } = await call('GET', `/api/promotions/${YEAR}/final-result?classes=x`, {
+    auth: true,
+  });
+  expect(status).toBe(400);
+});
+
 test.each([
   [{}, 'rules must be an array'],
   [{ rules: [{ class: 5, max_failed: 0 }] }, 'class must be one of the following values'],

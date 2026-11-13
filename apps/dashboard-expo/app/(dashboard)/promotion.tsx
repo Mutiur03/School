@@ -91,6 +91,12 @@ import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 import { tw } from '@/theme/tokens';
+import {
+  asNumber,
+  asNumbers,
+  asStrings,
+  useRememberedFilters,
+} from '@/tenant/useRememberedFilters';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const PAGE_SIZES = [25, 50, 100, 200] as const;
@@ -225,6 +231,17 @@ export default function PromotionScreen() {
   const [calcTarget, setCalcTarget] = useState<StudentRow | null>(null);
   const [preview, setPreview] = useState<{ id: number; name: string } | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+
+  // Reopen on the last session year, class / section / group filters and page size.
+  useRememberedFilters('promotion-filters', { year, cls, section, group, limit }, (v) => {
+    const y = asNumber(v.year);
+    if (y !== undefined) setYear(y);
+    setCls(asNumbers(v.cls) ?? []);
+    setSection(asStrings(v.section) ?? []);
+    setGroup(asStrings(v.group) ?? []);
+    const l = asNumber(v.limit);
+    if (l !== undefined && l > 0) setLimit(l);
+  });
   const pdfLock = useRef(false);
 
   const examsQ = useQuery({
@@ -235,7 +252,10 @@ export default function PromotionScreen() {
   const statsQ = useQuery({
     queryKey: key('promotion-stats', year),
     queryFn: ({ signal }) => promotions.stats(year, signal),
+    // The server refreshes outdated results within seconds; watch until it has.
+    refetchInterval: (q) => ((q.state.data?.results_outdated ?? 0) > 0 ? 5_000 : false),
   });
+  const refreshing = (statsQ.data?.results_outdated ?? 0) > 0;
   const rulesQ = useQuery({
     queryKey: key('pass-rules', year),
     queryFn: ({ signal }) => promotions.passRules(year, signal),
@@ -255,6 +275,7 @@ export default function PromotionScreen() {
     queryKey: key('students', 'promotion', params),
     queryFn: ({ signal }) => students.list(params, signal),
     placeholderData: (prev) => prev,
+    refetchInterval: refreshing ? 5_000 : false,
   });
 
   const gaps = useMemo(
@@ -632,13 +653,28 @@ export default function PromotionScreen() {
           <Button
             variant="outline"
             icon={FileText}
-            label={pdfBusy === 'final-result' ? 'Preparing…' : 'Final result'}
-            disabled={(meta?.filtered ?? 0) === 0 || pdfBusy !== null}
+            label={
+              pdfBusy === 'final-result'
+                ? 'Preparing…'
+                : cls.length
+                  ? `Final result (class ${[...cls].sort((a, b) => a - b).join(', ')})`
+                  : 'Final result (all classes)'
+            }
+            disabled={
+              (meta?.filtered ?? 0) === 0 ||
+              pdfBusy !== null ||
+              !statsQ.data?.results_generated ||
+              refreshing
+            }
             onPress={() =>
               void pdf(
                 'final-result',
-                () => promotions.finalResultPdf(year),
-                pdfFileName(['final-result', year]),
+                () => promotions.finalResultPdf(year, cls),
+                pdfFileName([
+                  'final-result',
+                  year,
+                  ...(cls.length ? [`class-${cls.join('-')}`] : []),
+                ]),
                 'Failed to download final result',
               )
             }
@@ -670,7 +706,11 @@ export default function PromotionScreen() {
             n={1}
             title="Pass / fail"
             done={st.passFailGenerated}
-            detail={`Allowed failed subjects by class — ${passRulesSummary(rules)}. Override single students in the table.`}
+            detail={
+              refreshing
+                ? `${st.resultsOutdated} result${st.resultsOutdated === 1 ? '' : 's'} changed since marks or rules were edited — updating automatically…`
+                : `Allowed failed subjects by class — ${passRulesSummary(rules)}. Override single students in the table. Results update automatically after marks change.`
+            }
           >
             <Button
               size="sm"
@@ -699,7 +739,7 @@ export default function PromotionScreen() {
               variant="outline"
               icon={Trophy}
               label={promoteBusy ? 'Working…' : 'Review & promote'}
-              disabled={promoteBusy || !ready || !st.passFailGenerated}
+              disabled={promoteBusy || !ready || !st.passFailGenerated || refreshing}
               onPress={() => {
                 if (blockIfNotReady()) return;
                 setPlan('loading');
@@ -726,7 +766,7 @@ export default function PromotionScreen() {
               variant="outline"
               icon={GraduationCap}
               label={gradBusy ? 'Working…' : 'Review & graduate'}
-              disabled={gradBusy || !ready || !st.passFailGenerated}
+              disabled={gradBusy || !ready || !st.passFailGenerated || refreshing}
               onPress={() => {
                 if (blockIfNotReady()) return;
                 setGradPlan('loading');

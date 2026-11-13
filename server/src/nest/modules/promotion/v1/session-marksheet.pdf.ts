@@ -5,7 +5,8 @@ import { examsForClass, type StudentSessionResult } from './session-result.js';
 
 export interface SessionMarksheetData {
   student: { name: string; class: number; section: string; roll: number };
-  result: StudentSessionResult & { position: number };
+  /** `position` / `officialResult`: what generation saved (0 / null = not generated, shown as "-"). */
+  result: StudentSessionResult & { position: number; officialResult?: string | null };
   previousExamName: string | null;
   yearEndExamName: string;
   /** Footer lines under the summary (result date, return note, ...). */
@@ -147,7 +148,7 @@ function drawStudentInfo(doc: any, data: SessionMarksheetData) {
   };
   const s = data.student;
   pair("Student's Name:", s.name, 50, 100, 270, 0);
-  pair('Result:', data.result.isFailed ? 'Failed' : 'Passed', 420, 50, 75, 0);
+  pair('Result:', data.result.officialResult ?? '-', 420, 50, 75, 0);
   pair('Class:', classText[s.class] ?? String(s.class), 50, 45, 90, 1);
   pair('Section:', s.section || '-', 175, 55, 70, 1);
   pair('Roll No:', String(s.roll ?? '-'), 300, 55, 60, 1);

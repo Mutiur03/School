@@ -190,6 +190,8 @@ export class MarksService {
           ? this.marksheets.invalidateClasses(schoolId, exam.id, classesWithStatsChange, year)
           : this.marksheets.invalidate(schoolId, changedStudentIds, exam.id)
       ).catch(warn('saveMarks'));
+      // Session results (pass/fail, rank) follow the marks once generated.
+      await this.marksheets.scheduleResultsRefresh(schoolId, year);
 
       await this.logMarksSave(
         schoolId,
@@ -468,7 +470,9 @@ export class MarksService {
       class_highest_total: r.classHighestTotal ?? r.totalMarks,
       class_highest_grand_total: r.classHighestGrandTotal ?? r.grandTotal,
       gpa: r.gpa,
-      is_failed: r.isFailed,
+      // Official (saved) result; null until "Generate pass/fail" ran.
+      result: r.officialResult,
+      is_failed: r.officialResult === 'Failed',
       fail_count: r.failCount,
       position: r.position,
     };
@@ -492,6 +496,8 @@ export class MarksService {
     });
     for (const { exam_id } of exams)
       await this.marksheets.invalidate(schoolId, studentIds, exam_id);
+    // 4th subject changes GPA / fail count.
+    await this.marksheets.scheduleResultsRefresh(schoolId, year);
   }
 
   async updateFourthSubject(

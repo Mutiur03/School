@@ -17,6 +17,7 @@ const recomputeExamClassStats = jest.fn<Fn>().mockResolvedValue(false);
 const loadSessionMarksheetPages = jest.fn<Fn>().mockResolvedValue({ version: 'v1', pages: [] });
 const invalidate = jest.fn<Fn>().mockResolvedValue(undefined);
 const invalidateClasses = jest.fn<Fn>().mockResolvedValue(undefined);
+const scheduleResultsRefresh = jest.fn<Fn>().mockResolvedValue(undefined);
 // Stub the provider modules so the spec never loads R2/Bull/pdfkit; fakes are passed to the constructor.
 jest.unstable_mockModule('../marksheets/cache/marksheet-cache.service.js', () => ({
   MarksheetCacheService: class {},
@@ -56,7 +57,7 @@ beforeEach(() => {
   };
   service = new MarksService(
     db as unknown as PrismaClient,
-    { invalidate, invalidateClasses } as any,
+    { invalidate, invalidateClasses, scheduleResultsRefresh } as any,
     { recomputeExamClassStats, loadSessionMarksheetPages } as any,
   );
 });
@@ -139,6 +140,7 @@ describe('saveMarks', () => {
     recomputeExamClassStats.mockResolvedValueOnce(true);
     await service.saveMarks(S, dto([{ subjectId: 3, marks: 80 }]), admin);
     expect(invalidateClasses).toHaveBeenCalledWith(S, 9, [6], YEAR);
+    expect(scheduleResultsRefresh).toHaveBeenCalledWith(S, YEAR);
   });
 
   it('teacher outside the section: reported, nothing written', async () => {

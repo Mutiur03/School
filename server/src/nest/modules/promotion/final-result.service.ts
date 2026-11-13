@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@/generated/prisma/client.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import { loadSchoolHeader } from '../../common/school-pdf.js';
-import { loadSessionResults } from './session-results.js';
+import { loadSessionResults, officialResult } from './session-results.js';
 
 type FinalResultRow = {
   classLevel: number;
@@ -51,7 +51,7 @@ const className = (value: number) => `Class ${value}`;
 export class FinalResultService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  async generate(schoolId: number, year: number): Promise<Buffer> {
+  async generate(schoolId: number, year: number, classes?: number[]): Promise<Buffer> {
     const [header, session, enrollments] = await Promise.all([
       loadSchoolHeader(this.prisma, schoolId),
       loadSessionResults(this.prisma, schoolId, year),
@@ -60,8 +60,6 @@ export class FinalResultService {
         select: {
           id: true,
           class: true,
-          status: true,
-          final_merit: true,
           next_year_roll: true,
           next_year_section: true,
         },
@@ -71,22 +69,29 @@ export class FinalResultService {
     const enrollmentById = new Map(enrollments.map((row) => [row.id, row]));
     const rows: FinalResultRow[] = session.results
       .map((result) => {
+        if (classes?.length && !classes.includes(result.classLevel)) return null;
         const enrollment = enrollmentById.get(result.enrollmentId);
-        if (!enrollment || result.held || !['Passed', 'Failed'].includes(enrollment.status)) {
+        // Only generated (saved) results: never the live calculation.
+        const official = officialResult(result);
+        if (
+          !enrollment ||
+          result.saved.merit <= 0 ||
+          (official !== 'Passed' && official !== 'Failed')
+        ) {
           return null;
         }
         const nextClass =
           result.classLevel === 10
             ? ''
-            : enrollment.status === 'Passed'
+            : official === 'Passed'
               ? String(result.classLevel + 1)
               : String(result.classLevel);
         return {
           classLevel: result.classLevel,
-          rank: enrollment.final_merit || result.position,
+          rank: result.saved.merit,
           name: result.studentName,
           total: result.totalMarks,
-          failCount: result.failCount,
+          failCount: result.saved.failCount,
           nextClass,
           nextRoll:
             result.classLevel === 10 || !enrollment.next_year_roll

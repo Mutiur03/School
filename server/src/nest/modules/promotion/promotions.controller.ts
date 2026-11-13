@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseArrayPipe,
   ParseIntPipe,
   Patch,
   Post,
@@ -63,10 +64,17 @@ export class PromotionsController {
     return this.promotion.getResults(schoolId, year, classLevel);
   }
 
+  /** `?classes=6,8` limits the sheet to those classes; omitted = every class. */
   @Get(':year/final-result')
-  async findFinalResult(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
-    const buffer = await this.finalResult.generate(schoolId, year);
-    return pdfFile(buffer, `final-result_${year}.pdf`, 'attachment');
+  async findFinalResult(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Query('classes', new ParseArrayPipe({ items: Number, separator: ',', optional: true }))
+    classes?: number[],
+  ) {
+    const buffer = await this.finalResult.generate(schoolId, year, classes);
+    const suffix = classes?.length ? `_class-${classes.join('-')}` : '';
+    return pdfFile(buffer, `final-result_${year}${suffix}.pdf`, 'attachment');
   }
 
   /** Generate pass/fail + positions for the year. */

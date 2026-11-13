@@ -83,6 +83,33 @@ function frozenTeacherFingerprint(
   ];
 }
 
+/** Saved result fields printed on year-end sheets. */
+const SAVED_RESULT_SELECT = {
+  status: true,
+  result_held: true,
+  result_manual: true,
+  release_batch: true,
+  fail_count: true,
+  final_merit: true,
+} as const;
+
+const savedResultKey = (e: {
+  status: string;
+  result_held: boolean;
+  result_manual: boolean;
+  release_batch: number;
+  fail_count: number;
+  final_merit: number;
+}) =>
+  [
+    e.status,
+    e.result_held ? 1 : 0,
+    e.result_manual ? 1 : 0,
+    e.release_batch,
+    e.fail_count,
+    e.final_merit,
+  ].join('|');
+
 /** Stable digest of student names in scope (bundle / session-year pages). */
 const namesDigest = (names: string[]): string =>
   crypto.createHash('sha256').update(names.join('\0')).digest('hex');
@@ -194,6 +221,7 @@ export class MarksheetHashService {
           roll: true,
           fourth_subject_id: true,
           school_id: true,
+          ...SAVED_RESULT_SELECT,
           student: { select: { name: true } },
         },
       }),
@@ -312,6 +340,8 @@ export class MarksheetHashService {
       r: enrollment?.roll ?? null,
       sec: enrollment?.section ?? null,
       nm: enrollment?.student?.name ?? null,
+      // Year-end sheet prints the saved result (status, rank, held).
+      ...(exam?.is_year_end && { res: enrollment ? savedResultKey(enrollment) : null }),
       sch: school,
       en: exam?.exam_name ?? null,
       rd: exam?.result_date ?? null,
@@ -412,7 +442,7 @@ export class MarksheetHashService {
       this.schoolFingerprintForExam(snapRow?.school_id ?? exam?.school_id ?? null, exam),
       this.prisma.student_enrollments.findMany({
         where: enrollmentWhere,
-        select: { student: { select: { name: true } } },
+        select: { ...SAVED_RESULT_SELECT, student: { select: { name: true } } },
         orderBy: [{ section: 'asc' }, { roll: 'asc' }, { student: { name: 'asc' } }],
       }),
     ]);
@@ -424,6 +454,7 @@ export class MarksheetHashService {
       h: head,
       t: classTeachers,
       sn: namesDigest(memberNames.map((e) => e.student?.name ?? '')),
+      ...(exam?.is_year_end && { res: namesDigest(memberNames.map(savedResultKey)) }),
       sch: school,
       en: exam?.exam_name ?? null,
       rd: exam?.result_date ?? null,

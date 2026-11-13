@@ -36,7 +36,15 @@ export type SessionYearJob = {
   schoolId: number;
 };
 
-export type MarksheetJob = StudentJob | BundleJob | SessionStudentJob | SessionYearJob;
+/** Re-generate saved pass/fail + ranks for a year (debounced, after marks/rules change). */
+export type SessionResultsJob = {
+  kind: 'session-results';
+  year: number;
+  schoolId: number;
+};
+
+export type MarksheetJob =
+  StudentJob | BundleJob | SessionStudentJob | SessionYearJob | SessionResultsJob;
 
 export type MarksheetQueue = Bull.Queue<MarksheetJob>;
 

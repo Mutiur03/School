@@ -4,11 +4,15 @@ import { rlsTransaction } from '@/config/prisma.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { AuthUser } from '../../common/current-user.decorator.js';
 import { MarksheetCacheService } from '../marksheets/cache/marksheet-cache.service.js';
-import { isExamFrozen } from '@/modules/exam/exam-year-end.js';
 import { PASS_RULE_CLASSES } from './dto/pass-rules.dto.js';
 import type { PassRuleDto } from './dto/pass-rules.dto.js';
 import type { CorrectionsDto as CorrectionsInput } from './dto/corrections.dto.js';
-import { loadSessionResults } from './session-results.js';
+import {
+  isResultStale,
+  loadSessionResults,
+  resultsGenerated,
+  writeSessionResults,
+} from './session-results.js';
 import type { SessionResultRow } from './session-results.js';
 
 const PROMOTION_CLASSES = [6, 7, 8, 9];
@@ -97,33 +101,12 @@ export class PromotionService {
    * Manual overrides keep their saved status.
    */
   async createResults(schoolId: number, year: number, only?: number[]) {
-    const sr = await loadSessionResults(this.prisma, schoolId, year);
-    const { missingYearEnd, missingPrevious } = sr;
-    const results = sr.results.filter(
-      (r) =>
-        !missingPrevious.includes(r.classLevel) &&
-        !r.held &&
-        (!only || only.includes(r.enrollmentId)),
+    const { results, missingYearEnd, missingPrevious, changedClasses } = await writeSessionResults(
+      schoolId,
+      year,
+      only,
     );
-    await rlsTransaction(async (tx) => {
-      for (const r of results) {
-        await tx.student_enrollments.update({
-          where: { id: r.enrollmentId, school_id: schoolId },
-          data: {
-            ...(!r.manual && { status: r.isFailed ? 'Failed' : 'Passed' }),
-            fail_count: r.failCount,
-            final_merit: r.position,
-          },
-        });
-      }
-    }, TX_OPTIONS);
-    const yearEndExams = await this.prisma.exams.findMany({
-      where: { school_id: schoolId, exam_year: year, is_year_end: true },
-      select: { visible: true, result_date: true },
-    });
-    if (yearEndExams.some((exam) => exam.visible || isExamFrozen(exam.result_date))) {
-      await this.marksheets.invalidateSessionsForYear(schoolId, year);
-    }
+    await this.marksheets.invalidateForResults(schoolId, year, changedClasses);
     const failed = results.filter((r) => r.isFailed).length;
     return {
       updated: results.length,
@@ -155,6 +138,8 @@ export class PromotionService {
         });
       }
     });
+    // Rules change pass/fail: refresh already-generated results in the background.
+    await this.marksheets.scheduleResultsRefresh(schoolId, year);
     return this.getPassRules(schoolId, year);
   }
 
@@ -807,6 +792,9 @@ export class PromotionService {
       });
       return res.count;
     });
+    // Withheld sheets change now; the rest of the class re-ranks in the background.
+    await this.invalidateResultsOf(schoolId, year, enrollmentIds);
+    await this.marksheets.scheduleResultsRefresh(schoolId, year);
     return { held: count, removedNextYear: deleteIds.length };
   }
 
@@ -865,7 +853,22 @@ export class PromotionService {
       });
       await this.applyPlacement(tx, schoolId, year, plan);
     }, TX_OPTIONS);
+    await this.invalidateResultsOf(schoolId, year, [enrollmentId]);
     return publicPlacement(plan);
+  }
+
+  /** Re-queue marksheets of these students' classes after their saved result changed. */
+  private async invalidateResultsOf(schoolId: number, year: number, enrollmentIds: number[]) {
+    const rows = await this.prisma.student_enrollments.findMany({
+      where: { school_id: schoolId, year, id: { in: enrollmentIds } },
+      select: { class: true },
+      distinct: ['class'],
+    });
+    await this.marksheets.invalidateForResults(
+      schoolId,
+      year,
+      rows.map((r) => r.class),
+    );
   }
 
   /** Dry run of `updateResult`'s placement, for the confirm dialog. */
@@ -1302,6 +1305,22 @@ export class PromotionService {
       unplaced: promotedCount > 0 ? unplaced : 0,
       promotion_run: run('promotion'),
       graduation_run: run('graduation'),
+      ...(await this.resultsFreshness(schoolId, year)),
     };
+  }
+
+  /**
+   * Saved results vs. what the marks/rules give now. Outdated rows are fixed by the automatic
+   * refresh within seconds; a lasting count means that job failed (regenerate by hand).
+   */
+  private async resultsFreshness(schoolId: number, year: number) {
+    if (!(await resultsGenerated(this.prisma, schoolId, year))) {
+      return { results_generated: false, results_outdated: 0 };
+    }
+    const sr = await loadSessionResults(this.prisma, schoolId, year);
+    const outdated = sr.results.filter(
+      (r) => !sr.missingPrevious.includes(r.classLevel) && isResultStale(r),
+    ).length;
+    return { results_generated: true, results_outdated: outdated };
   }
 }

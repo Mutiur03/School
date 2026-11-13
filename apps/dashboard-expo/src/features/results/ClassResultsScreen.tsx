@@ -53,6 +53,7 @@ import { MarksheetGenPanel, useMarksheetStatus } from '@/features/results/Marksh
 import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
+import { asNumber, asString, useRememberedFilters } from '@/tenant/useRememberedFilters';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -87,6 +88,17 @@ export function ClassResultsScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const inFlight = useRef(false);
 
+  // Reopen on the last year / exam / class / section / group picked here.
+  useRememberedFilters('class-results-filters', { year, exam, cls, section, group }, (v) => {
+    const y = asNumber(v.year);
+    if (y === undefined || (scope && !scope.years.includes(y))) return;
+    setYear(y);
+    setExam(asString(v.exam) ?? '');
+    setCls(asNumber(v.cls) ?? null);
+    setSection(asString(v.section) ?? '');
+    setGroup(asString(v.group) ?? '');
+  });
+
   const examsQ = useQuery({
     queryKey: key('exams'),
     queryFn: ({ signal }) => exams.list(signal),
@@ -100,6 +112,15 @@ export function ClassResultsScreen() {
 
   const allExams = examsQ.data ?? [];
   const rows = marksQ.data ?? [];
+  // A remembered exam that was deleted/renamed: start over instead of an empty table.
+  useEffect(() => {
+    if (!examsQ.data || !exam) return;
+    if (examsQ.data.some((e) => e.exam_name === exam && e.exam_year === year)) return;
+    setExam('');
+    setCls(null);
+    setSection('');
+    setGroup('');
+  }, [examsQ.data, year, exam]);
   const table = resultsTable(rows, { section, group, search });
   const sections = narrowSections(sectionsOf(rows), scope, year, cls);
   const classOptions = narrowClasses(examClasses(allExams, year, exam), scope, year);

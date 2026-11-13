@@ -10,7 +10,12 @@ import type { PrismaClient } from '@/generated/prisma/client.js';
 import { getDownloadUrl, getFileBuffer, headObject } from '@/config/r2.js';
 import { isExamFrozen } from '@/modules/exam/exam-year-end.js';
 import logger from '@/utils/logger.js';
-import { PRIORITY_BACKFILL, defaultJobOpts, enqueueUserPriority } from '@/utils/bullQueue.js';
+import {
+  PRIORITY_BACKFILL,
+  PRIORITY_USER,
+  defaultJobOpts,
+  enqueueUserPriority,
+} from '@/utils/bullQueue.js';
 import { PRISMA } from '../../../common/prisma.module.js';
 import type { AuthUser } from '../../../common/current-user.decorator.js';
 import {
@@ -36,6 +41,9 @@ import {
   marksheetStudentWhere,
 } from './marksheet-cache.helpers.js';
 import { MarksheetHashService } from './marksheet-hash.service.js';
+
+/** Debounce window for the automatic results refresh after edits. */
+const RESULTS_REFRESH_DELAY_MS = 10_000;
 
 const SERVE_TIMEOUT_MS = Number(process.env.MARKSHEET_SERVE_TIMEOUT_MS || '180000');
 const SERVE_POLL_MS = Number(process.env.MARKSHEET_SERVE_POLL_MS || '500');
@@ -902,10 +910,22 @@ export class MarksheetCacheService {
     });
   }
 
-  /** Re-queue all session PDFs after result generation changes saved outcomes. */
-  async invalidateSessionsForYear(schoolId: number, year: number): Promise<void> {
+  /**
+   * Saved results (pass/fail, rank, held) changed for these classes: re-queue the session PDFs
+   * and every published year-end exam sheet/bundle of those classes, since they print the result.
+   */
+  async invalidateForResults(schoolId: number, year: number, classes: number[]): Promise<void> {
+    if (classes.length === 0) return;
+    const yearEnds = await this.prisma.exams.findMany({
+      where: { school_id: schoolId, exam_year: year, is_year_end: true },
+      select: { id: true, visible: true, result_date: true },
+    });
+    if (!yearEnds.some((e) => e.visible || isExamFrozen(e.result_date))) return;
+    for (const exam of yearEnds.filter((e) => e.visible)) {
+      await this.invalidateClasses(schoolId, exam.id, classes, year);
+    }
     const enrollments = await this.prisma.student_enrollments.findMany({
-      where: { school_id: schoolId, year, student: { available: true } },
+      where: { school_id: schoolId, year, class: { in: classes }, student: { available: true } },
       select: { student_id: true },
     });
     await this.enqueueSessionsForStudents(
@@ -914,6 +934,31 @@ export class MarksheetCacheService {
       year,
       PRIORITY_BACKFILL,
     );
+  }
+
+  /**
+   * Debounced background refresh of saved results after marks / pass rules / holds change.
+   * The job id is bucketed, so edits within one window share a job; the job itself skips
+   * years whose results were never generated and whose year-end exam is unpublished.
+   */
+  async scheduleResultsRefresh(schoolId: number, year: number): Promise<void> {
+    const bucket = Math.floor(Date.now() / RESULTS_REFRESH_DELAY_MS);
+    try {
+      await this.queue.add(
+        { kind: 'session-results', schoolId, year },
+        {
+          ...defaultJobOpts(PRIORITY_USER),
+          jobId: `session-results:${schoolId}:${year}:${bucket}`,
+          delay: RESULTS_REFRESH_DELAY_MS,
+        },
+      );
+    } catch (e) {
+      logger.warn('[marksheet] results refresh: enqueue failed', {
+        schoolId,
+        year,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 
   /**

@@ -62,7 +62,7 @@ const SIGNATURE_IMAGE_WIDTH = 60;
 const SESSION_MARKSHEET_BODIES = { v1: drawSessionBodyV1 };
 
 export type SessionMarksheetPage = {
-  result: SessionResultRow;
+  result: SessionResultRow & { officialResult: string | null };
   previousExamName: string | null;
   yearEndExamName: string;
   resultDate: string | null;

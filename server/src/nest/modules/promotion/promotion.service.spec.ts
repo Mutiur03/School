@@ -10,6 +10,7 @@ jest.unstable_mockModule('@/config/prisma.js', () => ({
   rlsTransaction: (fn: (tx: unknown) => unknown) => fn(prisma),
 }));
 const { PromotionService } = await import('./promotion.service.js');
+const { officialResult } = await import('./session-results.js');
 
 const model = () => ({
   findMany: jest.fn<Fn>().mockResolvedValue([]),
@@ -34,8 +35,15 @@ const db = {
   students: model(),
   promotion_runs: model(),
 };
-const prisma = db as unknown as PrismaClient;
-const marksheets = { invalidateSessionsForYear: jest.fn<Fn>().mockResolvedValue(undefined) };
+// $executeRaw: the advisory lock in writeSessionResults.
+const prisma = {
+  ...db,
+  $executeRaw: jest.fn<Fn>().mockResolvedValue(0),
+} as unknown as PrismaClient;
+const marksheets = {
+  invalidateForResults: jest.fn<Fn>().mockResolvedValue(undefined),
+  scheduleResultsRefresh: jest.fn<Fn>().mockResolvedValue(undefined),
+};
 const service = new PromotionService(prisma, marksheets as any);
 
 const S = 7; // school id
@@ -98,7 +106,10 @@ const seedClass = (
     nextYear = [],
   }: {
     exams?: number[];
-    saved?: Record<number, { status?: string; fourth?: number; manual?: boolean }>;
+    saved?: Record<
+      number,
+      { status?: string; fourth?: number; manual?: boolean; merit?: number; fails?: number }
+    >;
     nextYear?: NextYearRow[];
   } = {},
 ) => {
@@ -117,6 +128,9 @@ const seedClass = (
         ? ids.map((id, i) => ({
             ...enrollment(id, cls, i + 1),
             result_manual: !!saved[id]?.manual,
+            status: saved[id]?.status ?? 'Pending',
+            final_merit: saved[id]?.merit ?? 0,
+            fail_count: saved[id]?.fails ?? 0,
           }))
         : args.select?.status
           ? ids.map((id) => ({
@@ -234,6 +248,42 @@ describe('PromotionService.createResults', () => {
       where: { id: 1, school_id: S },
       data: { fail_count: 1, final_merit: 2 },
     });
+  });
+
+  it('writes only rows whose saved result changed, and re-queues only those classes', async () => {
+    seedClass(
+      6,
+      { 1: [20, 30], 2: [40, 50] },
+      {
+        saved: {
+          2: { status: 'Passed', merit: 1, fails: 0 }, // unchanged
+          1: { status: 'Passed', merit: 2, fails: 1 }, // was Passed, marks now fail
+        },
+      },
+    );
+    await service.createResults(S, YEAR);
+    expect(db.student_enrollments.update).toHaveBeenCalledTimes(1);
+    expect(db.student_enrollments.update).toHaveBeenCalledWith({
+      where: { id: 1, school_id: S },
+      data: { status: 'Failed', fail_count: 1, final_merit: 2 },
+    });
+    expect(marksheets.invalidateForResults).toHaveBeenCalledWith(S, YEAR, [6]);
+  });
+
+  it('nothing changed: no writes, no marksheet re-queue', async () => {
+    seedClass(
+      6,
+      { 1: [20, 30], 2: [40, 50] },
+      {
+        saved: {
+          2: { status: 'Passed', merit: 1, fails: 0 },
+          1: { status: 'Failed', merit: 2, fails: 1 },
+        },
+      },
+    );
+    await service.createResults(S, YEAR);
+    expect(db.student_enrollments.update).not.toHaveBeenCalled();
+    expect(marksheets.invalidateForResults).toHaveBeenCalledWith(S, YEAR, []);
   });
 
   it('class without a previous exam is reported, not written', async () => {
@@ -1100,5 +1150,32 @@ describe('PromotionService corrections', () => {
       data: { result_manual: false },
     });
     expect(regen).toHaveBeenCalledWith(S, YEAR, [5]);
+  });
+});
+
+describe('officialResult (what marksheets print)', () => {
+  const r = (over: object) =>
+    ({
+      held: false,
+      manual: false,
+      isFailed: false,
+      saved: { status: 'Pending', merit: 0, failCount: 0 },
+      ...over,
+    }) as any;
+
+  it('not generated yet → null, even when the live calculation passes', () => {
+    expect(officialResult(r({}))).toBeNull();
+    expect(officialResult(r({ saved: { status: 'Passed', merit: 0, failCount: 0 } }))).toBeNull();
+  });
+  it('generated → saved status, not the live one', () => {
+    expect(
+      officialResult(r({ isFailed: true, saved: { status: 'Passed', merit: 3, failCount: 0 } })),
+    ).toBe('Passed');
+  });
+  it('manual override counts before generation; held prints Withheld', () => {
+    expect(
+      officialResult(r({ manual: true, saved: { status: 'Failed', merit: 0, failCount: 0 } })),
+    ).toBe('Failed');
+    expect(officialResult(r({ held: true }))).toBe('Withheld');
   });
 });

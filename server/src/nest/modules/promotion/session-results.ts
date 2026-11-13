@@ -1,6 +1,7 @@
 // Loads one school's session (previous + year-end) results for a year and runs the school's promotion engine.
 // Plain function (prisma passed in) so both Nest and legacy Express code can call it.
 import type { PrismaClient } from '@/generated/prisma/client.js';
+import { rlsTransaction } from '@/config/prisma.js';
 import { sessionExamsForClass } from './session-exams.js';
 import type { StudentSessionResult } from './v1/session-result.js';
 import { getPromotionEngine } from './versions.js';
@@ -15,6 +16,8 @@ export type SessionResultRow = StudentSessionResult & {
   held: boolean;
   /** Manual pass/fail override: generation keeps the saved status. */
   manual: boolean;
+  /** What the last "Generate pass/fail" wrote (student_enrollments). The only official result. */
+  saved: { status: string; merit: number; failCount: number };
 };
 
 export type SessionResults = {
@@ -85,6 +88,9 @@ export async function loadSessionResults(
       result_held: true,
       result_manual: true,
       release_batch: true,
+      status: true,
+      final_merit: true,
+      fail_count: true,
       student: { select: { name: true } },
     },
   });
@@ -228,8 +234,80 @@ export async function loadSessionResults(
       yearEndExamId: ex.yearEndExamId,
       held: e.result_held,
       manual: e.result_manual,
+      saved: { status: e.status, merit: e.final_merit, failCount: e.fail_count },
     }))
     .sort((a, b) => a.classLevel - b.classLevel || a.position - b.position);
 
   return { version: school.promotionVersion, results, missingYearEnd, missingPrevious };
+}
+
+/** Status generation writes for a row: a manual override keeps its saved status. */
+export const generatedStatus = (r: SessionResultRow) =>
+  r.manual ? r.saved.status : r.isFailed ? 'Failed' : 'Passed';
+
+/** Saved result no longer matches the marks/rules (held rows are never written). */
+export const isResultStale = (r: SessionResultRow) =>
+  !r.held &&
+  (r.saved.merit !== r.position ||
+    r.saved.failCount !== r.failCount ||
+    r.saved.status !== generatedStatus(r));
+
+/**
+ * Result printed on marksheets: only what generation saved, never the live calculation.
+ * null = not generated yet (shown as "-").
+ */
+export function officialResult(r: SessionResultRow): string | null {
+  if (r.held) return 'Withheld';
+  const decided = r.saved.merit > 0 || r.manual;
+  return decided && (r.saved.status === 'Passed' || r.saved.status === 'Failed')
+    ? r.saved.status
+    : null;
+}
+
+/** Results were generated for the year (some student has a saved rank). */
+export async function resultsGenerated(prisma: PrismaClient, schoolId: number, year: number) {
+  const row = await prisma.student_enrollments.findFirst({
+    where: { school_id: schoolId, year, final_merit: { gt: 0 }, student: { available: true } },
+    select: { id: true },
+  });
+  return row != null;
+}
+
+/**
+ * Compute and save pass/fail, fail count and rank for the year. Only rows that changed are written.
+ * Load + write run in one transaction under a per-(school, year) advisory lock, so a manual
+ * "Generate" and the automatic refresh never interleave and the last writer used the latest marks.
+ * Held students are never written; `only` limits the write to those enrollments (release).
+ */
+export async function writeSessionResults(schoolId: number, year: number, only?: number[]) {
+  return rlsTransaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${schoolId}::int, ${year}::int)`;
+      const sr = await loadSessionResults(tx as unknown as PrismaClient, schoolId, year);
+      const results = sr.results.filter(
+        (r) =>
+          !sr.missingPrevious.includes(r.classLevel) &&
+          !r.held &&
+          (!only || only.includes(r.enrollmentId)),
+      );
+      const changed = results.filter(isResultStale);
+      for (const r of changed) {
+        await tx.student_enrollments.update({
+          where: { id: r.enrollmentId, school_id: schoolId },
+          data: {
+            ...(!r.manual && { status: r.isFailed ? 'Failed' : 'Passed' }),
+            fail_count: r.failCount,
+            final_merit: r.position,
+          },
+        });
+      }
+      return {
+        results,
+        missingYearEnd: sr.missingYearEnd,
+        missingPrevious: sr.missingPrevious,
+        changedClasses: [...new Set(changed.map((r) => r.classLevel))],
+      };
+    },
+    { timeout: 120_000 },
+  );
 }
