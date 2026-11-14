@@ -1,12 +1,14 @@
 /**
  * Per-deployment role lock (web only). A web build with EXPO_PUBLIC_APP_ROLE serves exactly one
  * role: every route outside that role's area and its own sign-in screens is a 404, a session of
- * any other role is signed out, and login refuses other roles. Unset = every role (local dev, the
- * all-roles site, native builds). This is UX, not security: the API still checks every role.
+ * any other role is signed out, and login refuses other roles. `school` serves admin + teacher +
+ * student together (everything but the platform/super-admin area). Unset = every role (local dev,
+ * the all-roles site, native builds). This is UX, not security: the API still checks every role.
  */
 import type { GateRole } from './role-routes';
 
-export type LockedRole = GateRole | null;
+/** `school`: admin, teacher and student in one site, never super_admin. */
+export type LockedRole = GateRole | 'school' | null;
 
 export const isGateRole = (v: unknown): v is GateRole =>
   v === 'admin' || v === 'teacher' || v === 'student' || v === 'super_admin';
@@ -15,7 +17,7 @@ export const isGateRole = (v: unknown): v is GateRole =>
 export function parseLockedRole(raw: string | undefined, platform: string): LockedRole {
   if (platform !== 'web' || !raw) return null;
   const role = raw.trim().toLowerCase().replace('-', '_');
-  return isGateRole(role) ? role : null;
+  return role === 'school' || isGateRole(role) ? role : null;
 }
 
 /** School sign-in screens (pick a school, sign in, reset a password). */
@@ -39,6 +41,8 @@ export function routeAllowed(path: string, locked: LockedRole): boolean {
     case 'teacher':
     case 'student':
       return inArea(p, `/${locked}`) || SCHOOL_AUTH.includes(p);
+    case 'school':
+      return p !== '/platform-login' && !inArea(p, '/platform');
     case 'admin':
       return p !== '/platform-login' && !ROLE_AREAS.some((a) => inArea(p, a));
   }
@@ -53,19 +57,22 @@ export function rootRedirect(locked: LockedRole): '/teacher' | '/student' | '/pl
 }
 
 /** A signed-in role this deployment accepts. */
-export const roleAllowed = (role: unknown, locked: LockedRole) => !locked || role === locked;
+export const roleAllowed = (role: unknown, locked: LockedRole) =>
+  !locked || (locked === 'school' ? role !== 'super_admin' : role === locked);
 
-const ROLE_NOUN: Record<GateRole, string> = {
+const ROLE_NOUN: Record<NonNullable<LockedRole>, string> = {
+  school: 'school users',
   admin: 'school admins',
   teacher: 'teachers',
   student: 'students',
   super_admin: 'platform admins',
 };
 
-export const lockedRoleMessage = (locked: GateRole) => `This app is for ${ROLE_NOUN[locked]} only.`;
+export const lockedRoleMessage = (locked: NonNullable<LockedRole>) =>
+  `This app is for ${ROLE_NOUN[locked]} only.`;
 
 export class WrongDeploymentRoleError extends Error {
-  constructor(locked: GateRole) {
+  constructor(locked: NonNullable<LockedRole>) {
     super(lockedRoleMessage(locked));
     this.name = 'WrongDeploymentRoleError';
   }
@@ -76,6 +83,6 @@ export function requireDeploymentRole<T extends { user: { role: unknown } }>(
   payload: T,
   locked: LockedRole,
 ): T {
-  if (locked && payload.user.role !== locked) throw new WrongDeploymentRoleError(locked);
+  if (locked && !roleAllowed(payload.user.role, locked)) throw new WrongDeploymentRoleError(locked);
   return payload;
 }
