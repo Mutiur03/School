@@ -11,6 +11,7 @@ import {
   getGradeByPercentage,
 } from './grading.js';
 import { MarksheetRenderer } from './marksheet-renderer.js';
+import { MARKSHEET_FONT_PATHS } from './marksheet-draw.js';
 
 type SubjectCol =
   | {
@@ -87,25 +88,11 @@ const MIN_HEADER_ROW_H = 9;
 
 const FONT_REGULAR = 'Times-Roman';
 const FONT_BOLD = 'Times-Bold';
-const TIMES_FONT_PATHS = {
-  regular: [
-    process.env.MARKSHEET_FONT_REGULAR,
-    'C:\\Windows\\Fonts\\times.ttf',
-    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
-  ].filter(Boolean) as string[],
-  bold: [
-    process.env.MARKSHEET_FONT_BOLD,
-    'C:\\Windows\\Fonts\\timesbd.ttf',
-    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
-  ].filter(Boolean) as string[],
-};
 
-/** Prefer real Times New Roman from disk; otherwise PDF built-in Times. */
+/** Bundled Times New Roman, same as the marksheets. */
 function registerSummaryFonts(doc: any) {
-  const regular = TIMES_FONT_PATHS.regular.find((p) => fs.existsSync(p));
-  const bold = TIMES_FONT_PATHS.bold.find((p) => fs.existsSync(p));
+  const regular = MARKSHEET_FONT_PATHS.regular.find((p) => fs.existsSync(p));
+  const bold = MARKSHEET_FONT_PATHS.bold.find((p) => fs.existsSync(p));
   if (regular) doc.registerFont(FONT_REGULAR, regular);
   if (bold) doc.registerFont(FONT_BOLD, bold);
 }

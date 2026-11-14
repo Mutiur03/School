@@ -38,19 +38,15 @@ const MARKSHEET_IMAGE_SCALE = 2;
 // true  -> rasterize PDF to images then re-embed (tamper-resistant, slow).
 // false -> return direct vector PDF (fast, selectable text).
 const RASTERIZE_MARKSHEET = false;
-const MARKSHEET_FONT_PATHS = {
-  regular: [
-    process.env.MARKSHEET_FONT_REGULAR,
-    'C:\\Windows\\Fonts\\times.ttf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf',
-    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Regular.ttf',
-  ].filter(Boolean) as string[],
-  bold: [
-    process.env.MARKSHEET_FONT_BOLD,
-    'C:\\Windows\\Fonts\\timesbd.ttf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
-    '/usr/share/fonts/truetype/liberation2/LiberationSerif-Bold.ttf',
-  ].filter(Boolean) as string[],
+// Bundled Times New Roman (cwd = server/, also in the Docker image): the Linux server has no system
+// Times, and pdfkit's built-in fallback has a different line height, which moved text up in its cells.
+export const MARKSHEET_FONT_PATHS = {
+  regular: [process.env.MARKSHEET_FONT_REGULAR, path.resolve('public/fonts/times.ttf')].filter(
+    Boolean,
+  ) as string[],
+  bold: [process.env.MARKSHEET_FONT_BOLD, path.resolve('public/fonts/timesbd.ttf')].filter(
+    Boolean,
+  ) as string[],
 };
 
 // Gap between table end and signature block (PDF points)
