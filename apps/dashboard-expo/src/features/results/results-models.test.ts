@@ -183,6 +183,7 @@ const stats = (o: Partial<PromotionStats> = {}): PromotionStats => ({
   promotion_run: null,
   graduation_run: null,
   result_classes: [],
+  live_fail_counts: {},
   ...o,
 });
 
