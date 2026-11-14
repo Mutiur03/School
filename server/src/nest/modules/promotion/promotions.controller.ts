@@ -77,10 +77,15 @@ export class PromotionsController {
     return pdfFile(buffer, `final-result_${year}${suffix}.pdf`, 'attachment');
   }
 
-  /** Generate pass/fail + positions for the year. */
+  /** Generate pass/fail + positions. `?classes=10` limits it to those classes; omitted = all. */
   @Post(':year/results')
-  createResults(@SchoolId() schoolId: number, @Param('year', ParseIntPipe) year: number) {
-    return this.promotion.createResults(schoolId, year);
+  createResults(
+    @SchoolId() schoolId: number,
+    @Param('year', ParseIntPipe) year: number,
+    @Query('classes', new ParseArrayPipe({ items: Number, separator: ',', optional: true }))
+    classes?: number[],
+  ) {
+    return this.promotion.createResults(schoolId, year, { classes });
   }
 
   /** Withhold results until released. */

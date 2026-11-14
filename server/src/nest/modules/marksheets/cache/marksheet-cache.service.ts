@@ -938,17 +938,18 @@ export class MarksheetCacheService {
 
   /**
    * Debounced background refresh of saved results after marks / pass rules / holds change.
-   * The job id is bucketed, so edits within one window share a job; the job itself skips
-   * years whose results were never generated and whose year-end exam is unpublished.
+   * The job id is bucketed, so edits within one window share a job. The job refreshes only
+   * classes already generated and not locked; `classes` are generated regardless (publish).
    */
-  async scheduleResultsRefresh(schoolId: number, year: number): Promise<void> {
+  async scheduleResultsRefresh(schoolId: number, year: number, classes?: number[]): Promise<void> {
     const bucket = Math.floor(Date.now() / RESULTS_REFRESH_DELAY_MS);
+    const forced = classes?.length ? `:c${[...classes].sort((a, b) => a - b).join('-')}` : '';
     try {
       await this.queue.add(
-        { kind: 'session-results', schoolId, year },
+        { kind: 'session-results', schoolId, year, ...(forced && { classes }) },
         {
           ...defaultJobOpts(PRIORITY_USER),
-          jobId: `session-results:${schoolId}:${year}:${bucket}`,
+          jobId: `session-results:${schoolId}:${year}:${bucket}${forced}`,
           delay: RESULTS_REFRESH_DELAY_MS,
         },
       );

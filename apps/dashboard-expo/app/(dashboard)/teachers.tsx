@@ -29,7 +29,6 @@ import type { TableSort } from '@/components/ui/table-sort';
 import { Dialog } from '@/components/ui/Dialog';
 import { Field, FieldRow } from '@/components/ui/Field';
 import { FilePicker } from '@/components/ui/FilePicker';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { PhotoField } from '@/components/ui/PhotoField';
 import { Eye, KeyRound, Pencil, Plus, Trash2, XIcon } from '@/components/ui/icons';
 import { MultiSelect } from '@/components/ui/MultiSelect';
@@ -185,7 +184,6 @@ export default function TeachersScreen() {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [rotateOpen, setRotateOpen] = useState(false);
   const [allMatching, setAllMatching] = useState(false);
-  const mobile = useBreakpoint() === 'mobile';
 
   useEffect(() => setPage(1), [search, sort, designations, emailQuery, limit]);
   // "All matching" is only valid for the filter it was chosen under.
@@ -522,15 +520,6 @@ export default function TeachersScreen() {
                   setEmailQuery('');
                   setDesignations([]);
                 }}
-              />
-            ) : null}
-            {mobile ? (
-              <Checkbox
-                checked={allMatching || head.all}
-                onChange={togglePageSelection}
-                label="Select page"
-                disabled={visibleIds.length === 0}
-                testID="teachers-select-page-mobile"
               />
             ) : null}
           </View>

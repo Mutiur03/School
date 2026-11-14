@@ -10,8 +10,8 @@ import { MARKSHEET_QUEUE } from '../marksheets/jobs/marksheet.queue.js';
 import type { MarksheetQueue } from '../marksheets/jobs/marksheet.queue.js';
 import { attendanceSheetQueue } from '../../../modules/attendence/attendence-sheet.queue.js';
 
-// HTTP contract for /api/promotions + /api/graduations. Never calls POST results/promote/graduate:
-// those rewrite real enrollments.
+// HTTP contract for /api/promotions + /api/graduations. Never calls POST results/promote/graduate on
+// a year with data: those rewrite real enrollments (YEAR below is empty).
 const marksheetQueue = () => nestApp().get<MarksheetQueue>(MARKSHEET_QUEUE);
 let server: Server;
 let base = '';
@@ -190,7 +190,12 @@ test('empty year: results, stats and plans are empty', async () => {
 
   const stats = await call('GET', `/api/promotions/${YEAR}/stats`, { auth: true });
   expect(stats.status).toBe(200);
-  expect(stats.body.data).toMatchObject({ year: YEAR, newYear: YEAR + 1, promoted: false });
+  expect(stats.body.data).toMatchObject({
+    year: YEAR,
+    newYear: YEAR + 1,
+    promoted: false,
+    result_classes: [],
+  });
 
   const preview = await call('GET', `/api/promotions/${YEAR}/plan`, { auth: true });
   expect(preview.status).toBe(200);
@@ -199,6 +204,22 @@ test('empty year: results, stats and plans are empty', async () => {
   const graduation = await call('GET', `/api/graduations/${YEAR}/plan`, { auth: true });
   expect(graduation.status).toBe(200);
   expect(graduation.body.data.students).toEqual([]);
+});
+
+// Empty YEAR: generating writes no rows, so these POSTs are safe.
+test('POST results?classes=10 on an empty year → 200, nothing written', async () => {
+  const { status, body } = await call('POST', `/api/promotions/${YEAR}/results?classes=10`, {
+    auth: true,
+  });
+  expect(status).toBe(201);
+  expect(body.data).toMatchObject({ updated: 0, passed: 0, failed: 0 });
+});
+
+test('POST results?classes=x → 400', async () => {
+  const { status } = await call('POST', `/api/promotions/${YEAR}/results?classes=x`, {
+    auth: true,
+  });
+  expect(status).toBe(400);
 });
 
 test('pass rules: read defaults → save → read back', async () => {

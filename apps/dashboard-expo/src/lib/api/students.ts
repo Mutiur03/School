@@ -82,7 +82,15 @@ export interface StudentListMeta {
   stipendCount: number | null;
 }
 
-export const STUDENT_SORT_KEYS = ['name', 'roll', 'class', 'section', 'group', 'fourth'] as const;
+export const STUDENT_SORT_KEYS = [
+  'name',
+  'roll',
+  'class',
+  'section',
+  'group',
+  'fourth',
+  'merit',
+] as const;
 export type StudentSortKey = (typeof STUDENT_SORT_KEYS)[number];
 
 export interface StudentListResult {

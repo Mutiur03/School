@@ -44,7 +44,11 @@ import type {
   SessionYearJob,
   StudentJob,
 } from './marksheet.queue.js';
-import { resultsGenerated, writeSessionResults } from '../../promotion/session-results.js';
+import {
+  generatedClasses,
+  writeSessionResults,
+  yearEndByClass,
+} from '../../promotion/session-results.js';
 
 // The worker has no HTTP user; every query is school-scoped, so an admin-role
 // synthetic user only satisfies the in-code access check.
@@ -191,12 +195,14 @@ export class MarksheetJobsService {
     examId: number,
     examName: string,
   ): Promise<{ queued: number }> {
-    // Publishing a year-end exam makes results official: generate them before students look.
+    // Publishing a year-end exam makes its classes' results official: generate them now.
     const exam = await this.prisma.exams.findUnique({
       where: { id: examId, school_id: schoolId },
-      select: { is_year_end: true, exam_year: true },
+      select: { is_year_end: true, exam_year: true, levels: true },
     });
-    if (exam?.is_year_end) await this.cache.scheduleResultsRefresh(schoolId, exam.exam_year);
+    if (exam?.is_year_end) {
+      await this.cache.scheduleResultsRefresh(schoolId, exam.exam_year, exam.levels);
+    }
 
     const marks = await this.prisma.marks.findMany({
       // Only students with at least one real mark — an enrollment with only
@@ -377,18 +383,25 @@ export class MarksheetJobsService {
   }
 
   /**
-   * Automatic results refresh. Runs only once results are official: generated before, or a
-   * year-end exam is published (then students must never see a sheet without a result).
+   * Automatic results refresh, per class: only classes already generated whose year-end result
+   * date has not passed (locked = final). Never starts a class on its own, except `job.classes`
+   * (a year-end exam was published: its classes must not show a sheet without a result).
    */
   private async processResultsJob(job: SessionResultsJob): Promise<void> {
     const { schoolId, year } = job;
     await runWithRlsContext(workerRls(schoolId), async () => {
-      const published = await this.prisma.exams.findFirst({
-        where: { school_id: schoolId, exam_year: year, is_year_end: true, visible: true },
-        select: { id: true },
-      });
-      if (!published && !(await resultsGenerated(this.prisma, schoolId, year))) return;
-      const { changedClasses } = await writeSessionResults(schoolId, year);
+      const [generated, yearEnd] = await Promise.all([
+        generatedClasses(this.prisma, schoolId, year),
+        yearEndByClass(this.prisma, schoolId, year),
+      ]);
+      const classes = [
+        ...new Set([
+          ...generated.filter((c) => yearEnd.has(c) && !yearEnd.get(c)!.locked),
+          ...(job.classes ?? []),
+        ]),
+      ];
+      if (classes.length === 0) return;
+      const { changedClasses } = await writeSessionResults(schoolId, year, { classes });
       logger.info('[marksheet] job(results): refreshed', { schoolId, year, changedClasses });
       await this.cache.invalidateForResults(schoolId, year, changedClasses);
     });

@@ -21,6 +21,9 @@ import {
   unassigned,
 } from '@/features/levels/model';
 import {
+  classesReady,
+  groupStatus,
+  resultGroups,
   failsText,
   generateConfirmText,
   generateMessages,
@@ -29,7 +32,6 @@ import {
   blockedCount,
   holdConfirm,
   placementText,
-  meritOrder,
   nextSecRoll,
   promoteMessages,
   promotionDetail,
@@ -180,26 +182,25 @@ const stats = (o: Partial<PromotionStats> = {}): PromotionStats => ({
   graduated: false,
   promotion_run: null,
   graduation_run: null,
+  result_classes: [],
   ...o,
 });
 
 describe('year-end promotion', () => {
-  it('orders by merit with unranked last, then class / section / roll', () => {
-    const rows = [
-      row({ id: 1, final_merit: 0, roll: 2 }),
-      row({ id: 2, final_merit: 2 }),
-      row({ id: 3, final_merit: 1 }),
-      row({ id: 4, final_merit: 0, roll: 1 }),
-    ];
-    assert.deepEqual(
-      meritOrder(rows).map((r) => r.id),
-      [3, 2, 4, 1],
-    );
-  });
-
   it('fails / allowed and next section · roll', () => {
     assert.equal(failsText(row({ fail_count: 2, class: 7 }), { 7: 1 }), '2/1');
     assert.equal(failsText(row({ fail_count: null }), {}), '—');
+    // Not generated yet (merit 0): the live count from entered marks, not the saved 0.
+    const live = { 9: 3 };
+    assert.equal(
+      failsText(row({ fail_count: 0, final_merit: 0, enrollment_id: 9, class: 7 }), { 7: 1 }, live),
+      '3/1',
+    );
+    // Generated: the saved count wins.
+    assert.equal(
+      failsText(row({ fail_count: 1, final_merit: 4, enrollment_id: 9, class: 7 }), { 7: 1 }, live),
+      '1/1',
+    );
     assert.equal(nextSecRoll(row({ next_year_section: 'B', next_year_roll: 12 })), 'B · 12');
     assert.equal(nextSecRoll(row({})), '—');
   });
@@ -381,5 +382,77 @@ describe('class results', () => {
   it('PDF file names are filesystem-safe', () => {
     assert.equal(pdfFileName(['Class 9A', 'Half Yearly', 2026]), 'class-9a-half-yearly-2026.pdf');
     assert.equal(pdfFileName([null, '', '../..']), 'document.pdf');
+  });
+});
+
+describe('per-class result generation (two year-end exams)', () => {
+  // Class 10 sits the Test exam (Nov, result date passed); 6-9 the Annual (Dec, open).
+  const rc = (cls: number, o: object = {}) => ({
+    class: cls,
+    exam_id: cls === 10 ? 7 : 6,
+    exam_name: cls === 10 ? 'Test Examination' : 'Annual Examination',
+    result_date: cls === 10 ? '2026-11-15' : '2026-12-30',
+    locked: cls === 10,
+    students: 40,
+    generated: false,
+    outdated: 0,
+    missing_marks: 0,
+    missing_previous: false,
+    ...o,
+  });
+  const twoExams = (o: Record<number, object> = {}) =>
+    stats({ result_classes: [6, 7, 8, 9, 10].map((c) => rc(c, o[c])) });
+
+  it('groups classes by their own year-end exam', () => {
+    const g = resultGroups(twoExams());
+    assert.deepEqual(
+      g.map((x) => [x.examName, x.classes]),
+      [
+        ['Annual Examination', [6, 7, 8, 9]],
+        ['Test Examination', [10]],
+      ],
+    );
+  });
+
+  it('class 10 generated alone: graduate-ready, promotion of 6-9 not', () => {
+    const s = twoExams({ 10: { generated: true } });
+    assert.equal(classesReady(s, [10]), true);
+    assert.equal(classesReady(s, [6, 7, 8, 9]), false);
+    assert.equal(classesReady(s), false); // final result for all classes
+  });
+
+  it('an open class catching up blocks only itself', () => {
+    const s = twoExams({
+      6: { generated: true, outdated: 3 },
+      7: { generated: true },
+      8: { generated: true },
+      9: { generated: true },
+      10: { generated: true },
+    });
+    assert.equal(classesReady(s, [10]), true);
+    assert.equal(classesReady(s, [6]), false);
+    assert.match(groupStatus(resultGroups(s)[0]!), /Updating 3 results automatically/);
+  });
+
+  it('locked group with differences asks for a manual regenerate', () => {
+    const s = twoExams({ 10: { generated: true, outdated: 2 } });
+    assert.equal(classesReady(s, [10]), true); // locked: final, not refreshing
+    assert.match(groupStatus(resultGroups(s)[1]!), /generate again to apply/);
+  });
+
+  it('confirm text lists only the generated classes rules', () => {
+    const rules = [6, 7, 8, 9, 10].map((c) => ({ class: c, max_failed: c === 10 ? 2 : 0 }));
+    const text = generateConfirmText(2026, rules, {
+      classes: [10],
+      examName: 'Test Examination',
+      missingMarks: 0,
+    });
+    assert.match(text, /10: 2/);
+    assert.doesNotMatch(text, /6: 0/);
+  });
+
+  it('not generated shows missing marks', () => {
+    const s = twoExams({ 8: { missing_marks: 5 } });
+    assert.match(groupStatus(resultGroups(s)[0]!), /Not generated · 5 students missing marks/);
   });
 });

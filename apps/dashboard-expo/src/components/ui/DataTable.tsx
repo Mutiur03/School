@@ -23,7 +23,10 @@ export interface Column<T> {
   label: string;
   /** Custom header cell (e.g. a select-all checkbox) in place of the `label` text. */
   header?: ReactNode;
-  /** Width classes, e.g. `w-32` or `min-w-0 flex-1`. */
+  /**
+   * Width classes, e.g. `w-32` or `min-w-0 flex-1`. Growing columns share spare width by their
+   * flex (`flex-[2]` takes twice a `flex-1`); `min-w-[Npx]` sets their floor (default 200px).
+   */
   className: string;
   align?: 'left' | 'right';
   /** Makes the header a sort toggle (needs the table's `onSort`). */
@@ -33,16 +36,20 @@ export interface Column<T> {
 
 /** A growing column keeps a readable minimum; the table scrolls sideways before it collapses. */
 const FLEX_MIN = 200;
+const grows = (className: string) => /(?:^|\s)flex-(?:1|\[\d+\])(?:\s|$)/.test(className);
+const explicitMin = (className: string) => /(?:^|\s)min-w-\[(\d+)px\]/.exec(className);
 const colClass = (c: { className: string }) =>
-  c.className.includes('flex-1') ? cn(c.className, 'min-w-[200px]') : c.className;
+  grows(c.className) && !explicitMin(c.className) ? cn(c.className, 'min-w-[200px]') : c.className;
 
 /** Smallest width a column needs, read from its width class (`w-32`, `w-[120px]`, `flex-1`). */
 function colMin({ className }: { className: string }): number {
+  const min = explicitMin(className);
+  if (min && grows(className)) return Number(min[1]);
   const px = /(?:^|\s)w-\[(\d+)px\]/.exec(className);
   if (px) return Number(px[1]);
   const step = /(?:^|\s)w-(\d+)(?:\s|$)/.exec(className);
   if (step) return Number(step[1]) * 4;
-  return className.includes('flex-1') ? FLEX_MIN : 0;
+  return grows(className) ? FLEX_MIN : 0;
 }
 
 export function DataTable<T>({
@@ -74,8 +81,12 @@ export function DataTable<T>({
   onSort?: (next: TableSort | null) => void;
   testID?: string;
 }) {
-  const mobile = useBreakpoint() === 'mobile';
+  const phone = useBreakpoint() === 'mobile';
   const [width, setWidth] = useState(0);
+  const minWidth = columns.reduce((sum, c) => sum + colMin(c), 0);
+  // Cards whenever the columns do not fit (phones, tablets, narrow windows next to the sidebar),
+  // so the page never needs a sideways scroll; the table only when it fits.
+  const mobile = phone || (width > 0 && width < minWidth);
   const body =
     !loading && rows.length === 0 ? (
       typeof empty === 'string' ? (
@@ -122,10 +133,24 @@ export function DataTable<T>({
       ))
     );
 
-  const minWidth = columns.reduce((sum, c) => sum + colMin(c), 0);
   const table = (
     <>
-      {mobile ? null : (
+      {mobile ? (
+        // Cards keep the custom header cells (select-all) in a header bar, at the same spot as
+        // the table header: top-left, above the row checkboxes.
+        columns.some((c) => c.header) && rows.length > 0 ? (
+          <View className="bg-muted flex-row items-center gap-3 px-4 py-2.5">
+            {columns
+              .filter((c) => c.header)
+              .map((c) => (
+                <View key={c.key}>{c.header}</View>
+              ))}
+            <Text size="xs" weight="semibold" caps className="text-foreground/70">
+              Select all
+            </Text>
+          </View>
+        ) : null
+      ) : (
         <View className="bg-muted flex-row items-center">
           {columns.map((c) => (
             <View
@@ -156,15 +181,19 @@ export function DataTable<T>({
 
   return (
     <SectionCard noPadding testID={testID}>
-      {mobile ? (
+      {phone ? (
         table
       ) : (
-        // A definite width (card width, or the columns' minimum when that is wider) so growing
-        // columns wrap their text instead of stretching to one long line.
+        // Measured on every wide layout (also while showing cards) to pick cards vs table.
+        // The table gets a definite width so growing columns wrap instead of stretching.
         <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
-          <ScrollView horizontal>
-            <View style={{ width: Math.max(width, minWidth) }}>{table}</View>
-          </ScrollView>
+          {mobile ? (
+            table
+          ) : (
+            <ScrollView horizontal>
+              <View style={{ width: Math.max(width, minWidth) }}>{table}</View>
+            </ScrollView>
+          )}
         </View>
       )}
     </SectionCard>

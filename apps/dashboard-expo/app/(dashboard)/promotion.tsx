@@ -56,7 +56,6 @@ import {
   graduateMessage,
   graduationDetail,
   holdConfirm,
-  meritOrder,
   nextSecRoll,
   passRulesSummary,
   placementText,
@@ -66,8 +65,16 @@ import {
   rulesByClass,
   stepState,
   calculatedConfirm,
+  classesReady,
+  groupStatus,
+  isRefreshing,
+  resultGroups,
   yearSummary,
+  type ResultGroup,
 } from '@/features/promotion/model';
+
+/** Classes promoted in step 2 (class 10 graduates in step 3). */
+const PROMOTION_CLASSES = [6, 7, 8, 9];
 import { GROUPS } from '@/features/results/filters';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import {
@@ -217,7 +224,8 @@ export default function PromotionScreen() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(50);
   const [rulesDraft, setRulesDraft] = useState<PassRule[] | null>(null);
-  const [confirmGenerate, setConfirmGenerate] = useState(false);
+  // Group being generated (its classes only); null = dialog closed.
+  const [confirmGenerate, setConfirmGenerate] = useState<ResultGroup | null>(null);
   const [holdTarget, setHoldTarget] = useState<StudentRow | null>(null);
   const [plan, setPlan] = useState<PromotionPlan | 'loading' | null>(null);
   const [gradPlan, setGradPlan] = useState<GraduationPlan | 'loading' | null>(null);
@@ -253,9 +261,10 @@ export default function PromotionScreen() {
     queryKey: key('promotion-stats', year),
     queryFn: ({ signal }) => promotions.stats(year, signal),
     // The server refreshes outdated results within seconds; watch until it has.
-    refetchInterval: (q) => ((q.state.data?.results_outdated ?? 0) > 0 ? 5_000 : false),
+    refetchInterval: (q) => (q.state.data?.result_classes.some(isRefreshing) ? 5_000 : false),
   });
-  const refreshing = (statsQ.data?.results_outdated ?? 0) > 0;
+  const refreshing = statsQ.data?.result_classes.some(isRefreshing) ?? false;
+  const groups = resultGroups(statsQ.data);
   const rulesQ = useQuery({
     queryKey: key('pass-rules', year),
     queryFn: ({ signal }) => promotions.passRules(year, signal),
@@ -268,7 +277,8 @@ export default function PromotionScreen() {
     levels: cls.length ? cls : undefined,
     sections: section.length ? section : undefined,
     groups: group.length ? group : undefined,
-    sort: sort?.key,
+    // Default: merit within each class, sorted and paged by the server (correct across pages).
+    sort: sort?.key ?? 'merit',
     order: sort?.order,
   };
   const studentsQ = useQuery({
@@ -286,7 +296,7 @@ export default function PromotionScreen() {
   const rules = rulesQ.data ?? PASS_RULE_CLASSES.map((c) => ({ class: c, max_failed: 0 }));
   const allowed = rulesByClass(rules);
   const st = stepState(statsQ.data);
-  const rows = meritOrder(studentsQ.data?.rows ?? []);
+  const rows = studentsQ.data?.rows ?? [];
   const meta = studentsQ.data?.meta;
 
   const blockIfNotReady = () => {
@@ -300,14 +310,14 @@ export default function PromotionScreen() {
   };
 
   const generate = useAdminMutation({
-    mutationFn: (_: void) => promotions.generateResults(year),
+    mutationFn: (classes: number[]) => promotions.generateResults(year, classes),
     invalidate: INVALIDATE,
     success: (o) => {
       showMessages(generateMessages(o));
       return null;
     },
     failure: 'Failed to generate result',
-    onSuccess: () => setConfirmGenerate(false),
+    onSuccess: () => setConfirmGenerate(null),
   });
   const saveRules = useAdminMutation({
     mutationFn: (r: PassRule[]) => promotions.savePassRules(year, r),
@@ -523,17 +533,18 @@ export default function PromotionScreen() {
   const columns: Column<StudentRow>[] = [
     {
       key: 'merit',
-      label: 'Position',
-      className: 'w-24',
+      label: 'Rank',
+      className: 'w-[76px]',
       render: (r) => <Merit merit={r.final_merit} />,
     },
     {
       key: 'name',
       label: 'Student',
       sortKey: 'name',
-      className: 'min-w-0 flex-1',
+      // Spare width is shared: name 2 parts, group and next sec/roll 1 part each.
+      className: 'flex-[3] min-w-[160px]',
       render: (r) => (
-        <Text size="sm" weight="medium" numberOfLines={1} className="uppercase">
+        <Text size="sm" weight="medium" numberOfLines={2} className="uppercase">
           {r.name || '—'}
         </Text>
       ),
@@ -542,7 +553,7 @@ export default function PromotionScreen() {
       key: 'class',
       label: 'Class',
       sortKey: 'class',
-      className: 'w-20',
+      className: 'w-[72px]',
       render: (r) => (
         <Text size="sm" tabular>
           {r.class}
@@ -553,14 +564,14 @@ export default function PromotionScreen() {
       key: 'sec',
       label: 'Sec',
       sortKey: 'section',
-      className: 'w-16',
+      className: 'w-[64px]',
       render: (r) => <Text size="sm">{r.section || '—'}</Text>,
     },
     {
       key: 'group',
       label: 'Group',
       sortKey: 'group',
-      className: 'w-32',
+      className: 'flex-1 min-w-[104px]',
       render: (r) => (
         <Text size="sm" color={r.group ? 'foreground' : 'mutedForeground'}>
           {r.group || '—'}
@@ -571,28 +582,28 @@ export default function PromotionScreen() {
       key: 'roll',
       label: 'Roll',
       sortKey: 'roll',
-      className: 'w-20',
+      className: 'w-[64px]',
       render: (r) => (
         <Text size="sm" tabular>
           {r.roll || '—'}
         </Text>
       ),
     },
-    { key: 'status', label: 'Status', className: 'w-36', render: statusCell },
+    { key: 'status', label: 'Status', className: 'w-[132px]', render: statusCell },
     {
       key: 'fails',
       label: 'Fails',
-      className: 'w-20',
+      className: 'w-[72px]',
       render: (r) => (
-        <Text size="xs" color="mutedForeground" tabular>
-          {failsText(r, allowed)}
+        <Text size="sm" color="mutedForeground" tabular>
+          {failsText(r, allowed, statsQ.data?.live_fail_counts)}
         </Text>
       ),
     },
     {
       key: 'next',
       label: 'Next sec · roll',
-      className: 'w-32',
+      className: 'flex-1 min-w-[112px]',
       render: (r) => (
         <Text size="sm" weight="semibold" color="primary" tabular>
           {nextSecRoll(r)}
@@ -663,8 +674,7 @@ export default function PromotionScreen() {
             disabled={
               (meta?.filtered ?? 0) === 0 ||
               pdfBusy !== null ||
-              !statsQ.data?.results_generated ||
-              refreshing
+              !classesReady(statsQ.data, cls.length ? cls : undefined)
             }
             onPress={() =>
               void pdf(
@@ -705,21 +715,63 @@ export default function PromotionScreen() {
           <Step
             n={1}
             title="Pass / fail"
-            done={st.passFailGenerated}
-            detail={
-              refreshing
-                ? `${st.resultsOutdated} result${st.resultsOutdated === 1 ? '' : 's'} changed since marks or rules were edited — updating automatically…`
-                : `Allowed failed subjects by class — ${passRulesSummary(rules)}. Override single students in the table. Results update automatically after marks change.`
-            }
+            done={groups.length > 0 && groups.every((g) => g.generated)}
+            detail={`Each year-end exam's classes are generated on their own, once its marks are in. Allowed failed subjects by class — ${passRulesSummary(rules)}. Override single students in the table.`}
           >
-            <Button
-              size="sm"
-              icon={RefreshCw}
-              label={generate.isPending ? 'Generating…' : 'Generate pass/fail'}
-              disabled={generate.isPending || !ready}
-              onPress={() => !blockIfNotReady() && setConfirmGenerate(true)}
-              testID="generate-pass-fail"
-            />
+            {groups.length === 0 ? (
+              <Button
+                size="sm"
+                icon={RefreshCw}
+                label="Generate pass/fail"
+                disabled
+                onPress={() => blockIfNotReady()}
+                testID="generate-pass-fail"
+              />
+            ) : (
+              groups.map((g) => (
+                <View
+                  key={g.examId}
+                  className={cn(
+                    'border-border w-full gap-2 rounded-lg border px-3 py-2',
+                    // Phones: text then button, the same for every exam (no ragged wrapping).
+                    mobile ? 'items-start' : 'flex-row items-center',
+                  )}
+                >
+                  <View className={mobile ? 'w-full' : 'min-w-0 flex-1'}>
+                    <Text size="sm" weight="medium">
+                      {`Class ${g.classes.join(', ')} · ${g.examName}`}
+                    </Text>
+                    <Text
+                      size="xs"
+                      color={
+                        g.locked && g.outdated
+                          ? 'destructive'
+                          : g.generated
+                            ? 'mutedForeground'
+                            : undefined
+                      }
+                    >
+                      {groupStatus(g)}
+                    </Text>
+                  </View>
+                  <Button
+                    size="sm"
+                    variant={g.generated && !(g.locked && g.outdated) ? 'outline' : 'default'}
+                    icon={RefreshCw}
+                    label={
+                      generate.isPending && confirmGenerate?.examId === g.examId
+                        ? 'Generating…'
+                        : g.generated
+                          ? 'Regenerate'
+                          : 'Generate'
+                    }
+                    disabled={generate.isPending}
+                    onPress={() => setConfirmGenerate(g)}
+                    testID={`generate-pass-fail-${g.examId}`}
+                  />
+                </View>
+              ))
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -739,7 +791,7 @@ export default function PromotionScreen() {
               variant="outline"
               icon={Trophy}
               label={promoteBusy ? 'Working…' : 'Review & promote'}
-              disabled={promoteBusy || !ready || !st.passFailGenerated || refreshing}
+              disabled={promoteBusy || !ready || !classesReady(statsQ.data, PROMOTION_CLASSES)}
               onPress={() => {
                 if (blockIfNotReady()) return;
                 setPlan('loading');
@@ -766,7 +818,7 @@ export default function PromotionScreen() {
               variant="outline"
               icon={GraduationCap}
               label={gradBusy ? 'Working…' : 'Review & graduate'}
-              disabled={gradBusy || !ready || !st.passFailGenerated || refreshing}
+              disabled={gradBusy || !ready || !classesReady(statsQ.data, [10])}
               onPress={() => {
                 if (blockIfNotReady()) return;
                 setGradPlan('loading');
@@ -868,7 +920,8 @@ export default function PromotionScreen() {
                     <Text size="xs" color="mutedForeground" tabular>
                       Class {r.class}
                       {r.section ? ` · ${r.section}` : ''} · Roll {r.roll || '—'}
-                      {r.group ? ` · ${r.group}` : ''} · Fails {failsText(r, allowed)}
+                      {r.group ? ` · ${r.group}` : ''} · Fails{' '}
+                      {failsText(r, allowed, statsQ.data?.live_fail_counts)}
                     </Text>
                   </View>
                 </View>
@@ -892,14 +945,14 @@ export default function PromotionScreen() {
       />
 
       <ConfirmDialog
-        open={confirmGenerate}
-        onClose={() => setConfirmGenerate(false)}
+        open={confirmGenerate !== null}
+        onClose={() => setConfirmGenerate(null)}
         busy={generate.isPending}
         tone="default"
-        title="Generate pass/fail?"
-        message={generateConfirmText(year, rules)}
+        title={`Generate pass/fail — class ${confirmGenerate?.classes.join(', ') ?? ''}?`}
+        message={generateConfirmText(year, rules, confirmGenerate ?? undefined)}
         confirmLabel="Generate"
-        onConfirm={() => generate.mutate()}
+        onConfirm={() => confirmGenerate && generate.mutate(confirmGenerate.classes)}
       />
       <ConfirmDialog
         open={holdTarget !== null}

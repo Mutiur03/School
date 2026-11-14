@@ -159,6 +159,22 @@ describe('buildSessionTable', () => {
   });
 });
 
+describe('buildSessionTable full marks totals', () => {
+  it('Total sums exam subjects; Grand Total adds continuous assessment', () => {
+    const t = buildSessionTable(
+      result({
+        subjects: [
+          subject({ fullMark: 200 }),
+          subject({ subjectId: 2, fullMark: 100 }),
+          subject({ subjectId: 3, isContinuous: true, fullMark: 50 }),
+        ],
+      }),
+    );
+    expect(t.totalFull).toBe('300');
+    expect(t.grandFull).toBe('350');
+  });
+});
+
 describe('drawSessionMarksheetBody', () => {
   it('renders paper rows without throwing', () => {
     const none = { marks: null, cq: null, mcq: null, practical: null };

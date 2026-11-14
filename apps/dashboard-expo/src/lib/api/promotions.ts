@@ -71,10 +71,27 @@ export interface PromotionStats {
   /** Last runs (null = never run, or run before runs were recorded). */
   promotion_run: RunInfo | null;
   graduation_run: RunInfo | null;
-  /** "Generate pass/fail" has run for the year. */
-  results_generated: boolean;
-  /** Saved results that no longer match marks/rules (the server refreshes them automatically). */
-  results_outdated: number;
+  /** Result state per class, each against its own year-end exam. */
+  result_classes: ResultClass[];
+  /** enrollment id → failed subjects from the marks as they are now (before generation). */
+  live_fail_counts: Record<number, number>;
+}
+
+/** One class's results; classes can finish at different times (Test for 10, Annual for 6-9). */
+export interface ResultClass {
+  class: number;
+  exam_id: number;
+  exam_name: string;
+  result_date: string;
+  /** Result date passed: final, no automatic refresh. */
+  locked: boolean;
+  students: number;
+  generated: boolean;
+  /** Saved rows that no longer match marks/rules (unlocked: refreshed automatically). */
+  outdated: number;
+  /** Students still missing a year-end mark. */
+  missing_marks: number;
+  missing_previous: boolean;
 }
 
 export interface RunInfo {
@@ -254,8 +271,25 @@ export function parsePromotionStats(v: unknown, year: number): PromotionStats {
     graduated: s.graduation_run != null,
     promotion_run: parseRun(s.promotion_run),
     graduation_run: parseRun(s.graduation_run),
-    results_generated: bool(s.results_generated),
-    results_outdated: num(s.results_outdated),
+    result_classes: (Array.isArray(s.result_classes) ? s.result_classes : [])
+      .filter(isObj)
+      .map((c) => ({
+        class: num(c.class),
+        exam_id: num(c.exam_id),
+        exam_name: str(c.exam_name),
+        result_date: str(c.result_date),
+        locked: bool(c.locked),
+        students: num(c.students),
+        generated: bool(c.generated),
+        outdated: num(c.outdated),
+        missing_marks: num(c.missing_marks),
+        missing_previous: bool(c.missing_previous),
+      })),
+    live_fail_counts: Object.fromEntries(
+      Object.entries(isObj(s.live_fail_counts) ? s.live_fail_counts : {})
+        .map(([k, n]) => [Number(k), num(n, Number.NaN)] as const)
+        .filter(([k, n]) => Number.isFinite(k) && Number.isFinite(n)),
+    ),
   };
 }
 
@@ -428,8 +462,16 @@ export function createPromotionsApi(client: ApiClient) {
       };
       await client.put<unknown>(PROMOTION_PATHS.rules(year), body);
     },
-    async generateResults(year: number): Promise<GenerateResultsOutcome> {
-      const d = await client.post<unknown>(PROMOTION_PATHS.results(year));
+    /** `classes` empty = every class. */
+    async generateResults(
+      year: number,
+      classes: readonly number[] = [],
+    ): Promise<GenerateResultsOutcome> {
+      const d = await client.post<unknown>(
+        PROMOTION_PATHS.results(year),
+        undefined,
+        classes.length ? { query: { classes: classes.join(',') } } : undefined,
+      );
       const o = isObj(d) ? d : {};
       return {
         passed: numOrNull(o.passed),
@@ -559,6 +601,10 @@ export interface SessionMarksheet {
   examRows: SessionRow[];
   continuousRows: SessionRow[];
   totals: string[];
+  /** Sum of the exam subjects' full marks. */
+  totalFull: string;
+  /** Full marks of every subject, continuous assessment included. */
+  grandFull: string;
   classHighestTotal: string;
   grandTotal: string;
   classHighestGrandTotal: string;
@@ -603,6 +649,8 @@ export function parseSessionMarksheet(v: unknown, path: string): SessionMarkshee
     examRows: parseSessionRows(v.examRows, path),
     continuousRows: parseSessionRows(v.continuousRows, path),
     totals: Array.isArray(v.totals) ? v.totals.map(cell) : [],
+    totalFull: cell(v.totalFull),
+    grandFull: cell(v.grandFull),
     classHighestTotal: cell(v.class_highest_total),
     grandTotal: cell(v.grand_total),
     classHighestGrandTotal: cell(v.class_highest_grand_total),

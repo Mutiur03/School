@@ -85,7 +85,6 @@ import {
   toStudentPayload,
   type StudentFormValues,
 } from '@/features/students/form';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useDebounced } from '@/hooks/useDebounced';
 import { openPdf } from '@/lib/files/open-pdf';
 import { pdfFileName } from '@/lib/files/pdf-name';
@@ -409,7 +408,6 @@ function StudentForm({
 export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
   const { students, subjects } = useApi();
   const { resolution } = useTenant();
-  const mobile = useBreakpoint() === 'mobile';
   const toast = useToast();
   const [year, setYear] = useState(THIS_YEAR);
   const [levels, setLevels] = useState<number[]>([]);
@@ -1017,18 +1015,6 @@ export function StudentsScreen({ readOnly = false }: { readOnly?: boolean }) {
               className="w-44"
               testID="student-fourth-filter"
             />
-            {readOnly || !mobile ? null : (
-              <Checkbox
-                checked={allMatching || head.all}
-                onChange={() => {
-                  if (allMatching) clearSelection();
-                  else setSelected(togglePage(selected, visibleIds));
-                }}
-                label="Select page"
-                disabled={visibleIds.length === 0}
-                testID="select-page"
-              />
-            )}
           </View>
           <DataTable
             testID="students"

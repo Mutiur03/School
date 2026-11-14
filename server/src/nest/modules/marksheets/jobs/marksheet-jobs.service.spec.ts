@@ -28,10 +28,12 @@ jest.unstable_mockModule('../cache/marksheet-cache.service.js', () => ({
 jest.unstable_mockModule('../cache/marksheet-hash.service.js', () => ({
   MarksheetHashService: class {},
 }));
-const resultsGenerated = jest.fn<Fn>().mockResolvedValue(false);
+const generatedClasses = jest.fn<Fn>().mockResolvedValue([]);
+const yearEndByClass = jest.fn<Fn>().mockResolvedValue(new Map());
 const writeSessionResults = jest.fn<Fn>().mockResolvedValue({ changedClasses: [6] });
 jest.unstable_mockModule('../../promotion/session-results.js', () => ({
-  resultsGenerated,
+  generatedClasses,
+  yearEndByClass,
   writeSessionResults,
 }));
 const { MarksheetJobsService } = await import('./marksheet-jobs.service.js');
@@ -259,35 +261,36 @@ describe('statusCounts', () => {
   });
 });
 
-describe('processJob: session-results (automatic refresh)', () => {
-  const job = { kind: 'session-results' as const, schoolId: S, year: 2026 };
-  const run = async () => {
+describe('processJob: session-results (automatic refresh, per class)', () => {
+  const run = async (classes?: number[]) => {
     const cache = { invalidateForResults: jest.fn<Fn>().mockResolvedValue(undefined) };
     (service as any).cache = cache;
-    await service.processJob(job);
+    await service.processJob({ kind: 'session-results', schoolId: S, year: 2026, classes });
     return cache;
   };
+  // Class 10: Test exam (result date passed → locked); classes 6-9: Annual (still open).
+  const yearEnd = new Map([
+    [6, { locked: false }],
+    [7, { locked: false }],
+    [10, { locked: true }],
+  ]);
+  beforeEach(() => yearEndByClass.mockResolvedValue(yearEnd));
 
-  it('skips a year never generated and with no published year-end exam', async () => {
+  it('nothing generated yet: no write', async () => {
     const cache = await run();
-    expect(db.exams.findFirst).toHaveBeenCalledWith({
-      where: { school_id: S, exam_year: 2026, is_year_end: true, visible: true },
-      select: { id: true },
-    });
     expect(writeSessionResults).not.toHaveBeenCalled();
     expect(cache.invalidateForResults).not.toHaveBeenCalled();
   });
 
-  it('refreshes once generated and re-queues the changed classes', async () => {
-    resultsGenerated.mockResolvedValueOnce(true);
+  it('refreshes only generated, unlocked classes (never starts class 7, skips locked 10)', async () => {
+    generatedClasses.mockResolvedValueOnce([6, 10]);
     const cache = await run();
-    expect(writeSessionResults).toHaveBeenCalledWith(S, 2026);
+    expect(writeSessionResults).toHaveBeenCalledWith(S, 2026, { classes: [6] });
     expect(cache.invalidateForResults).toHaveBeenCalledWith(S, 2026, [6]);
   });
 
-  it('a published year-end exam makes results official even before generation', async () => {
-    db.exams.findFirst.mockResolvedValueOnce({ id: 3 });
-    await run();
-    expect(writeSessionResults).toHaveBeenCalledWith(S, 2026);
+  it('publish passes its classes: generated even before, even if locked', async () => {
+    await run([10]);
+    expect(writeSessionResults).toHaveBeenCalledWith(S, 2026, { classes: [10] });
   });
 });

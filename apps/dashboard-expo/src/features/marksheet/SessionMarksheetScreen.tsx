@@ -15,6 +15,7 @@ import { StickyTable, frozenEdge, stickyCell, stickyHeader } from '@/components/
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { useFileTasks } from '@/features/content/ui';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { pdfFileName } from '@/lib/files/pdf-name';
 import { sessionMarkHeads, type SessionMarksheet, type SessionRow } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -22,7 +23,10 @@ import { useApi } from '@/session/ApiProvider';
 import { privateQueryKey } from '@/tenant/query-keys';
 import { useTenant } from '@/tenant/TenantProvider';
 
-const CELL = 'w-24 px-2 py-2';
+// Value columns share the width left after the subject column (never narrower than 88px, so a
+// small screen scrolls instead of squeezing); content is centred both ways.
+const CELL = 'min-w-[88px] flex-1 items-center justify-center px-2 py-2.5';
+const SUBJECT = 'w-48 justify-center px-3 py-2.5';
 
 function Cell({ value, tint, bold }: { value: string; tint?: boolean; bold?: boolean }) {
   return (
@@ -36,6 +40,37 @@ function Cell({ value, tint, bold }: { value: string; tint?: boolean; bold?: boo
       >
         {value === '-' ? '—' : value}
       </Text>
+    </View>
+  );
+}
+
+/** Phone: one block per subject, its values as label/value pairs that wrap (no sideways scroll). */
+function SubjectBlock({
+  title,
+  pairs,
+  bold,
+}: {
+  title: string;
+  pairs: readonly (readonly [string, string])[];
+  bold?: boolean;
+}) {
+  return (
+    <View className={cn('border-border gap-1.5 border-b px-3 py-2.5', bold && 'bg-muted')}>
+      <Text size="sm" weight="semibold">
+        {title}
+      </Text>
+      <View className="flex-row flex-wrap gap-x-4 gap-y-1">
+        {pairs.map(([label, value]) => (
+          <View key={label} className="min-w-[56px]">
+            <Text size="xs" color="mutedForeground" numberOfLines={1}>
+              {label}
+            </Text>
+            <Text size="sm" tabular weight={bold ? 'semibold' : undefined}>
+              {value === '-' ? '—' : value}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -71,18 +106,28 @@ export function SessionMarksheetDialog({
     enabled: !!student,
   });
   const m = q.data;
+  const phone = useBreakpoint() === 'mobile';
   const heads = m ? sessionMarkHeads(m) : [];
+  const pairsOf = (r: SessionRow) =>
+    [
+      ['Full', r.fullMark],
+      ...heads.map((h, i) => [h, r.marks[i] ?? '-'] as const),
+      ['Grade', r.grade],
+      ['GP', r.gp],
+      ['Highest', r.highestMark],
+    ] as const;
   const hasData = !!m && m.examRows.length > 0;
 
   const row = (r: SessionRow, i: number) => (
     <View key={`${r.subject}-${i}`} className="border-border bg-card flex-row border-b">
-      <View className="bg-card w-44 px-3 py-2" style={[stickyCell(0), frozenEdge]}>
+      <View className={cn('bg-card', SUBJECT)} style={[stickyCell(0), frozenEdge]}>
         <Text size="sm" weight="medium">
           {r.subject}
         </Text>
       </View>
-      {[...r.marks, r.fullMark, r.grade, r.gp, r.highestMark].map((v, i) => (
-        <Cell key={i} value={v} tint={heads[i] === m?.yearEndExam} />
+      {/* Same order as the PDF: Full marks first, then obtained marks. */}
+      {[r.fullMark, ...r.marks, r.grade, r.gp, r.highestMark].map((v, i) => (
+        <Cell key={i} value={v} tint={heads[i - 1] === m?.yearEndExam} />
       ))}
     </View>
   );
@@ -132,60 +177,96 @@ export function SessionMarksheetDialog({
           className="border-border overflow-hidden rounded-lg border"
           testID="session-marksheet"
         >
-          <StickyTable testID="marksheet-table" maxHeight="50vh">
-            <View className="flex-1">
-              <View className="bg-muted border-border flex-row border-b" style={stickyHeader}>
-                <View
-                  className="bg-muted w-44 justify-end px-3 py-2"
-                  style={[stickyCell(0, true), frozenEdge]}
-                >
-                  <Text size="xs" weight="semibold" className="uppercase text-gray-700">
-                    Subject
-                  </Text>
-                </View>
-                {[...heads, 'Full', 'Grade', 'GP', 'Highest'].map((h, i) => (
-                  <View key={`${h}-${i}`} className={cn(CELL, 'justify-end')}>
-                    <Text
-                      size="xs"
-                      weight="semibold"
-                      className={cn(
-                        'text-center',
-                        i < heads.length ? '' : 'uppercase',
-                        h === m.yearEndExam ? 'text-primary' : 'text-gray-700',
-                      )}
-                    >
-                      {h}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              {m.examRows.map(row)}
-              <View className="bg-muted/60 border-border flex-row border-b">
-                <View className="bg-muted w-44 px-3 py-2.5" style={[stickyCell(0), frozenEdge]}>
-                  <Text size="sm" weight="semibold">
-                    Total
-                  </Text>
-                </View>
-                {[...m.totals, '-', '-', '-', m.classHighestTotal].map((v, i) => (
-                  <Cell key={i} value={v} bold />
-                ))}
-              </View>
+          {phone ? (
+            <View testID="marksheet-table">
+              {m.examRows.map((r, i) => (
+                <SubjectBlock key={`${r.subject}-${i}`} title={r.subject} pairs={pairsOf(r)} />
+              ))}
+              <SubjectBlock
+                title="Total"
+                bold
+                pairs={[
+                  ['Full', m.totalFull],
+                  ...heads.map((h, i) => [h, m.totals[i] ?? '-'] as const),
+                  ['Highest', m.classHighestTotal],
+                ]}
+              />
               {m.continuousRows.length ? (
                 <>
-                  <View className="bg-card px-3 py-2">
+                  <View className="px-3 pb-1 pt-4">
                     <Text size="xs" weight="semibold" color="mutedForeground" className="uppercase">
-                      Continuous assessment
+                      Continuous Assessment
                     </Text>
                   </View>
-                  {m.continuousRows.map(row)}
+                  {m.continuousRows.map((r, i) => (
+                    <SubjectBlock key={`${r.subject}-${i}`} title={r.subject} pairs={pairsOf(r)} />
+                  ))}
                 </>
               ) : null}
             </View>
-          </StickyTable>
+          ) : (
+            <StickyTable testID="marksheet-table" maxHeight="50vh">
+              <View className="flex-1">
+                <View className="bg-muted border-border flex-row border-b" style={stickyHeader}>
+                  <View
+                    className={cn('bg-muted', SUBJECT)}
+                    style={[stickyCell(0, true), frozenEdge]}
+                  >
+                    <Text size="xs" weight="semibold" className="uppercase text-gray-700">
+                      Subject
+                    </Text>
+                  </View>
+                  {['Full', ...heads, 'Grade', 'GP', 'Highest'].map((h, i) => (
+                    <View
+                      key={`${h}-${i}`}
+                      className={cn(CELL, h === m.yearEndExam && 'bg-primary/5')}
+                    >
+                      <Text
+                        size="xs"
+                        weight="semibold"
+                        className={cn(
+                          'text-center uppercase',
+                          h === m.yearEndExam ? 'text-primary' : 'text-gray-700',
+                        )}
+                      >
+                        {h}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                {m.examRows.map(row)}
+                <View className="bg-muted border-border flex-row border-b">
+                  <View className={cn('bg-muted', SUBJECT)} style={[stickyCell(0), frozenEdge]}>
+                    <Text size="sm" weight="semibold">
+                      Total
+                    </Text>
+                  </View>
+                  {[m.totalFull, ...m.totals, '-', '-', m.classHighestTotal].map((v, i) => (
+                    <Cell key={i} value={v} bold tint={heads[i - 1] === m.yearEndExam} />
+                  ))}
+                </View>
+                {m.continuousRows.length ? (
+                  <>
+                    <View className="bg-card border-border border-b px-3 pb-2 pt-4">
+                      <Text
+                        size="xs"
+                        weight="semibold"
+                        color="mutedForeground"
+                        className="uppercase"
+                      >
+                        Continuous Assessment
+                      </Text>
+                    </View>
+                    {m.continuousRows.map(row)}
+                  </>
+                ) : null}
+              </View>
+            </StickyTable>
+          )}
           <View className="border-border flex-row flex-wrap gap-y-3 border-t p-4">
             {(
               [
-                ['Grand total', m.grandTotal],
+                ['Grand total', `${m.grandTotal} / ${m.grandFull}`],
                 ['GPA', m.gpa],
                 ['Result', m.result ?? 'Not generated yet'],
                 ['Failed subjects', String(m.failCount)],

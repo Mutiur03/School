@@ -41,6 +41,8 @@ export type SessionResultsJob = {
   kind: 'session-results';
   year: number;
   schoolId: number;
+  /** Also generate these classes even if never generated (their year-end exam was published). */
+  classes?: number[];
 };
 
 export type MarksheetJob =

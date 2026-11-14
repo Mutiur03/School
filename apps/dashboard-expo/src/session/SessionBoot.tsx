@@ -17,11 +17,13 @@ export function SessionBoot({ label = 'Checking your session…' }: { label?: st
   const { selection } = useSchool();
   const switchSchool = useSwitchSchool();
   // Branding may still be loading: fall back to what the school-code lookup saved.
+  // Platform mode has no school: never borrow a leftover saved school's name or logo.
+  const schoolFallback = resolution.source === 'platform' ? null : selection;
   const name =
     branding.displayName !== DEFAULT_DISPLAY_NAME
       ? branding.displayName
-      : (selection?.name ?? DEFAULT_DISPLAY_NAME);
-  const logoUrl = branding.logoUrl ?? resolveFileUrl(selection?.logo, appConfig.cdnUrl);
+      : (schoolFallback?.name ?? DEFAULT_DISPLAY_NAME);
+  const logoUrl = branding.logoUrl ?? resolveFileUrl(schoolFallback?.logo, appConfig.cdnUrl);
   return (
     <BootScreen
       testID="session-boot"

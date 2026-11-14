@@ -270,6 +270,16 @@ describe('PromotionService.createResults', () => {
     expect(marksheets.invalidateForResults).toHaveBeenCalledWith(S, YEAR, [6]);
   });
 
+  it('classes scope: other classes are never written', async () => {
+    seedClass(6, { 1: [20, 30], 2: [40, 50] });
+    await expect(service.createResults(S, YEAR, { classes: [10] })).resolves.toMatchObject({
+      updated: 0,
+    });
+    expect(db.student_enrollments.update).not.toHaveBeenCalled();
+    await service.createResults(S, YEAR, { classes: [6] });
+    expect(db.student_enrollments.update).toHaveBeenCalledTimes(2);
+  });
+
   it('nothing changed: no writes, no marksheet re-queue', async () => {
     seedClass(
       6,
@@ -791,7 +801,7 @@ describe('PromotionService hold / release', () => {
       where: { school_id: S, year: YEAR, id: { in: [2] } },
       data: { result_held: false, release_batch: 2, result_released_at: expect.any(Date) },
     });
-    expect(create).toHaveBeenCalledWith(S, YEAR, [2]);
+    expect(create).toHaveBeenCalledWith(S, YEAR, { only: [2] });
   });
 
   it('release 400s when nothing is held', async () => {
@@ -1101,6 +1111,10 @@ describe('PromotionService corrections', () => {
 
   it('clear manual + reset batches: flags dropped, results regenerated', async () => {
     seedRows([], []);
+    const seeded = db.student_enrollments.findMany.getMockImplementation()!;
+    db.student_enrollments.findMany.mockImplementation(async (args: any) =>
+      args?.distinct ? [{ class: 6 }] : seeded(args),
+    );
     db.student_enrollments.updateMany.mockResolvedValue({ count: 2 });
     const regen = jest.spyOn(service, 'createResults').mockResolvedValueOnce({} as never);
     await expect(
@@ -1118,7 +1132,11 @@ describe('PromotionService corrections', () => {
       where: { school_id: S, year: YEAR, release_batch: { gt: 0 }, student: { available: true } },
       data: { release_batch: 0 },
     });
-    expect(regen).toHaveBeenCalledWith(S, YEAR);
+    // Only already-generated classes are regenerated.
+    expect(db.student_enrollments.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ distinct: ['class'] }),
+    );
+    expect(regen).toHaveBeenCalledWith(S, YEAR, { classes: [6] });
   });
 
   it('use calculated result: 404 when there is no manual status', async () => {
@@ -1149,7 +1167,7 @@ describe('PromotionService corrections', () => {
       where: { id: 5, school_id: S, year: YEAR, result_manual: true, student: { available: true } },
       data: { result_manual: false },
     });
-    expect(regen).toHaveBeenCalledWith(S, YEAR, [5]);
+    expect(regen).toHaveBeenCalledWith(S, YEAR, { only: [5] });
   });
 });
 

@@ -71,7 +71,8 @@ export class StudentController {
       sortValue === 'class' ||
       sortValue === 'section' ||
       sortValue === 'group' ||
-      sortValue === 'fourth'
+      sortValue === 'fourth' ||
+      sortValue === 'merit'
         ? sortValue
         : undefined;
     const order = req.query.order === 'desc' ? 'desc' : 'asc';

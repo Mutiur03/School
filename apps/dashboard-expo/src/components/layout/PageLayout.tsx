@@ -57,7 +57,10 @@ export function PageLayout({
               </Text>
             ) : null}
           </View>
-          {actions ? <View className="flex-row flex-wrap gap-2">{actions}</View> : null}
+          {/* max-w-full: without a width cap the row sizes to its content and never wraps. */}
+          {actions ? (
+            <View className="max-w-full shrink flex-row flex-wrap gap-2">{actions}</View>
+          ) : null}
         </View>
         <FormChain>{children}</FormChain>
       </View>

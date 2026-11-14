@@ -8,10 +8,12 @@ import { PASS_RULE_CLASSES } from './dto/pass-rules.dto.js';
 import type { PassRuleDto } from './dto/pass-rules.dto.js';
 import type { CorrectionsDto as CorrectionsInput } from './dto/corrections.dto.js';
 import {
+  generatedClasses,
   isResultStale,
   loadSessionResults,
-  resultsGenerated,
+  missingYearEndMarks,
   writeSessionResults,
+  yearEndByClass,
 } from './session-results.js';
 import type { SessionResultRow } from './session-results.js';
 
@@ -97,14 +99,19 @@ export class PromotionService {
 
   /**
    * Classes missing an exam are left untouched and reported back; the rest are written.
-   * Held students are never written; `only` limits the write to those enrollments (used by release).
-   * Manual overrides keep their saved status.
+   * Held students are never written. `classes` limits it to those classes (generate each class when
+   * its own year-end exam is done); `only` to those enrollments (release). Manual overrides keep
+   * their saved status.
    */
-  async createResults(schoolId: number, year: number, only?: number[]) {
+  async createResults(
+    schoolId: number,
+    year: number,
+    scope: { only?: number[]; classes?: number[] } = {},
+  ) {
     const { results, missingYearEnd, missingPrevious, changedClasses } = await writeSessionResults(
       schoolId,
       year,
-      only,
+      scope,
     );
     await this.marksheets.invalidateForResults(schoolId, year, changedClasses);
     const failed = results.filter((r) => r.isFailed).length;
@@ -823,7 +830,7 @@ export class PromotionService {
       where: { school_id: schoolId, year, id: { in: ids } },
       data: { result_held: false, release_batch: batch, result_released_at: new Date() },
     });
-    const generated = await this.createResults(schoolId, year, ids);
+    const generated = await this.createResults(schoolId, year, { only: ids });
 
     // Merit order, one at a time: each placement sees the rolls the previous one took.
     const released = await this.prisma.student_enrollments.findMany({
@@ -1174,7 +1181,11 @@ export class PromotionService {
     }, TX_OPTIONS);
 
     const regenerated = manualIds.length > 0 || done.batches > 0;
-    if (regenerated) await this.createResults(schoolId, year);
+    // Only classes already generated: a class whose year-end exam is still running stays untouched.
+    if (regenerated) {
+      const classes = await generatedClasses(this.prisma, schoolId, year);
+      if (classes.length) await this.createResults(schoolId, year, { classes });
+    }
     // Promotion kept: students whose manual status was cleared move if marks now say otherwise.
     const placements = [];
     if (!opts.reset_promotion) {
@@ -1217,7 +1228,7 @@ export class PromotionService {
         'This student has no manual pass/fail to clear, or is inactive (inactive students are not promoted).',
       );
     }
-    await this.createResults(schoolId, year, [enrollmentId]);
+    await this.createResults(schoolId, year, { only: [enrollmentId] });
     const e = await this.prisma.student_enrollments.findFirst({
       where: { id: enrollmentId, school_id: schoolId },
       select: { status: true },
@@ -1305,22 +1316,52 @@ export class PromotionService {
       unplaced: promotedCount > 0 ? unplaced : 0,
       promotion_run: run('promotion'),
       graduation_run: run('graduation'),
-      ...(await this.resultsFreshness(schoolId, year)),
+      ...(await this.resultState(schoolId, year)),
     };
   }
 
   /**
-   * Saved results vs. what the marks/rules give now. Outdated rows are fixed by the automatic
-   * refresh within seconds; a lasting count means that job failed (regenerate by hand).
+   * Result state per class, each against its own year-end exam (classes can finish at different
+   * times). `outdated`: saved rows that no longer match marks/rules; on unlocked classes the
+   * automatic refresh fixes them within seconds. `missing_marks`: students still lacking a
+   * year-end mark (generate is premature). Locked = result date passed: no automatic refresh.
    */
-  private async resultsFreshness(schoolId: number, year: number) {
-    if (!(await resultsGenerated(this.prisma, schoolId, year))) {
-      return { results_generated: false, results_outdated: 0 };
+  private async resultState(schoolId: number, year: number) {
+    const [sr, yearEnd] = await Promise.all([
+      loadSessionResults(this.prisma, schoolId, year),
+      yearEndByClass(this.prisma, schoolId, year),
+    ]);
+    const byClass = new Map<number, SessionResultRow[]>();
+    for (const r of sr.results) {
+      const list = byClass.get(r.classLevel);
+      if (list) list.push(r);
+      else byClass.set(r.classLevel, [r]);
     }
-    const sr = await loadSessionResults(this.prisma, schoolId, year);
-    const outdated = sr.results.filter(
-      (r) => !sr.missingPrevious.includes(r.classLevel) && isResultStale(r),
-    ).length;
-    return { results_generated: true, results_outdated: outdated };
+    // Live fail count per enrollment (marks as they are now): shown before results are generated.
+    const live_fail_counts = Object.fromEntries(
+      sr.results.filter((r) => !r.held).map((r) => [r.enrollmentId, r.failCount]),
+    );
+    const result_classes = [...byClass]
+      .sort(([a], [b]) => a - b)
+      .flatMap(([cls, rows]) => {
+        const exam = yearEnd.get(cls);
+        if (!exam) return [];
+        const generated = rows.some((r) => r.saved.merit > 0);
+        return [
+          {
+            class: cls,
+            exam_id: exam.examId,
+            exam_name: exam.examName,
+            result_date: exam.resultDate,
+            locked: exam.locked,
+            students: rows.filter((r) => !r.held).length,
+            generated,
+            outdated: generated ? rows.filter(isResultStale).length : 0,
+            missing_marks: rows.filter((r) => !r.held && missingYearEndMarks(r)).length,
+            missing_previous: sr.missingPrevious.includes(cls),
+          },
+        ];
+      });
+    return { result_classes, live_fail_counts };
   }
 }

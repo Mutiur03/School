@@ -54,7 +54,7 @@ export class StudentService {
       groups?: string[];
       /** Subject ids as strings, plus 'none' for no 4th subject. */
       fourthSubjects?: string[];
-      sort?: 'name' | 'roll' | 'class' | 'section' | 'group' | 'fourth';
+      sort?: 'name' | 'roll' | 'class' | 'section' | 'group' | 'fourth' | 'merit';
       order?: 'asc' | 'desc';
       /** 'name' limits `search` to the student name (default also matches parent phones). */
       searchBy?: 'name';
@@ -175,11 +175,20 @@ export class StudentService {
                   ? [{ group: { sort: order, nulls: 'last' } }, { class: 'asc' }, { roll: 'asc' }]
                   : sort === 'fourth'
                     ? [{ fourth_subject: { name: order } }, { class: 'asc' }, { roll: 'asc' }]
-                    : [
-                        { class: sort === 'class' ? order : 'asc' },
-                        { section: 'asc' },
-                        { roll: 'asc' },
-                      ],
+                    : sort === 'merit'
+                      ? // Year-end promotion: merit within each class, across pages. Unranked rows
+                        // (final_merit 0: not generated / held) come first in their class.
+                        [
+                          { class: 'asc' },
+                          { final_merit: order },
+                          { section: 'asc' },
+                          { roll: 'asc' },
+                        ]
+                      : [
+                          { class: sort === 'class' ? order : 'asc' },
+                          { section: 'asc' },
+                          { roll: 'asc' },
+                        ],
         skip,
         take: normalizedLimit,
       }),

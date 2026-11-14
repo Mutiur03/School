@@ -2,6 +2,7 @@
 // Plain function (prisma passed in) so both Nest and legacy Express code can call it.
 import type { PrismaClient } from '@/generated/prisma/client.js';
 import { rlsTransaction } from '@/config/prisma.js';
+import { isExamFrozen } from '@/modules/exam/exam-year-end.js';
 import { sessionExamsForClass } from './session-exams.js';
 import type { StudentSessionResult } from './v1/session-result.js';
 import { getPromotionEngine } from './versions.js';
@@ -264,30 +265,88 @@ export function officialResult(r: SessionResultRow): string | null {
     : null;
 }
 
-/** Results were generated for the year (some student has a saved rank). */
-export async function resultsGenerated(prisma: PrismaClient, schoolId: number, year: number) {
-  const row = await prisma.student_enrollments.findFirst({
+/** Classes whose results were generated (some student has a saved rank). */
+export async function generatedClasses(prisma: PrismaClient, schoolId: number, year: number) {
+  const rows = await prisma.student_enrollments.findMany({
     where: { school_id: schoolId, year, final_merit: { gt: 0 }, student: { available: true } },
-    select: { id: true },
+    select: { class: true },
+    distinct: ['class'],
   });
-  return row != null;
+  return rows.map((r) => r.class);
 }
+
+export type YearEndOfClass = {
+  examId: number;
+  examName: string;
+  resultDate: string;
+  /** Result date has passed: results are final, automatic refresh stops. */
+  locked: boolean;
+};
+
+/**
+ * Each class's own year-end exam. Classes can finish at different times (e.g. class 10's Test in
+ * November, classes 6-9's Annual in December), so generation, refresh and locking go per class.
+ */
+export async function yearEndByClass(
+  prisma: PrismaClient,
+  schoolId: number,
+  year: number,
+): Promise<Map<number, YearEndOfClass>> {
+  const exams = await prisma.exams.findMany({
+    where: { school_id: schoolId, exam_year: year },
+    select: {
+      id: true,
+      exam_name: true,
+      levels: true,
+      is_year_end: true,
+      result_date: true,
+      exam_type: { select: { sort_order: true } },
+    },
+  });
+  const sessionExams = exams.map((e) => ({ ...e, sort_order: e.exam_type.sort_order }));
+  const classes = [...new Set(exams.filter((e) => e.is_year_end).flatMap((e) => e.levels))];
+  const out = new Map<number, YearEndOfClass>();
+  for (const c of classes) {
+    const id = sessionExamsForClass(sessionExams, c)?.yearEndExamId;
+    const exam = exams.find((e) => e.id === id);
+    if (!exam) continue;
+    out.set(c, {
+      examId: exam.id,
+      examName: exam.exam_name,
+      resultDate: exam.result_date,
+      locked: isExamFrozen(exam.result_date),
+    });
+  }
+  return out;
+}
+
+/** Year-end marks still missing on this row (a subject with no year-end mark). */
+export const missingYearEndMarks = (r: SessionResultRow) =>
+  r.subjects.some((s) => s.yearEnd.marks == null);
 
 /**
  * Compute and save pass/fail, fail count and rank for the year. Only rows that changed are written.
  * Load + write run in one transaction under a per-(school, year) advisory lock, so a manual
  * "Generate" and the automatic refresh never interleave and the last writer used the latest marks.
- * Held students are never written; `only` limits the write to those enrollments (release).
+ * Held students are never written. `classes` limits the write to those classes (each class is
+ * generated when its own year-end exam is done); `only` to those enrollments (release).
  */
-export async function writeSessionResults(schoolId: number, year: number, only?: number[]) {
+export async function writeSessionResults(
+  schoolId: number,
+  year: number,
+  scope: { only?: number[]; classes?: number[] } = {},
+) {
+  const { only, classes } = scope;
   return rlsTransaction(
     async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${schoolId}::int, ${year}::int)`;
+      // Namespaced key: no clash with any other advisory lock on (schoolId, year).
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`session-results:${schoolId}:${year}`}))`;
       const sr = await loadSessionResults(tx as unknown as PrismaClient, schoolId, year);
       const results = sr.results.filter(
         (r) =>
           !sr.missingPrevious.includes(r.classLevel) &&
           !r.held &&
+          (!classes || classes.includes(r.classLevel)) &&
           (!only || only.includes(r.enrollmentId)),
       );
       const changed = results.filter(isResultStale);
@@ -308,6 +367,6 @@ export async function writeSessionResults(schoolId: number, year: number, only?:
         changedClasses: [...new Set(changed.map((r) => r.classLevel))],
       };
     },
-    { timeout: 120_000 },
+    { timeout: 120_000, maxWait: 10_000 },
   );
 }

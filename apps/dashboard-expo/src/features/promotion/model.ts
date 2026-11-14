@@ -10,6 +10,7 @@ import type {
   PassRule,
   Placement,
   PromotionStats,
+  ResultClass,
   RunInfo,
   StudentRow,
 } from '@/lib/api';
@@ -23,20 +24,20 @@ export const passRulesSummary = (rules: readonly PassRule[]) =>
 export const rulesByClass = (rules: readonly PassRule[]): Record<number, number> =>
   Object.fromEntries(rules.map((r) => [r.class, r.max_failed]));
 
-/** Default table order: merit (unranked last), then class, section, roll. */
-export function meritOrder(rows: readonly StudentRow[]): StudentRow[] {
-  return [...rows].sort(
-    (a, b) =>
-      (a.final_merit || 9999) - (b.final_merit || 9999) ||
-      a.class - b.class ||
-      (a.section || '').localeCompare(b.section || '') ||
-      (a.roll || 0) - (b.roll || 0),
-  );
+/**
+ * Failed subjects / allowed. Generated rows show the saved count; before generation the saved
+ * count is still 0, so the live count from the marks entered so far is shown instead.
+ */
+export function failsText(
+  row: StudentRow,
+  rules: Record<number, number>,
+  live?: Record<number, number>,
+) {
+  const liveCount =
+    row.final_merit > 0 || row.enrollment_id == null ? undefined : live?.[row.enrollment_id];
+  const count = liveCount ?? row.fail_count;
+  return count === null ? '—' : `${count}/${rules[row.class] ?? 0}`;
 }
-
-/** "2/3" failed subjects / allowed; "—" before pass/fail ran. */
-export const failsText = (row: StudentRow, rules: Record<number, number>) =>
-  row.fail_count === null ? '—' : `${row.fail_count}/${rules[row.class] ?? 0}`;
 
 export const nextSecRoll = (row: StudentRow) =>
   row.next_year_section || row.next_year_roll
@@ -60,7 +61,6 @@ export function stepState(stats: PromotionStats | undefined) {
     nextYearTotal: stats?.next_year_enrollments ?? 0,
     class10Done: (stats?.graduated ?? false) || (c10?.graduated ?? 0) > 0 || c10?.total === 0,
     awaitingRetain: stats?.awaiting_retain ?? 0,
-    resultsOutdated: stats?.results_outdated ?? 0,
   };
 }
 
@@ -91,8 +91,96 @@ export function graduationDetail(stats: PromotionStats | undefined): string {
   return `${c.total} active · ${c.passed} passed · ${c.failed} failed`;
 }
 
-export const generateConfirmText = (year: number, rules: readonly PassRule[]) =>
-  `Recalculate pass/fail for all students in ${year} from year-end marks.\n\nAllowed failed subjects by class — ${passRulesSummary(rules)}.\n\nManual pass/fail overrides are kept.`;
+export const generateConfirmText = (
+  year: number,
+  rules: readonly PassRule[],
+  group?: Pick<ResultGroup, 'classes' | 'examName' | 'missingMarks'>,
+) =>
+  [
+    group
+      ? `Calculate pass/fail and ranks for ${classList(group.classes)} (${group.examName}, ${year}). Other classes are not touched.`
+      : `Recalculate pass/fail for all students in ${year} from year-end marks.`,
+    group?.missingMarks
+      ? `${s(group.missingMarks, 'student')} still ${group.missingMarks === 1 ? 'has' : 'have'} no year-end mark in some subject — missing marks count as 0. Finish entering marks first, or generate now: results update automatically as marks come in.`
+      : null,
+    // Only the rules of the classes being generated.
+    `Allowed failed subjects by class — ${passRulesSummary(
+      group ? rules.filter((r) => group.classes.includes(r.class)) : rules,
+    )}.`,
+    'Manual pass/fail overrides are kept.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+const classList = (classes: readonly number[]) =>
+  `class${classes.length === 1 ? '' : 'es'} ${classes.join(', ')}`;
+
+/** Classes sharing one year-end exam: generated, refreshed and locked together. */
+export interface ResultGroup {
+  examId: number;
+  examName: string;
+  resultDate: string;
+  locked: boolean;
+  classes: number[];
+  /** Every class generated / at least one. */
+  generated: boolean;
+  partly: boolean;
+  outdated: number;
+  missingMarks: number;
+}
+
+/** Saved results catching up with marks/rules (the server refreshes these automatically). */
+export const isRefreshing = (c: ResultClass) => c.generated && !c.locked && c.outdated > 0;
+
+export function resultGroups(stats: PromotionStats | undefined): ResultGroup[] {
+  const groups = new Map<number, ResultGroup>();
+  for (const c of stats?.result_classes ?? []) {
+    const g = groups.get(c.exam_id) ?? {
+      examId: c.exam_id,
+      examName: c.exam_name,
+      resultDate: c.result_date,
+      locked: c.locked,
+      classes: [],
+      generated: true,
+      partly: false,
+      outdated: 0,
+      missingMarks: 0,
+    };
+    g.classes.push(c.class);
+    g.generated &&= c.generated;
+    g.partly ||= c.generated;
+    g.outdated += c.generated ? c.outdated : 0;
+    g.missingMarks += c.missing_marks;
+    groups.set(c.exam_id, g);
+  }
+  return [...groups.values()];
+}
+
+/** One-line state of a group, for step 1. */
+export function groupStatus(g: ResultGroup): string {
+  const date = `result date ${g.resultDate}`;
+  if (!g.partly)
+    return g.missingMarks
+      ? `Not generated · ${s(g.missingMarks, 'student')} missing marks · ${date}`
+      : `Not generated · ${date}`;
+  if (!g.generated) return `Partly generated · ${date}`;
+  if (g.locked)
+    return g.outdated
+      ? `Final (${date} passed) · ${s(g.outdated, 'result')} differ from marks — generate again to apply`
+      : `Final · ${date} passed`;
+  return g.outdated
+    ? `Updating ${s(g.outdated, 'result')} automatically…`
+    : `Up to date · updates automatically until ${date}`;
+}
+
+/**
+ * The given classes (all with a year-end exam when omitted) are generated and not catching up.
+ * Classes with no students enrolled are not listed, so they never block.
+ */
+export function classesReady(stats: PromotionStats | undefined, classes?: readonly number[]) {
+  const rows = (stats?.result_classes ?? []).filter((c) => !classes || classes.includes(c.class));
+  return rows.length > 0 && rows.every((c) => c.generated && !isRefreshing(c));
+}
 
 export interface Messages {
   success: string;
