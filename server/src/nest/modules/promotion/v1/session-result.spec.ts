@@ -296,14 +296,14 @@ describe('v1 grading, continuous, 4th subject, GPA', () => {
     expect(r.gpa).toBe(4.67); // (5 + 5 + 4) / 3
   });
 
-  it('maxAllowedFails tolerates failures', () => {
+  it('maxAllowedFails passes the student but a failed subject still makes GPA 0', () => {
     const subjects = [sub(1), sub(2)];
     const marks = [...marksFor(6, 1, 160), ...marksFor(6, 2, 10)];
     expect(run({ subjects, marks })).toMatchObject({ failCount: 1, isFailed: true, gpa: 0 });
     expect(run({ subjects, marks, maxAllowedFails: 1 })).toMatchObject({
       failCount: 1,
       isFailed: false,
-      gpa: 2.5,
+      gpa: 0,
     });
   });
 });

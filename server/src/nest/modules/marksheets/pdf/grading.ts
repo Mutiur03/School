@@ -322,8 +322,9 @@ export function calculateGPA(
   const allowedFails = Math.max(0, maxAllowedFails);
   const isFailed = failedSubjectCount > allowedFails;
 
+  // Any F → GPA 0, even when allowed fails keep the student passed.
   let gpaResult = 0.0;
-  if (!isFailed) {
+  if (failedSubjectCount === 0) {
     if (!hasFourthSubject) {
       if (className === 6 || className === 7 || className === 8) {
         gpaResult = subjectCount > 0 ? totalGP / subjectCount : 0.0;

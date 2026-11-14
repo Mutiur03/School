@@ -247,9 +247,10 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
   // Plain average over compulsory subjects. Legacy calculateGPA's 9-10 "no 4th subject"
   // normalization ((sum-2)/(n-1)) compensated for the class-wide bonus rule; v1 uses the
   // per-student fourth_subject_id, so it is intentionally not mirrored.
+  // Any failed compulsory subject → GPA 0, even when the pass rule's allowed fails let the student pass.
   const bonus = fourth && fourth.gp > 2 ? fourth.gp - 2 : 0;
   const gpaRaw =
-    isFailed || !compulsory.length
+    failCount > 0 || !compulsory.length
       ? 0
       : (compulsory.reduce((s, r) => s + r.gp, 0) + bonus) / compulsory.length;
   const gpa = Math.round(Math.min(gpaRaw, 5) * 100) / 100;
