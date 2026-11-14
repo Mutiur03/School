@@ -1,8 +1,8 @@
 /**
  * Class results, replicating dashboard/src/pages/Admin/ViewMarks.tsx: Year / Exam / Class /
  * Section / Group pickers, a Roll · Student · one column per subject table (students with at
- * least one entered mark; "—" = not entered), a per-student details dialog (CQ / MCQ / Prac /
- * Total) with the exam marksheet PDF, and the class Summary PDF / All marksheets downloads.
+ * least one entered mark; "—" = not entered), a per-student marksheet popup (year-end exams: the
+ * session marksheet as on Year-End Promotion; others: the exam marksheet layout) with its PDF, and the class Summary PDF / All marksheets downloads.
  * Phones get one card per student instead of the wide table.
  * Live data: GET /api/exams/getExams, /api/marks, /api/marksheets/*. While the exam's marksheets
  * are still generating in the background, the web's progress panel shows above the table.
@@ -18,7 +18,6 @@ import { Pressable, View } from 'react-native';
 import { PageLayout } from '@/components/layout/PageLayout';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { Button } from '@/components/ui/Button';
-import { Dialog } from '@/components/ui/Dialog';
 import { Download, FileText, Info } from '@/components/ui/icons';
 import {
   StickyTable,
@@ -35,6 +34,8 @@ import { ErrorState, Notice, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
 import { useToast } from '@/components/ui/Toast';
 import { mutationErrorMessage } from '@/features/admin/errors';
+import { ExamMarksheetDialog } from '@/features/marksheet/ExamMarksheetDialog';
+import { SessionMarksheetDialog } from '@/features/marksheet/SessionMarksheetScreen';
 import {
   examClasses,
   examNames,
@@ -124,9 +125,10 @@ export function ClassResultsScreen() {
   const table = resultsTable(rows, { section, group, search });
   const sections = narrowSections(sectionsOf(rows), scope, year, cls);
   const classOptions = narrowClasses(examClasses(allExams, year, exam), scope, year);
-  const examId = exam
-    ? allExams.find((e) => e.exam_name === exam && e.exam_year === year)?.id
+  const examInfo = exam
+    ? allExams.find((e) => e.exam_name === exam && e.exam_year === year)
     : undefined;
+  const examId = examInfo?.id;
   const genStatus = useMarksheetStatus(examId).data;
 
   // A teacher with exactly one class this year gets it picked for them (as on the web).
@@ -197,10 +199,6 @@ export function ClassResultsScreen() {
     : search
       ? `No students match “${search}”.`
       : 'No marks found for these filters.';
-
-  const detail = [...(selected?.marks ?? [])].sort((a, b) => a.priority - b.priority);
-  const detailBreakdown = detail.some((m) => m.marking_scheme === 'BREAKDOWN');
-  const part = (scheme: string, v: number | null) => (scheme === 'BREAKDOWN' ? (v ?? '—') : '—');
 
   return (
     <PageLayout
@@ -480,86 +478,28 @@ export function ClassResultsScreen() {
         </SectionCard>
       )}
 
-      <Dialog
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        title={selected?.name ?? ''}
-        description={
-          selected
-            ? `Class ${selected.class}${selected.section ? ` · Section ${selected.section}` : ''} · Roll ${selected.roll}${selected.group ? ` · ${selected.group}` : ''} · ${exam} ${year}`
-            : undefined
-        }
-        size="lg"
-        footer={
-          <>
-            <Button variant="outline" label="Close" onPress={() => setSelected(null)} />
-            <Button
-              icon={Download}
-              label={busy?.startsWith('student') ? 'Preparing…' : 'Download exam PDF'}
-              disabled={busy !== null}
-              onPress={() => selected && void studentPdf(selected)}
-            />
-          </>
-        }
-      >
-        <View className="border-border overflow-hidden rounded-lg border">
-          <View className="bg-muted border-border flex-row border-b px-3 py-2.5">
-            <Text size="xs" weight="semibold" className="flex-1 uppercase text-gray-700">
-              Subject
-            </Text>
-            {detailBreakdown
-              ? ['CQ', 'MCQ', 'Prac'].map((h) => (
-                  <Text
-                    key={h}
-                    size="xs"
-                    weight="semibold"
-                    className="w-14 text-center uppercase text-gray-700"
-                  >
-                    {h}
-                  </Text>
-                ))
-              : null}
-            <Text size="xs" weight="semibold" className="w-14 text-center uppercase text-gray-700">
-              Total
-            </Text>
-          </View>
-          {detail.length === 0 ? (
-            <Text size="sm" color="mutedForeground" className="px-3 py-8 text-center">
-              No marks recorded
-            </Text>
-          ) : (
-            detail.map((m) => (
-              <View
-                key={m.subject_id}
-                className="border-border flex-row items-center border-b px-3 py-2"
-              >
-                <Text size="sm" weight="medium" className="flex-1" numberOfLines={1}>
-                  {m.subject}
-                </Text>
-                {detailBreakdown ? (
-                  <>
-                    <Text size="sm" tabular className="w-14 text-center">
-                      {part(m.marking_scheme, m.cq_marks)}
-                    </Text>
-                    <Text size="sm" tabular className="w-14 text-center">
-                      {part(m.marking_scheme, m.mcq_marks)}
-                    </Text>
-                    <Text size="sm" tabular className="w-14 text-center">
-                      {part(m.marking_scheme, m.practical_marks)}
-                    </Text>
-                  </>
-                ) : null}
-                <Text size="sm" weight="semibold" tabular className="w-14 text-center">
-                  {m.marks ?? '—'}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-        <Text size="xs" color="mutedForeground">
-          — = not entered
-        </Text>
-      </Dialog>
+      {/* Year-end exams: the session marksheet (same popup as Year-End Promotion). */}
+      {examInfo?.is_year_end ? (
+        <SessionMarksheetDialog
+          student={selected ? { id: selected.student_id, name: selected.name } : null}
+          year={year}
+          onClose={() => setSelected(null)}
+        />
+      ) : (
+        <ExamMarksheetDialog
+          student={selected ? { id: selected.student_id, name: selected.name } : null}
+          year={year}
+          exam={exam}
+          description={
+            selected
+              ? `Class ${selected.class}${selected.section ? ` · Section ${selected.section}` : ''} · Roll ${selected.roll}${selected.group ? ` · ${selected.group}` : ''} · ${exam} ${year}`
+              : undefined
+          }
+          onClose={() => setSelected(null)}
+          onDownload={() => selected && void studentPdf(selected)}
+          downloading={busy !== null}
+        />
+      )}
     </PageLayout>
   );
 }

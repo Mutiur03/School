@@ -591,6 +591,8 @@ export interface SessionRow {
   grade: string;
   gp: string;
   highestMark: string;
+  /** Main subjects: one line per paper; grade, GP and highest span them (as the PDF). */
+  papers: { subject: string; marks: string[]; fullMark: string }[];
 }
 
 export interface SessionMarksheet {
@@ -627,6 +629,11 @@ function parseSessionRows(v: unknown, path: string): SessionRow[] {
     grade: cell(r.grade),
     gp: cell(r.gp),
     highestMark: cell(r.highestMark),
+    papers: objArray(r.papers ?? [], path).map((p) => ({
+      subject: str(p.subject),
+      marks: Array.isArray(p.marks) ? p.marks.map(cell) : [],
+      fullMark: cell(p.fullMark),
+    })),
   }));
 }
 

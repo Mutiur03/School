@@ -73,6 +73,8 @@ export interface PublishedExam {
   exam_year: number;
   start_date: string | null;
   result_date: string | null;
+  /** Year-end exam: its marksheet is the session marksheet (previous + year-end). */
+  is_year_end: boolean;
   /** Classes that sit this exam. */
   levels: number[];
 }
@@ -212,6 +214,7 @@ export function parsePublishedExams(
       exam_year: num(e.exam_year),
       start_date: str(e.start_date),
       result_date: str(e.result_date),
+      is_year_end: e.is_year_end === true,
       levels: Array.isArray(e.levels)
         ? e.levels.map((x) => num(x, Number.NaN)).filter((x) => Number.isInteger(x))
         : [],

@@ -15,6 +15,7 @@ jest.unstable_mockModule('@/utils/logger.js', () => ({
 }));
 const recomputeExamClassStats = jest.fn<Fn>().mockResolvedValue(false);
 const loadSessionMarksheetPages = jest.fn<Fn>().mockResolvedValue({ version: 'v1', pages: [] });
+const loadExamSheet = jest.fn<Fn>();
 const invalidate = jest.fn<Fn>().mockResolvedValue(undefined);
 const invalidateClasses = jest.fn<Fn>().mockResolvedValue(undefined);
 const scheduleResultsRefresh = jest.fn<Fn>().mockResolvedValue(undefined);
@@ -58,7 +59,7 @@ beforeEach(() => {
   service = new MarksService(
     db as unknown as PrismaClient,
     { invalidate, invalidateClasses, scheduleResultsRefresh } as any,
-    { recomputeExamClassStats, loadSessionMarksheetPages } as any,
+    { recomputeExamClassStats, loadSessionMarksheetPages, loadExamSheet } as any,
   );
 });
 
@@ -254,12 +255,101 @@ describe('getStudentMarks', () => {
 });
 
 describe('getSessionPreview', () => {
+  it("students: 403 until their class's year-end exam is published", async () => {
+    db.student_enrollments.findFirst.mockResolvedValue(enrollment);
+    const me = { id: 100, role: 'student' } as any;
+    await expect(service.getSessionPreview(S, 100, YEAR, me)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(db.exams.findFirst).toHaveBeenCalledWith({
+      where: {
+        school_id: S,
+        exam_year: YEAR,
+        visible: true,
+        is_year_end: true,
+        levels: { has: 6 },
+      },
+      select: { id: true },
+    });
+    expect(loadSessionMarksheetPages).not.toHaveBeenCalled();
+  });
+
   it('passes schoolId to the session loader; null when no page', async () => {
     db.student_enrollments.findFirst.mockResolvedValue(enrollment);
     await expect(service.getSessionPreview(S, 100, YEAR, admin)).resolves.toBeNull();
     expect(loadSessionMarksheetPages).toHaveBeenCalledWith(S, YEAR, {
       classLevel: 6,
       enrollmentIds: [50],
+    });
+  });
+});
+
+describe('getExamPreview', () => {
+  it('students: 403 until the exam is published', async () => {
+    const me = { id: 100, role: 'student' } as any;
+    await expect(service.getExamPreview(S, 100, YEAR, 'Half', me)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(db.exams.findFirst).toHaveBeenCalledWith({
+      where: { school_id: S, exam_year: YEAR, visible: true, exam_name: 'Half' },
+      select: { id: true },
+    });
+    expect(loadExamSheet).not.toHaveBeenCalled();
+  });
+
+  it('year-end exam: only the flag (the session marksheet covers it)', async () => {
+    loadExamSheet.mockResolvedValue({ isYearEnd: true, enrollment });
+    await expect(service.getExamPreview(S, 100, YEAR, 'Annual', admin)).resolves.toEqual({
+      is_year_end: true,
+    });
+    expect(loadExamSheet).toHaveBeenCalledWith(S, 100, YEAR, 'Annual', admin);
+  });
+
+  it('grades rows and sums totals like the PDF', async () => {
+    const row = (subject: string, marks: number | null, extra = {}) => ({
+      subject,
+      assessment_type: 'exam',
+      marking_scheme: 'TOTAL',
+      full_mark: 100,
+      pass_mark: 33,
+      marks,
+      highest_mark: 90,
+      ...extra,
+    });
+    loadExamSheet.mockResolvedValue({
+      isYearEnd: false,
+      enrollment,
+      studentDetails: {
+        name: 'A',
+        class: 6,
+        section: 'A',
+        roll: 1,
+        group: null,
+        classHighestTotal: 170,
+        classHighestGrandTotal: 190,
+        fourth_subject_id: null,
+        applyBonus: false,
+      },
+      rows: [
+        row('Bangla', 85),
+        row('Math', 20),
+        row('Art', 18, { assessment_type: 'continuous', full_mark: 20, pass_mark: 7 }),
+      ],
+    });
+    const r = (await service.getExamPreview(S, 100, YEAR, 'Half Yearly', admin)) as any;
+    expect(r.rows.map((x: any) => [x.subject, x.grade, x.gp])).toEqual([
+      ['Bangla', 'A+', '5.00'],
+      ['Math', 'F', '0.00'],
+      ['Art', 'A+', '5.00'],
+    ]);
+    expect(r).toMatchObject({
+      breakdown: false,
+      total: 105,
+      grand_total: 123,
+      class_highest_total: 170,
+      class_highest_grand_total: 190,
+      is_failed: true,
+      fail_count: 1,
     });
   });
 });

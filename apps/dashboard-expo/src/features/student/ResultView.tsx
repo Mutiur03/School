@@ -1,17 +1,20 @@
-/** One published exam result: hero, subject/total cards, marks table, marksheet PDF. Used inline and on its own screen. */
-import { useRef, useState } from 'react';
+/** One published exam result: hero, the marksheet table (session marksheet for
+ * year-end exams, else the exam marksheet; plain marks list if it can't load), marksheet PDF. Used inline and on its own screen. */
+import { useRef, useState, type ReactNode } from 'react';
 import { Platform, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
-import { Award, BookOpen, Download, FileText, Loader2, Share2 } from '@/components/ui/icons';
+import { Download, FileText, Loader2, Share2 } from '@/components/ui/icons';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { ErrorMessage, ErrorState, LoadingState } from '@/components/ui/states';
+import { ErrorMessage, ErrorState, LoadingState, Skeleton } from '@/components/ui/states';
 import { Text } from '@/components/ui/Text';
-import { Hero, MarksTable, StatsCard } from '@/features/student/components';
+import { ExamMarksheetView, useExamSheet } from '@/features/marksheet/ExamMarksheetDialog';
+import { SessionMarksheetView, useSessionSheet } from '@/features/marksheet/SessionMarksheetScreen';
+import { Hero, MarksTable } from '@/features/student/components';
 import { openMarksheet } from '@/features/student/share-marksheet';
 import { useMyId, useMyMarks, useMyProfile, usePublishedExams } from '@/features/student/hooks';
-import { isApiError, totalMarks } from '@/lib/api';
+import { isApiError } from '@/lib/api';
 import { useApi } from '@/session/ApiProvider';
 
 const GENERIC = 'Could not download marksheet. Try again in a moment.';
@@ -102,10 +105,36 @@ function DownloadMarksheet({ year, exam }: { year: number; exam: string }) {
   );
 }
 
+/** Same marksheet as the admin popups; the plain marks list if it can't load. */
+function Marksheet({
+  year,
+  exam,
+  yearEnd,
+  fallback,
+}: {
+  year: number;
+  exam: string;
+  yearEnd: boolean;
+  fallback: ReactNode;
+}) {
+  const id = useMyId() ?? null;
+  const session = useSessionSheet(yearEnd ? id : null, year);
+  const single = useExamSheet(yearEnd ? null : id, year, exam);
+  const q = yearEnd ? session : single;
+  if (id !== null && q.isPending) return <Skeleton height={280} />;
+  if (yearEnd && session.data && session.data.examRows.length)
+    return <SessionMarksheetView m={session.data} />;
+  if (!yearEnd && single.data && single.data.rows.length)
+    return <ExamMarksheetView m={single.data} />;
+  return <>{fallback}</>;
+}
+
 export function ResultView({ year, exam }: { year: number; exam: string }) {
   const profile = useMyProfile(year);
   const exams = usePublishedExams(year);
-  const published = exams.data?.some((e) => e.exam_name === exam) ?? false;
+  const info = exams.data?.find((e) => e.exam_name === exam);
+  const published = !!info;
+  const yearEnd = info?.is_year_end ?? false;
   const marks = useMyMarks(year, published ? exam : null);
   const rows = marks.data ?? [];
   const notPublished =
@@ -179,29 +208,21 @@ export function ResultView({ year, exam }: { year: number; exam: string }) {
             <DownloadMarksheet year={year} exam={exam} />
           </View>
         </Hero>
-        <View className="flex-row gap-3">
-          <StatsCard
-            label="Subjects"
-            value={rows.length}
-            color="blue"
-            icon={BookOpen}
-            testID="stat-subjects"
-          />
-          <StatsCard
-            label="Total marks"
-            value={totalMarks(rows)}
-            color="emerald"
-            icon={Award}
-            testID="stat-total-marks"
-          />
-        </View>
         <SectionCard
-          title="Subject marks"
-          description="Marks recorded for each subject in this exam."
+          title="Marksheet"
+          description={
+            yearEnd
+              ? 'Your session result: previous and year-end exam marks.'
+              : 'Your marks, grades and GPA for this exam.'
+          }
           icon={<Icon icon={FileText} size={20} color="primary" />}
-          noPadding
         >
-          <MarksTable rows={rows} />
+          <Marksheet
+            year={year}
+            exam={exam}
+            yearEnd={yearEnd}
+            fallback={<MarksTable rows={rows} />}
+          />
         </SectionCard>
       </>
     );

@@ -248,75 +248,14 @@ export class MarksheetRenderer {
     user: AccessUser,
     frozenSignatories?: FrozenSignatories,
   ) {
-    const result = await this.prisma.marks.findMany({
-      where: {
-        school_id: schoolId,
-        enrollment: { student_id: studentId, year },
-        exam: { exam_name: exam },
-      },
-      include: {
-        enrollment: {
-          include: { student: { select: { name: true } } },
-        },
-        subject: {
-          select: {
-            name: true,
-            priority: true,
-            assessment_type: true,
-            full_mark: true,
-            pass_mark: true,
-            cq_mark: true,
-            mcq_mark: true,
-            practical_mark: true,
-            cq_pass_mark: true,
-            mcq_pass_mark: true,
-            practical_pass_mark: true,
-            marking_scheme: true,
-            subject_type: true,
-            parent_id: true,
-            parent: { select: { name: true } },
-          },
-        },
-        exam: {
-          select: { exam_name: true, result_date: true, return_date: true, is_year_end: true },
-        },
-      },
-    });
-    if (result.length === 0 || !result.some((m) => m.marks !== null)) {
-      throw new NotFoundException('No marks found for this student');
-    }
-
-    const enrollment = result[0].enrollment;
-    const resultDate = result[0].exam?.result_date ?? null;
-    const returnDate = result[0].exam?.return_date ?? null;
-    if (!canAccessStudent(user, studentId, enrollment.class, enrollment.section, year)) {
-      throw new ForbiddenException('You are not authorized to download this marksheet');
-    }
-
+    const sheet = await this.loadExamSheet(schoolId, studentId, year, exam, user);
+    const { enrollment } = sheet;
     const studentName = enrollment.student.name;
     const studentClass = enrollment.class;
-    const studentRoll = enrollment.roll;
     const studentSection = enrollment.section;
-
-    // Class-highest stats come from the exam_class_stats cache (refreshed on
-    // every addMarks) instead of rescanning the whole class here.
-    const examId = result[0].exam_id;
-    const [statsRow, schoolMeta, classSubjects] = await Promise.all([
-      this.prisma.exam_class_stats.findFirst({
-        where: { school_id: schoolId, exam_id: examId, class: studentClass, year },
-      }),
-      this.getSchoolMarksheetMeta(schoolId),
-      this.loadMarksheetSubjects(schoolId, studentClass, year),
-    ]);
+    const schoolMeta = await this.getSchoolMarksheetMeta(schoolId);
     const schoolPhone = schoolMeta.phone;
     const logoBuffer = schoolMeta.logoKey ? await getFileBuffer(schoolMeta.logoKey) : null;
-
-    const filledResult = fillMissingSubjectMarks(result, classSubjects, enrollment.group, {
-      enrollment_id: enrollment.id,
-      exam_id: examId,
-      enrollment,
-      exam: result[0].exam,
-    });
 
     // Resolve the signatories. For a frozen exam the worker passes the
     // snapshotted ids (+ optional name/signature/phone detail). Detail pins
@@ -436,7 +375,7 @@ export class MarksheetRenderer {
     };
 
     // Year-end exam: no separate sheet — it is the session marksheet (previous + year-end).
-    if (result[0].exam?.is_year_end) {
+    if (sheet.isYearEnd) {
       const { version, pages } = await this.loadSessionMarksheetPages(schoolId, year, {
         classLevel: studentClass,
         enrollmentIds: [enrollment.id],
@@ -453,51 +392,120 @@ export class MarksheetRenderer {
       return { buffer: await finalizeMarksheetBuffer(buffer), ...used };
     }
 
-    const [resolvedStats, applyBonus] = await Promise.all([
-      this.resolveStudentClassStats(
-        schoolId,
-        statsRow,
-        examId,
-        studentClass,
-        year,
-        enrollment.group,
-      ),
-      studentClass && year
-        ? this.shouldApplyFourthSubjectBonus(schoolId, studentClass, year)
-        : Promise.resolve(false),
+    const buffer = await renderStudentReportPDF(
+      sheet.studentDetails,
+      sheet.rows,
+      signatures,
+      schoolMeta,
+      logoBuffer,
+    );
+    return { buffer: await finalizeMarksheetBuffer(buffer), ...used };
+  }
+
+  /**
+   * One student's per-exam marksheet data (the rows the PDF draws). Year-end exams return only
+   * the enrollment: their sheet is the session marksheet.
+   */
+  async loadExamSheet(
+    schoolId: number,
+    studentId: number,
+    year: number,
+    exam: string,
+    user: AccessUser,
+  ) {
+    const result = await this.prisma.marks.findMany({
+      where: {
+        school_id: schoolId,
+        enrollment: { student_id: studentId, year },
+        exam: { exam_name: exam },
+      },
+      include: {
+        enrollment: {
+          include: { student: { select: { name: true } } },
+        },
+        subject: {
+          select: {
+            name: true,
+            priority: true,
+            assessment_type: true,
+            full_mark: true,
+            pass_mark: true,
+            cq_mark: true,
+            mcq_mark: true,
+            practical_mark: true,
+            cq_pass_mark: true,
+            mcq_pass_mark: true,
+            practical_pass_mark: true,
+            marking_scheme: true,
+            subject_type: true,
+            parent_id: true,
+            parent: { select: { name: true } },
+          },
+        },
+        exam: {
+          select: { exam_name: true, result_date: true, return_date: true, is_year_end: true },
+        },
+      },
+    });
+    if (result.length === 0 || !result.some((m) => m.marks !== null)) {
+      throw new NotFoundException('No marks found for this student');
+    }
+
+    const enrollment = result[0].enrollment;
+    if (!canAccessStudent(user, studentId, enrollment.class, enrollment.section, year)) {
+      throw new ForbiddenException('You are not authorized to download this marksheet');
+    }
+    if (result[0].exam?.is_year_end) return { isYearEnd: true as const, enrollment };
+
+    const studentClass = enrollment.class;
+    // Class-highest stats come from the exam_class_stats cache (refreshed on
+    // every addMarks) instead of rescanning the whole class here.
+    const examId = result[0].exam_id;
+    const [statsRow, classSubjects, applyBonus] = await Promise.all([
+      this.prisma.exam_class_stats.findFirst({
+        where: { school_id: schoolId, exam_id: examId, class: studentClass, year },
+      }),
+      this.loadMarksheetSubjects(schoolId, studentClass, year),
+      this.shouldApplyFourthSubjectBonus(schoolId, studentClass, year),
     ]);
+    const resolvedStats = await this.resolveStudentClassStats(
+      schoolId,
+      statsRow,
+      examId,
+      studentClass,
+      year,
+      enrollment.group,
+    );
     const highestMarksMap = resolvedStats.highestBySubject as Record<string, number>;
 
+    const filledResult = fillMissingSubjectMarks(result, classSubjects, enrollment.group, {
+      enrollment_id: enrollment.id,
+      exam_id: examId,
+      enrollment,
+      exam: result[0].exam,
+    });
     const studentDetails = {
-      name: studentName,
+      name: enrollment.student.name,
       class: studentClass,
-      section: studentSection,
-      roll: studentRoll,
+      section: enrollment.section,
+      roll: enrollment.roll,
+      group: enrollment.group,
       year,
       exam,
       classHighestTotal: resolvedStats.classHighestTotal,
       classHighestGrandTotal: resolvedStats.classHighestGrandTotal,
       fourth_subject_id: enrollment.fourth_subject_id,
       applyBonus,
-      result_date: resultDate,
-      return_date: returnDate,
+      result_date: result[0].exam?.result_date ?? null,
+      return_date: result[0].exam?.return_date ?? null,
     };
-
-    const finalTableData = aggregatePaperMarks(
+    const rows = aggregatePaperMarks(
       filledResult.map((m) => ({
         ...m,
         highest_mark: highestMarksMap[m.subject_id] || 0,
       })),
     );
-
-    const buffer = await renderStudentReportPDF(
-      studentDetails,
-      finalTableData,
-      signatures,
-      schoolMeta,
-      logoBuffer,
-    );
-    return { buffer: await finalizeMarksheetBuffer(buffer), ...used };
+    return { isYearEnd: false as const, enrollment, studentDetails, rows };
   }
 
   /** Session marksheet(s): one page per student, previous + year-end exams combined. */

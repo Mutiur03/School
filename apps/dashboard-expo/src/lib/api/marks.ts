@@ -12,6 +12,8 @@
  *       enrolled, not your section, unknown subject) come back in `errors` with a 200.
  *       The server recomputes BREAKDOWN totals but does NOT check upper bounds: the client
  *       must never send a mark above the subject's limit (see features/marks/entry.ts).
+ *   GET /api/marks/students/:id/exam?year&exam    admin/teacher; the exam marksheet as JSON
+ *       (the PDF's rows, grades, GPA, highest); year-end exams answer { is_year_end: true }
  *   GET /api/marksheets/students/:id?year&exam    PDF
  *   GET /api/marksheets/classes/:class/summary?year&exam[&section]   PDF
  *   GET /api/marksheets/classes/:class/bundle?year&exam[&section]    JSON { url } of the PDF
@@ -22,7 +24,7 @@
 import type { ApiClient } from './client';
 import { ApiError } from './errors';
 import { marksheetStatusPath, parseMarksheetStatus } from './marksheet-status';
-import { isObj, num, numOrNull, objArray, str, strOrNull } from './parse';
+import { isObj, num, numOrNull, objArray, parseError, str, strOrNull } from './parse';
 
 export interface RosterStudent {
   student_id: number;
@@ -51,6 +53,43 @@ export interface ClassMarksRow extends RosterStudent {
   marks: StudentSubjectMark[];
 }
 
+export interface ExamSheetPaper {
+  subject: string;
+  full_mark: number | null;
+  cq: number | null;
+  mcq: number | null;
+  practical: number | null;
+  marks: number | null;
+  highest: number | null;
+}
+
+/** One subject row of the exam marksheet; a combined subject lists its `papers` (PDF layout). */
+export interface ExamSheetRow {
+  subject: string;
+  assessment_type: string;
+  full_mark: number | null;
+  cq: number | null;
+  mcq: number | null;
+  practical: number | null;
+  marks: number | null;
+  grade: string | null;
+  gp: string | null;
+  highest: number | null;
+  papers: ExamSheetPaper[];
+}
+
+export interface ExamSheet {
+  breakdown: boolean;
+  rows: ExamSheetRow[];
+  total: number;
+  grand_total: number;
+  class_highest_total: number | null;
+  class_highest_grand_total: number | null;
+  gpa: string;
+  fail_count: number;
+  is_failed: boolean;
+}
+
 export interface SubjectMarkInput extends MarkValues {
   subjectId: number;
 }
@@ -73,6 +112,7 @@ export const MARKS_PATHS = {
   classMarks: '/api/marks',
   save: '/api/marks',
   studentPdf: (id: number) => `/api/marksheets/students/${id}`,
+  examSheet: (id: number) => `/api/marks/students/${id}/exam`,
   summaryPdf: (cls: number) => `/api/marksheets/classes/${cls}/summary`,
   bundle: (cls: number) => `/api/marksheets/classes/${cls}/bundle`,
 } as const;
@@ -108,6 +148,43 @@ export function parseClassMarks(v: unknown): ClassMarksRow[] {
       };
     }),
   }));
+}
+
+/** null = year-end exam (its sheet is the session marksheet). */
+export function parseExamSheet(v: unknown, path: string): ExamSheet | null {
+  if (!isObj(v)) throw parseError(path);
+  if (v.is_year_end === true) return null;
+  return {
+    breakdown: v.breakdown === true,
+    rows: objArray(v.rows ?? [], path).map((r) => ({
+      subject: str(r.subject),
+      assessment_type: str(r.assessment_type),
+      full_mark: numOrNull(r.full_mark),
+      cq: numOrNull(r.cq),
+      mcq: numOrNull(r.mcq),
+      practical: numOrNull(r.practical),
+      marks: numOrNull(r.marks),
+      grade: strOrNull(r.grade),
+      gp: strOrNull(r.gp),
+      highest: numOrNull(r.highest),
+      papers: objArray(r.papers ?? [], path).map((p) => ({
+        subject: str(p.subject),
+        full_mark: numOrNull(p.full_mark),
+        cq: numOrNull(p.cq),
+        mcq: numOrNull(p.mcq),
+        practical: numOrNull(p.practical),
+        marks: numOrNull(p.marks),
+        highest: numOrNull(p.highest),
+      })),
+    })),
+    total: num(v.total),
+    grand_total: num(v.grand_total),
+    class_highest_total: numOrNull(v.class_highest_total),
+    class_highest_grand_total: numOrNull(v.class_highest_grand_total),
+    gpa: str(v.gpa),
+    fail_count: num(v.fail_count),
+    is_failed: v.is_failed === true,
+  };
 }
 
 export function parseSaveResult(v: unknown): SaveMarksResult {
@@ -166,6 +243,13 @@ export function createMarksApi(client: ApiClient) {
         year: input.year,
       };
       return parseSaveResult(await client.put(MARKS_PATHS.save, body));
+    },
+    async examSheet(p: { studentId: number; year: number; exam: string }, signal?: AbortSignal) {
+      const path = MARKS_PATHS.examSheet(p.studentId);
+      return parseExamSheet(
+        await client.get<unknown>(path, { query: { year: p.year, exam: p.exam }, signal }),
+        path,
+      );
     },
     studentPdf(p: { studentId: number; year: number; exam: string }) {
       return client.get<ArrayBuffer>(MARKS_PATHS.studentPdf(p.studentId), {

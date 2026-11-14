@@ -60,6 +60,17 @@ export class MarksController {
     return this.marks.getStudentMarks(schoolId, studentId, q.year, q.exam, user);
   }
 
+  @Get('students/:studentId/exam')
+  @UseGuards(Auth('admin', 'teacher', 'student'))
+  findExam(
+    @SchoolId() schoolId: number,
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Query() q: ExamQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.marks.getExamPreview(schoolId, studentId, q.year, q.exam, user);
+  }
+
   @Get('students/:studentId/session')
   @UseGuards(Auth('admin', 'teacher', 'student'))
   findSession(

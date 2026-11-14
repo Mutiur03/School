@@ -15,6 +15,27 @@ import { buildSessionTable } from '../promotion/v1/session-marksheet.pdf.js';
 import { canAccessStudent } from '../marksheets/access.js';
 import { MarksheetCacheService } from '../marksheets/cache/marksheet-cache.service.js';
 import { MarksheetRenderer } from '../marksheets/pdf/marksheet-renderer.js';
+import { calculateGPA, getGradeByPercentage } from '../marksheets/pdf/grading.js';
+
+/** A row of aggregatePaperMarks (untyped there). */
+type SheetRow = {
+  subject: string;
+  assessment_type: string;
+  marking_scheme?: string;
+  full_mark?: number | null;
+  pass_mark?: number;
+  marks?: number | null;
+  cq_marks?: number;
+  mcq_marks?: number;
+  practical_marks?: number;
+  cq_pass_mark?: number;
+  mcq_pass_mark?: number;
+  practical_pass_mark?: number;
+  highest_mark?: number;
+  isGroup?: boolean;
+  papers?: SheetRow[];
+};
+const isBreakdownRow = (r: SheetRow) => r.marking_scheme === 'BREAKDOWN';
 import type { SaveMarksDto } from './dto/save-marks.dto.js';
 import type { BulkUpdateFourthSubjectDto } from './dto/fourth-subject.dto.js';
 
@@ -402,6 +423,14 @@ export class MarksService {
     return enrollment;
   }
 
+  private async assertPublished(schoolId: number, year: number, where: Prisma.examsWhereInput) {
+    const published = await this.prisma.exams.findFirst({
+      where: { school_id: schoolId, exam_year: year, visible: true, ...where },
+      select: { id: true },
+    });
+    if (!published) throw new ForbiddenException('This result has not been published yet');
+  }
+
   /** One student's marks for one exam. Students only see published (visible) exams. */
   async getStudentMarks(
     schoolId: number,
@@ -444,9 +473,105 @@ export class MarksService {
     }));
   }
 
+  /**
+   * One exam's marksheet as the PDF prints it (rows, grades, GPA, highest). Students: own sheet,
+   * published exams only.
+   * Year-end exams return `{ is_year_end: true }`: their sheet is the session marksheet.
+   */
+  async getExamPreview(
+    schoolId: number,
+    studentId: number,
+    year: number,
+    exam: string,
+    user: AuthUser,
+  ) {
+    if (user.role === 'student') await this.assertPublished(schoolId, year, { exam_name: exam });
+    const sheet = await this.renderer.loadExamSheet(schoolId, studentId, year, exam, user);
+    if (sheet.isYearEnd) return { is_year_end: true as const };
+    const { studentDetails: d, rows } = sheet;
+    const breakdown = (d.class === 9 || d.class === 10) && rows.some(isBreakdownRow);
+    const examRows = rows.filter((r) => r.assessment_type === 'exam');
+    const sum = (list: { marks?: number | null }[]) =>
+      list.reduce((t, r) => t + Number(r.marks || 0), 0);
+    const { gpa, failedSubjectCount, isFailed } = calculateGPA(
+      rows,
+      d.fourth_subject_id ?? null,
+      d.applyBonus,
+      d.class,
+    );
+    const toRow = (r: SheetRow) => {
+      const has = r.marks !== null && r.marks !== undefined;
+      // Same call as the PDF: paper groups grade without the class's CQ/MCQ checks.
+      const g = has
+        ? getGradeByPercentage((r.marks! / Number(r.full_mark || 100)) * 100, {
+            total: r.marks!,
+            total_pass: r.pass_mark,
+            cq: r.cq_marks,
+            cq_pass: r.cq_pass_mark,
+            mcq: r.mcq_marks,
+            mcq_pass: r.mcq_pass_mark,
+            pr: r.practical_marks,
+            pr_pass: r.practical_pass_mark,
+            className: r.isGroup ? undefined : d.class,
+            marking_scheme: r.marking_scheme,
+          })
+        : null;
+      return {
+        subject: r.subject,
+        assessment_type: r.assessment_type,
+        full_mark: r.full_mark ?? null,
+        cq: r.cq_marks ?? null,
+        mcq: r.mcq_marks ?? null,
+        practical: r.practical_marks ?? null,
+        marks: r.marks ?? null,
+        grade: g?.lg ?? null,
+        gp: g ? g.gp.toFixed(2) : null,
+        highest: r.highest_mark || null,
+        // Combined subject: one line per paper (as the PDF), total / grade / GP span them.
+        papers: (r.isGroup ? (r.papers ?? []) : []).map((p) => ({
+          subject: p.subject,
+          full_mark: p.full_mark ?? null,
+          cq: p.cq_marks ?? null,
+          mcq: p.mcq_marks ?? null,
+          practical: p.practical_marks ?? null,
+          marks: p.marks ?? null,
+          highest: p.highest_mark || null,
+        })),
+      };
+    };
+    return {
+      is_year_end: false as const,
+      student: {
+        name: d.name,
+        class: d.class,
+        section: d.section,
+        roll: d.roll,
+        group: d.group,
+        year,
+        exam,
+      },
+      breakdown,
+      rows: rows.map(toRow),
+      total: sum(examRows),
+      grand_total: sum(rows),
+      class_highest_total: d.classHighestTotal ?? null,
+      class_highest_grand_total: d.classHighestGrandTotal ?? d.classHighestTotal ?? null,
+      gpa: gpa.toFixed(2),
+      fail_count: failedSubjectCount,
+      is_failed: isFailed,
+    };
+  }
+
   /** Session (previous + year-end exam) result preview for one student; null when nothing to show. */
   async getSessionPreview(schoolId: number, studentId: number, year: number, user: AuthUser) {
     const enrollment = await this.accessibleEnrollment(schoolId, studentId, year, user);
+    // Students: only once their class's year-end exam is published.
+    if (user.role === 'student') {
+      await this.assertPublished(schoolId, year, {
+        is_year_end: true,
+        levels: { has: enrollment.class },
+      });
+    }
     const { pages } = await this.renderer.loadSessionMarksheetPages(schoolId, year, {
       classLevel: enrollment.class,
       enrollmentIds: [enrollment.id],
