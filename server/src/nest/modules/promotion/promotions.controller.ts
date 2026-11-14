@@ -130,14 +130,14 @@ export class PromotionsController {
     return this.promotion.updateResult(schoolId, year, enrollmentId, dto.status);
   }
 
-  /** "Use calculated result": drop one manual pass/fail; the student moves if already promoted. */
+  /** "Reset to normal": drop manual pass/fail, hold and late release; the student moves if already promoted. */
   @Delete(':year/results/:enrollmentId/override')
   removeOverride(
     @SchoolId() schoolId: number,
     @Param('year', ParseIntPipe) year: number,
     @Param('enrollmentId', ParseIntPipe) enrollmentId: number,
   ) {
-    return this.promotion.clearOverride(schoolId, year, enrollmentId);
+    return this.promotion.resetResult(schoolId, year, enrollmentId);
   }
 
   /** What each correction would change (dry run for the "Correct mistakes" dialog). */

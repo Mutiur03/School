@@ -167,9 +167,13 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
 
   const table = buildSessionTable(data.result);
   // Columns: Subject | Full Marks | obtained marks (previous, year-end, total) | LG | GP | Highest.
+  // Subjects with papers split the last marks column (paper totals | merged subject total), so it
+  // gets wider when any are present.
+  const hasPapers = [...table.examRows, ...table.continuousRows].some((r) => r.papers?.length);
   const fullW = 50;
-  const markW = table.split ? [62, 62, 44] : [80];
-  const tailW = [50, 50, 55]; // Letter Grade, Grade Point, Highest Mark
+  const markW = table.split ? (hasPapers ? [58, 58, 72] : [62, 62, 44]) : [80];
+  // Letter Grade, Grade Point, Highest Mark
+  const tailW = table.split && hasPapers ? [45, 45, 50] : [50, 50, 55];
   const subjectW = WIDTH - [fullW, ...markW, ...tailW].reduce((a, b) => a + b, 0);
   const widths = [subjectW, fullW, ...markW, ...tailW];
   const xs = widths.reduce<number[]>((acc, w) => [...acc, acc[acc.length - 1] + w], [X0]);
@@ -195,9 +199,11 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
     .moveTo(xs[markStart], y + ROW_H)
     .lineTo(xs[markEnd], y + ROW_H)
     .stroke();
+  // "Half Yearly Examination" → "Half Yearly Exam": the full word crowds the narrow columns.
+  const short = (h: string) => h.replace(/\bExamination\b/i, 'Exam');
   const subHeads = table.split
-    ? [data.previousExamName ?? 'Previous Exam', data.yearEndExamName, 'Total']
-    : [data.yearEndExamName];
+    ? [short(data.previousExamName ?? 'Previous Exam'), short(data.yearEndExamName), 'Total']
+    : [short(data.yearEndExamName)];
   subHeads.forEach((h, i) => {
     headerCell(doc, h, xs[markStart + i], y + ROW_H, widths[markStart + i], ROW_H, 8);
     if (i > 0) vline(doc, xs[markStart + i], y + ROW_H, ROW_H);
@@ -222,7 +228,9 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
     );
     y += ROW_H;
   };
-  // A main subject: one row per paper like the per-exam sheet; grade and GP span the papers.
+  // A main subject: one row per paper like the per-exam sheet (each with its own highest mark);
+  // the last marks column is split: each paper's total, then the merged subject total spanning
+  // the papers; grade and GP span the papers too.
   const drawSubject = (r: SessionRow) => {
     if (!r.papers) {
       drawRow([r.subject, r.fullMark, ...r.marks, r.grade, r.gp, r.highestMark]);
@@ -231,20 +239,34 @@ export function drawSessionMarksheetBody(doc: any, data: SessionMarksheetData): 
     const h = ROW_H * r.papers.length;
     ensure(h);
     doc.lineWidth(0.5).rect(X0, y, WIDTH, h).stroke('#000000');
-    const spanFrom = markEnd; // grade, GP, highest mark span the papers
+    const spanFrom = markEnd; // grade and GP span the papers
+    const last = markEnd - 1;
+    const half = widths[last] / 2;
     for (let i = 1; i < widths.length; i++) vline(doc, xs[i], y, h);
+    vline(doc, xs[last] + half, y, h);
     r.papers.forEach((p, k) => {
       const py = y + k * ROW_H;
+      const hx = xs[spanFrom + 2];
       if (k > 0) {
-        doc.moveTo(X0, py).lineTo(xs[spanFrom], py).stroke();
+        doc
+          .moveTo(X0, py)
+          .lineTo(xs[last] + half, py)
+          .stroke();
+        doc
+          .moveTo(hx, py)
+          .lineTo(X0 + WIDTH, py)
+          .stroke();
       }
       [p.subject, p.fullMark, ...p.marks].forEach((c, i) =>
-        cell(doc, c, xs[i], py, widths[i], ROW_H, { align: i === 0 ? 'left' : 'center' }),
+        cell(doc, c, xs[i], py, i === last ? half : widths[i], ROW_H, {
+          align: i === 0 ? 'left' : 'center',
+        }),
       );
+      cell(doc, p.highestMark, hx, py, widths[spanFrom + 2], ROW_H);
     });
+    cell(doc, r.marks[r.marks.length - 1] ?? '-', xs[last] + half, y, half, h);
     cell(doc, r.grade, xs[spanFrom], y, widths[spanFrom], h);
     cell(doc, r.gp, xs[spanFrom + 1], y, widths[spanFrom + 1], h);
-    cell(doc, r.highestMark, xs[spanFrom + 2], y, widths[spanFrom + 2], h);
     y += h;
   };
 

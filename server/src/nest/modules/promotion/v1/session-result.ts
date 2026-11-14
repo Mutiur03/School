@@ -269,7 +269,7 @@ export function computeStudentResult(input: StudentInput): StudentSessionResult 
   };
 }
 
-/** Merit position per enrollment: by class only (groups ignored), passed first, then release batch, then marks/GPA/section/roll. */
+/** Merit position per enrollment: by class only (groups ignored), passed first, then release batch, fewer fails, GPA, total marks, roll (section last). */
 export function rankStudents(results: StudentSessionResult[]): Map<number, number> {
   const buckets = new Map<string, StudentSessionResult[]>();
   for (const r of results) {
@@ -284,10 +284,13 @@ export function rankStudents(results: StudentSessionResult[]): Map<number, numbe
         (a, b) =>
           Number(a.isFailed) - Number(b.isFailed) ||
           (a.releaseBatch ?? 0) - (b.releaseBatch ?? 0) ||
-          b.totalMarks - a.totalMarks ||
+          // A clean pass beats a pass with allowed fails.
+          a.failCount - b.failCount ||
           b.gpa - a.gpa ||
-          a.section.localeCompare(b.section) ||
-          a.roll - b.roll,
+          b.totalMarks - a.totalMarks ||
+          a.roll - b.roll ||
+          // Same roll in two sections: section only breaks that last tie.
+          a.section.localeCompare(b.section),
       )
       .forEach((r, i) => positions.set(r.enrollmentId, i + 1));
   }

@@ -37,6 +37,7 @@ import {
   promotionDetail,
   stepState,
   yearSummary,
+  changeLabels,
 } from '@/features/promotion/model';
 import { examClasses, examNames, marksBySubject, resultsTable, sessionYears } from './filters';
 import { pdfFileName } from '@/lib/files/pdf-name';
@@ -184,6 +185,7 @@ const stats = (o: Partial<PromotionStats> = {}): PromotionStats => ({
   graduation_run: null,
   result_classes: [],
   live_fail_counts: {},
+  changed: [],
   ...o,
 });
 
@@ -455,5 +457,18 @@ describe('per-class result generation (two year-end exams)', () => {
   it('not generated shows missing marks', () => {
     const s = twoExams({ 8: { missing_marks: 5 } });
     assert.match(groupStatus(resultGroups(s)[0]!), /Not generated · 5 students missing marks/);
+  });
+});
+
+describe('changeLabels', () => {
+  const c = { manual: false, held: false, late_release: false, status: 'Passed' };
+  it('lists what was changed by hand', () => {
+    assert.deepEqual(changeLabels(c), []);
+    assert.deepEqual(changeLabels({ ...c, manual: true }), ['Set Passed']);
+    assert.deepEqual(changeLabels({ ...c, held: true, manual: true }), ['Held']);
+    assert.deepEqual(changeLabels({ ...c, late_release: true, manual: true, status: 'Failed' }), [
+      'Set Failed',
+      'Released late',
+    ]);
   });
 });

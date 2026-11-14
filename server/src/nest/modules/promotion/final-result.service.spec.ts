@@ -18,7 +18,10 @@ jest.unstable_mockModule('./session-results.js', () => ({
 const { FinalResultService } = await import('./final-result.service.js');
 
 const findMany = jest.fn<Fn>();
-const prisma = { student_enrollments: { findMany } } as unknown as PrismaClient;
+const prisma = {
+  student_enrollments: { findMany },
+  exams: { findMany: jest.fn<Fn>().mockResolvedValue([]) },
+} as unknown as PrismaClient;
 const service = new FinalResultService(prisma);
 
 const result = (enrollmentId: number, classLevel: number, position: number) => ({
@@ -28,6 +31,9 @@ const result = (enrollmentId: number, classLevel: number, position: number) => (
   position,
   held: false,
   studentName: `Student ${enrollmentId}`,
+  section: 'A',
+  roll: position,
+  gpa: 4.5,
   totalMarks: 500 + position,
   failCount: 0,
   saved: { status: 'Passed', merit: position, failCount: 0 },

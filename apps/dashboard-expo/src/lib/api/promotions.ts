@@ -75,6 +75,24 @@ export interface PromotionStats {
   result_classes: ResultClass[];
   /** enrollment id → failed subjects from the marks as they are now (before generation). */
   live_fail_counts: Record<number, number>;
+  /** Students whose result was changed by hand (newest flags; "Reset to normal" clears them). */
+  changed: ChangedResult[];
+}
+
+export interface ChangedResult {
+  enrollment_id: number;
+  student_id: number;
+  name: string;
+  class: number;
+  section: string;
+  roll: number;
+  status: string;
+  /** Pass/fail set by hand. */
+  manual: boolean;
+  /** Result withheld. */
+  held: boolean;
+  /** Released after the others: ranked after everyone on time. */
+  late_release: boolean;
 }
 
 /** One class's results; classes can finish at different times (Test for 10, Annual for 6-9). */
@@ -290,6 +308,18 @@ export function parsePromotionStats(v: unknown, year: number): PromotionStats {
         .map(([k, n]) => [Number(k), num(n, Number.NaN)] as const)
         .filter(([k, n]) => Number.isFinite(k) && Number.isFinite(n)),
     ),
+    changed: (Array.isArray(s.changed) ? s.changed : []).filter(isObj).map((c) => ({
+      enrollment_id: num(c.enrollment_id),
+      student_id: num(c.student_id),
+      name: str(c.name),
+      class: num(c.class),
+      section: str(c.section),
+      roll: num(c.roll),
+      status: str(c.status),
+      manual: bool(c.manual),
+      held: bool(c.held),
+      late_release: bool(c.late_release),
+    })),
   };
 }
 
@@ -496,7 +526,8 @@ export function createPromotionsApi(client: ApiClient) {
       return isObj(d) ? parsePlacement(d, path) : null;
     },
     /** "Use calculated result": drops the manual status; returns the new placement and status. */
-    async clearOverride(year: number, enrollmentId: number) {
+    /** "Reset to normal": clears manual pass/fail, hold and late release; returns status + placement. */
+    async resetResult(year: number, enrollmentId: number) {
       const path = PROMOTION_PATHS.override(year, enrollmentId);
       const o = obj(await client.delete<unknown>(path), path);
       return { ...parsePlacement(o, path), status: str(o.status) };
@@ -591,8 +622,8 @@ export interface SessionRow {
   grade: string;
   gp: string;
   highestMark: string;
-  /** Main subjects: one line per paper; grade, GP and highest span them (as the PDF). */
-  papers: { subject: string; marks: string[]; fullMark: string }[];
+  /** Main subjects: one line per paper with its own highest; grade and GP span them (as the PDF). */
+  papers: { subject: string; marks: string[]; fullMark: string; highestMark: string }[];
 }
 
 export interface SessionMarksheet {
@@ -633,6 +664,7 @@ function parseSessionRows(v: unknown, path: string): SessionRow[] {
       subject: str(p.subject),
       marks: Array.isArray(p.marks) ? p.marks.map(cell) : [],
       fullMark: cell(p.fullMark),
+      highestMark: cell(p.highestMark),
     })),
   }));
 }

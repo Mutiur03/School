@@ -1139,35 +1139,63 @@ describe('PromotionService corrections', () => {
     expect(regen).toHaveBeenCalledWith(S, YEAR, { classes: [6] });
   });
 
-  it('use calculated result: 404 when there is no manual status', async () => {
-    db.student_enrollments.updateMany.mockResolvedValueOnce({ count: 0 });
-    await expect(service.clearOverride(S, YEAR, 5)).rejects.toThrow('no manual pass/fail to clear');
+  it('reset to normal: 404 when nothing was changed by hand', async () => {
+    db.student_enrollments.findFirst.mockResolvedValueOnce(null);
+    await expect(service.resetResult(S, YEAR, 5)).rejects.toThrow('no manual change to reset');
+    expect(db.student_enrollments.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 5,
+        school_id: S,
+        year: YEAR,
+        student: { available: true },
+        OR: [{ result_manual: true }, { result_held: true }, { release_batch: { gt: 0 } }],
+      },
+      select: { class: true },
+    });
   });
 
-  it('use calculated result: clears the flag and recalculates that student only', async () => {
-    db.student_enrollments.updateMany.mockResolvedValueOnce({ count: 1 });
-    const regen = jest.spyOn(service, 'createResults').mockResolvedValueOnce({} as never);
+  const seedReset = (generated: number[]) => {
     db.student_enrollments.findFirst.mockImplementation(async (args: any) =>
-      args.select.status
-        ? { status: 'Failed' }
-        : {
-            id: 5,
-            student_id: 105,
-            class: 7,
-            group: null,
-            fourth_subject_id: null,
-            student: { name: 'Rahim' },
-          },
+      args.select.class && !args.select.student
+        ? { class: 7 }
+        : args.select.status
+          ? { status: 'Failed' }
+          : {
+              id: 5,
+              student_id: 105,
+              class: 7,
+              group: null,
+              fourth_subject_id: null,
+              student: { name: 'Rahim' },
+            },
     );
-    await expect(service.clearOverride(S, YEAR, 5)).resolves.toMatchObject({
+    db.student_enrollments.findMany.mockResolvedValue(generated.map((c) => ({ class: c })));
+  };
+
+  it('reset to normal: clears every flag and recalculates the whole class once generated', async () => {
+    seedReset([7]);
+    const regen = jest.spyOn(service, 'createResults').mockResolvedValueOnce({} as never);
+    await expect(service.resetResult(S, YEAR, 5)).resolves.toMatchObject({
       status: 'Failed',
       action: 'none', // not promoted yet
     });
-    expect(db.student_enrollments.updateMany).toHaveBeenCalledWith({
-      where: { id: 5, school_id: S, year: YEAR, result_manual: true, student: { available: true } },
-      data: { result_manual: false },
+    expect(db.student_enrollments.update).toHaveBeenCalledWith({
+      where: { id: 5, school_id: S },
+      data: {
+        result_manual: false,
+        result_held: false,
+        release_batch: 0,
+        result_released_at: null,
+      },
     });
-    expect(regen).toHaveBeenCalledWith(S, YEAR, { only: [5] });
+    expect(regen).toHaveBeenCalledWith(S, YEAR, { classes: [7] });
+  });
+
+  it('reset to normal: class not generated yet → only the flags are cleared', async () => {
+    seedReset([10]);
+    const regen = jest.spyOn(service, 'createResults');
+    await service.resetResult(S, YEAR, 5);
+    expect(regen).not.toHaveBeenCalled();
   });
 });
 

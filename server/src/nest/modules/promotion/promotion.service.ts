@@ -23,6 +23,12 @@ const DEFERRED_CLASS = 6;
 const TX_OPTIONS = { timeout: 120_000 };
 /** Inactive (TC'd) students are never part of results or promotion. */
 const ACTIVE = { student: { available: true } };
+/** A result changed by hand: pass/fail set, withheld, or released after the others. */
+const CHANGED_RESULT = [
+  { result_manual: true },
+  { result_held: true },
+  { release_batch: { gt: 0 } },
+];
 
 type Tx = Prisma.TransactionClient;
 
@@ -1215,25 +1221,40 @@ export class PromotionService {
   }
 
   /**
-   * "Use calculated result": drop one student's manual pass/fail, recalculate it from marks and, if
-   * already promoted, move the student when the result changed.
+   * "Reset to normal": drop one student's manual pass/fail, hold and late-release batch, so the
+   * student is treated like everyone else. If the class's results are already generated, the class
+   * is recalculated (ranks shift around the student) and, if already promoted, the student moves
+   * when the result changed. Not generated yet: only the flags are cleared.
    */
-  async clearOverride(schoolId: number, year: number, enrollmentId: number) {
-    const { count } = await this.prisma.student_enrollments.updateMany({
-      where: { id: enrollmentId, school_id: schoolId, year, result_manual: true, ...ACTIVE },
-      data: { result_manual: false },
+  async resetResult(schoolId: number, year: number, enrollmentId: number) {
+    const e = await this.prisma.student_enrollments.findFirst({
+      where: { id: enrollmentId, school_id: schoolId, year, ...ACTIVE, OR: CHANGED_RESULT },
+      select: { class: true },
     });
-    if (!count) {
+    if (!e) {
       throw new NotFoundException(
-        'This student has no manual pass/fail to clear, or is inactive (inactive students are not promoted).',
+        'This student has no manual change to reset, or is inactive (inactive students are not promoted).',
       );
     }
-    await this.createResults(schoolId, year, { only: [enrollmentId] });
-    const e = await this.prisma.student_enrollments.findFirst({
+    await this.prisma.student_enrollments.update({
+      where: { id: enrollmentId, school_id: schoolId },
+      data: {
+        result_manual: false,
+        result_held: false,
+        release_batch: 0,
+        result_released_at: null,
+      },
+    });
+    if ((await generatedClasses(this.prisma, schoolId, year)).includes(e.class)) {
+      await this.createResults(schoolId, year, { classes: [e.class] });
+    } else {
+      await this.invalidateResultsOf(schoolId, year, [enrollmentId]);
+    }
+    const after = await this.prisma.student_enrollments.findFirst({
       where: { id: enrollmentId, school_id: schoolId },
       select: { status: true },
     });
-    const status = e?.status ?? 'Pending';
+    const status = after?.status ?? 'Pending';
     const plan = await this.placementPlan(schoolId, year, enrollmentId, status);
     await rlsTransaction((tx) => this.applyPlacement(tx, schoolId, year, plan), TX_OPTIONS);
     return { status, ...publicPlacement(plan) };
@@ -1254,6 +1275,7 @@ export class PromotionService {
       awaitingRetain,
       unplaced,
       runs,
+      changed,
     ] = await Promise.all([
       this.prisma.student_enrollments.groupBy({
         by: ['status'],
@@ -1286,6 +1308,22 @@ export class PromotionService {
         where: { school_id: schoolId, year },
         select: { kind: true, ran_at: true, ran_by: true },
       }),
+      this.prisma.student_enrollments.findMany({
+        where: { school_id: schoolId, year, ...ACTIVE, OR: CHANGED_RESULT },
+        select: {
+          id: true,
+          student_id: true,
+          class: true,
+          section: true,
+          roll: true,
+          status: true,
+          result_manual: true,
+          result_held: true,
+          release_batch: true,
+          student: { select: { name: true } },
+        },
+        orderBy: [{ class: 'asc' }, { section: 'asc' }, { roll: 'asc' }],
+      }),
     ]);
     const run = (kind: string) => {
       const r = runs.find((x) => x.kind === kind);
@@ -1316,6 +1354,19 @@ export class PromotionService {
       unplaced: promotedCount > 0 ? unplaced : 0,
       promotion_run: run('promotion'),
       graduation_run: run('graduation'),
+      /** Students whose result was changed by hand (pass/fail set, held, or released late). */
+      changed: changed.map((c) => ({
+        enrollment_id: c.id,
+        student_id: c.student_id,
+        name: c.student.name,
+        class: c.class,
+        section: c.section,
+        roll: c.roll,
+        status: c.status,
+        manual: c.result_manual,
+        held: c.result_held,
+        late_release: c.release_batch > 0,
+      })),
       ...(await this.resultState(schoolId, year)),
     };
   }

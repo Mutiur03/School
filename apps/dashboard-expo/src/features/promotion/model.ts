@@ -3,6 +3,7 @@
  * queries/promotion.queries.ts), kept pure so texts and ordering are unit-tested.
  */
 import type {
+  ChangedResult,
   CorrectionKey,
   CorrectionsPreview,
   CorrectionsResult,
@@ -244,12 +245,21 @@ If promotion for ${year + 1} already ran, their ${year + 1} class row is removed
       };
 
 /** "Use calculated result?" confirm for a student whose status was set by hand. */
-export const calculatedConfirm = (name: string, status: string, year: number) => ({
-  title: 'Use calculated result?',
-  message: `${name}'s manual ${status} is removed and the result is worked out from marks again.
+/** What was changed by hand, as short labels ("Set Passed", "Held", "Released late"). */
+export const changeLabels = (
+  c: Pick<ChangedResult, 'manual' | 'held' | 'late_release' | 'status'>,
+) =>
+  [
+    c.manual && !c.held ? `Set ${c.status}` : null,
+    c.held ? 'Held' : null,
+    c.late_release ? 'Released late' : null,
+  ].filter((x): x is string => x !== null);
+
+export const resetConfirm = (c: ChangedResult, year: number) => ({
+  title: `Reset ${c.name} to normal?`,
+  message: `Clears: ${changeLabels(c).join(', ')}. ${c.name} is then treated like every other student: pass/fail and rank come from marks again, and the class's ranks are recalculated if its results are already generated.
 
 If promotion for ${year + 1} already ran and the result changes, they are moved to the end of their next class; nobody else moves.`,
-  confirmLabel: 'Use calculated result',
 });
 
 export const skippedText = (n: number) =>
@@ -323,9 +333,9 @@ export const CORRECTION_OPTIONS: readonly CorrectionOption[] = [
   },
   {
     key: 'reset_release_batches',
-    title: 'Rank late-released results by marks',
+    title: 'Rank late-released results by GPA and marks',
     effect: (p) =>
-      `${p.reset_release_batches.students} late-released result(s) rank among on-time results by marks. Published positions can change.`,
+      `${p.reset_release_batches.students} late-released result(s) rank among on-time results by GPA and marks. Published positions can change.`,
     unavailable: 'No late-released results.',
   },
 ];
@@ -348,7 +358,8 @@ export function correctionsMessages(
       `Graduation undone: ${s(r.graduation_undone, 'student')} active again, ${s(r.graduation_rows_removed, 'class-10 place')} removed.`,
     options.clear_manual &&
       `${s(r.manual_cleared, 'manual pass/fail', 'manual pass/fail')} cleared.`,
-    options.reset_release_batches && `${s(r.batches_reset, 'late result')} now rank by marks.`,
+    options.reset_release_batches &&
+      `${s(r.batches_reset, 'late result')} now rank by GPA and marks.`,
     r.regenerated && 'Pass/fail and positions recalculated from marks.',
     r.placements.length > 0 &&
       `${s(r.placements.length, 'student')} moved next year because the result changed.`,

@@ -9,8 +9,13 @@ type FinalResultRow = {
   classLevel: number;
   rank: number;
   name: string;
+  /** This year's section and roll, e.g. "A-35". */
+  secRoll: string;
   total: number;
+  gpa: string;
   failCount: number;
+  /** Saved result: Passed / Failed. */
+  result: string;
   nextClass: string;
   nextRoll: string;
 };
@@ -21,25 +26,58 @@ const PAGE_HEIGHT = 841.89;
 const MARGIN = 40;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const ROW_HEIGHT = 21;
-const HEAD_ROW_HEIGHT = 24;
+// Two lines: labels such as "Total Marks" wrap in their narrow columns.
+const HEAD_ROW_HEIGHT = 30;
 const CELL_PAD = 7;
 const FOOTER_Y = PAGE_HEIGHT - MARGIN + 6;
 // Rows end above the footer rule.
 const CONTENT_BOTTOM = FOOTER_Y - 14;
-type Column = { label: string; width: number; align: 'left' | 'center' };
+type Column = {
+  label: string;
+  width: number;
+  align: 'left' | 'center';
+  value: (row: FinalResultRow) => string;
+};
+const RANK: Column = { label: 'Rank', width: 40, align: 'center', value: (r) => String(r.rank) };
+const TOTAL: Column = {
+  label: 'Total Marks',
+  width: 50,
+  align: 'center',
+  value: (r) => r.total.toLocaleString('en-US'),
+};
+const GPA: Column = { label: 'GPA', width: 40, align: 'center', value: (r) => r.gpa };
+const FAILS: Column = {
+  label: 'Fail Count',
+  width: 42,
+  align: 'center',
+  value: (r) => String(r.failCount),
+};
+const name = (width: number): Column => ({
+  label: 'Student Name',
+  width,
+  align: 'left',
+  value: (r) => r.name,
+});
+// Widths add up to the 515pt content width.
 const COLUMNS: Column[] = [
-  { label: 'Rank', width: 50, align: 'center' },
-  { label: 'Student Name', width: 205, align: 'left' },
-  { label: 'Total Marks', width: 75, align: 'center' },
-  { label: 'Fail Count', width: 65, align: 'center' },
-  { label: 'Next Class', width: 60, align: 'center' },
-  { label: 'New Roll', width: 60, align: 'center' },
+  RANK,
+  name(185),
+  { label: 'Current Roll', width: 60, align: 'center', value: (r) => r.secRoll },
+  TOTAL,
+  GPA,
+  FAILS,
+  { label: 'Next Class', width: 46, align: 'center', value: (r) => r.nextClass },
+  { label: 'New Roll', width: 52, align: 'center', value: (r) => r.nextRoll },
 ];
+// Class 10 graduates: no next class/roll, so the result is spelled out instead.
 const GRADUATING_COLUMNS: Column[] = [
-  { label: 'Rank', width: 50, align: 'center' },
-  { label: 'Student Name', width: 285, align: 'left' },
-  { label: 'Total Marks', width: 95, align: 'center' },
-  { label: 'Fail Count', width: 85, align: 'center' },
+  RANK,
+  name(223),
+  { label: 'Current Roll', width: 60, align: 'center', value: (r) => r.secRoll },
+  TOTAL,
+  GPA,
+  FAILS,
+  { label: 'Result', width: 60, align: 'center', value: (r) => r.result },
 ];
 const INK = '#000000';
 const SUB_INK = '#333333';
@@ -52,7 +90,7 @@ export class FinalResultService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
   async generate(schoolId: number, year: number, classes?: number[]): Promise<Buffer> {
-    const [header, session, enrollments] = await Promise.all([
+    const [header, session, enrollments, exams] = await Promise.all([
       loadSchoolHeader(this.prisma, schoolId),
       loadSessionResults(this.prisma, schoolId, year),
       this.prisma.student_enrollments.findMany({
@@ -64,7 +102,12 @@ export class FinalResultService {
           next_year_section: true,
         },
       }),
+      this.prisma.exams.findMany({
+        where: { school_id: schoolId, exam_year: year, is_year_end: true },
+        select: { id: true, exam_name: true },
+      }),
     ]);
+    const examName = new Map(exams.map((e) => [e.id, e.exam_name]));
 
     const enrollmentById = new Map(enrollments.map((row) => [row.id, row]));
     const rows: FinalResultRow[] = session.results
@@ -90,8 +133,11 @@ export class FinalResultService {
           classLevel: result.classLevel,
           rank: result.saved.merit,
           name: result.studentName,
+          secRoll: result.section ? `${result.section}-${result.roll}` : String(result.roll),
           total: result.totalMarks,
+          gpa: result.gpa.toFixed(2),
           failCount: result.saved.failCount,
+          result: official,
           nextClass,
           nextRoll:
             result.classLevel === 10 || !enrollment.next_year_roll
@@ -121,7 +167,11 @@ export class FinalResultService {
       else byClass.set(row.classLevel, [row]);
     }
 
-    const title = `FINAL RESULT - SESSION ${year}`;
+    const titleFor = (classLevel: number) => {
+      const id = session.results.find((x) => x.classLevel === classLevel)?.yearEndExamId;
+      return `${(id != null && examName.get(id)) || 'Final Result'} - ${year}`;
+    };
+    let title = '';
     let y = 0;
 
     const centered = (text: string, font: string, size: number, color = INK, gap = 4) => {
@@ -159,6 +209,7 @@ export class FinalResultService {
         .lineTo(PAGE_WIDTH - MARGIN, y + 2.5)
         .stroke(RULE);
       y += 14;
+      title = titleFor(classLevel);
       centered(title, 'Times-Bold', 13, INK, 4);
       if (subtitle) centered(subtitle, 'Times-Bold', 12, INK, 0);
       y += 12;
@@ -202,28 +253,26 @@ export class FinalResultService {
       doc.font('Times-Bold').fontSize(10).fillColor(INK);
       let x = MARGIN;
       for (const col of columns) {
-        cellText(col.label, x, y, { ...col, align: col.align }, HEAD_ROW_HEIGHT);
+        // Wraps to two lines when the column is narrow; centred vertically.
+        const w = col.width - CELL_PAD * 2;
+        const h = doc.heightOfString(col.label, { width: w, align: col.align });
+        doc.text(col.label, x + CELL_PAD, y + (HEAD_ROW_HEIGHT - h) / 2 + 1, {
+          width: w,
+          align: col.align,
+        });
         x += col.width;
       }
       y += HEAD_ROW_HEIGHT;
     };
 
     const drawRow = (columns: Column[], row: FinalResultRow) => {
-      const values = [
-        String(row.rank),
-        row.name,
-        row.total.toLocaleString('en-US'),
-        String(row.failCount),
-        row.nextClass,
-        row.nextRoll,
-      ];
       drawGridRow(columns, y, ROW_HEIGHT);
       doc.font('Times-Roman').fontSize(10).fillColor(INK);
       let x = MARGIN;
-      columns.forEach((col, i) => {
-        cellText(values[i] || '-', x, y, col, ROW_HEIGHT);
+      for (const col of columns) {
+        cellText(col.value(row) || '-', x, y, col, ROW_HEIGHT);
         x += col.width;
-      });
+      }
       y += ROW_HEIGHT;
     };
 

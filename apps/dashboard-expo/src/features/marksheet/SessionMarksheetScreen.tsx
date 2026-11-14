@@ -25,6 +25,21 @@ import { useTenant } from '@/tenant/TenantProvider';
 
 // Value columns share the width left after the subject column (never narrower than 88px, so a
 // small screen scrolls instead of squeezing); content is centred both ways.
+/** "Half Yearly Examination" → "Half Yearly Exam" for column heads. */
+const shortExam = (h: string) => h.replace(/\bExamination\b/i, 'Exam');
+
+function HeadText({ children, primary }: { children: string; primary?: boolean }) {
+  return (
+    <Text
+      size="xs"
+      weight="semibold"
+      className={cn('text-center uppercase', primary ? 'text-primary' : 'text-gray-700')}
+    >
+      {children}
+    </Text>
+  );
+}
+
 export const CELL = 'min-w-[88px] flex-1 items-center justify-center px-2 py-2.5';
 export const SUBJECT = 'w-48 justify-center px-3 py-2.5';
 
@@ -109,42 +124,58 @@ export function SessionMarksheetView({
   const phone = useBreakpoint() === 'mobile';
   const heads = sessionMarkHeads(m);
   const pairsOf = (r: { fullMark: string; marks: string[] }) =>
-    [['Full', r.fullMark], ...heads.map((h, i) => [h, r.marks[i] ?? '-'] as const)] as const;
+    [
+      ['Full', r.fullMark],
+      ...heads.map((h, i) => [shortExam(h), r.marks[i] ?? '-'] as const),
+    ] as const;
   const spanned = (r: SessionRow) =>
     [
       ['Grade', r.grade],
       ['GP', r.gp],
-      ['Highest', r.highestMark],
     ] as const;
-  // Phone: a main subject lists its papers first, then the subject's grade / GP / highest.
+  const highest = (r: { highestMark: string }) => [['Highest', r.highestMark]] as const;
+  // Phone: a main subject lists its papers (each with its own highest), then grade / GP.
   const blocks = (r: SessionRow, i: number) =>
     r.papers.length
       ? [
           ...r.papers.map((p, j) => (
-            <SubjectBlock key={`${r.subject}-${i}-${j}`} title={p.subject} pairs={pairsOf(p)} />
+            <SubjectBlock
+              key={`${r.subject}-${i}-${j}`}
+              title={p.subject}
+              pairs={[...pairsOf(p), ...highest(p)]}
+            />
           )),
-          <SubjectBlock key={`${r.subject}-${i}`} title={r.subject} pairs={spanned(r)} />,
+          <SubjectBlock
+            key={`${r.subject}-${i}`}
+            title={r.subject}
+            pairs={[['Subject total', r.marks[r.marks.length - 1] ?? '-'], ...spanned(r)]}
+          />,
         ]
       : [
           <SubjectBlock
             key={`${r.subject}-${i}`}
             title={r.subject}
-            pairs={[...pairsOf(r), ...spanned(r)]}
+            pairs={[...pairsOf(r), ...spanned(r), ...highest(r)]}
           />,
         ];
-  // Full + marks columns per line; grade / GP / highest span a main subject's paper lines (PDF).
+  // Full + marks + highest per line; grade / GP span a main subject's paper lines (PDF). A subject
+  // with papers splits the last marks column: each paper's total | the merged subject total.
   const lineCount = 1 + heads.length;
+  const lastTint = heads[heads.length - 1] === m.yearEndExam;
+  const dash = (v: string | undefined) => (!v || v === '-' ? '—' : v);
   const row = (r: SessionRow, i: number) => {
-    const lines = r.papers.length ? r.papers : [r];
+    const split = r.papers.length > 0;
+    const lines = split ? r.papers : [r];
+    const n = split ? lineCount - 1 : lineCount;
     return (
       <View key={`${r.subject}-${i}`} className="border-border bg-card flex-row border-b">
         <View
           style={{
-            flexGrow: lineCount,
+            flexGrow: n,
             flexShrink: 0,
             // Basis = subject column + the cells' 16px padding, so the share of spare width matches the header.
-            flexBasis: 192 + lineCount * 16,
-            minWidth: 192 + lineCount * 88,
+            flexBasis: 192 + n * 16,
+            minWidth: 192 + n * 88,
           }}
         >
           {lines.map((l, j) => (
@@ -154,15 +185,48 @@ export function SessionMarksheetView({
                   {l.subject}
                 </Text>
               </View>
-              {[l.fullMark, ...l.marks].map((v, k) => (
+              {[l.fullMark, ...l.marks].slice(0, n).map((v, k) => (
                 <Cell key={k} value={v} tint={heads[k - 1] === m.yearEndExam} />
               ))}
             </View>
           ))}
         </View>
-        {[r.grade, r.gp, r.highestMark].map((v, k) => (
-          <Cell key={k} value={v} />
-        ))}
+        {split ? (
+          <View
+            className={cn('flex-row', lastTint && 'bg-primary/5')}
+            style={{ flexGrow: 1, flexShrink: 0, flexBasis: 16, minWidth: 88 }}
+          >
+            <View className="flex-1">
+              {lines.map((l, j) => (
+                <View
+                  key={j}
+                  className={cn(
+                    'flex-1 items-center justify-center py-2.5',
+                    j > 0 && 'border-border border-t',
+                  )}
+                >
+                  <Text size="sm" tabular>
+                    {dash(l.marks[l.marks.length - 1])}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View className="border-border flex-1 items-center justify-center border-l">
+              <Text size="sm" tabular weight="semibold">
+                {dash(r.marks[r.marks.length - 1])}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        <Cell value={r.grade} />
+        <Cell value={r.gp} />
+        <View style={{ flexGrow: 1, flexShrink: 0, flexBasis: 16, minWidth: 88 }}>
+          {lines.map((l, j) => (
+            <View key={j} className={cn('flex-1', j > 0 && 'border-border border-t')}>
+              <Cell value={l.highestMark} />
+            </View>
+          ))}
+        </View>
       </View>
     );
   };
@@ -173,11 +237,11 @@ export function SessionMarksheetView({
         <View testID="marksheet-table">
           {m.examRows.flatMap(blocks)}
           <SubjectBlock
-            title="Total"
+            title="Total Marks"
             bold
             pairs={[
               ['Full', m.totalFull],
-              ...heads.map((h, i) => [h, m.totals[i] ?? '-'] as const),
+              ...heads.map((h, i) => [shortExam(h), m.totals[i] ?? '-'] as const),
               ['Highest', m.classHighestTotal],
             ]}
           />
@@ -195,24 +259,45 @@ export function SessionMarksheetView({
       ) : (
         <StickyTable testID="marksheet-table" maxHeight={maxHeight}>
           <View className="flex-1">
-            <View className="bg-muted border-border flex-row border-b" style={stickyHeader}>
+            {/* Two-row header like the PDF: "Obtained Marks" spans the exam sub-columns. */}
+            <View
+              className="bg-muted border-border flex-row items-stretch border-b"
+              style={stickyHeader}
+            >
               <View className={cn('bg-muted', SUBJECT)} style={[stickyCell(0, true), frozenEdge]}>
-                <Text size="xs" weight="semibold" className="uppercase text-gray-700">
-                  Subject
-                </Text>
+                <HeadText>Name of Subjects</HeadText>
               </View>
-              {['Full', ...heads, 'Grade', 'GP', 'Highest'].map((h, i) => (
-                <View key={`${h}-${i}`} className={cn(CELL, h === m.yearEndExam && 'bg-primary/5')}>
-                  <Text
-                    size="xs"
-                    weight="semibold"
-                    className={cn(
-                      'text-center uppercase',
-                      h === m.yearEndExam ? 'text-primary' : 'text-gray-700',
-                    )}
-                  >
-                    {h}
-                  </Text>
+              <View className={CELL}>
+                <HeadText>Full Marks</HeadText>
+              </View>
+              <View
+                style={{
+                  flexGrow: heads.length,
+                  flexShrink: 0,
+                  flexBasis: heads.length * 16,
+                  minWidth: heads.length * 88,
+                }}
+              >
+                <View className="border-border items-center border-b px-2 py-1.5">
+                  <HeadText>Obtained Marks</HeadText>
+                </View>
+                <View className="flex-1 flex-row">
+                  {heads.map((h, i) => (
+                    <View
+                      key={`${h}-${i}`}
+                      className={cn(
+                        'flex-1 items-center justify-center px-2 py-1.5',
+                        h === m.yearEndExam && 'bg-primary/5',
+                      )}
+                    >
+                      <HeadText primary={h === m.yearEndExam}>{shortExam(h)}</HeadText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              {['Letter Grade', 'Grade Point', 'Highest Marks'].map((h) => (
+                <View key={h} className={CELL}>
+                  <HeadText>{h}</HeadText>
                 </View>
               ))}
             </View>
@@ -220,17 +305,22 @@ export function SessionMarksheetView({
             <View className="bg-muted border-border flex-row border-b">
               <View className={cn('bg-muted', SUBJECT)} style={[stickyCell(0), frozenEdge]}>
                 <Text size="sm" weight="semibold">
-                  Total
+                  Total Marks
                 </Text>
               </View>
-              {[m.totalFull, ...m.totals, '-', '-', m.classHighestTotal].map((v, i) => (
+              {[m.totalFull, ...m.totals, '', '', m.classHighestTotal].map((v, i) => (
                 <Cell key={i} value={v} bold tint={heads[i - 1] === m.yearEndExam} />
               ))}
             </View>
             {m.continuousRows.length ? (
               <>
                 <View className="bg-card border-border border-b px-3 pb-2 pt-4">
-                  <Text size="xs" weight="semibold" color="mutedForeground" className="uppercase">
+                  <Text
+                    size="xs"
+                    weight="semibold"
+                    color="mutedForeground"
+                    className="text-center uppercase"
+                  >
                     Continuous Assessment
                   </Text>
                 </View>

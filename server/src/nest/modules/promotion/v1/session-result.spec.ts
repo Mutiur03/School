@@ -324,19 +324,30 @@ describe('v1 rankStudents', () => {
     ...o,
   });
 
-  it('orders passed first, then marks, GPA, section, roll', () => {
+  it('orders passed first, then GPA, marks, roll; section only breaks a same-roll tie', () => {
     const ranks = rankStudents([
       res(1, { isFailed: true, totalMarks: 999 }),
       res(2, { totalMarks: 500, gpa: 4 }),
       res(3, { totalMarks: 500, gpa: 4.5 }),
-      res(4, { totalMarks: 600 }),
+      // More marks but a lower GPA than 3: GPA decides first.
+      res(4, { totalMarks: 600, gpa: 4 }),
       res(5, { totalMarks: 500, gpa: 4, section: 'B', roll: 1 }),
       res(6, { totalMarks: 500, gpa: 4, roll: 7 }),
       res(7, { isFailed: true, totalMarks: 100 }),
+      res(8, { totalMarks: 500, gpa: 4, section: 'B', roll: 2 }),
     ]);
     expect([...ranks.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id)).toEqual([
-      4, 3, 2, 6, 5, 1, 7,
+      3, 4, 5, 2, 8, 6, 1, 7,
     ]);
+  });
+
+  it('ranks fewer fails first among passed students, even with a higher GPA', () => {
+    const ranks = rankStudents([
+      res(1, { failCount: 2, gpa: 4.5, totalMarks: 900 }),
+      res(2, { failCount: 0, gpa: 3.9, totalMarks: 700 }),
+      res(3, { failCount: 1, gpa: 5, totalMarks: 950 }),
+    ]);
+    expect([...ranks.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id)).toEqual([2, 3, 1]);
   });
 
   it('ranks late-release batches after earlier ones, even with higher marks, but passed still before failed', () => {

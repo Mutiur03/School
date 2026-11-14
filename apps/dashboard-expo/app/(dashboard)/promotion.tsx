@@ -64,7 +64,8 @@ import {
   promotionYears,
   rulesByClass,
   stepState,
-  calculatedConfirm,
+  changeLabels,
+  resetConfirm,
   classesReady,
   groupStatus,
   isRefreshing,
@@ -79,6 +80,7 @@ import { GROUPS } from '@/features/results/filters';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import {
   ENROLLMENT_STATUS_OPTIONS,
+  type ChangedResult,
   PASS_RULE_CLASSES,
   clampMaxFailed,
   examsOfYear,
@@ -126,6 +128,17 @@ function Merit({ merit }: { merit: number }) {
         className={merit >= 1 && merit <= 3 ? 'text-white' : undefined}
       >
         {merit || '—'}
+      </Text>
+    </View>
+  );
+}
+
+/** "Manual", "Held", "Released late": what was changed by hand. */
+function Chip({ label }: { label: string }) {
+  return (
+    <View className="self-start rounded-md border border-violet-500/40 bg-violet-500/10 px-1.5 py-0.5">
+      <Text size="xs" weight="medium" className="text-violet-800 dark:text-violet-300">
+        {label}
       </Text>
     </View>
   );
@@ -236,7 +249,7 @@ export default function PromotionScreen() {
     status: EnrollmentStatus;
     text: string;
   } | null>(null);
-  const [calcTarget, setCalcTarget] = useState<StudentRow | null>(null);
+  const [resetTarget, setResetTarget] = useState<ChangedResult | null>(null);
   const [preview, setPreview] = useState<{ id: number; name: string } | null>(null);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
 
@@ -265,6 +278,8 @@ export default function PromotionScreen() {
   });
   const refreshing = statsQ.data?.result_classes.some(isRefreshing) ?? false;
   const groups = resultGroups(statsQ.data);
+  const changed = statsQ.data?.changed ?? [];
+  const changedById = new Map(changed.map((c) => [c.enrollment_id, c]));
   const rulesQ = useQuery({
     queryKey: key('pass-rules', year),
     queryFn: ({ signal }) => promotions.passRules(year, signal),
@@ -339,16 +354,16 @@ export default function PromotionScreen() {
       setStatusChange(null);
     },
   });
-  const clearOverride = useAdminMutation({
-    mutationFn: (row: StudentRow) => promotions.clearOverride(year, row.enrollment_id!),
+  const reset = useAdminMutation({
+    mutationFn: (c: ChangedResult) => promotions.resetResult(year, c.enrollment_id),
     invalidate: INVALIDATE,
     success: () => null,
-    failure: 'Could not clear the manual result',
+    failure: 'Could not reset the result',
     onSuccess: (p) => {
-      toast.success(`${p.name}: calculated result is ${p.status}.`);
+      toast.success(`${p.name} is back to normal: ${p.status}.`);
       const line = placementText(p, year + 1);
       if (line) toast.success(line);
-      setCalcTarget(null);
+      setResetTarget(null);
     },
   });
   // Ask the server where the change puts the student next year; confirm only when it moves them.
@@ -475,7 +490,24 @@ export default function PromotionScreen() {
     );
   };
 
-  const statusCell = (row: StudentRow) =>
+  // Status plus what was changed by hand (Held already shows as the badge).
+  const statusCell = (row: StudentRow) => {
+    const c = row.enrollment_id ? changedById.get(row.enrollment_id) : undefined;
+    const chips = c ? changeLabels(c).filter((l) => l !== 'Held') : [];
+    return (
+      <View className="gap-1">
+        {statusControl(row)}
+        {chips.length ? (
+          <View className="flex-row flex-wrap gap-1">
+            {chips.map((l) => (
+              <Chip key={l} label={l.startsWith('Set ') ? 'Manual' : l} />
+            ))}
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+  const statusControl = (row: StudentRow) =>
     row.result_held ? (
       <View className="self-start rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5">
         <Text size="xs" weight="medium" className="text-amber-800">
@@ -507,12 +539,12 @@ export default function PromotionScreen() {
         title={row.name}
         items={[
           { icon: FileText, label: 'Marksheet PDF', onPress: () => sessionPdf(row) },
-          ...(row.result_manual && !row.result_held && row.enrollment_id
+          ...(row.enrollment_id && changedById.has(row.enrollment_id)
             ? [
                 {
                   icon: RotateCcw,
-                  label: 'Use calculated result',
-                  onPress: () => setCalcTarget(row),
+                  label: 'Reset to normal',
+                  onPress: () => setResetTarget(changedById.get(row.enrollment_id!)!),
                 },
               ]
             : []),
@@ -704,6 +736,47 @@ export default function PromotionScreen() {
       ) : null}
 
       <PromotionStatus stats={statsQ.data} />
+
+      {changed.length ? (
+        <SectionCard
+          title={`Changed by hand (${changed.length})`}
+          description="Results set, held or released by hand. Reset to normal puts a student back: pass/fail and rank come from marks like everyone else."
+          noPadding
+          testID="changed-results"
+        >
+          {changed.map((c, i) => (
+            <View
+              key={c.enrollment_id}
+              className={cn(
+                'flex-row flex-wrap items-center gap-3 px-4 py-2.5',
+                i > 0 && 'border-border border-t',
+              )}
+            >
+              <View className="min-w-[180px] flex-1">
+                <Text size="sm" weight="medium" numberOfLines={1} className="uppercase">
+                  {c.name || '—'}
+                </Text>
+                <Text size="xs" color="mutedForeground" tabular>
+                  {`Class ${c.class}${c.section ? ` ${c.section}` : ''} · Roll ${c.roll}`}
+                </Text>
+              </View>
+              <View className="flex-row flex-wrap gap-1">
+                {changeLabels(c).map((l) => (
+                  <Chip key={l} label={l} />
+                ))}
+              </View>
+              <Button
+                size="sm"
+                variant="outline"
+                icon={RotateCcw}
+                label="Reset to normal"
+                disabled={reset.isPending}
+                onPress={() => setResetTarget(c)}
+              />
+            </View>
+          ))}
+        </SectionCard>
+      ) : null}
 
       <SectionCard noPadding>
         <View
@@ -982,18 +1055,14 @@ ${statusChange.text}`
         onConfirm={() => statusChange && override.mutate(statusChange)}
       />
       <ConfirmDialog
-        open={calcTarget !== null}
-        onClose={() => setCalcTarget(null)}
-        busy={clearOverride.isPending}
+        open={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        busy={reset.isPending}
         tone="default"
-        title={
-          calcTarget ? calculatedConfirm(calcTarget.name, calcTarget.status, year).title : undefined
-        }
-        message={
-          calcTarget ? calculatedConfirm(calcTarget.name, calcTarget.status, year).message : ''
-        }
-        confirmLabel="Use calculated result"
-        onConfirm={() => calcTarget && clearOverride.mutate(calcTarget)}
+        title={resetTarget ? resetConfirm(resetTarget, year).title : undefined}
+        message={resetTarget ? resetConfirm(resetTarget, year).message : ''}
+        confirmLabel="Reset to normal"
+        onConfirm={() => resetTarget && reset.mutate(resetTarget)}
       />
       <CorrectionsDialog
         year={year}
