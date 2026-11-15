@@ -13,12 +13,20 @@ const model = () => ({
   findFirst: jest.fn<Fn>().mockResolvedValue(null),
   findMany: jest.fn<Fn>().mockResolvedValue([]),
 });
-let db: Record<'exams' | 'student_enrollments' | 'marks', ReturnType<typeof model>>;
+let db: Record<
+  'exams' | 'student_enrollments' | 'marks' | 'exam_result_files',
+  ReturnType<typeof model>
+>;
 let service: InstanceType<typeof PublicResultsService>;
 const S = 7;
 
 beforeEach(() => {
-  db = { exams: model(), student_enrollments: model(), marks: model() };
+  db = {
+    exams: model(),
+    student_enrollments: model(),
+    marks: model(),
+    exam_result_files: model(),
+  };
   service = new PublicResultsService(db as unknown as PrismaClient);
 });
 
@@ -85,6 +93,49 @@ describe('getExamResult', () => {
     });
   });
 
+  describe('uploaded result PDF', () => {
+    const pdf = { r2_key: '7/result-pdfs/a.pdf', file_name: 'a.pdf' };
+    beforeEach(() => {
+      db.student_enrollments.findFirst.mockResolvedValue({ class: 6 });
+      db.exam_result_files.findFirst.mockResolvedValue(pdf);
+    });
+
+    it('looks the file up by the student class, scoped to the school', async () => {
+      await expect(service.getExamResult(S, 100, 2026, 'Annual')).resolves.toBeDefined();
+      expect(db.exam_result_files.findFirst).toHaveBeenCalledWith({
+        where: {
+          school_id: S,
+          class: 6,
+          exam: { school_id: S, exam_name: 'Annual', exam_year: 2026 },
+        },
+        select: { r2_key: true, file_name: true },
+      });
+    });
+
+    it('unpublished + PDF → pdfOnly, no marks read', async () => {
+      await expect(service.getExamResult(S, 100, 2026, 'Annual')).resolves.toEqual({
+        pdfOnly: true,
+        exam_name: 'Annual',
+      });
+      expect(db.marks.findMany).not.toHaveBeenCalled();
+    });
+
+    it('published + PDF → individual result flagged hasResultPdf', async () => {
+      db.exams.findFirst.mockResolvedValue({ id: 9 });
+      db.marks.findMany.mockResolvedValue([
+        {
+          marks: 80,
+          enrollment: { roll: 3, class: 6, section: 'A', year: 2026, student: { name: 'Rafi' } },
+          exam: { exam_name: 'Annual', result_date: null },
+          subject: { name: 'Math', priority: 1, full_mark: 100, parent: null },
+        },
+      ]);
+      const res = await service.getExamResult(S, 100, 2026, 'Annual');
+      expect(res).toMatchObject({ total: 80 });
+      expect(res).toHaveProperty('hasResultPdf', true);
+    });
+  });
+
   it('no non-null marks → 404', async () => {
     db.exams.findFirst.mockResolvedValue({ id: 9 });
     db.marks.findMany.mockResolvedValue([{ marks: null }]);
@@ -119,6 +170,7 @@ describe('getExamResult', () => {
     ]);
     const res = await service.getExamResult(S, 100, 2026, 'Annual');
     expect(res).toEqual({
+      hasResultPdf: false,
       student: { name: 'Rafi', roll: 3, class: 6, section: 'A', year: 2026 },
       exam_name: 'Annual',
       result_date: '2026-12-20',
