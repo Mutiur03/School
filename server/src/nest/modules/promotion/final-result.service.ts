@@ -38,7 +38,12 @@ type Column = {
   align: 'left' | 'center';
   value: (row: FinalResultRow) => string;
 };
-const RANK: Column = { label: 'Rank', width: 40, align: 'center', value: (r) => String(r.rank) };
+const RANK: Column = {
+  label: 'Rank',
+  width: 40,
+  align: 'center',
+  value: (r) => (r.result === 'Failed' ? '-' : String(r.rank)),
+};
 const TOTAL: Column = {
   label: 'Total Marks',
   width: 50,

@@ -156,12 +156,18 @@ export async function renderSessionMarksheetsPDF(
       doc,
       { exam: page.yearEndExamName, year },
       schoolMeta,
-      buildMarksQrText({ ...student, name: `${student.name} (Position ${r.position})` }, [
+      buildMarksQrText(
         {
-          exam: 'Session Result',
-          rows: r.subjects.map((s) => ({ subject: s.name, marks: s.combined })),
+          ...student,
+          name: r.position ? `${student.name} (Position ${r.position})` : student.name,
         },
-      ]),
+        [
+          {
+            exam: 'Session Result',
+            rows: r.subjects.map((s) => ({ subject: s.name, marks: s.combined })),
+          },
+        ],
+      ),
     );
     const endY = drawBody(doc, {
       student,

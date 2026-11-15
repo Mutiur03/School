@@ -63,6 +63,8 @@ type StudentSummaryRow = {
   totalMarks: number;
   gpa: number;
   failed: number;
+  /** Saved year-end merit (0 = not generated / withheld, shown as "-"). */
+  position: number;
 };
 
 type ColSpan = {
@@ -278,7 +280,7 @@ export class ClassSummaryService {
                   parent: { select: { name: true } },
                 },
               },
-              exam: { select: { id: true, exam_name: true } },
+              exam: { select: { id: true, exam_name: true, is_year_end: true } },
             },
           },
         },
@@ -418,8 +420,11 @@ export class ClassSummaryService {
         totalMarks,
         gpa: Math.round(gpa * 100) / 100,
         failed,
+        // Saved status Failed: no position shown.
+        position: enrollment.status === 'Failed' ? 0 : (enrollment.final_merit ?? 0),
       });
     }
+    const showPosition = !!withMarks[0].marks[0]?.exam?.is_year_end;
 
     // Exam subjects first, continuous assessment after them.
     const columns = [...colMap.values()].sort(
@@ -436,6 +441,7 @@ export class ClassSummaryService {
       classNum: cls,
       columns,
       rows: studentRows,
+      showPosition,
     });
 
     const sectionPart = sectionFilter ? String(sectionFilter) : 'All';
@@ -456,8 +462,9 @@ async function buildPdf(opts: {
   classNum: number;
   columns: SubjectCol[];
   rows: StudentSummaryRow[];
+  showPosition: boolean;
 }): Promise<Buffer> {
-  const { schoolName, exam, year, classNum, columns, rows } = opts;
+  const { schoolName, exam, year, classNum, columns, rows, showPosition } = opts;
   // Legal landscape: 14" × 8.5" → 1008 × 612 pt
   const pageW = 1008;
   const pageH = 612;
@@ -467,11 +474,16 @@ async function buildPdf(opts: {
   // Same column proportions as the Excel sheet (8 / 22 / 6…).
   // Continuous: one sub-column, double width so long names ("Physical Education") wrap by word.
   const CONTINUOUS_UNITS = 2;
+  // Wider than a normal cell so "Position" fits on one line.
+  const POSITION_UNITS = 2;
   const subjectUnits = columns.reduce(
     (s, c) => s + (c.kind === 'continuous' ? CONTINUOUS_UNITS : colCount(c.kind)),
     0,
   );
-  const totalCharUnits = COL_UNITS.roll + COL_UNITS.name + COL_UNITS.cell * (subjectUnits + 3);
+  const totalCharUnits =
+    COL_UNITS.roll +
+    COL_UNITS.name +
+    COL_UNITS.cell * (subjectUnits + 3 + (showPosition ? POSITION_UNITS : 0));
   const u = contentW / totalCharUnits;
   const rollW = COL_UNITS.roll * u;
   const nameW = COL_UNITS.name * u;
@@ -494,6 +506,7 @@ async function buildPdf(opts: {
   const totalMarksW = cellW;
   const gpaW = cellW;
   const failedW = cellW;
+  const positionW = cellW * POSITION_UNITS;
 
   const subjectsW = spans.reduce((s, sp) => s + sp.widths.reduce((a, b) => a + b, 0), 0);
   const totalsX = contentX + rollW + nameW + subjectsW;
@@ -751,6 +764,15 @@ async function buildPdf(opts: {
       size: headerFont,
       wrap: true,
     });
+    if (showPosition) {
+      const px = totalsX + totalMarksW + gpaW + failedW;
+      strokeRect(px, y, positionW, headerH);
+      writeInBox('Position', px, y, positionW, headerH, {
+        bold: true,
+        size: headerFont,
+        wrap: true,
+      });
+    }
 
     return headerH;
   };
@@ -799,6 +821,9 @@ async function buildPdf(opts: {
     writeCell(totalsX, totalMarksW, row.totalMarks);
     writeCell(totalsX + totalMarksW, gpaW, row.gpa);
     writeCell(totalsX + totalMarksW + gpaW, failedW, row.failed);
+    if (showPosition) {
+      writeCell(totalsX + totalMarksW + gpaW + failedW, positionW, row.position || '-');
+    }
   };
 
   const startSectionPage = (sectionLabel: string, pageIndexInSection: number) => {

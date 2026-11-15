@@ -191,7 +191,8 @@ export class MarksheetRenderer {
           // Official values only: what "Generate pass/fail" saved, never the live calculation.
           result: {
             ...result,
-            position: result.held ? 0 : result.saved.merit,
+            // Held or saved status Failed: no position.
+            position: result.held || result.saved.status === 'Failed' ? 0 : result.saved.merit,
             officialResult: resultLabel(result),
           },
           previousExamName:
