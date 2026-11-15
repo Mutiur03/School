@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@/generated/prisma/client.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import { loadSchoolHeader } from '../../common/school-pdf.js';
-import { loadSessionResults, officialResult } from './session-results.js';
+import { loadSessionResults, officialResult, resultLabel } from './session-results.js';
 
 type FinalResultRow = {
   classLevel: number;
@@ -137,7 +137,7 @@ export class FinalResultService {
           total: result.grandTotal, // exam + continuous
           gpa: result.gpa.toFixed(2),
           failCount: result.saved.failCount,
-          result: official,
+          result: resultLabel(result) ?? official,
           nextClass,
           nextRoll:
             result.classLevel === 10 || !enrollment.next_year_roll

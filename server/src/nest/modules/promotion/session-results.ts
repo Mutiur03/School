@@ -265,6 +265,12 @@ export function officialResult(r: SessionResultRow): string | null {
     : null;
 }
 
+/** Printed result: "C. Passed" = passed with failed subject(s) allowed by the pass rules. */
+export const resultLabel = (r: SessionResultRow): string | null => {
+  const official = officialResult(r);
+  return official === 'Passed' && r.saved.failCount > 0 ? 'C. Passed' : official;
+};
+
 /** Classes whose results were generated (some student has a saved rank). */
 export async function generatedClasses(prisma: PrismaClient, schoolId: number, year: number) {
   const rows = await prisma.student_enrollments.findMany({

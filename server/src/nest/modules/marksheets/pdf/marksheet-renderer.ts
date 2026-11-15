@@ -2,7 +2,7 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import type { Prisma, PrismaClient } from '@/generated/prisma/client.js';
 import { getFileBuffer, headObjectEtag } from '@/config/r2.js';
 import { VALID_GROUPS } from '@school/shared-schemas';
-import { loadSessionResults, officialResult } from '@/nest/modules/promotion/session-results.js';
+import { loadSessionResults, resultLabel } from '@/nest/modules/promotion/session-results.js';
 import { PRISMA } from '../../../common/prisma.module.js';
 import { canAccessStudent } from '../access.js';
 import type { AccessUser } from '../access.js';
@@ -192,7 +192,7 @@ export class MarksheetRenderer {
           result: {
             ...result,
             position: result.held ? 0 : result.saved.merit,
-            officialResult: officialResult(result),
+            officialResult: resultLabel(result),
           },
           previousExamName:
             result.previousExamId != null

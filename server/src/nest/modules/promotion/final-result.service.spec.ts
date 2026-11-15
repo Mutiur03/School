@@ -14,6 +14,8 @@ jest.unstable_mockModule('../../common/school-pdf.js', () => ({ loadSchoolHeader
 jest.unstable_mockModule('./session-results.js', () => ({
   loadSessionResults,
   officialResult: (r: { saved: { status: string } }) => r.saved.status,
+  resultLabel: (r: { saved: { status: string; failCount: number } }) =>
+    r.saved.status === 'Passed' && r.saved.failCount > 0 ? 'C. Passed' : r.saved.status,
 }));
 const { FinalResultService } = await import('./final-result.service.js');
 
