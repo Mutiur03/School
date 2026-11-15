@@ -35,6 +35,7 @@ const result = (enrollmentId: number, classLevel: number, position: number) => (
   roll: position,
   gpa: 4.5,
   totalMarks: 500 + position,
+  grandTotal: 550 + position,
   failCount: 0,
   saved: { status: 'Passed', merit: position, failCount: 0 },
 });

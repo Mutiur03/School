@@ -25,7 +25,18 @@ type SubjectCol =
       subjectId: number;
       name: string;
       priority: number;
+    }
+  // Continuous assessment: mark only, no grade (not part of GPA).
+  | {
+      kind: 'continuous';
+      subjectId: number;
+      name: string;
+      priority: number;
     };
+
+/** Sub-columns per subject block: paper = 1st/2nd/Total/LG/GP, single = Mark/LG/GP. */
+const colCount = (kind: SubjectCol['kind']) =>
+  kind === 'paper' ? 5 : kind === 'continuous' ? 1 : 3;
 
 type StudentSummaryRow = {
   roll: number | null;
@@ -47,6 +58,7 @@ type StudentSummaryRow = {
         lg: string;
         gp: number;
       }
+    | { kind: 'continuous'; mark: number }
   >;
   totalMarks: number;
   gpa: number;
@@ -325,7 +337,15 @@ export class ClassSummaryService {
 
       const examRows = aggregated.filter((r: any) => r.assessment_type === 'exam');
       const fourthId = enrollment.fourth_subject_id ?? null;
-      const { gpa, totalMarks } = calculateGPA(examRows, fourthId, applyBonus, cls);
+      const { gpa, totalMarks: examTotal } = calculateGPA(examRows, fourthId, applyBonus, cls);
+      // Grand total = exam marks + continuous assessment marks (GPA stays exam-only).
+      const continuousTotal = aggregated
+        .filter((r: any) => r.assessment_type !== 'exam')
+        .reduce(
+          (s: number, r: any) => s + (Number.isFinite(Number(r.marks)) ? Number(r.marks) : 0),
+          0,
+        );
+      const totalMarks = examTotal + continuousTotal;
       const failed = countFailed(examRows, cls, fourthId, applyBonus);
 
       const cells: StudentSummaryRow['cells'] = {};
@@ -376,6 +396,20 @@ export class ClassSummaryService {
         }
       }
 
+      for (const row of aggregated.filter((r: any) => r.assessment_type !== 'exam')) {
+        const subjectId = row.subject_id as number;
+        if (!colMap.has(subjectId)) {
+          colMap.set(subjectId, {
+            kind: 'continuous',
+            subjectId,
+            name: row.subject,
+            priority: row.priority ?? 0,
+          });
+        }
+        const mark = Number(row.marks);
+        cells[subjectId] = { kind: 'continuous', mark: Number.isFinite(mark) ? mark : 0 };
+      }
+
       studentRows.push({
         roll: enrollment.roll,
         name: enrollment.student.name,
@@ -387,8 +421,12 @@ export class ClassSummaryService {
       });
     }
 
+    // Exam subjects first, continuous assessment after them.
     const columns = [...colMap.values()].sort(
-      (a, b) => a.priority - b.priority || a.subjectId - b.subjectId,
+      (a, b) =>
+        Number(a.kind === 'continuous') - Number(b.kind === 'continuous') ||
+        a.priority - b.priority ||
+        a.subjectId - b.subjectId,
     );
 
     const buffer = await buildPdf({
@@ -427,7 +465,12 @@ async function buildPdf(opts: {
   const contentX = PAGE_MARGIN;
 
   // Same column proportions as the Excel sheet (8 / 22 / 6…).
-  const subjectUnits = columns.reduce((s, c) => s + (c.kind === 'paper' ? 5 : 3), 0);
+  // Continuous: one sub-column, double width so long names ("Physical Education") wrap by word.
+  const CONTINUOUS_UNITS = 2;
+  const subjectUnits = columns.reduce(
+    (s, c) => s + (c.kind === 'continuous' ? CONTINUOUS_UNITS : colCount(c.kind)),
+    0,
+  );
   const totalCharUnits = COL_UNITS.roll + COL_UNITS.name + COL_UNITS.cell * (subjectUnits + 3);
   const u = contentW / totalCharUnits;
   const rollW = COL_UNITS.roll * u;
@@ -444,8 +487,9 @@ async function buildPdf(opts: {
 
   const spans: ColSpan[] = [];
   for (const col of columns) {
-    const n = col.kind === 'paper' ? 5 : 3;
-    spans.push({ col, widths: Array.from({ length: n }, () => cellW) });
+    const n = colCount(col.kind);
+    const w = col.kind === 'continuous' ? cellW * CONTINUOUS_UNITS : cellW;
+    spans.push({ col, widths: Array.from({ length: n }, () => w) });
   }
   const totalMarksW = cellW;
   const gpaW = cellW;
@@ -663,6 +707,13 @@ async function buildPdf(opts: {
           });
           sx += span.widths[i];
         }
+      } else if (span.col.kind === 'continuous') {
+        strokeRect(x0, y, blockW, headerH);
+        writeInBox(span.col.name, x0, y, blockW, headerH, {
+          bold: true,
+          size: headerFont,
+          wrap: true,
+        });
       } else {
         strokeRect(x0, y, blockW, h1 + h2);
         writeInBox(span.col.name, x0, y, blockW, h1 + h2, {
@@ -684,7 +735,7 @@ async function buildPdf(opts: {
     }
 
     strokeRect(totalsX, y, totalMarksW, headerH);
-    writeInBox('Total Marks', totalsX, y, totalMarksW, headerH, {
+    writeInBox('Grand Total', totalsX, y, totalMarksW, headerH, {
       bold: true,
       size: headerFont,
       wrap: true,
@@ -730,9 +781,13 @@ async function buildPdf(opts: {
           ? cell && cell.kind === 'paper'
             ? [cell.first, cell.second, cell.total, cell.lg, cell.gp]
             : []
-          : cell && cell.kind === 'single'
-            ? [cell.mark, cell.lg, cell.gp]
-            : [];
+          : span.col.kind === 'continuous'
+            ? cell && cell.kind === 'continuous'
+              ? [cell.mark]
+              : []
+            : cell && cell.kind === 'single'
+              ? [cell.mark, cell.lg, cell.gp]
+              : [];
 
       let x = spanX(span);
       for (let i = 0; i < span.widths.length; i++) {

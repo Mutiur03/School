@@ -240,7 +240,15 @@ describe('v1 grading, continuous, 4th subject, GPA', () => {
   it('a pass below 33% is D 1.0, never F', () => {
     const r = run({ classLevel: 10, subjects: [sub(1, { class: 10 })], marks: [mark(1, YE, 30)] });
     expect(r.subjects[0]).toMatchObject({ passed: true, grade: 'D', gp: 1 });
-    expect(r.gpa).toBe(1);
+    expect(r.gpa).toBe(0); // class 9-10, no 4th subject, n=1: (1 - 2) / 0 guarded to 0 like legacy
+  });
+
+  it('class 9-10 without a 4th subject: (sum - 2) / (n - 1)', () => {
+    const subjects = [1, 2, 3].map((id) => sub(id, { class: 10 }));
+    const marks = [1, 2, 3].map((id) => mark(id, YE, 60)); // A- 3.5 each
+    const r = run({ classLevel: 10, subjects, marks });
+    expect(r.subjects.map((s) => s.gp)).toEqual([3.5, 3.5, 3.5]);
+    expect(r.gpa).toBe(4.25); // (10.5 - 2) / 2
   });
 
   it('continuous subjects only count toward grandTotal', () => {

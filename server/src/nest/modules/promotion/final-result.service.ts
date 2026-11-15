@@ -134,7 +134,7 @@ export class FinalResultService {
           rank: result.saved.merit,
           name: result.studentName,
           secRoll: result.section ? `${result.section}-${result.roll}` : String(result.roll),
-          total: result.totalMarks,
+          total: result.grandTotal, // exam + continuous
           gpa: result.gpa.toFixed(2),
           failCount: result.saved.failCount,
           result: official,
