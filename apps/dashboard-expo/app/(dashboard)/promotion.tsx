@@ -729,7 +729,9 @@ export default function PromotionScreen() {
           <Button
             variant="outline"
             icon={FileText}
-            label={pdfBusy === 'final-result-no-fails' ? 'Preparing…' : 'Final result (no fail count)'}
+            label={
+              pdfBusy === 'final-result-no-fails' ? 'Preparing…' : 'Final result (no fail count)'
+            }
             disabled={
               (meta?.filtered ?? 0) === 0 ||
               pdfBusy !== null ||

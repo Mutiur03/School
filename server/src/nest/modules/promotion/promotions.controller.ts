@@ -75,7 +75,8 @@ export class PromotionsController {
   ) {
     const withFails = fails !== 'false';
     const buffer = await this.finalResult.generate(schoolId, year, classes, withFails);
-    const suffix = (classes?.length ? `_class-${classes.join('-')}` : '') + (withFails ? '' : '_no-fails');
+    const suffix =
+      (classes?.length ? `_class-${classes.join('-')}` : '') + (withFails ? '' : '_no-fails');
     return pdfFile(buffer, `final-result_${year}${suffix}.pdf`, 'attachment');
   }
 
