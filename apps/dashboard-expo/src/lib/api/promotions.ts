@@ -605,11 +605,11 @@ export function createPromotionsApi(client: ApiClient) {
       pdf(PROMOTION_PATHS.sessionPdf(studentId), { year }),
     allSessionPdf: (year: number) => pdf(PROMOTION_PATHS.allSessionPdf, { year }),
     /** `classes` empty = every class. */
-    finalResultPdf: (year: number, classes: readonly number[] = []) =>
-      pdf(
-        PROMOTION_PATHS.finalResultPdf(year),
-        classes.length ? { classes: classes.join(',') } : {},
-      ),
+    finalResultPdf: (year: number, classes: readonly number[] = [], withFails = true) =>
+      pdf(PROMOTION_PATHS.finalResultPdf(year), {
+        ...(classes.length ? { classes: classes.join(',') } : {}),
+        ...(withFails ? {} : { fails: 'false' }),
+      }),
   };
 }
 

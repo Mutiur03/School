@@ -80,6 +80,20 @@ test('no results still produces a PDF', async () => {
   expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
 });
 
+test('withFails=false builds a different PDF (no Fail Count column) for both layouts', async () => {
+  const results = [result(1, 6, 1), result(2, 10, 1)];
+  loadSessionResults.mockResolvedValue({ results });
+  findMany.mockResolvedValue(
+    results.map((r) => ({ id: r.enrollmentId, class: r.classLevel, next_year_roll: 1 })),
+  );
+  const strip = (b: Buffer) => b.toString('latin1').replace(/\/(CreationDate|ID)[^\n]*/g, '');
+  const withFails = await service.generate(7, 2025);
+  const noFails = await service.generate(7, 2025, undefined, false);
+
+  expect(noFails.subarray(0, 4).toString()).toBe('%PDF');
+  expect(strip(noFails)).not.toBe(strip(withFails));
+});
+
 test('classes filter keeps only those classes', async () => {
   const results = [result(1, 6, 1), result(2, 7, 1)];
   loadSessionResults.mockResolvedValue({ results });

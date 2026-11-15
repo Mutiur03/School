@@ -726,6 +726,29 @@ export default function PromotionScreen() {
               )
             }
           />
+          <Button
+            variant="outline"
+            icon={FileText}
+            label={pdfBusy === 'final-result-no-fails' ? 'Preparing…' : 'Final result (no fail count)'}
+            disabled={
+              (meta?.filtered ?? 0) === 0 ||
+              pdfBusy !== null ||
+              !classesReady(statsQ.data, cls.length ? cls : undefined)
+            }
+            onPress={() =>
+              void pdf(
+                'final-result-no-fails',
+                () => promotions.finalResultPdf(year, cls, false),
+                pdfFileName([
+                  'final-result',
+                  year,
+                  ...(cls.length ? [`class-${cls.join('-')}`] : []),
+                  'no-fails',
+                ]),
+                'Failed to download final result',
+              )
+            }
+          />
         </>
       }
       onRefresh={() => {

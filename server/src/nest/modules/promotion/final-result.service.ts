@@ -94,7 +94,19 @@ const className = (value: number) => `Class ${value}`;
 export class FinalResultService {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
-  async generate(schoolId: number, year: number, classes?: number[]): Promise<Buffer> {
+  /** `withFails: false` drops the Fail Count column; its width goes to the name column. */
+  async generate(
+    schoolId: number,
+    year: number,
+    classes?: number[],
+    withFails = true,
+  ): Promise<Buffer> {
+    const pickColumns = (all: Column[]) =>
+      withFails
+        ? all
+        : all
+            .filter((c) => c !== FAILS)
+            .map((c) => (c.label === 'Student Name' ? { ...c, width: c.width + FAILS.width } : c));
     const [header, session, enrollments, exams] = await Promise.all([
       loadSchoolHeader(this.prisma, schoolId),
       loadSessionResults(this.prisma, schoolId, year),
@@ -291,7 +303,7 @@ export class FinalResultService {
     } else {
       // Every class starts on a fresh page.
       for (const [classLevel, classRows] of byClass) {
-        const columns = classLevel === 10 ? GRADUATING_COLUMNS : COLUMNS;
+        const columns = pickColumns(classLevel === 10 ? GRADUATING_COLUMNS : COLUMNS);
         addPage(className(classLevel), classLevel);
         drawTableHeader(columns);
         for (const row of classRows) {

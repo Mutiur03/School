@@ -71,9 +71,11 @@ export class PromotionsController {
     @Param('year', ParseIntPipe) year: number,
     @Query('classes', new ParseArrayPipe({ items: Number, separator: ',', optional: true }))
     classes?: number[],
+    @Query('fails') fails?: string,
   ) {
-    const buffer = await this.finalResult.generate(schoolId, year, classes);
-    const suffix = classes?.length ? `_class-${classes.join('-')}` : '';
+    const withFails = fails !== 'false';
+    const buffer = await this.finalResult.generate(schoolId, year, classes, withFails);
+    const suffix = (classes?.length ? `_class-${classes.join('-')}` : '') + (withFails ? '' : '_no-fails');
     return pdfFile(buffer, `final-result_${year}${suffix}.pdf`, 'attachment');
   }
 
