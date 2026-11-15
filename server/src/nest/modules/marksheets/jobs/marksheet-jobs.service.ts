@@ -403,7 +403,11 @@ export class MarksheetJobsService {
       if (classes.length === 0) return;
       const { changedClasses } = await writeSessionResults(schoolId, year, { classes });
       logger.info('[marksheet] job(results): refreshed', { schoolId, year, changedClasses });
-      await this.cache.invalidateForResults(schoolId, year, changedClasses);
+      // Pass rule change: its classes re-render too, even when nobody flipped (open ones only).
+      const rerender = (job.rerender ?? []).filter((c) => classes.includes(c));
+      await this.cache.invalidateForResults(schoolId, year, [
+        ...new Set([...changedClasses, ...rerender]),
+      ]);
     });
   }
 

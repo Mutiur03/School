@@ -57,12 +57,15 @@ import {
   graduationDetail,
   holdConfirm,
   nextSecRoll,
+  notReadyReason,
   passRulesSummary,
   placementText,
   promoteMessages,
   promotionDetail,
   promotionYears,
+  ruleEffect,
   rulesByClass,
+  rulesSavedText,
   stepState,
   changeLabels,
   resetConfirm,
@@ -77,6 +80,7 @@ import {
 /** Classes promoted in step 2 (class 10 graduates in step 3). */
 const PROMOTION_CLASSES = [6, 7, 8, 9];
 import { GROUPS } from '@/features/results/filters';
+import { MarksheetRecreateLine } from '@/features/results/MarksheetGenPanel';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import {
   ENROLLMENT_STATUS_OPTIONS,
@@ -277,6 +281,7 @@ export default function PromotionScreen() {
     refetchInterval: (q) => (q.state.data?.result_classes.some(isRefreshing) ? 5_000 : false),
   });
   const refreshing = statsQ.data?.result_classes.some(isRefreshing) ?? false;
+  const notReadyText = notReadyReason(statsQ.data, cls.length ? cls : undefined);
   const groups = resultGroups(statsQ.data);
   const changed = statsQ.data?.changed ?? [];
   const changedById = new Map(changed.map((c) => [c.enrollment_id, c]));
@@ -336,8 +341,8 @@ export default function PromotionScreen() {
   });
   const saveRules = useAdminMutation({
     mutationFn: (r: PassRule[]) => promotions.savePassRules(year, r),
-    invalidate: [['pass-rules'], ['students']],
-    success: 'Pass rules saved',
+    invalidate: [['pass-rules'], ['students'], ['promotion-stats']],
+    success: () => rulesSavedText(statsQ.data),
     failure: 'Could not save pass rules',
     onSuccess: () => setRulesDraft(null),
   });
@@ -735,6 +740,23 @@ export default function PromotionScreen() {
         </Notice>
       ) : null}
 
+      {notReadyText ? (
+        <Text size="xs" color="mutedForeground" testID="final-result-hint">
+          {`Final result PDF unavailable: ${notReadyText}`}
+        </Text>
+      ) : null}
+
+      {groups
+        .filter((g) => g.partly)
+        .map((g) => (
+          <MarksheetRecreateLine
+            key={g.examId}
+            examId={g.examId}
+            name={`Class ${g.classes.join(', ')}`}
+            watch={refreshing}
+          />
+        ))}
+
       <PromotionStatus stats={statsQ.data} />
 
       {changed.length ? (
@@ -1094,6 +1116,11 @@ ${statusChange.text}`
           Allowed failed subjects per class. 0 = strict (any failed subject fails). A student passes
           when failed subjects ≤ this limit.
         </Text>
+        <Text size="sm" color="mutedForeground">
+          Saving recalculates pass/fail and merit for classes already generated, within a few
+          seconds, and their marksheets are re-created. Classes past their result date stay final.
+          Manual pass/fail overrides keep their status.
+        </Text>
         <View className="flex-row flex-wrap gap-2">
           {rulesDraft?.map((rule) => (
             <View
@@ -1125,6 +1152,24 @@ ${statusChange.text}`
             </View>
           ))}
         </View>
+        {statsQ.data?.result_classes.length ? (
+          <View className="gap-1">
+            <Text size="sm" weight="medium">
+              Effect on results
+            </Text>
+            {[...statsQ.data.result_classes]
+              .sort((a, b) => a.class - b.class)
+              .map((c) => (
+                <Text
+                  key={c.class}
+                  size="xs"
+                  color={c.locked && c.generated ? 'destructive' : 'mutedForeground'}
+                >
+                  {`Class ${c.class} · ${ruleEffect(c)}`}
+                </Text>
+              ))}
+          </View>
+        ) : null}
       </Dialog>
 
       <Dialog

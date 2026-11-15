@@ -43,6 +43,8 @@ export type SessionResultsJob = {
   schoolId: number;
   /** Also generate these classes even if never generated (their year-end exam was published). */
   classes?: number[];
+  /** Re-create these classes' year-end marksheets even if no saved result changed (pass rule changed: the sheets' fingerprint includes it). */
+  rerender?: number[];
 };
 
 export type MarksheetJob =

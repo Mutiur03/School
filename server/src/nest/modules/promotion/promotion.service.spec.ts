@@ -206,6 +206,21 @@ describe('loadSessionResults (via getResults)', () => {
     ]);
   });
 
+  it('ranks a manual override by its saved status, in the same order promotion uses', async () => {
+    // 2 passes on marks but is manually Failed: it must rank below the auto pass 3, not above it.
+    seedClass(
+      6,
+      { 1: [20, 30], 2: [40, 50], 3: [40, 50] },
+      { saved: { 2: { manual: true, status: 'Failed' } } },
+    );
+    const out = await service.getResults(S, YEAR);
+    expect(out.results.map((r) => [r.enrollmentId, r.position])).toEqual([
+      [3, 1],
+      [2, 2],
+      [1, 3],
+    ]);
+  });
+
   it('flags classes without a previous exam but still computes them', async () => {
     seedClass(6, { 1: [0, 90] }, { exams: [2] });
     const out = await service.getResults(S, YEAR);
@@ -333,6 +348,11 @@ describe('PromotionService pass rules', () => {
 
   it('upserts every class with school_id', async () => {
     await service.savePassRules(S, YEAR, [{ class: 8, max_failed: 1 }]);
+    // Only class 8's rule changed (0 → 1): only its marksheets are re-created.
+    expect(marksheets.scheduleResultsRefresh).toHaveBeenCalledWith(S, YEAR, undefined, {
+      immediate: true,
+      rerender: [8],
+    });
     expect(db.promotion_pass_rules.upsert).toHaveBeenCalledTimes(5);
     expect(db.promotion_pass_rules.upsert).toHaveBeenCalledWith({
       where: { school_id_year_class: { school_id: S, year: YEAR, class: 8 } },

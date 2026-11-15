@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { PrismaClient } from '@/generated/prisma/client.js';
 
 type Fn = (...args: any[]) => Promise<any>;
@@ -7,6 +7,13 @@ type Fn = (...args: any[]) => Promise<any>;
 // No DB: fake Prisma + renderer; pdfkit renders in memory.
 jest.unstable_mockModule('@/config/prisma.js', () => ({ prisma: {} }));
 jest.unstable_mockModule('./marksheet-renderer.js', () => ({ MarksheetRenderer: class {} }));
+const yearEndByClass = jest.fn<Fn>();
+const loadSessionResults = jest.fn<Fn>();
+jest.unstable_mockModule('../../promotion/session-results.js', () => ({
+  yearEndByClass,
+  loadSessionResults,
+  isResultStale: (r: any) => r.stale,
+}));
 const { ClassSummaryService } = await import('./class-summary.service.js');
 
 const S = 7;
@@ -88,6 +95,62 @@ it('403 for a teacher not assigned to the class', async () => {
       levels: [],
     } as any),
   ).rejects.toBeInstanceOf(ForbiddenException);
+});
+
+describe('year-end summary while results are updating', () => {
+  const yearEndEnrollment = (roll: number) => {
+    const e = enrollment(roll, 80);
+    e.marks[0].exam = { id: 9, exam_name: 'HY', is_year_end: true } as any;
+    return e;
+  };
+  const results = (stale: boolean, merit = 1) => ({
+    results: [{ classLevel: 6, saved: { merit }, stale }],
+  });
+  beforeEach(() => {
+    db.student_enrollments.findMany.mockResolvedValue([yearEndEnrollment(1)]);
+    yearEndByClass.mockResolvedValue(new Map([[6, { examId: 9, locked: false }]]));
+  });
+
+  it('renders with the combined session totals when the result matches the enrollment', async () => {
+    loadSessionResults.mockResolvedValue({
+      results: [
+        {
+          enrollmentId: 1,
+          classLevel: 6,
+          saved: { merit: 1, failCount: 2 },
+          stale: false,
+          grandTotal: 321,
+          gpa: 4.5,
+          failCount: 2,
+        },
+      ],
+    });
+    const { buffer } = await service.generateClassSummaryPDF(S, 6, 2026, 'HY', admin);
+    expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('409 when a generated, open class has stale saved results', async () => {
+    loadSessionResults.mockResolvedValue(results(true));
+    await expect(service.generateClassSummaryPDF(S, 6, 2026, 'HY', admin)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  it.each([
+    ['up to date', () => loadSessionResults.mockResolvedValue(results(false))],
+    ['never generated', () => loadSessionResults.mockResolvedValue(results(true, 0))],
+    [
+      'final (result date passed)',
+      () => {
+        loadSessionResults.mockResolvedValue(results(true));
+        yearEndByClass.mockResolvedValue(new Map([[6, { examId: 9, locked: true }]]));
+      },
+    ],
+  ])('renders when %s', async (_name, setup) => {
+    setup();
+    const { buffer } = await service.generateClassSummaryPDF(S, 6, 2026, 'HY', admin);
+    expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
+  });
 });
 
 it('404 when nobody has marks', async () => {

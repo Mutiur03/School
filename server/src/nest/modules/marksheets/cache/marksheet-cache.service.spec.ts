@@ -283,6 +283,16 @@ describe('results refresh', () => {
     expect(b[1].jobId).toBe(a[1].jobId);
   });
 
+  it('scheduleResultsRefresh(immediate): no delay, own job id (not merged into a debounced one)', async () => {
+    await service.scheduleResultsRefresh(S, 2026);
+    await service.scheduleResultsRefresh(S, 2026, undefined, { immediate: true, rerender: [8] });
+    const [debounced, now] = queue.add.mock.calls;
+    expect(now[0]).toMatchObject({ rerender: [8] });
+    expect(now[1].delay).toBe(0);
+    expect(now[1].jobId).toMatch(/^session-results:7:2026:now:\d+$/);
+    expect(now[1].jobId).not.toBe(debounced[1].jobId);
+  });
+
   it('invalidateForResults: nothing when no class changed or no year-end exam is live', async () => {
     await service.invalidateForResults(S, 2026, []);
     expect(db.exams.findMany).not.toHaveBeenCalled();

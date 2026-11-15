@@ -157,6 +157,52 @@ export function resultGroups(stats: PromotionStats | undefined): ResultGroup[] {
   return [...groups.values()];
 }
 
+/** Why `classesReady` is false, in words (null when ready or there are no classes). */
+export function notReadyReason(
+  stats: PromotionStats | undefined,
+  classes?: readonly number[],
+): string | null {
+  const rows = (stats?.result_classes ?? []).filter((c) => !classes || classes.includes(c.class));
+  const missing = rows.filter((c) => !c.generated).map((c) => c.class);
+  if (missing.length) {
+    return `${classList(missing)} not generated yet. Generate in step 1, or filter to generated classes.`;
+  }
+  const updating = rows.filter(isRefreshing);
+  if (updating.length) {
+    const n = updating.reduce((sum, c) => sum + c.outdated, 0);
+    return `Waiting for ${s(n, 'result')} to update in ${classList(updating.map((c) => c.class))}. This takes a few seconds.`;
+  }
+  return null;
+}
+
+/** What a pass-rule change does to one class right now (pass rules dialog). */
+export function ruleEffect(c: ResultClass): string {
+  if (!c.generated) return 'Not generated yet · the rule applies when you generate';
+  if (c.locked) return `Final (${c.result_date} passed) · will not change, generate again to apply`;
+  return c.outdated
+    ? `Updating ${s(c.outdated, 'result')}…`
+    : 'Up to date · recalculates automatically on save';
+}
+
+/** Toast after saving rules: which classes recalculate by themselves and which do not. */
+export function rulesSavedText(stats: PromotionStats | undefined): string {
+  const rows = stats?.result_classes ?? [];
+  const list = (f: (c: ResultClass) => boolean) => classList(rows.filter(f).map((c) => c.class));
+  const open = rows.some((c) => c.generated && !c.locked);
+  const locked = rows.some((c) => c.generated && c.locked);
+  const fresh = rows.some((c) => !c.generated);
+  return [
+    'Pass rules saved.',
+    open
+      ? `${list((c) => c.generated && !c.locked)} will recalculate automatically in a few seconds.`
+      : null,
+    locked ? `${list((c) => c.generated && c.locked)} are final and keep their results.` : null,
+    fresh ? `${list((c) => !c.generated)}: applied when you generate.` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
 /** One-line state of a group, for step 1. */
 export function groupStatus(g: ResultGroup): string {
   const date = `result date ${g.resultDate}`;

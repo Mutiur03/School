@@ -1,6 +1,18 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  isResultStale,
+  loadSessionResults,
+  yearEndByClass,
+  type SessionResultRow,
+} from '../../promotion/session-results.js';
 import type { PrismaClient } from '@/generated/prisma/client.js';
 import { PRISMA } from '../../../common/prisma.module.js';
 import type { AuthUser } from '../../../common/current-user.decorator.js';
@@ -39,6 +51,7 @@ const colCount = (kind: SubjectCol['kind']) =>
   kind === 'paper' ? 5 : kind === 'continuous' ? 1 : 3;
 
 type StudentSummaryRow = {
+  enrollmentId: number;
   roll: number | null;
   name: string;
   section: string | null;
@@ -413,6 +426,7 @@ export class ClassSummaryService {
       }
 
       studentRows.push({
+        enrollmentId: enrollment.id,
         roll: enrollment.roll,
         name: enrollment.student.name,
         section: enrollment.section,
@@ -425,6 +439,17 @@ export class ClassSummaryService {
       });
     }
     const showPosition = !!withMarks[0].marks[0]?.exam?.is_year_end;
+    if (showPosition) {
+      // Year-end sheet: totals follow the session result (both exams combined), like the rank.
+      const session = await this.assertResultsCurrent(schoolId, cls, yearInt, examId);
+      for (const row of studentRows) {
+        const r = session.get(row.enrollmentId);
+        if (!r) continue;
+        row.totalMarks = r.grandTotal;
+        row.gpa = r.gpa;
+        row.failed = r.saved.merit > 0 ? r.saved.failCount : r.failCount;
+      }
+    }
 
     // Exam subjects first, continuous assessment after them.
     const columns = [...colMap.values()].sort(
@@ -452,6 +477,34 @@ export class ClassSummaryService {
     const filename = `${cls}${sectionPart}_Summary_${safeExam}_${yearInt}.pdf`;
 
     return { buffer, filename };
+  }
+
+  /**
+   * The printed Position is the saved rank. While the automatic refresh is still catching up with
+   * marks/rules (generated, not yet final) it would sit next to new marks, so refuse for now.
+   * Final (result date passed) and never-generated classes are not refreshed: they print as saved.
+   * Returns the class's session results by enrollment (empty when this isn't its year-end exam).
+   */
+  private async assertResultsCurrent(
+    schoolId: number,
+    cls: number,
+    year: number,
+    examId: number | undefined,
+  ) {
+    const [yearEnd, session] = await Promise.all([
+      yearEndByClass(this.prisma, schoolId, year),
+      loadSessionResults(this.prisma, schoolId, year, { classLevel: cls }),
+    ]);
+    const own = yearEnd.get(cls);
+    // Not this class's year-end exam: no session result belongs to this sheet.
+    if (!own || own.examId !== examId) return new Map<number, SessionResultRow>();
+    const rows = session.results.filter((r) => r.classLevel === cls);
+    if (!own.locked && rows.some((r) => r.saved.merit > 0) && rows.some(isResultStale)) {
+      throw new ConflictException(
+        'Results are still updating after a recent change. Try again in a few seconds.',
+      );
+    }
+    return new Map(rows.map((r) => [r.enrollmentId, r]));
   }
 }
 

@@ -141,6 +141,12 @@ export class PromotionService {
 
   async savePassRules(schoolId: number, year: number, rules: PassRuleDto[]) {
     const byClass = new Map(rules.map((r) => [r.class, r.max_failed]));
+    const before = new Map(
+      (await this.getPassRules(schoolId, year)).map((r) => [r.class, r.max_failed]),
+    );
+    const changedClasses = PASS_RULE_CLASSES.filter(
+      (cls) => (byClass.get(cls) ?? 0) !== (before.get(cls) ?? 0),
+    );
     await rlsTransaction(async (tx) => {
       for (const cls of PASS_RULE_CLASSES) {
         const max_failed = byClass.get(cls) ?? 0;
@@ -151,8 +157,13 @@ export class PromotionService {
         });
       }
     });
-    // Rules change pass/fail: refresh already-generated results in the background.
-    await this.marksheets.scheduleResultsRefresh(schoolId, year);
+    // Rules change pass/fail: refresh already-generated results in the background, without the
+    // edit-burst debounce (this is one deliberate save). The marksheets of a class whose rule
+    // changed are re-created too, even if no student's result flips.
+    await this.marksheets.scheduleResultsRefresh(schoolId, year, undefined, {
+      immediate: true,
+      rerender: changedClasses,
+    });
     return this.getPassRules(schoolId, year);
   }
 

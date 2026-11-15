@@ -941,16 +941,33 @@ export class MarksheetCacheService {
    * The job id is bucketed, so edits within one window share a job. The job refreshes only
    * classes already generated and not locked; `classes` are generated regardless (publish).
    */
-  async scheduleResultsRefresh(schoolId: number, year: number, classes?: number[]): Promise<void> {
-    const bucket = Math.floor(Date.now() / RESULTS_REFRESH_DELAY_MS);
+  async scheduleResultsRefresh(
+    schoolId: number,
+    year: number,
+    classes?: number[],
+    // `immediate`: one deliberate action (pass rules), not a burst of edits: run now, never merged
+    // into a debounced job. `rerender`: classes whose marksheets must be re-created even if no
+    // saved result changes (see SessionResultsJob).
+    { immediate = false, rerender }: { immediate?: boolean; rerender?: number[] } = {},
+  ): Promise<void> {
+    const now = Date.now();
+    const bucket = Math.floor(now / RESULTS_REFRESH_DELAY_MS);
     const forced = classes?.length ? `:c${[...classes].sort((a, b) => a - b).join('-')}` : '';
     try {
       await this.queue.add(
-        { kind: 'session-results', schoolId, year, ...(forced && { classes }) },
+        {
+          kind: 'session-results',
+          schoolId,
+          year,
+          ...(forced && { classes }),
+          ...(rerender?.length && { rerender }),
+        },
         {
           ...defaultJobOpts(PRIORITY_USER),
-          jobId: `session-results:${schoolId}:${year}:${bucket}${forced}`,
-          delay: RESULTS_REFRESH_DELAY_MS,
+          jobId: immediate
+            ? `session-results:${schoolId}:${year}:now:${now}${forced}`
+            : `session-results:${schoolId}:${year}:${bucket}${forced}`,
+          delay: immediate ? 0 : RESULTS_REFRESH_DELAY_MS,
         },
       );
     } catch (e) {

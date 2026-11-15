@@ -262,10 +262,16 @@ describe('statusCounts', () => {
 });
 
 describe('processJob: session-results (automatic refresh, per class)', () => {
-  const run = async (classes?: number[]) => {
+  const run = async (classes?: number[], rerender?: number[]) => {
     const cache = { invalidateForResults: jest.fn<Fn>().mockResolvedValue(undefined) };
     (service as any).cache = cache;
-    await service.processJob({ kind: 'session-results', schoolId: S, year: 2026, classes });
+    await service.processJob({
+      kind: 'session-results',
+      schoolId: S,
+      year: 2026,
+      classes,
+      rerender,
+    });
     return cache;
   };
   // Class 10: Test exam (result date passed → locked); classes 6-9: Annual (still open).
@@ -286,6 +292,14 @@ describe('processJob: session-results (automatic refresh, per class)', () => {
     generatedClasses.mockResolvedValueOnce([6, 10]);
     const cache = await run();
     expect(writeSessionResults).toHaveBeenCalledWith(S, 2026, { classes: [6] });
+    expect(cache.invalidateForResults).toHaveBeenCalledWith(S, 2026, [6]);
+  });
+
+  it('pass rule change: re-creates marksheets of its open, generated classes even if nobody flipped', async () => {
+    generatedClasses.mockResolvedValueOnce([6, 10]);
+    writeSessionResults.mockResolvedValueOnce({ changedClasses: [] });
+    // 6 is open and generated; 7 was never generated; 10 is locked.
+    const cache = await run(undefined, [6, 7, 10]);
     expect(cache.invalidateForResults).toHaveBeenCalledWith(S, 2026, [6]);
   });
 

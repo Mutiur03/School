@@ -5,6 +5,7 @@
  * every 8 s while running, every 60 s while class bundles are stale, otherwise not at all.
  */
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { plural } from '@/features/admin/errors';
@@ -31,6 +32,43 @@ export function useMarksheetStatus(examId: number | undefined, { idlePoll = true
     refetchInterval: (q) =>
       !idlePoll && q.state.data?.total === 0 ? false : marksheetPollMs(q.state.data),
   });
+}
+
+/**
+ * One muted line "<exam>: marksheets re-creating 12/40" while the year-end marksheets of an exam
+ * are being re-rendered (e.g. after a pass-rule change). Hidden when nothing is running.
+ * `watch`: results are catching up, so poll every 5 s and for 30 s after, until the server has
+ * queued the re-renders (the generic hook stops polling once everything looks complete).
+ */
+export function MarksheetRecreateLine({
+  examId,
+  name,
+  watch,
+}: {
+  examId: number;
+  name: string;
+  watch: boolean;
+}) {
+  const { refetch, data } = useMarksheetStatus(examId, { idlePoll: false });
+  const [until, setUntil] = useState(0);
+  useEffect(() => {
+    if (!watch) return;
+    return () => setUntil(Date.now() + 30_000);
+  }, [watch]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (watch || Date.now() < until) void refetch();
+    }, 5_000);
+    return () => clearInterval(id);
+  }, [watch, until, refetch]);
+
+  if (!data || !genPanelView(data).active) return null;
+  const v = genPanelView(data);
+  return (
+    <Text size="xs" color="mutedForeground" tabular testID={`marksheet-recreate-${examId}`}>
+      {`${name}: marksheets re-creating ${v.count}. Downloads may wait until they finish.`}
+    </Text>
+  );
 }
 
 function Bar({ percent, complete, thin }: { percent: number; complete: boolean; thin?: boolean }) {

@@ -180,9 +180,29 @@ export async function loadSessionResults(
     };
   });
   // Held students are not ranked, so releasing or regenerating never shifts anyone's merit.
-  const positions = engine.rankStudents(
-    computed.filter((c) => !c.e.result_held).map((c) => c.result),
-  );
+  const active = computed.filter((c) => !c.e.result_held);
+  const enginePosition = engine.rankStudents(active.map((c) => c.result));
+  // Same order promotion uses (PromotionService.rank): engine passes first, then manually passed,
+  // then the rest, each by release batch and engine position. A manual override keeps its saved
+  // status, so it ranks by that, not by the computed result; one order means no overwrite loop.
+  const tier = ({ e, result }: (typeof computed)[number]) => {
+    const passed =
+      (e.result_manual ? e.status : result.isFailed ? 'Failed' : 'Passed') === 'Passed';
+    return passed ? (e.result_manual || e.release_batch ? 1 : 0) : 2;
+  };
+  const positions = new Map<number, number>();
+  const seen = new Map<number, number>();
+  for (const c of [...active].sort(
+    (a, b) =>
+      a.e.class - b.e.class ||
+      tier(a) - tier(b) ||
+      (a.e.release_batch ?? 0) - (b.e.release_batch ?? 0) ||
+      enginePosition.get(a.e.id)! - enginePosition.get(b.e.id)!,
+  )) {
+    const n = (seen.get(c.e.class) ?? 0) + 1;
+    seen.set(c.e.class, n);
+    positions.set(c.e.id, n);
+  }
 
   const classResults = new Map<string, typeof computed>();
   for (const item of computed) {
