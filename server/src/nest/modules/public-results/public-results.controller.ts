@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/current-user.decorator.js';
 import type { AuthUser } from '../../common/current-user.decorator.js';
 import { SchoolId } from '../../common/school-id.decorator.js';
 import {
   PublicExamsQueryDto,
+  PublicMarksheetQueryDto,
   PublicResultQueryDto,
   PublicResultVerifyDto,
 } from './dto/public-result.dto.js';
@@ -44,9 +45,17 @@ export class PublicResultsController {
   @UseGuards(PublicResultGuard)
   async findMarksheet(
     @SchoolId() schoolId: number,
-    @Query() q: PublicResultQueryDto,
+    @Query() q: PublicMarksheetQueryDto,
     @CurrentUser() user: AuthUser,
   ) {
+    // `source=result-pdf` asks for the uploaded PDF; unpublished exams can only serve it.
+    if (q.source === 'result-pdf' || !(await this.results.isPublished(schoolId, q.exam))) {
+      const uploaded = await this.results.findUploadedPdf(schoolId, user.id, q.year, q.exam);
+      if (uploaded) {
+        return pdfFile(await this.results.readUploadedPdf(uploaded.r2_key), uploaded.file_name);
+      }
+      if (q.source === 'result-pdf') throw new NotFoundException('Result file not found');
+    }
     await this.results.assertPublished(schoolId, q.exam);
     const { buffer, studentName } = await this.marksheets.serve(
       schoolId,

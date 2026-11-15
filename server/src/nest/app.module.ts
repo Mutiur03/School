@@ -8,6 +8,7 @@ import { MarksModule } from './modules/marks/marks.module.js';
 import { MarksheetsModule } from './modules/marksheets/marksheets.module.js';
 import { PromotionModule } from './modules/promotion/promotion.module.js';
 import { PublicResultsModule } from './modules/public-results/public-results.module.js';
+import { ExamResultFilesModule } from './modules/exam-result-files/exam-result-files.module.js';
 import { LevelModule } from './modules/level/level.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { NoticeModule } from './modules/notice/notice.module.js';
@@ -32,6 +33,7 @@ import { SchoolModule } from './modules/school/school.module.js';
     MarksModule,
     MarksheetsModule,
     PublicResultsModule,
+    ExamResultFilesModule,
     PromotionModule,
     CertificateModule,
     SchoolCodesModule,

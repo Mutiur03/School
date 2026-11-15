@@ -1,5 +1,15 @@
 import { Expose, Transform, Type } from 'class-transformer';
-import { Allow, IsInt, IsNotEmpty, IsString, Matches, Max, Min } from 'class-validator';
+import {
+  Allow,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsNotEmpty,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import { PHONE_NUMBER, SECTION } from '@school/shared-schemas';
 
 // Same rules as the publicResult* zod schemas in packages/shared-schemas.
@@ -35,6 +45,13 @@ export class PublicResultQueryDto {
   @IsString()
   @IsNotEmpty({ message: 'Exam is required' })
   exam!: string;
+}
+
+/** Marksheet: ?year&exam[&source=result-pdf] (the school's uploaded result PDF instead of the generated marksheet). */
+export class PublicMarksheetQueryDto extends PublicResultQueryDto {
+  @IsOptional()
+  @IsIn(['result-pdf'])
+  source?: 'result-pdf';
 }
 
 /** POST /public-results/verification. `session`/`mobile` are accepted aliases of `year`/`phone`. */

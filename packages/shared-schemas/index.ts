@@ -19,6 +19,7 @@ export * from './admissionSchemas.js';
 export * from './staffSchemas.js';
 export * from './marksSchemas.js';
 export * from './examSchemas.js';
+export * from './examResultFileSchemas.js';
 export * from './registrationLookupSchema.js';
 export * from './billingSchemas.js';
 export * from './testimonialSchemas.js';

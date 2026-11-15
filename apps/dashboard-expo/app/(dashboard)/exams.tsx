@@ -191,6 +191,36 @@ export default function ExamsScreen() {
     }
     routineUpload.mutate({ id: e.id, file: f });
   };
+  // Uploaded result PDF per class: students see it instead of individual results (even unpublished).
+  const [resultExam, setResultExam] = useState<Exam | null>(null);
+  const resultFilesQ = useQuery({
+    queryKey: privateQueryKey(resolution.tenantKey, 'exam-result-files', resultExam?.id),
+    queryFn: ({ signal }) => exams.resultFiles(resultExam!.id, signal),
+    enabled: resultExam !== null,
+  });
+  const resultUpload = useAdminMutation({
+    mutationFn: (v: { id: number; cls: number; file: PickedFile }) =>
+      exams.uploadResultFile(v.id, v.cls, v.file),
+    invalidate: [['exam-result-files']],
+    success: 'Result PDF uploaded',
+    failure: 'PDF upload failed',
+  });
+  const resultDelete = useAdminMutation({
+    mutationFn: (v: { id: number; cls: number }) => exams.removeResultFile(v.id, v.cls),
+    invalidate: [['exam-result-files']],
+    success: 'Result PDF removed',
+    failure: 'Could not remove PDF',
+  });
+  const pickResult = (e: Exam, cls: number, files: PickedFile[]) => {
+    const f = files[0];
+    if (!f) return;
+    if (f.type !== 'application/pdf') {
+      toast.error('Result must be a PDF');
+      return;
+    }
+    resultUpload.mutate({ id: e.id, cls, file: f });
+  };
+  const resultBusy = resultUpload.isPending || resultDelete.isPending;
   const routineBusy = (e: Exam) =>
     (routineUpload.isPending && routineUpload.variables?.id === e.id) ||
     (routineDelete.isPending && routineDelete.variables === e.id);
@@ -356,6 +386,21 @@ export default function ExamsScreen() {
         </View>
       ),
     },
+    {
+      key: 'resultPdf',
+      label: 'Result PDF',
+      className: 'w-32',
+      render: (e) => (
+        <Button
+          variant="outline"
+          size="sm"
+          label="Manage"
+          accessibilityLabel={`Manage result PDFs of ${e.exam_name}`}
+          onPress={() => setResultExam(e)}
+          testID={`exam-result-pdf-${e.id}`}
+        />
+      ),
+    },
     { key: 'routine', label: 'Routine PDF', className: 'w-[220px]', render: routineCell },
     { key: 'actions', label: ' ', className: 'w-[120px]', align: 'right', render: actions },
   ];
@@ -512,6 +557,18 @@ export default function ExamsScreen() {
                   </Text>
                   {routineCell(e)}
                 </View>
+                <View className="flex-row items-center justify-between">
+                  <Text size="xs" color="mutedForeground">
+                    Result PDF (replaces individual results)
+                  </Text>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    label="Manage"
+                    accessibilityLabel={`Manage result PDFs of ${e.exam_name}`}
+                    onPress={() => setResultExam(e)}
+                  />
+                </View>
               </View>
             )}
           />
@@ -630,6 +687,52 @@ export default function ExamsScreen() {
             </FieldRow>
           </>
         ) : null}
+      </Dialog>
+
+      <Dialog
+        open={resultExam !== null}
+        onClose={() => (resultBusy ? undefined : setResultExam(null))}
+        title={`Result PDFs · ${resultExam?.exam_name ?? ''}`}
+        testID="exam-result-files"
+        footer={<Button variant="outline" label="Close" onPress={() => setResultExam(null)} />}
+      >
+        <Notice title="Replaces individual results">
+          A class with an uploaded PDF shows that PDF to students instead of individual results,
+          even if the exam is not published.
+        </Notice>
+        {resultExam
+          ? resultExam.levels.map((c) => {
+              const file = resultFilesQ.data?.find((f) => f.class === c);
+              return (
+                <View key={c} className="flex-row items-center gap-2">
+                  <View className="min-w-0 flex-1">
+                    <Text size="sm" weight="medium">{`Class ${c}`}</Text>
+                    <Text size="xs" color="mutedForeground" numberOfLines={1}>
+                      {file ? file.file_name : 'No PDF uploaded'}
+                    </Text>
+                  </View>
+                  {file ? (
+                    <ActionButton
+                      icon={XIcon}
+                      label={`Remove result PDF of class ${c}`}
+                      tone="red"
+                      disabled={resultBusy}
+                      onPress={() => resultDelete.mutate({ id: resultExam.id, cls: c })}
+                    />
+                  ) : null}
+                  <PickFilesButton
+                    accept="application/pdf,.pdf"
+                    variant="outline"
+                    size="sm"
+                    label={resultBusy ? uploadLabel(pct) : file ? 'Replace' : 'Upload'}
+                    disabled={resultBusy}
+                    onPick={(files) => pickResult(resultExam, c, files)}
+                    testID={`exam-result-file-${c}`}
+                  />
+                </View>
+              );
+            })
+          : null}
       </Dialog>
 
       <ConfirmDialog

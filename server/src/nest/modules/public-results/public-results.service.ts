@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { PrismaClient } from '@/generated/prisma/client.js';
+import { getFileBuffer } from '@/config/r2.js';
 import { PRISMA } from '../../common/prisma.module.js';
 import type { PublicResultVerifyDto } from './dto/public-result.dto.js';
 import { signPublicResultToken } from './public-result.guard.js';
@@ -70,18 +71,57 @@ export class PublicResultsService {
     };
   }
 
+  /**
+   * Admin-uploaded result PDF for this student's class in this exam, if any. When it exists it
+   * replaces individual results and works even if the exam is unpublished.
+   */
+  async findUploadedPdf(schoolId: number, studentId: number, year: number, exam: string) {
+    const enrollment = await this.prisma.student_enrollments.findFirst({
+      where: { school_id: schoolId, student_id: studentId, year },
+      select: { class: true },
+    });
+    if (!enrollment) return null;
+    return this.prisma.exam_result_files.findFirst({
+      where: {
+        school_id: schoolId,
+        class: enrollment.class,
+        exam: { school_id: schoolId, exam_name: exam, exam_year: year },
+      },
+      select: { r2_key: true, file_name: true },
+    });
+  }
+
+  /** Bytes of the uploaded result PDF; 404 when the R2 object is gone. */
+  async readUploadedPdf(r2Key: string) {
+    const buffer = await getFileBuffer(r2Key);
+    if (!buffer) throw new NotFoundException('Result file not found');
+    return buffer;
+  }
+
   /** Exam must exist and be published (visible). */
-  async assertPublished(schoolId: number, exam: string) {
+  async isPublished(schoolId: number, exam: string) {
     const row = await this.prisma.exams.findFirst({
       where: { school_id: schoolId, exam_name: exam, visible: true },
       select: { id: true },
     });
-    if (!row) throw new ForbiddenException('The results have not been published yet.');
+    return !!row;
+  }
+
+  async assertPublished(schoolId: number, exam: string) {
+    if (!(await this.isPublished(schoolId, exam))) {
+      throw new ForbiddenException('The results have not been published yet.');
+    }
   }
 
   /** On-screen marks table (papers summed into their main subject) for one published exam. */
   async getExamResult(schoolId: number, studentId: number, year: number, exam: string) {
-    await this.assertPublished(schoolId, exam);
+    // Published: individual marks (+ `hasResultPdf` when a class PDF exists too).
+    // Unpublished: only the uploaded PDF, if any.
+    const uploaded = await this.findUploadedPdf(schoolId, studentId, year, exam);
+    if (!(await this.isPublished(schoolId, exam))) {
+      if (uploaded) return { pdfOnly: true as const, exam_name: exam };
+      await this.assertPublished(schoolId, exam);
+    }
     const marks = await this.prisma.marks.findMany({
       where: {
         school_id: schoolId,
@@ -120,6 +160,7 @@ export class PublicResultsService {
 
     const { enrollment } = marks[0];
     return {
+      hasResultPdf: !!uploaded,
       student: {
         name: enrollment.student.name,
         roll: enrollment.roll,

@@ -61,7 +61,17 @@ export const EXAM_PATHS = {
   routinePresign: '/api/exams/presigned-url',
   routineSave: (id: number) => `/api/exams/uploadRoutinePDF/${id}`,
   routineRemove: (id: number) => `/api/exams/removeRoutinePDF/${id}`,
+  // Nest: uploaded result PDF per exam + class (replaces individual results for students).
+  resultFiles: '/api/exam-result-files',
+  resultFilePresign: '/api/exam-result-files/upload-url',
+  resultFile: (id: number, cls: number) => `/api/exam-result-files/${id}/${cls}`,
 } as const;
+
+/** Classes of an exam that have an uploaded result PDF. */
+export interface ExamResultFile {
+  class: number;
+  file_name: string;
+}
 
 export const EXAM_CLASSES = [6, 7, 8, 9, 10] as const;
 
@@ -172,6 +182,30 @@ export function createExamsApi(client: ApiClient) {
     },
     async removeRoutine(id: number): Promise<void> {
       await client.delete<unknown>(EXAM_PATHS.routineRemove(id));
+    },
+    async resultFiles(examId: number, signal?: AbortSignal): Promise<ExamResultFile[]> {
+      const rows = await client.get(EXAM_PATHS.resultFiles, { query: { examId }, signal });
+      return objArray(rows, EXAM_PATHS.resultFiles).map((r) => ({
+        class: num(r.class),
+        file_name: str(r.file_name),
+      }));
+    },
+    /** Result PDF of one class: presigned PUT, then save the key (replaces an existing one). */
+    async uploadResultFile(
+      examId: number,
+      cls: number,
+      file: PickedFile,
+      fetchImpl?: typeof fetch,
+    ): Promise<void> {
+      if (file.type !== 'application/pdf') throw new Error('Result must be a PDF');
+      const key = await uploadViaPresign(client, EXAM_PATHS.resultFilePresign, file, {}, fetchImpl);
+      await client.put<unknown>(EXAM_PATHS.resultFile(examId, cls), {
+        key,
+        fileName: file.name,
+      });
+    },
+    async removeResultFile(examId: number, cls: number): Promise<void> {
+      await client.delete<unknown>(EXAM_PATHS.resultFile(examId, cls));
     },
   };
 }

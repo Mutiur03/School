@@ -80,6 +80,7 @@ model School {
   sms_settings             sms_settings?
   subscription             school_subscriptions?
   exam_class_stats         exam_class_stats[]
+  exam_result_files        exam_result_files[]
   marksheet_files          marksheet_files[]
   marksheet_bundles        marksheet_bundles[]
   marksheet_sessions       marksheet_sessions[]
@@ -588,6 +589,7 @@ model exams {
   is_year_end  Boolean            @default(false)
   marks        marks[]
   class_stats  exam_class_stats[]
+  result_files exam_result_files[]
   exam_type    exam_types         @relation(fields: [exam_type_id], references: [id])
   school_id    Int                @default(dbgenerated("app.current_school_id()"))
   school       School             @relation(fields: [school_id], references: [id], onDelete: Cascade)
@@ -595,6 +597,23 @@ model exams {
   @@unique([exam_type_id, exam_year, school_id])
   @@index([school_id])
   @@index([exam_year, is_year_end])
+}
+
+// Admin-uploaded result PDF for one exam + class. When present, the public result
+// search serves this file instead of individual results, even if the exam is unpublished.
+model exam_result_files {
+  id         Int      @id @default(autoincrement())
+  exam_id    Int
+  class      Int
+  r2_key     String
+  file_name  String   @db.VarChar(255)
+  created_at DateTime @default(now())
+  exam       exams    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  school_id  Int      @default(dbgenerated("app.current_school_id()"))
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@unique([exam_id, class, school_id], name: "exam_id_class_school")
+  @@index([school_id])
 }
 
 model exam_class_stats {

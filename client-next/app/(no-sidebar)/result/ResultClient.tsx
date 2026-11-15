@@ -34,7 +34,12 @@ interface ResultRow {
   marks: number;
   full_mark: number | null;
 }
+/** `result-pdf` = the PDF the school uploaded; undefined = generated marksheet. */
+type PdfSource = 'result-pdf' | undefined;
+
 interface ExamResult {
+  /** The school also uploaded a result PDF for this class. */
+  hasResultPdf?: boolean;
   student: {
     name: string;
     roll: number;
@@ -126,10 +131,20 @@ export default function ResultClient({
   const [selectedExam, setSelectedExam] = useState<string>('');
 
   const [result, setResult] = useState<ExamResult | null>(null);
+  // School uploaded a result PDF for this exam+class: show only View/Download, no marks table.
+  // Blob URL of the uploaded result PDF, shown inline (set only when no individual result is shown).
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const pdfOnly = pdfUrl !== null;
+  function showPdf(next: string | null) {
+    setPdfUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return next;
+    });
+  }
   const [loadingResult, setLoadingResult] = useState(false);
   const [unpublished, setUnpublished] = useState(false);
-  const [viewing, setViewing] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  // Which button is running ('view' | 'download' + optional '-result-pdf'); only that one spins.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const examsForYear = useMemo<ExamOption[]>(() => {
     if (!session || selectedYear == null) return [];
@@ -207,12 +222,7 @@ export default function ResultClient({
       setSelectedExam(preferred);
       setResult(null);
 
-      const isPublished = preferredMeta?.visible === true;
-      if (!isPublished) {
-        setUnpublished(true);
-        return;
-      }
-      setUnpublished(false);
+      // Always ask the server: an unpublished exam may still have an uploaded result PDF.
       await fetchResult(payload.token, yearNum, preferred);
     } catch (error) {
       toast.error(errMsg(error, 'Could not verify student details'));
@@ -227,9 +237,22 @@ export default function ResultClient({
         params: { year: yearNum, exam },
         headers: { Authorization: `Bearer ${token}` },
       });
-      setResult(data.data as ExamResult);
+      const body = data.data as ExamResult & { pdfOnly?: boolean };
+      if (body.pdfOnly) {
+        const pdf = await axios.get('/api/public-results/marksheet', {
+          params: { year: yearNum, exam, source: 'result-pdf' },
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        });
+        showPdf(URL.createObjectURL(pdf.data as Blob));
+        setResult(null);
+      } else {
+        showPdf(null);
+        setResult(body);
+      }
     } catch (error) {
       setResult(null);
+      showPdf(null);
       if (axios.isAxiosError(error) && error.response?.status === 403) {
         setUnpublished(true);
         return;
@@ -245,21 +268,13 @@ export default function ResultClient({
     setSelectedExam(exam);
     if (!session) return;
 
-    const meta =
-      session.sessions.find((s) => s.year === yearNum)?.exams.find((e) => e.exam_name === exam) ??
-      null;
-    if (meta && meta.visible === false) {
-      setResult(null);
-      setUnpublished(true);
-      return;
-    }
     fetchResult(session.token, yearNum, exam);
   }
 
-  async function getPdf(): Promise<{ blob: Blob; filename: string } | null> {
+  async function getPdf(source?: PdfSource): Promise<{ blob: Blob; filename: string } | null> {
     if (!session || selectedYear == null || !selectedExam) return null;
     const res = await axios.get('/api/public-results/marksheet', {
-      params: { year: selectedYear, exam: selectedExam },
+      params: { year: selectedYear, exam: selectedExam, source },
       headers: authHeader,
       responseType: 'blob',
     });
@@ -269,27 +284,27 @@ export default function ResultClient({
     return { blob: res.data as Blob, filename };
   }
 
-  async function handleView() {
-    setViewing(true);
+  async function handleView(source?: PdfSource) {
+    setBusyKey(source ? `view-${source}` : 'view');
     try {
-      const pdf = await getPdf();
+      const pdf = await getPdf(source);
       if (pdf) openBlobInNewTab(pdf.blob);
     } catch (error) {
       toast.error(errMsg(error, 'Could not open marksheet'));
     } finally {
-      setViewing(false);
+      setBusyKey(null);
     }
   }
 
-  async function handleDownload() {
-    setDownloading(true);
+  async function handleDownload(source?: PdfSource) {
+    setBusyKey(source ? `download-${source}` : 'download');
     try {
-      const pdf = await getPdf();
+      const pdf = await getPdf(source);
       if (pdf) downloadBlob(pdf.blob, pdf.filename);
     } catch (error) {
       toast.error(errMsg(error, 'Could not download marksheet'));
     } finally {
-      setDownloading(false);
+      setBusyKey(null);
     }
   }
 
@@ -299,6 +314,7 @@ export default function ResultClient({
     setSelectedYear(null);
     setSelectedExam('');
     setResult(null);
+    showPdf(null);
     setUnpublished(false);
     reset(DEFAULT_VALUES);
   }
@@ -449,6 +465,32 @@ export default function ResultClient({
   }
 
   // ---- Result screen ----
+  const btn =
+    'inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60';
+  const primaryBtn =
+    'inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60';
+  const busy = busyKey !== null;
+  const icon = (key: string, Idle: typeof Eye) =>
+    busyKey === key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Idle className="h-4 w-4" />;
+  const actionButtons = (
+    <div className="flex flex-wrap justify-center gap-3 border-t border-gray-100 px-5 py-4">
+      <button onClick={() => handleView()} disabled={busy} className={btn}>
+        {icon('view', Eye)}
+        View Marksheet
+      </button>
+      <button onClick={() => handleDownload()} disabled={busy} className={primaryBtn}>
+        {icon('download', Download)}
+        Download Marksheet
+      </button>
+      {result?.hasResultPdf && (
+        <button onClick={() => handleView('result-pdf')} disabled={busy} className={btn}>
+          {icon('view-result-pdf', Eye)}
+          View Result PDF
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 flex items-center justify-between">
@@ -519,7 +561,7 @@ export default function ResultClient({
           <div className="flex items-center justify-center gap-2 py-16 text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin" /> Loading result…
           </div>
-        ) : unpublished || selectedExamMeta?.visible === false ? (
+        ) : unpublished || (selectedExamMeta?.visible === false && !result && !pdfOnly) ? (
           <div
             role="status"
             aria-live="polite"
@@ -542,6 +584,8 @@ export default function ResultClient({
               </p>
             </div>
           </div>
+        ) : pdfOnly ? (
+          <iframe src={pdfUrl ?? undefined} title="Result PDF" className="h-[80vh] w-full" />
         ) : result ? (
           <>
             <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-gray-100 px-5 py-4 text-sm text-gray-600">
@@ -585,32 +629,7 @@ export default function ResultClient({
                 </tfoot>
               </table>
             </div>
-            <div className="flex flex-wrap justify-center gap-3 border-t border-gray-100 px-5 py-4">
-              <button
-                onClick={handleView}
-                disabled={viewing || downloading}
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-              >
-                {viewing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-                View Marksheet
-              </button>
-              <button
-                onClick={handleDownload}
-                disabled={viewing || downloading}
-                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {downloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                Download PDF
-              </button>
-            </div>
+            {actionButtons}
           </>
         ) : (
           <div className="py-16 text-center text-gray-500">No result to display.</div>
