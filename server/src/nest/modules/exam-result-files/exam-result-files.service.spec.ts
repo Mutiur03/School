@@ -19,8 +19,17 @@ const make = () => {
 describe('ExamResultFilesService', () => {
   it('findAll scopes by school and exam', async () => {
     const { db, svc } = make();
-    db.exam_result_files.findMany.mockResolvedValue([]);
-    await svc.findAll(7, 3);
+    db.exam_result_files.findMany.mockResolvedValue([
+      { class: 6, file_name: 'result.pdf', r2_key: '7/result-pdfs/result.pdf', created_at: null },
+    ]);
+    await expect(svc.findAll(7, 3)).resolves.toEqual([
+      {
+        class: 6,
+        file_name: 'result.pdf',
+        key: '7/result-pdfs/result.pdf',
+        created_at: null,
+      },
+    ]);
     expect(db.exam_result_files.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { school_id: 7, exam_id: 3 } }),
     );

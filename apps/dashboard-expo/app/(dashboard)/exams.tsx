@@ -732,7 +732,7 @@ export default function ExamsScreen() {
                           label="View PDF"
                           disabled={resultBusy}
                           onPress={() =>
-                            void openStoredFile(file.download_url).then(
+                            void openStoredFile(file.key).then(
                               (ok) => ok || toast.error('Could not open result PDF.'),
                             )
                           }

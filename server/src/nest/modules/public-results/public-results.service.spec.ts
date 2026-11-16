@@ -116,6 +116,7 @@ describe('getExamResult', () => {
       await expect(service.getExamResult(S, 100, 2026, 'Annual')).resolves.toEqual({
         pdfOnly: true,
         exam_name: 'Annual',
+        resultPdfKey: '7/result-pdfs/a.pdf',
       });
       expect(db.marks.findMany).not.toHaveBeenCalled();
     });
@@ -132,7 +133,10 @@ describe('getExamResult', () => {
       ]);
       const res = await service.getExamResult(S, 100, 2026, 'Annual');
       expect(res).toMatchObject({ total: 80 });
-      expect(res).toHaveProperty('hasResultPdf', true);
+      expect(res).toMatchObject({
+        hasResultPdf: true,
+        resultPdfKey: '7/result-pdfs/a.pdf',
+      });
     });
   });
 

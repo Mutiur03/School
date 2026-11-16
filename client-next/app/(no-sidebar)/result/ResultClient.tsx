@@ -18,6 +18,7 @@ import {
   type PublicResultVerifyInput,
 } from '@school/shared-schemas';
 import type { PublicExamOption } from '@/queries/public-result.queries';
+import { getFileUrl } from '@/lib/cdn';
 
 type ExamOption = PublicExamOption;
 interface SessionOption {
@@ -40,6 +41,7 @@ type PdfSource = 'result-pdf' | undefined;
 interface ExamResult {
   /** The school also uploaded a result PDF for this class. */
   hasResultPdf?: boolean;
+  resultPdfKey?: string;
   student: {
     name: string;
     roll: number;
@@ -239,12 +241,7 @@ export default function ResultClient({
       });
       const body = data.data as ExamResult & { pdfOnly?: boolean };
       if (body.pdfOnly) {
-        const pdf = await axios.get('/api/public-results/marksheet', {
-          params: { year: yearNum, exam, source: 'result-pdf' },
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: 'blob',
-        });
-        showPdf(URL.createObjectURL(pdf.data as Blob));
+        showPdf(getFileUrl(body.resultPdfKey) || null);
         setResult(null);
       } else {
         showPdf(null);
@@ -287,6 +284,10 @@ export default function ResultClient({
   async function handleView(source?: PdfSource) {
     setBusyKey(source ? `view-${source}` : 'view');
     try {
+      if (source === 'result-pdf' && result?.resultPdfKey) {
+        window.open(getFileUrl(result.resultPdfKey), '_blank', 'noopener,noreferrer');
+        return;
+      }
       const pdf = await getPdf(source);
       if (pdf) openBlobInNewTab(pdf.blob);
     } catch (error) {

@@ -119,7 +119,13 @@ export class PublicResultsService {
     // Unpublished: only the uploaded PDF, if any.
     const uploaded = await this.findUploadedPdf(schoolId, studentId, year, exam);
     if (!(await this.isPublished(schoolId, exam))) {
-      if (uploaded) return { pdfOnly: true as const, exam_name: exam };
+      if (uploaded) {
+        return {
+          pdfOnly: true as const,
+          exam_name: exam,
+          resultPdfKey: uploaded.r2_key,
+        };
+      }
       await this.assertPublished(schoolId, exam);
     }
     const marks = await this.prisma.marks.findMany({
@@ -161,6 +167,7 @@ export class PublicResultsService {
     const { enrollment } = marks[0];
     return {
       hasResultPdf: !!uploaded,
+      resultPdfKey: uploaded?.r2_key,
       student: {
         name: enrollment.student.name,
         roll: enrollment.roll,

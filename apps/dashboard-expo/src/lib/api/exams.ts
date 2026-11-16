@@ -71,7 +71,7 @@ export const EXAM_PATHS = {
 export interface ExamResultFile {
   class: number;
   file_name: string;
-  download_url: string;
+  key: string;
 }
 
 export const EXAM_CLASSES = [6, 7, 8, 9, 10] as const;
@@ -189,7 +189,7 @@ export function createExamsApi(client: ApiClient) {
       return objArray(rows, EXAM_PATHS.resultFiles).map((r) => ({
         class: num(r.class),
         file_name: str(r.file_name),
-        download_url: str(r.download_url),
+        key: str(r.key),
       }));
     },
     /** Result PDF of one class: presigned PUT, then save the key (replaces an existing one). */

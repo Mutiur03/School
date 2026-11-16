@@ -276,25 +276,25 @@ pnpm run build:client:core
 
 ## API overview (marks)
 
-| Method  | Path                                                         | Auth                    | Description                 |
-| ------- | ------------------------------------------------------------ | ----------------------- | --------------------------- |
-| `PUT`   | `/api/marks`                                                 | admin, teacher          | Save marks (bulk upsert)    |
-| `GET`   | `/api/marks/roster?class&year[&section]`                     | admin, teacher          | Students for marks entry    |
-| `GET`   | `/api/marks?class&year&exam`                                 | admin, teacher          | Class mark grid             |
-| `GET`   | `/api/marks/students/:studentId?year&exam`                   | admin, teacher, student | One student's exam marks    |
-| `GET`   | `/api/marks/students/:studentId/session?year`                | admin, teacher, student | Session marksheet preview   |
-| `PATCH` | `/api/marks/students/:studentId/fourth-subject`              | admin, teacher          | Set/clear 4th subject       |
-| `PATCH` | `/api/marks/fourth-subjects`                                 | admin                   | Bulk 4th subject (9/10)     |
-| `GET`   | `/api/marksheets/students/:studentId?year&exam`              | admin, teacher, student | Per-student exam PDF        |
-| `GET`   | `/api/marksheets/students/:studentId/session?year`           | admin, teacher, student | Session student PDF         |
-| `GET`   | `/api/marksheets/session?year`                               | admin                   | Session year PDF            |
-| `GET`   | `/api/marksheets/classes/:class/bundle?year&exam[&section]`  | admin, teacher          | Class bundle (`{ url }`)    |
-| `GET`   | `/api/marksheets/classes/:class/summary?year&exam[&section]` | admin, teacher          | Class tabulation PDF        |
-| `GET`   | `/api/marksheets/exams/:examId/status`                       | admin, teacher          | Progress + stale bundles    |
-| `GET`   | `/api/public-results/exams?year&class`                       | public                  | Published exams             |
-| `POST`  | `/api/public-results/verification`                           | public                  | Public result login (token) |
-| `GET`   | `/api/public-results?year&exam`                              | public token            | Published exam result       |
-| `GET`   | `/api/public-results/marksheet?year&exam`                    | public token            | Published exam PDF          |
+| Method  | Path                                                         | Auth                    | Description                                                                                    |
+| ------- | ------------------------------------------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `PUT`   | `/api/marks`                                                 | admin, teacher          | Save marks (bulk upsert)                                                                       |
+| `GET`   | `/api/marks/roster?class&year[&section]`                     | admin, teacher          | Students for marks entry                                                                       |
+| `GET`   | `/api/marks?class&year&exam`                                 | admin, teacher          | Class mark grid                                                                                |
+| `GET`   | `/api/marks/students/:studentId?year&exam`                   | admin, teacher, student | One student's exam marks                                                                       |
+| `GET`   | `/api/marks/students/:studentId/session?year`                | admin, teacher, student | Session marksheet preview                                                                      |
+| `PATCH` | `/api/marks/students/:studentId/fourth-subject`              | admin, teacher          | Set/clear 4th subject                                                                          |
+| `PATCH` | `/api/marks/fourth-subjects`                                 | admin                   | Bulk 4th subject (9/10)                                                                        |
+| `GET`   | `/api/marksheets/students/:studentId?year&exam`              | admin, teacher, student | Per-student exam PDF                                                                           |
+| `GET`   | `/api/marksheets/students/:studentId/session?year`           | admin, teacher, student | Session student PDF                                                                            |
+| `GET`   | `/api/marksheets/session?year`                               | admin                   | Session year PDF                                                                               |
+| `GET`   | `/api/marksheets/classes/:class/bundle?year&exam[&section]`  | admin, teacher          | Class bundle (`{ url }`)                                                                       |
+| `GET`   | `/api/marksheets/classes/:class/summary?year&exam[&section]` | admin, teacher          | Class tabulation PDF                                                                           |
+| `GET`   | `/api/marksheets/exams/:examId/status`                       | admin, teacher          | Progress + stale bundles                                                                       |
+| `GET`   | `/api/public-results/exams?year&class`                       | public                  | Published exams                                                                                |
+| `POST`  | `/api/public-results/verification`                           | public                  | Public result login (token)                                                                    |
+| `GET`   | `/api/public-results?year&exam`                              | public token            | Published exam result                                                                          |
+| `GET`   | `/api/public-results/marksheet?year&exam`                    | public token            | Generated marksheet PDF; uploaded final-result PDFs use their CDN key from the result response |
 
 ---
 
