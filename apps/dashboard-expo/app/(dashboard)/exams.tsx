@@ -74,6 +74,7 @@ import {
   type PickedFile,
 } from '@/lib/api';
 import { examBody } from '@/lib/api/exams';
+import { todayYmd } from '@/features/holidays/model';
 import { MarksheetGenPanel, useMarksheetStatus } from '@/features/results/MarksheetGenPanel';
 import { cn } from '@/lib/utils';
 import { useApi } from '@/session/ApiProvider';
@@ -94,10 +95,11 @@ function StatusCell({ e }: { e: Exam }) {
   );
 }
 
-/** Compact progress with counts: always on published exams, on drafts while a job runs. */
+/** Compact progress with counts: always on published exams or past their result date, on other drafts while a job runs. */
 function ExamGenStatus({ e }: { e: Exam }) {
   const status = useMarksheetStatus(e.id, { idlePoll: false }).data;
-  return e.visible || isQueueActive(status) ? (
+  const live = e.visible || e.result_date < todayYmd();
+  return live || isQueueActive(status) ? (
     <MarksheetGenPanel status={status} compact testID={`exam-gen-${e.id}`} />
   ) : null;
 }
