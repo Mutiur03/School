@@ -193,6 +193,11 @@ export default function ExamsScreen() {
   };
   // Uploaded result PDF per class: students see it instead of individual results (even unpublished).
   const [resultExam, setResultExam] = useState<Exam | null>(null);
+  const [resultRemove, setResultRemove] = useState<{
+    exam: Exam;
+    cls: number;
+    fileName: string;
+  } | null>(null);
   const resultFilesQ = useQuery({
     queryKey: privateQueryKey(resolution.tenantKey, 'exam-result-files', resultExam?.id),
     queryFn: ({ signal }) => exams.resultFiles(resultExam!.id, signal),
@@ -210,6 +215,7 @@ export default function ExamsScreen() {
     invalidate: [['exam-result-files']],
     success: 'Result PDF removed',
     failure: 'Could not remove PDF',
+    onSuccess: () => setResultRemove(null),
   });
   const pickResult = (e: Exam, cls: number, files: PickedFile[]) => {
     const f = files[0];
@@ -704,31 +710,53 @@ export default function ExamsScreen() {
           ? resultExam.levels.map((c) => {
               const file = resultFilesQ.data?.find((f) => f.class === c);
               return (
-                <View key={c} className="flex-row items-center gap-2">
-                  <View className="min-w-0 flex-1">
+                <View
+                  key={c}
+                  className="border-border gap-2 border-b py-2 last:border-b-0 sm:flex-row sm:items-center"
+                >
+                  <View className="min-w-0 sm:flex-1">
                     <Text size="sm" weight="medium">{`Class ${c}`}</Text>
                     <Text size="xs" color="mutedForeground" numberOfLines={1}>
                       {file ? file.file_name : 'No PDF uploaded'}
                     </Text>
                   </View>
-                  {file ? (
-                    <ActionButton
-                      icon={XIcon}
-                      label={`Remove result PDF of class ${c}`}
-                      tone="red"
+                  <View className="flex-row flex-wrap gap-2 sm:ml-auto">
+                    {file ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={ExternalLink}
+                          label="View PDF"
+                          disabled={resultBusy}
+                          onPress={() =>
+                            void openStoredFile(file.download_url).then(
+                              (ok) => ok || toast.error('Could not open result PDF.'),
+                            )
+                          }
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={Trash2}
+                          label="Delete"
+                          disabled={resultBusy}
+                          onPress={() =>
+                            setResultRemove({ exam: resultExam, cls: c, fileName: file.file_name })
+                          }
+                        />
+                      </>
+                    ) : null}
+                    <PickFilesButton
+                      accept="application/pdf,.pdf"
+                      variant="outline"
+                      size="sm"
+                      label={resultBusy ? uploadLabel(pct) : file ? 'Replace' : 'Upload'}
                       disabled={resultBusy}
-                      onPress={() => resultDelete.mutate({ id: resultExam.id, cls: c })}
+                      onPick={(files) => pickResult(resultExam, c, files)}
+                      testID={`exam-result-file-${c}`}
                     />
-                  ) : null}
-                  <PickFilesButton
-                    accept="application/pdf,.pdf"
-                    variant="outline"
-                    size="sm"
-                    label={resultBusy ? uploadLabel(pct) : file ? 'Replace' : 'Upload'}
-                    disabled={resultBusy}
-                    onPick={(files) => pickResult(resultExam, c, files)}
-                    testID={`exam-result-file-${c}`}
-                  />
+                  </View>
                 </View>
               );
             })
@@ -742,6 +770,16 @@ export default function ExamsScreen() {
         onConfirm={() => deleteTarget && remove.mutate(deleteTarget.id)}
         confirmLabel="Delete exam"
         message={`Delete “${deleteTarget?.exam_name ?? 'this exam'}”? Marks and cached marksheets for this exam are removed.`}
+      />
+      <ConfirmDialog
+        open={resultRemove !== null}
+        onClose={() => setResultRemove(null)}
+        busy={resultDelete.isPending}
+        onConfirm={() =>
+          resultRemove && resultDelete.mutate({ id: resultRemove.exam.id, cls: resultRemove.cls })
+        }
+        confirmLabel="Delete result PDF"
+        message={`Delete ${resultRemove?.fileName ?? 'this result PDF'} for Class ${resultRemove?.cls ?? ''} from ${resultRemove?.exam.exam_name ?? 'this exam'}?`}
       />
       <ConfirmDialog
         open={routineRemove !== null}

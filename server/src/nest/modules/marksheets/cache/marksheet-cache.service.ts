@@ -244,8 +244,8 @@ export class MarksheetCacheService {
       where: { id: examId, school_id: schoolId },
       select: { exam_name: true, exam_year: true, result_date: true, visible: true },
     });
-    // Unpublished: nothing to pre-generate; publish queues everything (enqueueForExam).
-    if (!exam?.visible) return;
+    // Unpublished and result date not passed: nothing to pre-generate; publish queues everything.
+    if (!exam || !(exam.visible || isExamFrozen(exam.result_date))) return;
 
     const eligible = await this.studentIdsWithMarksForExam(schoolId, examId, studentIds);
     if (eligible.length === 0) return;
@@ -921,7 +921,7 @@ export class MarksheetCacheService {
       select: { id: true, visible: true, result_date: true },
     });
     if (!yearEnds.some((e) => e.visible || isExamFrozen(e.result_date))) return;
-    for (const exam of yearEnds.filter((e) => e.visible)) {
+    for (const exam of yearEnds.filter((e) => e.visible || isExamFrozen(e.result_date))) {
       await this.invalidateClasses(schoolId, exam.id, classes, year);
     }
     const enrollments = await this.prisma.student_enrollments.findMany({

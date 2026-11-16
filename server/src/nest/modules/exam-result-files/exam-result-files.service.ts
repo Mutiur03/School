@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import type { ExamResultFileData } from '@school/shared-schemas';
 import type { PrismaClient } from '@/generated/prisma/client.js';
-import { getUploadUrl } from '@/config/r2.js';
+import { getDownloadUrl, getUploadUrl } from '@/config/r2.js';
 import { deleteFromR2IfPresent } from '@/utils/r2Key.util.js';
 import { PRISMA } from '../../common/prisma.module.js';
 
@@ -21,12 +21,18 @@ export class ExamResultFilesService {
     return { uploadUrl: await getUploadUrl(key, contentType), key };
   }
 
-  findAll(schoolId: number, examId: number) {
-    return this.prisma.exam_result_files.findMany({
+  async findAll(schoolId: number, examId: number) {
+    const files = await this.prisma.exam_result_files.findMany({
       where: { school_id: schoolId, exam_id: examId },
-      select: { class: true, file_name: true, created_at: true },
+      select: { class: true, file_name: true, r2_key: true, created_at: true },
       orderBy: { class: 'asc' },
     });
+    return Promise.all(
+      files.map(async ({ r2_key, ...file }) => ({
+        ...file,
+        download_url: await getDownloadUrl(r2_key),
+      })),
+    );
   }
 
   /** Create or replace the PDF for (exam, class); the old R2 object is removed on replace. */

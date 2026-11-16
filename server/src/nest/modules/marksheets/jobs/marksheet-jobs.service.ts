@@ -275,13 +275,13 @@ export class MarksheetJobsService {
     return this.ensureQueuedForExam(schoolId, examId);
   }
 
-  /** Marksheets are only pre-generated for published exams; publish queues everything. */
+  /** Marksheets are pre-generated for published exams, or ones whose result date has passed. */
   private async isPublished(schoolId: number, examId: number): Promise<boolean> {
     const exam = await this.prisma.exams.findUnique({
       where: { id: examId, school_id: schoolId },
-      select: { visible: true },
+      select: { visible: true, result_date: true },
     });
-    return !!exam?.visible;
+    return !!exam && (exam.visible || isExamFrozen(exam.result_date));
   }
 
   // ponytail: "active" = pending/generating row touched in the last 10 min (no Bull lookup);
@@ -592,10 +592,10 @@ export class MarksheetJobsService {
   private async ensureQueuedForExam(schoolId: number, examId: number): Promise<number> {
     const exam = await this.prisma.exams.findUnique({
       where: { id: examId, school_id: schoolId },
-      select: { visible: true },
+      select: { visible: true, result_date: true },
     });
-    // Unpublished: nothing to pre-generate; publish queues everything (enqueueForExam).
-    if (!exam?.visible) return 0;
+    // Unpublished and result date not reached: nothing to pre-generate; publish queues everything (enqueueForExam).
+    if (!exam || !(exam.visible || isExamFrozen(exam.result_date))) return 0;
 
     const marks = await this.prisma.marks.findMany({
       where: { school_id: schoolId, exam_id: examId, marks: { not: null } },
