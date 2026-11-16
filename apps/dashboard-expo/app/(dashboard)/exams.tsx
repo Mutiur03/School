@@ -702,9 +702,9 @@ export default function ExamsScreen() {
         testID="exam-result-files"
         footer={<Button variant="outline" label="Close" onPress={() => setResultExam(null)} />}
       >
-        <Notice title="Replaces individual results">
-          A class with an uploaded PDF shows that PDF to students instead of individual results,
-          even if the exam is not published.
+        <Notice title="Visible to students of that class">
+          Students of a class with an uploaded PDF can open it even before the exam is published.
+          Until publish they see only the PDF; after publish they also see their individual results.
         </Notice>
         {resultExam
           ? resultExam.levels.map((c) => {
